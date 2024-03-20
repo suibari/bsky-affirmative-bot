@@ -2,13 +2,19 @@ const { Client } = require('pg');
 
 class PostgreSQL {
   constructor() {
-    this.client = new Client({
-      user: process.env.PG_USERNAME,
-      host: process.env.PG_HOSTNAME || 'localhost',
-      database: process.env.PG_DBNAME,
-      password: process.env.PG_PASSWORD,
-      port: 5432
-    });
+    let clientConfig = {};
+    if (process.env.DATABASE_URL) {
+      clientConfig = {connectionString: process.env.DATABASE_URL};
+    } else {
+      clientConfig = {
+        user: process.env.PG_USERNAME,
+        host: process.env.PG_HOSTNAME || 'localhost',
+        database: process.env.PG_DBNAME,
+        password: process.env.PG_PASSWORD,
+        port: 5432
+      };
+    }
+    this.client = new Client(clientConfig);
     this.client.connect();
     return this;
   }
