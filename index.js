@@ -30,7 +30,7 @@ async function doFollowAndGreetIfFollowed() {
         
         const response = await agent.getAuthorFeed({actor: did, filter: 'posts_no_replies'});
         const latestFeed = agent.getLatestFeedWithoutMentionAndSpam(notification.author, response.data.feed);
-        if (latestFeed.post) {
+        if (latestFeed) {
           await agent.replyGreets(latestFeed.post);
         }
 
@@ -66,7 +66,7 @@ async function doPostAffirmation() {
     const response = await agent.getAuthorFeed({actor: did, filter: 'posts_no_replies'});
     const feeds = response.data.feed;
     const latestFeed = agent.getLatestFeedWithoutMentionAndSpam(follower, feeds);
-    if (latestFeed){
+    if (latestFeed) {
       const postedAt = new Date(latestFeed.post.indexedAt);
       const updatedAt = await db.selectDb(did);
       if ((postedAt > updatedAt) || (!updatedAt)) {
