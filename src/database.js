@@ -75,15 +75,15 @@ class PostgreSQL {
 
   async insertOrUpdateDb(id) {
     const query = {
-      text: 'INSERT INTO followers'+
-            'VALUES ($1)'+
-            'ON CONFLICT (did) DO UPDATE'+
-            'SET did = $1;',
+      text: 'INSERT INTO followers (did) '+
+            'VALUES ($1) '+
+            'ON CONFLICT (did) DO UPDATE '+
+            'SET updated_at = CURRENT_TIMESTAMP WHERE followers.did = $1;',
       values: [id]
     };
     await this.client.query(query)
     .then(res => {
-      console.log(res);
+      // console.log(res);
     })
     .catch(e => {
       console.error(e);

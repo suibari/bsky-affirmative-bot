@@ -1,5 +1,6 @@
 const MyBlueskyer = require('./src/bluesky');
 const PostgreSQL = require('./src/database');
+const { TimeLogger, ExecutionLogger } = require('./src/logger');
 const agent = new MyBlueskyer();
 const db = new PostgreSQL();
 (async () => {
@@ -13,6 +14,9 @@ const db = new PostgreSQL();
 //     * その人をフォローバック
 //     * その人にあいさつポスト
 async function doFollowAndGreetIfFollowed() {
+  const timer = new TimeLogger();
+  timer.tic();
+
   await agent.createOrRefleshSession();
   const notifications = await agent.listUnreadNotifications();
   for (let notification of notifications) {
@@ -33,7 +37,8 @@ async function doFollowAndGreetIfFollowed() {
     };
   };
   // db.closeDb();
-  console.log("[INFO] finish follow check.")
+  const elapsedTime = timer.tac();
+  console.log(`[INFO] finish follow check, elapsed time is ${elapsedTime} [sec].`);
 }
 setInterval(doFollowAndGreetIfFollowed, 10 * 60 * 1000); // 10 minutes
 // doFollowAndGreetIfFollowed();
@@ -46,6 +51,9 @@ setInterval(doFollowAndGreetIfFollowed, 10 * 60 * 1000); // 10 minutes
 //       - 全肯定をリプライ
 //       - DBの反応時間を更新
 async function doPostAffirmation() {
+  const timer = new TimeLogger();
+  timer.tic();
+
   await agent.createOrRefleshSession();
   const followers = await agent.getConcatFollowers(process.env.BSKY_IDENTIFIER);
   for (let follower of followers) {
@@ -67,6 +75,8 @@ async function doPostAffirmation() {
     }
   }
   // db.closeDb();
+  const elapsedTime = timer.tac();
+  console.log(`[INFO] finish post loop, elapsed time is ${elapsedTime} [sec].`);
 }
 setInterval(doPostAffirmation, 30 * 60 * 1000); // 30 minutes
 // doPostAffirmation();
