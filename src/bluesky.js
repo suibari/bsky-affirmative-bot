@@ -62,10 +62,18 @@ class MyBlueskyer extends Blueskyer {
 
   isSpam(post) {
     const labelArray = ["spam"];
-
-    const labels = post.label;
-    if (labels) {
-      for (const label of labels) {
+    
+    const authorLabels = post.author.labels;
+    if (authorLabels) {
+      for (const label of authorLabels) {
+        if (labelArray.some(elem => elem === label.val)) {
+          return true;
+        };
+      };
+    };
+    const postLabels = post.labels;
+    if (postLabels) {
+      for (const label of postLabels) {
         if (labelArray.some(elem => elem === label.val)) {
           return true;
         };
