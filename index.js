@@ -2,7 +2,9 @@ const MyBlueskyer = require('./src/bluesky');
 const PostgreSQL = require('./src/database');
 const agent = new MyBlueskyer();
 const db = new PostgreSQL();
-(async () => {await agent.createOrRefleshSession()})();
+(async () => {
+  await db.createDbIfNotExist();
+})();
 
 // 定期実行タスク1
 // * フォロー通知があったら以下を行う
@@ -15,19 +17,26 @@ async function doFollowAndGreetIfFollowed() {
   const notifications = await agent.listUnreadNotifications();
   for (let notification of notifications) {
     if (notification.reason == 'follow') {
-      console.log(`[INFO] detect new follower: ${notification.author.did} !!`);
       const did = notification.author.did;
-      await agent.follow(did);
-      await agent.postGreets(notification.author);
-      await agent.updateSeenNotifications(new Date().toISOString());
-
-      db.createDbIfNotExist();
-      db.insertDb(did);
+      const isExist = await db.selectDb(did);
+      if (!isExist) {
+        console.log(`[INFO] detect new follower: ${did} !!`);
+        await agent.follow(did);
+        
+        const response = await agent.getAuthorFeed({actor: did});
+        const latestFeed = agent.getLatestFeedWithoutMention(notification.author, response.data.feed);
+        await agent.replyGreets(latestFeed.post);
+        await agent.updateSeenNotifications(new Date().toISOString());
+  
+        await db.insertDb(did);
+      };
     };
   };
   // db.closeDb();
+  console.log("[INFO] finish follow check.")
 }
-setInterval(doFollowAndGreetIfFollowed, 10 * 1000);
+setInterval(doFollowAndGreetIfFollowed, 10 * 60 * 1000); // 10 minutes
+// doFollowAndGreetIfFollowed();
 
 // 定期実行タスク2
 // * 現在のフォロワー全員を取得
@@ -42,16 +51,16 @@ async function doPostAffirmation() {
   for (let follower of followers) {
     const did = follower.did;
     const response = await agent.getAuthorFeed({actor: did});
-    const feed = response.data.feed;
-    if (feed.length > 0){
-      const postedAt = new Date(feed[0].post.indexedAt);
+    const feeds = response.data.feed;
+    const latestFeed = agent.getLatestFeedWithoutMention(follower, feeds);
+    if (latestFeed){
+      const postedAt = new Date(latestFeed.post.indexedAt);
       const updatedAt = await db.selectDb(did);
       if ((postedAt > updatedAt) || (!updatedAt)) {
-        if (!agent.isMention(feed[0].post)) {
-          console.log(`[INFO] detect new post: ${did} !!`);
-          agent.replyAffermativeWord(feed[0].post);
-          db.updateDb(did);
-        }
+        console.log(`[INFO] detect new post: ${did} !!`);
+        agent.replyAffermativeWord(latestFeed.post);
+
+        db.insertOrUpdateDb(did);
       } else {
         console.log(`[INFO] not detect new post: ${did}.`);
       }
@@ -59,4 +68,16 @@ async function doPostAffirmation() {
   }
   // db.closeDb();
 }
-setInterval(doPostAffirmation, 60 * 1000);
+setInterval(doPostAffirmation, 30 * 60 * 1000); // 30 minutes
+// doPostAffirmation();
+
+// アプリケーションの終了時にデータベース接続を閉じる
+process.on('exit', async () => {
+  await db.closeDb();
+});
+
+// Ctrl+Cなどでアプリケーションを終了する場合もデータベース接続を閉じる
+process.on('SIGINT', async () => {
+  await db.closeDb();
+  process.exit();
+});

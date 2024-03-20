@@ -3,31 +3,25 @@ const { getHalfLength , getRandomWord }  = require('./util');
 const service = 'https://bsky.social';
 
 class MyBlueskyer extends Blueskyer {
-  async postGreets(user) {
-    const text = "@"+user.handle+"\n"+
-                 "こんにちは！\n"+
+  async replyGreets(replyPost) {
+    const text = "こんにちは！\n"+
                  "全肯定botたんです！\n"+
-                 "あなたのポストに全肯定でリプライするよ！\n"+
+                 "これから"+replyPost.author.displayName+"さんのポストに時々全肯定でリプライするよ！\n"+
                  "すぐには反応できないかもだけど許してね～。\n"+
                  "これからもよろしくね！";
 
-    const text_firstblock = text.split('\n');
     const record = {
       text: text,
-      facets: [{
-        index: {
-          byteStart: 0,
-          byteEnd: getHalfLength(text_firstblock)
+      reply: {
+        root: {
+          uri: replyPost.uri,
+          cid: replyPost.cid
         },
-        features: [{
-          $type: 'app.bsky.richtext.facet#link',
-          uri: 'https://bsky.app/profile/'+user.handle
-        },
-        {
-          $type: 'app.bsky.richtext.facet#mention',
-          did: user.did
-        }]
-      }]
+        parent: {
+          uri: replyPost.uri,
+          cid: replyPost.cid
+        }
+      }
     };
 
     await this.post(record);
@@ -53,6 +47,16 @@ class MyBlueskyer extends Blueskyer {
     };
 
     await this.post(record);
+    return;
+  }
+
+  getLatestFeedWithoutMention(author, feeds) {
+    for (const feed of feeds) {
+      if ((author.did == feed.post.author.did) && (!this.isMention(feed.post))) {
+        return feed;
+      };
+    };
+    // feed0件または全てリポスト
     return;
   }
 }

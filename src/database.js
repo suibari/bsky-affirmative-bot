@@ -24,7 +24,7 @@ class PostgreSQL {
     };
     await this.client.query(query)
     .then(res => {
-      console.log(res);
+      // console.log(res);
     })
     .catch(e => {
       console.error(e);
@@ -38,7 +38,7 @@ class PostgreSQL {
     };
     await this.client.query(query)
     .then(res => {
-      console.log(res);
+      // console.log(res);
     })
     .catch(e => {
       console.error(e);
@@ -52,7 +52,7 @@ class PostgreSQL {
     };
     await this.client.query(query)
     .then(res => {
-      console.log(res);
+      // console.log(res);
     })
     .catch(e => {
       console.error(e);
@@ -66,11 +66,28 @@ class PostgreSQL {
     };
     try {
       const res = await this.client.query(query);
-      return res.rows[0].updated_at;
+      return res.rows[0]?.updated_at;
     } catch(e) {
       console.error(e);
       throw e;
     }
+  }
+
+  async insertOrUpdateDb(id) {
+    const query = {
+      text: 'INSERT INTO followers'+
+            'VALUES ($1)'+
+            'ON CONFLICT (did) DO UPDATE'+
+            'SET did = $1;',
+      values: [id]
+    };
+    await this.client.query(query)
+    .then(res => {
+      console.log(res);
+    })
+    .catch(e => {
+      console.error(e);
+    });
   }
 
   async closeDb() {
