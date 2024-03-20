@@ -50,14 +50,28 @@ class MyBlueskyer extends Blueskyer {
     return;
   }
 
-  getLatestFeedWithoutMention(author, feeds) {
+  getLatestFeedWithoutMentionAndSpam(author, feeds) {
     for (const feed of feeds) {
-      if ((author.did == feed.post.author.did) && (!this.isMention(feed.post))) {
+      if ((author.did == feed.post.author.did) && (!this.isMention(feed.post)) && (!this.isSpam(feed.post))) {
         return feed;
       };
     };
     // feed0件または全てリポスト
     return;
+  }
+
+  isSpam(post) {
+    const labelArray = ["spam"];
+
+    const labels = post.label;
+    if (labels) {
+      for (const label of labels) {
+        if (labelArray.some(elem => elem === label.val)) {
+          return true;
+        };
+      };
+    };
+    return false;
   }
 }
 

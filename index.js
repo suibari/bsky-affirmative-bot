@@ -1,6 +1,6 @@
 const MyBlueskyer = require('./src/bluesky');
 const PostgreSQL = require('./src/database');
-const { TimeLogger, ExecutionLogger } = require('./src/logger');
+const { TimeLogger, PointLogger } = require('./src/logger');
 const agent = new MyBlueskyer();
 const db = new PostgreSQL();
 (async () => {
@@ -29,7 +29,7 @@ async function doFollowAndGreetIfFollowed() {
         await agent.follow(did);
         
         const response = await agent.getAuthorFeed({actor: did, filter: 'posts_no_replies'});
-        const latestFeed = agent.getLatestFeedWithoutMention(notification.author, response.data.feed);
+        const latestFeed = agent.getLatestFeedWithoutMentionAndSpam(notification.author, response.data.feed);
         if (latestFeed.post) {
           await agent.replyGreets(latestFeed.post);
         }
@@ -44,7 +44,7 @@ async function doFollowAndGreetIfFollowed() {
   const elapsedTime = timer.tac();
   console.log(`[INFO] finish follow check, elapsed time is ${elapsedTime} [sec].`);
 }
-setInterval(doFollowAndGreetIfFollowed, 10 * 60 * 1000); // 10 minutes
+setInterval(doFollowAndGreetIfFollowed, 5 * 60 * 1000); // 5 minutes
 // doFollowAndGreetIfFollowed();
 
 // 定期実行タスク2
@@ -65,7 +65,7 @@ async function doPostAffirmation() {
     const did = follower.did;
     const response = await agent.getAuthorFeed({actor: did, filter: 'posts_no_replies'});
     const feeds = response.data.feed;
-    const latestFeed = agent.getLatestFeedWithoutMention(follower, feeds);
+    const latestFeed = agent.getLatestFeedWithoutMentionAndSpam(follower, feeds);
     if (latestFeed){
       const postedAt = new Date(latestFeed.post.indexedAt);
       const updatedAt = await db.selectDb(did);
@@ -83,7 +83,7 @@ async function doPostAffirmation() {
   const elapsedTime = timer.tac();
   console.log(`[INFO] finish post loop, elapsed time is ${elapsedTime} [sec].`);
 }
-setInterval(doPostAffirmation, 30 * 60 * 1000); // 30 minutes
+setInterval(doPostAffirmation, 20 * 60 * 1000); // 20 minutes
 // doPostAffirmation();
 
 // アプリケーションの終了時にデータベース接続を閉じる

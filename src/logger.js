@@ -32,7 +32,22 @@ class ExecutionLogger {
   }
 }
 
+class PointLogger {
+  constructor() {
+    this.point = 0;
+  }
+
+  addPoint() {
+    this.point += 3;
+  }
+
+  getPoint() {
+    return this.point;
+  }
+}
+
 module.exports = {
   TimeLogger,
-  ExecutionLogger
+  ExecutionLogger,
+  PointLogger
 };
