@@ -27,7 +27,7 @@ async function doFollowAndGreetIfFollowed() {
         console.log(`[INFO] detect new follower: ${did} !!`);
         await agent.follow(did);
         
-        const response = await agent.getAuthorFeed({actor: did});
+        const response = await agent.getAuthorFeed({actor: did, filter: 'posts_no_replies'});
         const latestFeed = agent.getLatestFeedWithoutMention(notification.author, response.data.feed);
         await agent.replyGreets(latestFeed.post);
         await agent.updateSeenNotifications(new Date().toISOString());
@@ -55,10 +55,10 @@ async function doPostAffirmation() {
   timer.tic();
 
   await agent.createOrRefleshSession();
-  const followers = await agent.getConcatFollowers(process.env.BSKY_IDENTIFIER);
+  const followers = await agent.getConcatFollowers(process.env.BSKY_IDENTIFIER, Infinity);
   for (let follower of followers) {
     const did = follower.did;
-    const response = await agent.getAuthorFeed({actor: did});
+    const response = await agent.getAuthorFeed({actor: did, filter: 'posts_no_replies'});
     const feeds = response.data.feed;
     const latestFeed = agent.getLatestFeedWithoutMention(follower, feeds);
     if (latestFeed){

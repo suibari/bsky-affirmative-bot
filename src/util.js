@@ -21,7 +21,7 @@ function getRandomWord() {
   const wordArray = data.toString().split('\n');
   
   let rand = Math.random();
-  rand = Math.floor(rand*wordArray.length)+1;
+  rand = Math.floor(rand*wordArray.length);
   const text = wordArray[rand];
   return text;
 }
