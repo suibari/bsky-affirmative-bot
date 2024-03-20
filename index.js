@@ -14,6 +14,7 @@ const db = new PostgreSQL();
 //     * その人をフォローバック
 //     * その人にあいさつポスト
 async function doFollowAndGreetIfFollowed() {
+  console.log(`[INFO] start follow check.`);
   const timer = new TimeLogger();
   timer.tic();
 
@@ -29,13 +30,16 @@ async function doFollowAndGreetIfFollowed() {
         
         const response = await agent.getAuthorFeed({actor: did, filter: 'posts_no_replies'});
         const latestFeed = agent.getLatestFeedWithoutMention(notification.author, response.data.feed);
-        await agent.replyGreets(latestFeed.post);
-        await agent.updateSeenNotifications(new Date().toISOString());
-  
+        if (latestFeed.post) {
+          await agent.replyGreets(latestFeed.post);
+        }
+
         await db.insertDb(did);
       };
     };
   };
+  await agent.updateSeenNotifications(new Date().toISOString());
+
   // db.closeDb();
   const elapsedTime = timer.tac();
   console.log(`[INFO] finish follow check, elapsed time is ${elapsedTime} [sec].`);
@@ -51,6 +55,7 @@ setInterval(doFollowAndGreetIfFollowed, 10 * 60 * 1000); // 10 minutes
 //       - 全肯定をリプライ
 //       - DBの反応時間を更新
 async function doPostAffirmation() {
+  console.log(`[INFO] start post loop.`);
   const timer = new TimeLogger();
   timer.tic();
 
