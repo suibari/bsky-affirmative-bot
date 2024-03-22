@@ -1,5 +1,5 @@
 const { Blueskyer } = require('blueskyer');
-const { getHalfLength , getRandomWord }  = require('./util');
+const { getHalfLength , getRandomWordByNegaposi }  = require('./util');
 const service = 'https://bsky.social';
 
 class MyBlueskyer extends Blueskyer {
@@ -29,7 +29,7 @@ class MyBlueskyer extends Blueskyer {
   }
 
   async replyAffermativeWord(replyPost) {
-    let text = getRandomWord();
+    let text = await getRandomWordByNegaposi(replyPost.record.text);
     text = text.replace("${name}", replyPost.author.displayName);
 
     const record = {

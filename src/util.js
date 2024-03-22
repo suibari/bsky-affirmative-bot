@@ -1,5 +1,7 @@
 const fs = require('fs');
-const path = './src/affirmativeword.csv';
+const pathNeg = './src/csv/affirmativeword_negative.csv';
+const pathNrm = './src/csv/affirmativeword_normal.csv';
+const pathPos = './src/csv/affirmativeword_positive.csv';
 
 function getHalfLength(str) {
   let len = 0;
@@ -16,7 +18,34 @@ function getHalfLength(str) {
   return len;
 }
 
-function getRandomWord() {
+async function getRandomWordByNegaposi(posttext) {
+  let path;
+  let sentiment;
+
+  const response = await fetch(process.env.NEGAPOSI_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({text: posttext})
+  });
+
+  // レスポンスが正常であればsentimentを取得
+  if (response.ok) {
+    const json = await response.json();
+    sentiment = json.sentiment;
+  } else {
+    throw new Error('Failed to fetch sentiment from NEGPOSI_URL');
+  }
+
+  if (sentiment <= -0.2) {
+    path = pathNeg;
+  } else if (sentiment <= 0.2) {
+    path = pathNrm;
+  } else {
+    path = pathPos;
+  };
+
   const data = fs.readFileSync(path);
   const wordArray = data.toString().split('\n');
   
@@ -27,4 +56,4 @@ function getRandomWord() {
 }
 
 module.exports.getHalfLength = getHalfLength;
-module.exports.getRandomWord = getRandomWord;
+module.exports.getRandomWordByNegaposi = getRandomWordByNegaposi;

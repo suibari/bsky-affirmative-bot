@@ -77,7 +77,7 @@ async function doPostAffirmation() {
         const updatedAt = await db.selectDb(did);
         if ((postedAt > updatedAt) || (!updatedAt)) {
           console.log(`[INFO] detect new post: ${did} !!`);
-          agent.replyAffermativeWord(latestFeed.post);
+          await agent.replyAffermativeWord(latestFeed.post);
 
           db.insertOrUpdateDb(did);
         } else {
