@@ -52,7 +52,7 @@ async function doFollowAndGreetIfFollowed() {
     console.error(e);
   }
 }
-setInterval(doFollowAndGreetIfFollowed, 5 * 60 * 1000); // 5 minutes
+setInterval(doFollowAndGreetIfFollowed, 2 * 60 * 1000); // 2 minutes
 // doFollowAndGreetIfFollowed();
 
 // 定期実行タスク2
@@ -97,7 +97,7 @@ async function doPostAffirmation() {
     console.error(e);
   }
 }
-setInterval(doPostAffirmation, 20 * 60 * 1000); // 20 minutes
+setInterval(doPostAffirmation, 5 * 60 * 1000); // 5 minutes
 // doPostAffirmation();
 
 // 1時間おきにRate Limit Pointを出力
