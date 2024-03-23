@@ -1,6 +1,7 @@
 const MyBlueskyer = require('./src/bluesky');
 const PostgreSQL = require('./src/database');
 const { TimeLogger, PointLogger } = require('./src/logger');
+const point = new PointLogger();
 const agent = new MyBlueskyer();
 const db = new PostgreSQL();
 (async () => {
@@ -28,11 +29,13 @@ async function doFollowAndGreetIfFollowed() {
         if (!isExist) {
           console.log(`[INFO] detect new follower: ${did} !!`);
           await agent.follow(did);
+          point.addCreate();
           
           const response = await agent.getAuthorFeed({actor: did, filter: 'posts_no_replies'});
           const latestFeed = agent.getLatestFeedWithoutMentionAndSpam(notification.author, response.data.feed);
           if (latestFeed) {
             await agent.replyGreets(latestFeed.post);
+            point.addCreate();
           }
 
           await db.insertDb(did);
@@ -78,10 +81,11 @@ async function doPostAffirmation() {
         if ((postedAt > updatedAt) || (!updatedAt)) {
           console.log(`[INFO] detect new post: ${did} !!`);
           await agent.replyAffermativeWord(latestFeed.post);
+          point.addCreate();
 
           db.insertOrUpdateDb(did);
         } else {
-          console.log(`[INFO] not detect new post: ${did}.`);
+          // console.log(`[INFO] not detect new post: ${did}.`);
         }
       }
     }
@@ -95,6 +99,13 @@ async function doPostAffirmation() {
 }
 setInterval(doPostAffirmation, 20 * 60 * 1000); // 20 minutes
 // doPostAffirmation();
+
+// 1時間おきにRate Limit Pointを出力
+setInterval(() => {
+  const currentPoint = point.getPoint();
+  console.log(`[INFO] rate limit point is ${currentPoint} on this hour.`);
+  point.initPoint();
+}, 60 * 60 * 1000); // 1 hour
 
 // アプリケーションの終了時にデータベース接続を閉じる
 process.on('exit', async () => {

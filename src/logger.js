@@ -37,7 +37,11 @@ class PointLogger {
     this.point = 0;
   }
 
-  addPoint() {
+  initPoint() {
+    this.point = 0;
+  }
+
+  addCreate() {
     this.point += 3;
   }
 
