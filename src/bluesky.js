@@ -30,6 +30,7 @@ class MyBlueskyer extends Blueskyer {
 
   async replyAffermativeWord(replyPost) {
     let text = await getRandomWordByNegaposi(replyPost.record.text);
+    // let text = replyPost.record.text;
     text = text.replace("${name}", replyPost.author.displayName);
 
     const record = {
@@ -50,9 +51,9 @@ class MyBlueskyer extends Blueskyer {
     return;
   }
 
-  getLatestFeedWithoutMentionAndSpam(author, feeds) {
+  getLatestFeedWithoutConditions(author, feeds) {
     for (const feed of feeds) {
-      if ((author.did == feed.post.author.did) && (!this.isMention(feed.post)) && (!this.isSpam(feed.post))) {
+      if ((author.did == feed.post.author.did) && !this.isMention(feed.post) && !this.isSpam(feed.post) && !this.isRepost(feed)) {
         return feed;
       };
     };
@@ -78,6 +79,13 @@ class MyBlueskyer extends Blueskyer {
           return true;
         };
       };
+    };
+    return false;
+  }
+
+  isRepost(feed) {
+    if (feed.reason?.$type === "app.bsky.feed.defs#reasonRepost") {
+      return true;
     };
     return false;
   }

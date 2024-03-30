@@ -74,7 +74,7 @@ async function doPostAffirmation() {
       const did = follower.did;
       const response = await agent.getAuthorFeed({actor: did, filter: 'posts_no_replies'});
       const feeds = response.data.feed;
-      const latestFeed = agent.getLatestFeedWithoutMentionAndSpam(follower, feeds);
+      const latestFeed = agent.getLatestFeedWithoutConditions(follower, feeds);
       if (latestFeed) {
         const postedAt = new Date(latestFeed.post.indexedAt);
         const updatedAt = await db.selectDb(did);
