@@ -32,7 +32,7 @@ async function doFollowAndGreetIfFollowed() {
           point.addCreate();
           
           const response = await agent.getAuthorFeed({actor: did, filter: 'posts_no_replies'});
-          const latestFeed = agent.getLatestFeedWithoutMentionAndSpam(notification.author, response.data.feed);
+          const latestFeed = agent.getLatestFeedWithoutConditions(notification.author, response.data.feed);
           if (latestFeed) {
             await agent.replyGreets(latestFeed.post);
             point.addCreate();
