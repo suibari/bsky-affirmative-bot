@@ -1,7 +1,9 @@
 {
   "dependencies": {
     "blueskyer": "^1.2.4",
-    "pg": "^8.11.3"
+    "dotenv": "^16.4.5",
+    "node-fetch": "^2.7.0",
+    "sqlite3": "^5.0.0"
   },
   "name": "bsky_affirmative_bot",
   "version": "1.0.0",

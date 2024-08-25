@@ -1,115 +1,99 @@
-const { Client } = require('pg');
+const sqlite3 = require('sqlite3').verbose();
 
-class PostgreSQL {
+class SQLite3 {
   constructor() {
-    let clientConfig = {};
-    if (process.env.DATABASE_URL) {
-      clientConfig = {connectionString: process.env.DATABASE_URL};
-    } else {
-      clientConfig = {
-        user: process.env.PG_USERNAME,
-        host: process.env.PG_HOSTNAME || 'localhost',
-        database: process.env.PG_DBNAME,
-        password: process.env.PG_PASSWORD,
-        port: 5432
-      };
-    }
-    this.client = new Client(clientConfig);
-    this.client.connect();
+    const dbFile = process.env.SQLITE_DB_FILE || ':memory:'; // Use in-memory DB if no file is specified
+    this.db = new sqlite3.Database(dbFile, (err) => {
+      if (err) {
+        console.error('Could not connect to database', err);
+      } else {
+        console.log('Connected to SQLite database');
+      }
+    });
     return this;
   }
 
-  async createDbIfNotExist() {
-    const query = {
-      text: 'CREATE TABLE IF NOT EXISTS followers ('+
-              'did VARCHAR(255),'+
-              'created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,'+
-              'updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,'+
-              'PRIMARY KEY (did)'+
-            ');'
-    };
-    await this.client.query(query)
-    .then(res => {
-      // console.log(res);
-    })
-    .catch(e => {
-      console.error(e);
+  createDbIfNotExist() {
+    const query = `
+      CREATE TABLE IF NOT EXISTS followers (
+        did TEXT PRIMARY KEY,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `;
+    this.db.run(query, (err) => {
+      if (err) {
+        console.error('Error creating table', err);
+      }
     });
   }
 
-  async insertDb(id) {
-    const query = {
-      text: 'INSERT INTO followers VALUES ($1);',
-      values: [id]
-    };
-    await this.client.query(query)
-    .then(res => {
-      // console.log(res);
-    })
-    .catch(e => {
-      console.error(e);
+  insertDb(id) {
+    const query = `INSERT INTO followers (did) VALUES (?);`;
+    this.db.run(query, [id], (err) => {
+      if (err) {
+        console.error('Error inserting data', err);
+      }
     });
   }
 
-  async updateDb(id) {
-    const query = {
-      text: 'UPDATE followers SET updated_at = CURRENT_TIMESTAMP WHERE did = $1;',
-      values: [id]
-    };
-    await this.client.query(query)
-    .then(res => {
-      // console.log(res);
-    })
-    .catch(e => {
-      console.error(e);
+  updateDb(id) {
+    const query = `UPDATE followers SET updated_at = CURRENT_TIMESTAMP WHERE did = ?;`;
+    this.db.run(query, [id], (err) => {
+      if (err) {
+        console.error('Error updating data', err);
+      }
     });
   }
 
-  async selectDb(id) {
-    const query = {
-      text: 'SELECT updated_at FROM followers WHERE did = $1;',
-      values: [id]
-    };
-    try {
-      const res = await this.client.query(query);
-      return res.rows[0]?.updated_at;
-    } catch(e) {
-      console.error(e);
-      throw e;
-    }
-  }
-
-  async insertOrUpdateDb(id) {
-    const query = {
-      text: 'INSERT INTO followers (did) '+
-            'VALUES ($1) '+
-            'ON CONFLICT (did) DO UPDATE '+
-            'SET updated_at = CURRENT_TIMESTAMP WHERE followers.did = $1;',
-      values: [id]
-    };
-    await this.client.query(query)
-    .then(res => {
-      // console.log(res);
-    })
-    .catch(e => {
-      console.error(e);
+  selectDb(id) {
+    return new Promise((resolve, reject) => {
+      const query = `SELECT updated_at FROM followers WHERE did = ?;`;
+      this.db.get(query, [id], (err, row) => {
+        if (err) {
+          console.error('Error selecting data', err);
+          reject(err);
+        } else {
+          resolve(row ? row.updated_at : null);
+        }
+      });
     });
   }
 
-  async closeDb() {
-    await this.client.end();
+  insertOrUpdateDb(id) {
+    const query = `
+      INSERT INTO followers (did)
+      VALUES (?)
+      ON CONFLICT(did) DO UPDATE
+      SET updated_at = CURRENT_TIMESTAMP;
+    `;
+    this.db.run(query, [id], (err) => {
+      if (err) {
+        console.error('Error inserting or updating data', err);
+      }
+    });
+  }
+
+  closeDb() {
+    this.db.close((err) => {
+      if (err) {
+        console.error('Error closing the database', err);
+      } else {
+        console.log('Database connection closed');
+      }
+    });
   }
 }
 
-module.exports = PostgreSQL;
+module.exports = SQLite3;
 
 // async function testDb() {
-//   const db = new PostgreSQL();
-//   await db.createDbIfNotExist();
-//   // await db.insertDb('hoge');
-//   // await db.updateDb('hoge');
+//   const db = new SQLite3();
+//   db.createDbIfNotExist();
+//   // db.insertDb('hoge');
+//   // db.updateDb('hoge');
 //   const updated_at = await db.selectDb('hoge');
 //   console.log(updated_at);
-//   await db.closeDb();
+//   db.closeDb();
 // }
 // testDb();

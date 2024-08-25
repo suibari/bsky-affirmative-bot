@@ -1,12 +1,14 @@
+require('dotenv').config();
 const MyBlueskyer = require('./src/bluesky');
-const PostgreSQL = require('./src/database');
+const SQLite3 = require('./src/database');
 const { TimeLogger, PointLogger } = require('./src/logger');
 const point = new PointLogger();
 const agent = new MyBlueskyer();
-const db = new PostgreSQL();
+const db = new SQLite3();
 (async () => {
   await db.createDbIfNotExist();
 })();
+global.fetch = require('node-fetch'); // for less than node-v17
 
 // 定期実行タスク1
 // * フォロー通知があったら以下を行う
@@ -20,7 +22,7 @@ async function doFollowAndGreetIfFollowed() {
     const timer = new TimeLogger();
     timer.tic();
 
-    await agent.createOrRefleshSession();
+    await agent.createOrRefleshSession(process.env.BSKY_IDENTIFIER, process.env.BSKY_APP_PASSWORD);
     const notifications = await agent.listUnreadNotifications();
     for (let notification of notifications) {
       if (notification.reason == 'follow') {
@@ -52,7 +54,7 @@ async function doFollowAndGreetIfFollowed() {
     console.error(e);
   }
 }
-setInterval(doFollowAndGreetIfFollowed, 2 * 60 * 1000); // 2 minutes
+setInterval(doFollowAndGreetIfFollowed, 5 * 60 * 1000); // 5 minutes
 // doFollowAndGreetIfFollowed();
 
 // 定期実行タスク2
@@ -68,7 +70,7 @@ async function doPostAffirmation() {
     const timer = new TimeLogger();
     timer.tic();
 
-    await agent.createOrRefleshSession();
+    await agent.createOrRefleshSession(process.env.BSKY_IDENTIFIER, process.env.BSKY_APP_PASSWORD);
     const followers = await agent.getConcatFollowers(process.env.BSKY_IDENTIFIER, Infinity);
     for (let follower of followers) {
       const did = follower.did;
@@ -77,7 +79,7 @@ async function doPostAffirmation() {
       const latestFeed = agent.getLatestFeedWithoutConditions(follower, feeds);
       if (latestFeed) {
         const postedAt = new Date(latestFeed.post.indexedAt);
-        const updatedAt = await db.selectDb(did);
+        const updatedAt = new Date(await db.selectDb(did));
         if ((postedAt > updatedAt) || (!updatedAt)) {
           console.log(`[INFO] detect new post: ${did} !!`);
           await agent.replyAffermativeWord(latestFeed.post);
@@ -97,7 +99,7 @@ async function doPostAffirmation() {
     console.error(e);
   }
 }
-setInterval(doPostAffirmation, 5 * 60 * 1000); // 5 minutes
+setInterval(doPostAffirmation, 20 * 60 * 1000); // 20 minutes
 // doPostAffirmation();
 
 // 1時間おきにRate Limit Pointを出力
