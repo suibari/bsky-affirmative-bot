@@ -80,7 +80,9 @@ async function doPostAffirmation() {
       if (latestFeed) {
         const postedAt = new Date(latestFeed.post.indexedAt);
         const updatedAt = new Date(await db.selectDb(did));
-        if ((postedAt > updatedAt) || (!updatedAt)) {
+        const offset = 9 * 60 * 60 * 1000; // offset: +9h (to JST from UTC <SQlite3>)
+        const updatedAtJst = new Date(updatedAt.getTime() + offset);
+        if ((postedAt.getTime() > updatedAtJst.getTime()) || (!updatedAt)) {
           console.log(`[INFO] detect new post: ${did} !!`);
           await agent.replyAffermativeWord(latestFeed.post);
           point.addCreate();
