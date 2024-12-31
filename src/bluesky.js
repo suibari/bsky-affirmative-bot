@@ -1,6 +1,8 @@
 const { Blueskyer } = require('blueskyer');
 const { getHalfLength , getRandomWordByNegaposi }  = require('./util');
+const { generateAffirmativeWordByGemini, RequestPerDayGemini } = require('./gemini');
 const service = 'https://bsky.social';
+const RPD = new RequestPerDayGemini();
 
 class MyBlueskyer extends Blueskyer {
   async replyGreets(replyPost) {
@@ -29,12 +31,21 @@ class MyBlueskyer extends Blueskyer {
   }
 
   async replyAffermativeWord(replyPost) {
+    let text_bot;
+
     const text_user = replyPost.record.text;
 
-    console.log("user>>>" + text_user);
-    let text_bot = await getRandomWordByNegaposi(text_user);
-    text_bot = text_bot.replace("${name}", replyPost.author.displayName);
-    console.log("bot>>>" + text_bot);
+    // console.log("user>>>" + text_user);
+
+    if (RPD.checkMod()) {
+      text_bot = await generateAffirmativeWordByGemini(text_user);
+      RPD.add();
+    } else {
+      text_bot = await getRandomWordByNegaposi(text_user);
+      text_bot = text_bot.replace("${name}", replyPost.author.displayName);
+    }
+    
+    // console.log("bot>>>" + text_bot);
 
     const record = {
       text: text_bot,
@@ -50,7 +61,7 @@ class MyBlueskyer extends Blueskyer {
       }
     };
 
-    // await this.post(record);
+    await this.post(record);
     return;
   }
 

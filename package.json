@@ -1,5 +1,7 @@
 {
   "dependencies": {
+    "@google/generative-ai": "^0.21.0",
+    "axios": "^1.7.9",
     "blueskyer": "^1.2.4",
     "dotenv": "^16.4.5",
     "node-fetch": "^2.7.0",
