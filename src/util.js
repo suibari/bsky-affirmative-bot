@@ -1,10 +1,18 @@
 const fs = require('fs');
-const pathOhayo    = './src/csv/affirmativeword_morning.csv';
-const pathOyasumi  = './src/csv/affirmativeword_night.csv';
-const pathOtsukare = './src/csv/affirmativeword_gj.csv';
 const pathNeg = './src/csv/affirmativeword_negative.csv';
 const pathNrm = './src/csv/affirmativeword_normal.csv';
 const pathPos = './src/csv/affirmativeword_positive.csv';
+
+const HNY_WORDS = ["明け", "あけ"];
+const OHAYO_WORDS = ["おはよう"];
+const OYASUMI_WORDS = ["おやすみ"];
+const OTSUKARE_WORDS = ["つかれ", "疲れ"];
+const CONDITIONS = [
+  { keywords: HNY_WORDS, path: './src/csv/affirmativeword_hny.csv' },
+  { keywords: OHAYO_WORDS, path: './src/csv/affirmativeword_morning.csv' },
+  { keywords: OYASUMI_WORDS, path: './src/csv/affirmativeword_night.csv' },
+  { keywords: OTSUKARE_WORDS, path: './src/csv/affirmativeword_gj.csv' },
+];
 
 function getHalfLength(str) {
   let len = 0;
@@ -22,9 +30,6 @@ function getHalfLength(str) {
 }
 
 async function getRandomWordByNegaposi(posttext) {
-  const ohayoArray = ["おはよう"];
-  const oyasumiArray = ["おやすみ"];
-  const otsukareArray = ["つかれ", "疲れ"];
   let path;
   let tokens;
   let sentiment;
@@ -46,16 +51,12 @@ async function getRandomWordByNegaposi(posttext) {
     throw new Error('Failed to fetch sentiment from NEGPOSI_URL');
   }
 
-  const isOhayo = tokens.some(elm => ohayoArray.includes(elm));
-  const isOyasumi = tokens.some(elm => oyasumiArray.includes(elm));
-  const isOtsukare = tokens.some(elm => otsukareArray.includes(elm));
+  const matchingCondition = CONDITIONS.find(condition =>
+    tokens.some(token => condition.keywords.includes(token))
+  );
 
-  if (isOhayo) {
-    path = pathOhayo;
-  } else if (isOyasumi) {
-    path = pathOyasumi;
-  } else if (isOtsukare) {
-    path = pathOtsukare;
+  if (matchingCondition) {
+    path = matchingCondition.path;
   } else {
     if (sentiment <= -0.2) {
       path = pathNeg;

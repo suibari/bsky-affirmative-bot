@@ -29,12 +29,15 @@ class MyBlueskyer extends Blueskyer {
   }
 
   async replyAffermativeWord(replyPost) {
-    let text = await getRandomWordByNegaposi(replyPost.record.text);
-    // let text = replyPost.record.text;
-    text = text.replace("${name}", replyPost.author.displayName);
+    const text_user = replyPost.record.text;
+
+    console.log("user>>>" + text_user);
+    let text_bot = await getRandomWordByNegaposi(text_user);
+    text_bot = text_bot.replace("${name}", replyPost.author.displayName);
+    console.log("bot>>>" + text_bot);
 
     const record = {
-      text: text,
+      text: text_bot,
       reply: {
         root: {
           uri: replyPost.uri,
@@ -47,7 +50,7 @@ class MyBlueskyer extends Blueskyer {
       }
     };
 
-    await this.post(record);
+    // await this.post(record);
     return;
   }
 

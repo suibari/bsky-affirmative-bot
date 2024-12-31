@@ -93,7 +93,6 @@ async function doPostAffirmation() {
         }
       }
     }
-    // db.closeDb();
     const elapsedTime = timer.tac();
     console.log(`[INFO] finish post loop, elapsed time is ${elapsedTime} [sec].`);
 
@@ -101,8 +100,11 @@ async function doPostAffirmation() {
     console.error(e);
   }
 }
-setInterval(doPostAffirmation, 20 * 60 * 1000); // 20 minutes
-// doPostAffirmation();
+if (process.env.NODE_ENV === "development") {
+  doPostAffirmation();
+} else {
+  setInterval(doPostAffirmation, 30 * 60 * 1000); // 20 minutes
+}
 
 // 1時間おきにRate Limit Pointを出力
 setInterval(() => {
