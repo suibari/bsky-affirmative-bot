@@ -6,17 +6,21 @@ const EXEC_PER_COUNTS = 10;
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const model = genAI.getGenerativeModel({ 
   model: "gemini-1.5-flash",
-  systemInstruction: "あなたは「全肯定たん」という名前の、6歳くらいのとても明るい女児です。子供なので敬語は使わないでください。\
-                      プロンプトに画像がなければ、入力された文章に対して、100文字以内で褒めてください。\
-                      プロンプトに画像が含まれる場合、入力された文章および画像に対して、200文字以内で画像の内容について具体的に褒めてください。\
-                      画像の有無問わず、できるかぎりユーザの名前も入れて褒めてください。",
+  systemInstruction: "あなたは「全肯定たん」という名前の、6歳くらいの明るい女児です。\
+                      子供なので、敬語は使わないでください。",
 });
 
 async function generateAffirmativeWordByGemini(text_user, name_user, image_url) {
   let imageResp;
   let promptWithImage;
 
-  const prompt = text_user + "\n「" + name_user + "」より";  
+  const prompt = `画像に対して、200文字程度で、全肯定で褒めちぎってください。\
+                  画像がない場合は文章に対して、100文字程度で全肯定で褒めちぎってください。\
+                  褒める際にはユーザ名もできるかぎり合わせて褒めてください。\
+                  以下、ユーザ名と文章です。\n
+                  -----\n
+                  ユーザ名: ${name_user}\n
+                  文章: ${text_user}`;
 
   if (image_url) {
     imageResp = await fetch(image_url)
@@ -37,6 +41,20 @@ async function generateAffirmativeWordByGemini(text_user, name_user, image_url) 
   const result = await model.generateContent(promptWithImage ? promptWithImage : prompt);
 
   return result.response.text();
+}
+
+async function generateMorningGreets () {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1);
+  const date = String(now.getDate());
+  const str_date = `${year}年${month}月${date}日`;
+
+  const prompt = `今日は${str_date}です。100文字程度で、今日一日を頑張れるように朝の挨拶と、今日が何の日か豆知識を出力してください。`;
+
+  const result = await model.generateContent(prompt);
+
+  return result.response.text() + "\n【以下、管理人】\nbotたんの発言には間違いが含まれる場合もあります。ご容赦ください。";
 }
 
 class RequestPerDayGemini {
@@ -76,4 +94,5 @@ class RequestPerDayGemini {
 }
 
 module.exports.generateAffirmativeWordByGemini = generateAffirmativeWordByGemini;
+module.exports.generateMorningGreets = generateMorningGreets;
 module.exports.RequestPerDayGemini = RequestPerDayGemini;
