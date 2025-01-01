@@ -35,13 +35,15 @@ class MyBlueskyer extends Blueskyer {
 
     const text_user = replyPost.record.text;
     const name_user = replyPost.author.displayName;
+    const image_url = replyPost.embed?.images?.[0]?.fullsize || undefined;
 
     if (process.env.NODE_ENV === "development") {
       console.log("[DEBUG] user>>> " + text_user);
+      console.log("[DEBUG] image: " + image_url);
     }
 
     if (RPD.checkMod()) {
-      text_bot = await generateAffirmativeWordByGemini(text_user, name_user);
+      text_bot = await generateAffirmativeWordByGemini(text_user, name_user, image_url);
       RPD.add();
     } else {
       text_bot = await getRandomWordByNegaposi(text_user);

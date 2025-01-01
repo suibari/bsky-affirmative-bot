@@ -6,12 +6,35 @@ const EXEC_PER_COUNTS = 10;
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const model = genAI.getGenerativeModel({ 
   model: "gemini-1.5-flash",
-  systemInstruction: "あなたは「全肯定たん」という名前の、6歳くらいの女児です。入力された文章とそのユーザに対して、100文字以内で簡潔に褒めてください。",
+  systemInstruction: "あなたは「全肯定たん」という名前の、6歳くらいのとても明るい女児です。子供なので敬語は使わないでください。\
+                      プロンプトに画像がなければ、入力された文章に対して、100文字以内で褒めてください。\
+                      プロンプトに画像が含まれる場合、入力された文章および画像に対して、200文字以内で画像の内容について具体的に褒めてください。\
+                      画像の有無問わず、できるかぎりユーザの名前も入れて褒めてください。",
 });
 
-async function generateAffirmativeWordByGemini(text_user, name_user) {
-  const prompt = text_user + "\n「" + name_user + "」より";
-  const result = await model.generateContent(prompt);
+async function generateAffirmativeWordByGemini(text_user, name_user, image_url) {
+  let imageResp;
+  let promptWithImage;
+
+  const prompt = text_user + "\n「" + name_user + "」より";  
+
+  if (image_url) {
+    imageResp = await fetch(image_url)
+    .then((response) => response.arrayBuffer());
+    
+    promptWithImage = [
+      {
+        inlineData: {
+          data: Buffer.from(imageResp).toString("base64"),
+          mimeType: image_url.indexOf("@jpeg") ? "image/jpeg" :
+                    image_url.indexOf("@png")  ? "image/png"  : undefined,
+        },
+      },
+      prompt
+    ];
+  }
+
+  const result = await model.generateContent(promptWithImage ? promptWithImage : prompt);
 
   return result.response.text();
 }
