@@ -34,18 +34,23 @@ class MyBlueskyer extends Blueskyer {
     let text_bot;
 
     const text_user = replyPost.record.text;
+    const name_user = replyPost.author.displayName;
 
-    // console.log("user>>>" + text_user);
+    if (process.env.NODE_ENV === "development") {
+      console.log("[DEBUG] user>>> " + text_user);
+    }
 
     if (RPD.checkMod()) {
-      text_bot = await generateAffirmativeWordByGemini(text_user);
+      text_bot = await generateAffirmativeWordByGemini(text_user, name_user);
       RPD.add();
     } else {
       text_bot = await getRandomWordByNegaposi(text_user);
-      text_bot = text_bot.replace("${name}", replyPost.author.displayName);
+      text_bot = text_bot.replace("${name}", name_user);
     }
     
-    // console.log("bot>>>" + text_bot);
+    if (process.env.NODE_ENV === "development") {
+      console.log("[DEBUG] bot>>> " + text_bot);
+    }
 
     const record = {
       text: text_bot,
@@ -61,7 +66,9 @@ class MyBlueskyer extends Blueskyer {
       }
     };
 
-    await this.post(record);
+    if (process.env.NODE_ENV === "production") {
+      await this.post(record);
+    }
     return;
   }
 

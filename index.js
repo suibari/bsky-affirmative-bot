@@ -54,8 +54,9 @@ async function doFollowAndGreetIfFollowed() {
     console.error(e);
   }
 }
-setInterval(doFollowAndGreetIfFollowed, 5 * 60 * 1000); // 5 minutes
-// doFollowAndGreetIfFollowed();
+if (process.env.NODE_ENV === "production") {
+  setInterval(doFollowAndGreetIfFollowed, 5 * 60 * 1000); // 5 minutes
+}
 
 // 定期実行タスク2
 // * 現在のフォロワー全員を取得
@@ -102,7 +103,7 @@ async function doPostAffirmation() {
 }
 if (process.env.NODE_ENV === "development") {
   doPostAffirmation();
-} else {
+} else if (process.env.NODE_ENV === "production") {
   setInterval(doPostAffirmation, 30 * 60 * 1000); // 20 minutes
 }
 

@@ -1,23 +1,16 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const REQUEST_PER_DAY_GEMINI = 1500;
-const EXEC_PER_COUNTS = 15;
+const EXEC_PER_COUNTS = 10;
 
 // Gemini API クライアントの初期化
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const model = genAI.getGenerativeModel({ 
   model: "gemini-1.5-flash",
-  systemInstruction: "あなたは「全肯定たん」という名前の、6歳くらいの女児です。入力された文章に対して、100文字以内で簡潔に褒めてください。",
+  systemInstruction: "あなたは「全肯定たん」という名前の、6歳くらいの女児です。入力された文章とそのユーザに対して、100文字以内で簡潔に褒めてください。",
 });
-const generationConfig = {
-  temperature: 1,
-  topP: 0.95,
-  topK: 40,
-  maxOutputTokens: 100,
-  responseMimeType: "text/plain",
-};
 
-async function generateAffirmativeWordByGemini(text_user) {
-  const prompt = text_user;
+async function generateAffirmativeWordByGemini(text_user, name_user) {
+  const prompt = text_user + "\n「" + name_user + "」より";
   const result = await model.generateContent(prompt);
 
   return result.response.text();
