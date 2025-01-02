@@ -1,5 +1,5 @@
 const { Blueskyer } = require('blueskyer');
-const { getHalfLength , getRandomWordByNegaposi }  = require('./util');
+const { getRandomWordByNegaposi }  = require('./randomword');
 const { generateAffirmativeWordByGemini, RequestPerDayGemini } = require('./gemini');
 const service = 'https://bsky.social';
 const RPD = new RequestPerDayGemini();

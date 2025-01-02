@@ -1,23 +1,40 @@
+const fs = require('fs');
+const pathPos = './src/csv/affirmativeword_positive.csv';
+
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const REQUEST_PER_DAY_GEMINI = 1500;
-const EXEC_PER_COUNTS = 10;
+const EXEC_PER_COUNTS = 5;
 
 // Gemini API クライアントの初期化
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ 
-  model: "gemini-1.5-flash",
-  systemInstruction: "あなたは「全肯定たん」という名前の、6歳くらいの明るい女児です。\
-                      子供なので、敬語は使わないでください。",
-});
+class Gemini {
+  constructor() {
+    const data = fs.readFileSync(pathPos);
+    const wordArray = data.toString().split('\n');
+
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    this.model = genAI.getGenerativeModel({ 
+      model: "gemini-1.5-flash",
+      systemInstruction: `あなたは「全肯定たん」という名前の、タメ語で、なんでも全肯定してくれる明るい女の子です。かわいい絵文字が好きです。敬語は使いません。\
+                          次の言葉があなたが好きな言葉です、これらの言葉をそのままは使わずに、文章を作ってください。\
+                          ${wordArray}`,
+    });
+  }
+
+  getModel() {
+    return this.model;
+  }
+}
+const gemini = new Gemini();
 
 async function generateAffirmativeWordByGemini(text_user, name_user, image_url) {
   let imageResp;
   let promptWithImage;
 
-  const prompt = `画像に対して、200文字程度で、全肯定で褒めちぎってください。\
-                  画像がない場合は文章に対して、100文字程度で全肯定で褒めちぎってください。\
+  const part_prompt = image_url ? "画像の内容のどこがいいのか具体的に、100文字程度で褒めてください。" :
+                                  "文章に対して具体的に、30文字程度で褒めてください。";
+  const prompt = `${part_prompt}\
                   褒める際にはユーザ名もできるかぎり合わせて褒めてください。\
-                  以下、ユーザ名と文章です。\n
+                  以下が、ユーザ名と文章です。\n
                   -----\n
                   ユーザ名: ${name_user}\n
                   文章: ${text_user}`;
@@ -38,7 +55,7 @@ async function generateAffirmativeWordByGemini(text_user, name_user, image_url) 
     ];
   }
 
-  const result = await model.generateContent(promptWithImage ? promptWithImage : prompt);
+  const result = await gemini.getModel().generateContent(promptWithImage ? promptWithImage : prompt);
 
   return result.response.text();
 }
@@ -52,7 +69,7 @@ async function generateMorningGreets () {
 
   const prompt = `今日は${str_date}です。100文字程度で、今日一日を頑張れるように朝の挨拶と、今日が何の日か豆知識を出力してください。`;
 
-  const result = await model.generateContent(prompt);
+  const result = await gemini.getModel().generateContent(prompt);
 
   return result.response.text() + "\n【以下、管理人】\nbotたんの発言には間違いが含まれる場合もあります。ご容赦ください。";
 }
