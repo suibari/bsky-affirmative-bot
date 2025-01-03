@@ -2,6 +2,16 @@
 # yarn lockfile v1
 
 
+"@atcute/bluesky@^1.0.6":
+  version "1.0.11"
+  resolved "https://registry.npmjs.org/@atcute/bluesky/-/bluesky-1.0.11.tgz"
+  integrity sha512-j4wLJIzKWh0gmQZ7s5svhEVRThlzqyfstbM0qM/H1Y+ZIQESx5HtVu+390zAWzZoEKZYSyTM9+ctY39OiEGDQw==
+
+"@atcute/client@^1.0.0 || ^2.0.0":
+  version "2.0.6"
+  resolved "https://registry.npmjs.org/@atcute/client/-/client-2.0.6.tgz"
+  integrity sha512-mhdqEicGUx0s5HTFOLpz91rcLS9j/g63de0nmAqv7blhU3j+xBf4le54qr2YIXNfnReZI7EwLYLX/YIBez4LGA==
+
 "@atproto/api@^0.10.4":
   version "0.10.5"
   resolved "https://registry.npmjs.org/@atproto/api/-/api-0.10.5.tgz"
@@ -85,6 +95,14 @@
   dependencies:
     cborg "^4.0.0"
     multiformats "^13.1.0"
+
+"@skyware/jetstream@^0.2.1":
+  version "0.2.1"
+  resolved "https://registry.npmjs.org/@skyware/jetstream/-/jetstream-0.2.1.tgz"
+  integrity sha512-qmQkBnMYG3+XBTLUDUKTWMS0QpwCFSZh66fvQRn+xEqUQ2CXB2ELo4El0tgVvdT4+glk4nfzVG45L6Op9VURow==
+  dependencies:
+    "@atcute/bluesky" "^1.0.6"
+    partysocket "^1.0.2"
 
 abbrev@1:
   version "1.1.1"
@@ -432,6 +450,11 @@ event-emitter@^0.3.5:
   dependencies:
     d "1"
     es5-ext "~0.10.14"
+
+event-target-shim@^6.0.2:
+  version "6.0.2"
+  resolved "https://registry.npmjs.org/event-target-shim/-/event-target-shim-6.0.2.tgz"
+  integrity sha512-8q3LsZjRezbFZ2PN+uP+Q7pnHUMmAOziU2vA2OwoFaKIXxlxl38IylhSSgUorWu/rf4er67w0ikBqjBFk/pomA==
 
 ext@^1.7.0:
   version "1.7.0"
@@ -935,6 +958,13 @@ osenv@^0.1.4, osenv@0:
     os-homedir "^1.0.0"
     os-tmpdir "^1.0.0"
 
+partysocket@^1.0.2:
+  version "1.0.3"
+  resolved "https://registry.npmjs.org/partysocket/-/partysocket-1.0.3.tgz"
+  integrity sha512-7sSojS4oCRK1Fe1h+Sa0Za5dwOf+M9VksQlynD8yqwGpLvnO4oxx9ppmOSeh6CJTMbF5gbnvUQKMK525QSBdBw==
+  dependencies:
+    event-target-shim "^6.0.2"
+
 path-is-absolute@^1.0.0:
   version "1.0.1"
   resolved "https://registry.npmjs.org/path-is-absolute/-/path-is-absolute-1.0.1.tgz"
@@ -1244,7 +1274,7 @@ uri-js@^4.2.2:
   dependencies:
     punycode "^2.1.0"
 
-utf-8-validate@^5.0.2:
+utf-8-validate@^5.0.2, utf-8-validate@>=5.0.2:
   version "5.0.10"
   resolved "https://registry.npmjs.org/utf-8-validate/-/utf-8-validate-5.0.10.tgz"
   integrity sha512-Z6czzLq4u8fPOyx7TU6X3dvUZVvoJmxSQ+IcrlmagKhilxlhZgxPK6C5Jqbkw1IDUmFTM+cz9QDnnLTwDz/2gQ==
@@ -1327,6 +1357,11 @@ wrappy@1:
   version "1.0.2"
   resolved "https://registry.npmjs.org/wrappy/-/wrappy-1.0.2.tgz"
   integrity sha512-l4Sp/DRseor9wL6EvV2+TuQn63dMkPjZ/sp9XkghTEbV9KlPS1xUsZ3u7/IQO4wxtcFB4bgpQPRcR3QCvezPcQ==
+
+ws@^8.18.0:
+  version "8.18.0"
+  resolved "https://registry.npmjs.org/ws/-/ws-8.18.0.tgz"
+  integrity sha512-8VbfWfHLbbwu3+N6OKsOMpBdT4kXPDDB9cJk2bJ6mh9ucxdlnNvH1e+roYkKmN9Nxw2yjz7VzeO9oOz2zJ04Pw==
 
 y18n@^5.0.5:
   version "5.0.8"

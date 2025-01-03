@@ -30,12 +30,14 @@ class MyBlueskyer extends Blueskyer {
     return;
   }
 
-  async replyAffermativeWord(replyPost) {
+  async replyAffermativeWord(displayName, event) {
     let text_bot;
 
-    const text_user = replyPost.record.text;
-    const name_user = replyPost.author.displayName;
-    const image_url = replyPost.embed?.images?.[0]?.fullsize || undefined;
+    const text_user = event.commit.record.text;
+    const name_user = displayName;
+    const image_url = event.commit.record.images?.[0]?.fullsize;
+    const uri = `at://${event.did}/app.bsky.feed.post/${event.commit.rkey}`;
+    const cid = event.commit.cid;
 
     if (process.env.NODE_ENV === "development") {
       console.log("[DEBUG] user>>> " + text_user);
@@ -58,12 +60,12 @@ class MyBlueskyer extends Blueskyer {
       text: text_bot,
       reply: {
         root: {
-          uri: replyPost.uri,
-          cid: replyPost.cid
+          uri: uri,
+          cid: cid
         },
         parent: {
-          uri: replyPost.uri,
-          cid: replyPost.cid
+          uri: uri,
+          cid: cid
         }
       }
     };
@@ -111,6 +113,10 @@ class MyBlueskyer extends Blueskyer {
       return true;
     };
     return false;
+  }
+
+  isNotReply(record) {
+    return (record.reply === undefined);
   }
 }
 
