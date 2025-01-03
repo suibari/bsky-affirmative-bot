@@ -13,6 +13,8 @@ global.fetch = require('node-fetch'); // for less than node-v17
 
 const OFFSET_UTC_TO_JST = 9 * 60 * 60 * 1000; // offset: +9h (to JST from UTC <SQlite3>)
 const MINUTES_THRD_RESPONSE = 10 * 60 * 1000; // 10min
+const ARRAY_WORD_O18 = ["U18モード解除", "U18解除"];
+const ARRAY_WORD_U18 = ["U18モード"];
 let followers = [];
 
 // 定期実行タスク1
@@ -34,7 +36,7 @@ async function doFollowAndGreetIfFollowed() {
     for (let notification of notifications) {
       if (notification.reason == 'follow') {
         const did = notification.author.did;
-        const isExist = await db.selectDb(did);
+        const isExist = await db.selectDb(did, "updated_at");
         if (!isExist) {
           console.log(`[INFO] detect new follower: ${did} !!`);
           await agent.follow(did);
@@ -47,7 +49,7 @@ async function doFollowAndGreetIfFollowed() {
             point.addCreate();
           }
 
-          await db.insertDb(did);
+          db.insertDb(did);
         };
 
         isFollowedNewly = true;
@@ -85,7 +87,7 @@ async function updateFollowersAndStartWS() {
     followers = await agent.getConcatFollowers(process.env.BSKY_IDENTIFIER, 10000);
     const didArray = followers.map(follower => follower.did);
 
-    console.log("[INFO] Connecting to JetStream with shuffled DID array...");
+    console.log("[INFO] Connecting to JetStream...");
     startWebSocket(arrayShuffle(didArray), doReply);
   } catch (error) {
     console.error("[ERROR] Failed to update followers and start WebSocket:", error);
@@ -103,6 +105,9 @@ async function doReply(event) {
   try {
     const did = event.did;
 
+    // ==============
+    // preprocess
+    // ==============
     // 対象フォロワーの情報を取得
     const follower = followers.find(follower => follower.did === did);
     if (!follower) {
@@ -110,24 +115,62 @@ async function doReply(event) {
       // console.warn(`[WARNING] No follower found for DID: ${did}`);
       return;
     }
-
     const displayName = follower.displayName;
 
+    // U18登録解除処理
+    const text_user = event.commit.record.text;
+    const isPostToMe = agent.isReplyOrMentionToMe(event.commit.record);
+    const isInactiveU18 = ARRAY_WORD_O18.some(elem => text_user.includes(elem));
+    if (isPostToMe && isInactiveU18) {
+      // リプライ
+      const record = agent.getRecordFromEvent(event, "U18モードを解除しました! これからはたまにAIを使って全肯定しますね。");
+      await agent.post(record);
+      point.addCreate();
+
+      // DB登録
+      db.updateU18Db(did, 0);
+      console.log("[INFO] RELEASE U18-mode for DID: " + did);
+      
+      return;
+    }
+
+    // U18登録処理
+    const isActiveU18 = ARRAY_WORD_U18.some(elem => text_user.includes(elem));
+    if (isPostToMe && isActiveU18) {
+      // リプライ
+      const record = agent.getRecordFromEvent(event, "U18モードを設定しました! これからはAIを使わずに全肯定しますね。");
+      await agent.post(record);
+      point.addCreate();
+
+      // DB登録
+      db.updateU18Db(did, 1);
+      console.log("[INFO] SET U18-mode for DID: " + did);
+      
+      return;
+    }
+
+    // ==============
+    // main
+    // ==============
     // フィルタリング: リプライでない、かつメンションでない投稿を対象とする
     const record = event.commit.record;
-    if (agent.isNotReply(record) && agent.isNotMention(record)) {
+    if (!agent.isReply(record) && !agent.isMention(record)) {
+
       // 前回反応日時の取得
       const postedAt = new Date(event.commit.record.createdAt);
-      const updatedAt = new Date(await db.selectDb(did));
+      const updatedAt = new Date(await db.selectDb(did, "updated_at"));
       const updatedAtJst = new Date(updatedAt.getTime() + OFFSET_UTC_TO_JST);
 
-      // 時間判定: 5分以上経過したか
+      // 時間判定
       const isPast = (postedAt.getTime() - updatedAtJst.getTime() > MINUTES_THRD_RESPONSE);
       if (isPast) {
         try {
+          // U18情報をDBから取得
+          const is_u18 = await db.selectDb(did, "is_u18");
+
           // 新しい投稿の検出とリプライ処理
           console.log(`[INFO] New post detected: ${did} !!`);
-          await agent.replyAffermativeWord(displayName, event);
+          await agent.replyAffermativeWord(displayName, event, is_u18);
           point.addCreate();
 
           // DB更新
@@ -153,12 +196,12 @@ setInterval(() => {
 
 // アプリケーションの終了時にデータベース接続を閉じる
 process.on('exit', async () => {
-  await db.closeDb();
+  db.closeDb();
 });
 
 // Ctrl+Cなどでアプリケーションを終了する場合もデータベース接続を閉じる
 process.on('SIGINT', async () => {
-  await db.closeDb();
+  db.closeDb();
   process.exit();
 });
 

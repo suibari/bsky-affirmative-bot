@@ -18,7 +18,8 @@ class SQLite3 {
       CREATE TABLE IF NOT EXISTS followers (
         did TEXT PRIMARY KEY,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        is_u18     INTEGER   DEFAULT 0
       );
     `;
     this.db.run(query, (err) => {
@@ -46,17 +47,32 @@ class SQLite3 {
     });
   }
 
-  selectDb(id) {
+  selectDb(id, col_name) {
     return new Promise((resolve, reject) => {
-      const query = `SELECT updated_at FROM followers WHERE did = ?;`;
-      this.db.get(query, [id], (err, row) => {
+      const query = `SELECT ? FROM followers WHERE did = ?;`;
+      this.db.get(query, [col_name, id], (err, row) => {
         if (err) {
           console.error('Error selecting data', err);
           reject(err);
         } else {
-          resolve(row ? row.updated_at : null);
+          resolve(row ? row[col_name] : null);
         }
       });
+    });
+  }
+
+  updateU18Db(id, is_u18) {
+    // 型チェック: is_u18 は 0 または 1 である必要があります
+    if (![0, 1].includes(is_u18)) {
+      console.error('Error: is_u18 must be 0 or 1.');
+      return;
+    }
+
+    const query = `UPDATE followers SET is_u18 = ? WHERE did = ?;`;
+    this.db.run(query, [is_u18, id], (err) => {
+      if (err) {
+        console.error('Error updating data', err);
+      }
     });
   }
 

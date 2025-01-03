@@ -30,22 +30,21 @@ class MyBlueskyer extends Blueskyer {
     return;
   }
 
-  async replyAffermativeWord(displayName, event) {
+  async replyAffermativeWord(displayName, event, isU18mode) {
     let text_bot;
 
     const text_user = event.commit.record.text;
     const name_user = displayName;
     const image = event.commit.record.embed?.images?.[0]?.image;
     const image_url = image ? `https://cdn.bsky.app/img/feed_fullsize/plain/${event.did}/${image.ref.$link}` : undefined;
-    const uri = `at://${event.did}/app.bsky.feed.post/${event.commit.rkey}`;
-    const cid = event.commit.cid;
 
     if (process.env.NODE_ENV === "development") {
       console.log("[DEBUG] user>>> " + text_user);
       console.log("[DEBUG] image: " + image_url);
     }
 
-    if (RPD.checkMod()) {
+    // AIを使うか判定
+    if (RPD.checkMod() && !isU18mode) {
       text_bot = await generateAffirmativeWordByGemini(text_user, name_user, image_url);
       RPD.add();
     } else {
@@ -57,7 +56,39 @@ class MyBlueskyer extends Blueskyer {
       console.log("[DEBUG] bot>>> " + text_bot);
     }
 
-    const record = {
+    // record整形
+    const record = this.getRecordFromEvent(event, text_bot);
+
+    // ポスト
+    if (process.env.NODE_ENV === "production") {
+      await this.post(record);
+    }
+    return;
+  }
+
+  async confirmWordAndReply(event, wordArray, text_bot) {
+    const text_user = event.commit.record.text;
+
+    // O18判定
+    if (wordArray.every(elem => text_user.includes(elem))) {
+      const text_bot = "O18モードを設定しました!\n"
+                       "これからはたまにAIを使って全肯定しますね。"
+      const record = this.getRecordFromEvent(event, text_bot);
+
+      // ポスト
+      await this.post(record);
+
+      return true;
+    }
+
+    return false;
+  }
+
+  getRecordFromEvent(event, text_bot) {
+    const uri = `at://${event.did}/app.bsky.feed.post/${event.commit.rkey}`;
+    const cid = event.commit.cid;
+
+    return {
       text: text_bot,
       reply: {
         root: {
@@ -70,68 +101,50 @@ class MyBlueskyer extends Blueskyer {
         }
       }
     };
-
-    if (process.env.NODE_ENV === "production") {
-      await this.post(record);
-    }
-    return;
   }
 
-  getLatestFeedWithoutConditions(author, feeds) {
-    for (const feed of feeds) {
-      if ((author.did == feed.post.author.did) && !this.isMention(feed.post) && !this.isSpam(feed.post) && !this.isRepost(feed)) {
-        return feed;
-      };
-    };
-    // feed0件または全てリポスト
-    return;
+  isReply(record) {
+    return (record.reply !== undefined);
   }
 
-  isSpam(post) {
-    const labelArray = ["spam"];
-    
-    const authorLabels = post.author.labels;
-    if (authorLabels) {
-      for (const label of authorLabels) {
-        if (labelArray.some(elem => elem === label.val)) {
-          return true;
-        };
-      };
-    };
-    const postLabels = post.labels;
-    if (postLabels) {
-      for (const label of postLabels) {
-        if (labelArray.some(elem => elem === label.val)) {
-          return true;
-        };
-      };
-    };
-    return false;
-  }
-
-  isRepost(feed) {
-    if (feed.reason?.$type === "app.bsky.feed.defs#reasonRepost") {
-      return true;
-    };
-    return false;
-  }
-
-  isNotReply(record) {
-    return (record.reply === undefined);
-  }
-
-  isNotMention(record) {
+  /**
+   * オーバーライド関数。メンション判定しメンション先のDIDを返す
+   * @param {*} record 
+   * @returns did or null
+   */
+  isMention(record) {
     if ('facets' in record) {
       const facets = record.facets;
       for (const facet of facets) {
         for (const feature of facet.features) {
           if (feature.$type === 'app.bsky.richtext.facet#mention') {
-            return false;
+            return feature.did;
           }
         }
       }
     }
-    return true;
+    return null;
+  }
+
+  isReplyOrMentionToMe(record) {
+    let did;
+
+    did = this.isMention(record);
+    if (record.reply) {
+      const uri = record.reply.uri;
+      if (uri) {
+        did = this.getDidFromUri(uri);
+      }
+    }
+
+    if (process.env.BSKY_DID === did) {
+      return true;
+    }
+    return false;
+  }
+
+  getDidFromUri(uri) {
+    return uri.match(/did:plc:\w+/);
   }
 }
 
