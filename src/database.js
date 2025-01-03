@@ -49,8 +49,8 @@ class SQLite3 {
 
   selectDb(id, col_name) {
     return new Promise((resolve, reject) => {
-      const query = `SELECT ? FROM followers WHERE did = ?;`;
-      this.db.get(query, [col_name, id], (err, row) => {
+      const query = `SELECT * FROM followers WHERE did = ?;`;
+      this.db.get(query, [id], (err, row) => {
         if (err) {
           console.error('Error selecting data', err);
           reject(err);
