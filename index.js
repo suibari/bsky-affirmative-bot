@@ -23,6 +23,8 @@ let followers = [];
 //     * その人にあいさつポスト
 async function doFollowAndGreetIfFollowed() {
   try {
+    let isFollowedNewly = false;
+
     console.log(`[INFO] start follow check.`);
     const timer = new TimeLogger();
     timer.tic();
@@ -47,9 +49,16 @@ async function doFollowAndGreetIfFollowed() {
 
           await db.insertDb(did);
         };
+
+        isFollowedNewly = true;
       };
     };
     await agent.updateSeenNotifications(new Date().toISOString());
+
+    if (isFollowedNewly) {
+      // フォロワーが増えたのでwebsocket再接続
+      updateFollowersAndStartWS();
+    }
 
     // db.closeDb();
     const elapsedTime = timer.tac();
@@ -63,18 +72,26 @@ if (process.env.NODE_ENV === "production") {
   setInterval(doFollowAndGreetIfFollowed, 5 * 60 * 1000); // 5 minutes
 }
 
-// JetStream for 定期実行タスク2
+// 定期実行タスク2
 // * 現在のフォロワー全員のDIDを取得
 //   - JetStreamにDIDで接続
 //   - message受信時にコールバック関数を実行
-(async () => {
-  await agent.createOrRefleshSession(process.env.BSKY_IDENTIFIER, process.env.BSKY_APP_PASSWORD);
+async function updateFollowersAndStartWS() {
+  try {
+    console.log("[INFO] Starting session refresh...");
+    await agent.createOrRefleshSession(process.env.BSKY_IDENTIFIER, process.env.BSKY_APP_PASSWORD);
 
-  followers = await agent.getConcatFollowers(process.env.BSKY_IDENTIFIER, 10000);
-  didArray = followers.map(follower => follower.did);
+    console.log("[INFO] Fetching followers...");
+    followers = await agent.getConcatFollowers(process.env.BSKY_IDENTIFIER, 10000);
+    const didArray = followers.map(follower => follower.did);
 
-  startWebSocket(arrayShuffle(didArray), doReply);
-})();
+    console.log("[INFO] Connecting to JetStream with shuffled DID array...");
+    startWebSocket(arrayShuffle(didArray), doReply);
+  } catch (error) {
+    console.error("[ERROR] Failed to update followers and start WebSocket:", error);
+  }
+}
+updateFollowersAndStartWS();
 
 // 定期実行タスク2
 // * コールバック関数仕様
@@ -83,74 +100,48 @@ if (process.env.NODE_ENV === "production") {
 //   - 前回反応日時から5分経過していたら反応
 //   - 全肯定リプライ
 async function doReply(event) {
-  const did = event.did;
-  const follower = followers.find(follower => follower.did === did);
-  const displayName = follower.displayName;
-
-  // フィルタリング
-  const record = event.commit.record;
-  if (agent.isNotReply(record)) {
-
-    // 時間判定
-    const postedAt = new Date(event.commit.record.createdAt);
-    const updatedAt = new Date(await db.selectDb(did));
-    const updatedAtJst = new Date(updatedAt.getTime() + OFFSET_UTC_TO_JST);
-    const isPast = (postedAt.getTime() - updatedAtJst.getTime() > MINUTES_THRD_RESPONSE);
-    if (isPast) {
-
-      // リプライ
-      console.log(`[INFO] detect new post: ${did} !!`);
-      await agent.replyAffermativeWord(displayName, event);
-      
-      // DB更新
-      db.insertOrUpdateDb(did);
-    }
-  };
-}
-
-/*
-async function doPostAffirmation() {
   try {
-    console.log(`[INFO] start receiving message.`);
-    // const timer = new TimeLogger();
-    // timer.tic();
+    const did = event.did;
 
-    await agent.createOrRefleshSession(process.env.BSKY_IDENTIFIER, process.env.BSKY_APP_PASSWORD);
-    const followers = await agent.getConcatFollowers(process.env.BSKY_IDENTIFIER, Infinity);
-    const didArray = followers.map(follower => follower.did);
+    // 対象フォロワーの情報を取得
+    const follower = followers.find(follower => follower.did === did);
+    if (!follower) {
+      console.warn(`[WARNING] No follower found for DID: ${did}`);
+      return;
+    }
 
-    for (let follower of followers) {
-      const did = follower.did;
-      const response = await agent.getAuthorFeed({actor: did, filter: 'posts_no_replies'});
-      const feeds = response.data.feed;
-      const latestFeed = agent.getLatestFeedWithoutConditions(follower, feeds);
-      if (latestFeed) {
-        const postedAt = new Date(latestFeed.post.indexedAt);
-        const updatedAt = new Date(await db.selectDb(did));
-        const offset = 9 * 60 * 60 * 1000; // offset: +9h (to JST from UTC <SQlite3>)
-        const updatedAtJst = new Date(updatedAt.getTime() + offset);
-        if ((postedAt.getTime() > updatedAtJst.getTime()) || (!updatedAt)) {
-          console.log(`[INFO] detect new post: ${did} !!`);
-          await agent.replyAffermativeWord(latestFeed.post);
+    const displayName = follower.displayName;
+
+    // フィルタリング: リプライでない投稿を対象とする
+    const record = event.commit.record;
+    if (agent.isNotReply(record)) {
+      // 前回反応日時の取得
+      const postedAt = new Date(event.commit.record.createdAt);
+      const updatedAt = new Date(await db.selectDb(did));
+      const updatedAtJst = new Date(updatedAt.getTime() + OFFSET_UTC_TO_JST);
+
+      // 時間判定: 5分以上経過したか
+      const isPast = (postedAt.getTime() - updatedAtJst.getTime() > MINUTES_THRD_RESPONSE);
+      if (isPast) {
+        try {
+          // 新しい投稿の検出とリプライ処理
+          console.log(`[INFO] New post detected: ${did} !!`);
+          await agent.replyAffermativeWord(displayName, event);
           point.addCreate();
 
+          // DB更新
+          console.log(`[INFO] Updating last response time for DID: ${did}`);
           db.insertOrUpdateDb(did);
-        } else {
-          // console.log(`[INFO] not detect new post: ${did}.`);
+        } catch (replyError) {
+          console.error(`[ERROR] Failed to reply or update DB for DID: ${did}`, replyError);
         }
       }
+    } else {
+      console.log(`[INFO] Post will be ignored for DID: ${did}`);
     }
-    const elapsedTime = timer.tac();
-    console.log(`[INFO] finish post loop, elapsed time is ${elapsedTime} [sec].`);
-
-  } catch(e) {
-    console.error(e);
+  } catch (eventError) {
+    console.error("[ERROR] Failed to process incoming event:", eventError);
   }
-}
-if (process.env.NODE_ENV === "development") {
-  doPostAffirmation();
-} else if (process.env.NODE_ENV === "production") {
-  setInterval(doPostAffirmation, 30 * 60 * 1000); // 20 minutes
 }
 
 // 1時間おきにRate Limit Pointを出力
@@ -170,7 +161,6 @@ process.on('SIGINT', async () => {
   await db.closeDb();
   process.exit();
 });
-*/
 
 function arrayShuffle(array) {
   for(let i = (array.length - 1); 0 < i; i--){

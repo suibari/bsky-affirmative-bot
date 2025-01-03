@@ -1,10 +1,18 @@
 const ws = require("ws");
 
+let jetstream = null;
+
 // WebSocket接続の開始関数
 async function startWebSocket(didArray, userCallback) {
   const { Jetstream } = await import("@skyware/jetstream");
+
+  if (jetstream) {
+    console.log("[INFO] Closing previous Jetstream connection.");
+    jetstream.close();
+  }
   
-  const jetstream = new Jetstream({
+  // 現在のdidArrayで接続開始
+  jetstream = new Jetstream({
     ws,
     wantedCollections: ["app.bsky.feed.post"],
     wantedDids: didArray,
