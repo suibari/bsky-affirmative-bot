@@ -12,7 +12,7 @@ const db = new SQLite3();
 global.fetch = require('node-fetch'); // for less than node-v17
 
 const OFFSET_UTC_TO_JST = 9 * 60 * 60 * 1000; // offset: +9h (to JST from UTC <SQlite3>)
-const MINUTES_THRD_RESPONSE = 5 * 60 * 1000; // 5min
+const MINUTES_THRD_RESPONSE = 10 * 60 * 1000; // 10min
 let followers = [];
 
 // 定期実行タスク1
@@ -130,7 +130,6 @@ async function doReply(event) {
           point.addCreate();
 
           // DB更新
-          console.log(`[INFO] Updating last response time for DID: ${did}`);
           db.insertOrUpdateDb(did);
         } catch (replyError) {
           console.error(`[ERROR] Failed to reply or update DB for DID: ${did}`, replyError);

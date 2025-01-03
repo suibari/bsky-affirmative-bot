@@ -30,7 +30,7 @@ async function generateAffirmativeWordByGemini(text_user, name_user, image_url) 
   let imageResp;
   let promptWithImage;
 
-  const part_prompt = image_url ? "画像の内容のどこがいいのか具体的に、100文字程度で褒めてください。" :
+  const part_prompt = image_url ? "画像の内容のどこがいいのか具体的に、50文字程度で褒めてください。" :
                                   "文章に対して具体的に、30文字程度で褒めてください。";
   const prompt = `${part_prompt}\
                   褒める際にはユーザ名もできるかぎり合わせて褒めてください。\
@@ -71,7 +71,7 @@ async function generateMorningGreets () {
 
   const result = await gemini.getModel().generateContent(prompt);
 
-  return result.response.text() + "\n【以下、管理人】\nbotたんの発言には間違いが含まれる場合もあります。ご容赦ください。";
+  return result.response.text() + "\n【以下、管理人】\nbotたんの発言には間違いが含まれる場合もあります。ご容赦ください🙇";
 }
 
 class RequestPerDayGemini {
