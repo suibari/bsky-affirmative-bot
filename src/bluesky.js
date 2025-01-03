@@ -35,7 +35,8 @@ class MyBlueskyer extends Blueskyer {
 
     const text_user = event.commit.record.text;
     const name_user = displayName;
-    const image_url = event.commit.record.images?.[0]?.fullsize;
+    const image = event.commit.record.embed?.images?.[0]?.image;
+    const image_url = image ? `https://cdn.bsky.app/img/feed_fullsize/plain/${event.did}/${image.ref.$link}` : undefined;
     const uri = `at://${event.did}/app.bsky.feed.post/${event.commit.rkey}`;
     const cid = event.commit.cid;
 

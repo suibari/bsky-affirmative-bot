@@ -106,7 +106,8 @@ async function doReply(event) {
     // 対象フォロワーの情報を取得
     const follower = followers.find(follower => follower.did === did);
     if (!follower) {
-      console.warn(`[WARNING] No follower found for DID: ${did}`);
+      // フォロワーではないポストなので無視
+      // console.warn(`[WARNING] No follower found for DID: ${did}`);
       return;
     }
 

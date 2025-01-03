@@ -15,7 +15,7 @@ async function startWebSocket(didArray, userCallback) {
   jetstream = new Jetstream({
     ws,
     wantedCollections: ["app.bsky.feed.post"],
-    wantedDids: didArray,
+    // wantedDids: didArray,  // 312要素より大きいと400 errorになる
   });
   jetstream.start();
   console.log("[INFO] JetStream connection established.");
