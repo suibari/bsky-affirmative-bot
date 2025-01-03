@@ -118,6 +118,20 @@ class MyBlueskyer extends Blueskyer {
   isNotReply(record) {
     return (record.reply === undefined);
   }
+
+  isNotMention(record) {
+    if ('facets' in record) {
+      const facets = record.facets;
+      for (const facet of facets) {
+        for (const feature of facet.features) {
+          if (feature.$type === 'app.bsky.richtext.facet#mention') {
+            return false;
+          }
+        }
+      }
+    }
+    return true;
+  }
 }
 
 module.exports = MyBlueskyer;

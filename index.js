@@ -112,9 +112,9 @@ async function doReply(event) {
 
     const displayName = follower.displayName;
 
-    // フィルタリング: リプライでない投稿を対象とする
+    // フィルタリング: リプライでない、かつメンションでない投稿を対象とする
     const record = event.commit.record;
-    if (agent.isNotReply(record)) {
+    if (agent.isNotReply(record) && agent.isNotMention(record)) {
       // 前回反応日時の取得
       const postedAt = new Date(event.commit.record.createdAt);
       const updatedAt = new Date(await db.selectDb(did));
