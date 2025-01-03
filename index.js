@@ -14,8 +14,8 @@ global.fetch = require('node-fetch'); // for less than node-v17
 const SPAN_FOLLOW_CHECK = 30 * 60 * 1000;
 const OFFSET_UTC_TO_JST = 9 * 60 * 60 * 1000; // offset: +9h (to JST from UTC <SQlite3>)
 const MINUTES_THRD_RESPONSE = 10 * 60 * 1000; // 10min
-const ARRAY_WORD_O18 = ["U18モード解除", "U18解除"];
-const ARRAY_WORD_U18 = ["U18モード"];
+const ARRAY_WORD_O18 = ["定型文モード解除", "Disable Predefined Reply Mode"];
+const ARRAY_WORD_U18 = ["定型文モード", "Predefined Reply Mode"];
 let followers = [];
 
 // 定期実行タスク1

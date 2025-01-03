@@ -17,8 +17,5 @@
   },
   "author": "suibari",
   "license": "MIT",
-  "description": "",
-  "devDependencies": {
-    "@flydotio/dockerfile": "^0.5.3"
-  }
+  "description": ""
 }
