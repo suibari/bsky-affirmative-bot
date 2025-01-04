@@ -4,6 +4,7 @@ const db = require('./src/database');
 const { startWebSocket } = require('./src/jetstream');
 const { TimeLogger, point } = require('./src/logger');
 const handleU18Registration = require('./src/u18mode');
+const handleUranai = require('./src/uranai');
 (async () => {
   await db.createDbIfNotExist();
 })();
@@ -117,6 +118,12 @@ async function doReply(event) {
     // 定型文モード
     const isRegisterU18 = await handleU18Registration(event);
     if (isRegisterU18) {
+      return;
+    }
+
+    // 占いモード
+    const isUranai = await handleUranai(event, displayName);
+    if (isUranai) {
       return;
     }
 

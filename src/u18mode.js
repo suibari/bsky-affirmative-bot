@@ -18,10 +18,9 @@ const handleU18Registration = async (event) => {
       // リプライ
       const record = agent.getRecordFromEvent(event, TEXT_RELEASE_U18);
       await agent.post(record);
-      point.addCreate();
 
       // DB登録
-      db.updateU18Db(did, 0);
+      db.updateDb(did, "is_u18", 0);
       console.log("[INFO] RELEASE U18-mode for DID: " + did);
 
       return true; // 処理済みを示す
@@ -33,10 +32,9 @@ const handleU18Registration = async (event) => {
       // リプライ
       const record = agent.getRecordFromEvent(event, TEXT_REGISTER_U18);
       await agent.post(record);
-      point.addCreate();
 
       // DB登録
-      db.updateU18Db(did, 1);
+      db.updateDb(did, "is_u18", 1);
       console.log("[INFO] SET U18-mode for DID: " + did);
 
       return true; // 処理済みを示す

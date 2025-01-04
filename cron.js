@@ -16,10 +16,10 @@ const { generateMorningGreets } = require('./src/gemini');
     text: text_bot,
   };
 
-  if (process.env.NODE_ENV === "production") {
-    await agent.post(record);
-    console.log("[INFO] posted morning greets.");
-  } else if (process.env.NODE_ENV === "development") {
+  await agent.post(record);
+  console.log("[INFO] posted morning greets.");
+
+  if (process.env.NODE_ENV === "development") {
     console.log("[DEBUG] bot>>> " + text_bot);
   }
 })();

@@ -38,9 +38,19 @@ class SQLite3 {
     });
   }
 
-  updateDb(id) {
-    const query = `UPDATE followers SET updated_at = CURRENT_TIMESTAMP WHERE did = ?;`;
-    this.db.run(query, [id], (err) => {
+  updateDb(id, col_name, value) {
+    let query;
+    const params = [];
+
+    if (col_name && value) {
+      query = `UPDATE followers SET ${col_name} = ?, updated_at = CURRENT_TIMESTAMP WHERE did = ?`;
+      params.push(value, id);
+    } else {
+      query = `UPDATE followers SET updated_at = CURRENT_TIMESTAMP WHERE did = ?`;
+      params.push(id);
+    }
+
+    this.db.run(query, params, (err) => {
       if (err) {
         console.error('Error updating data', err);
       }
@@ -58,21 +68,6 @@ class SQLite3 {
           resolve(row ? row[col_name] : null);
         }
       });
-    });
-  }
-
-  updateU18Db(id, is_u18) {
-    // 型チェック: is_u18 は 0 または 1 である必要があります
-    if (![0, 1].includes(is_u18)) {
-      console.error('Error: is_u18 must be 0 or 1.');
-      return;
-    }
-
-    const query = `UPDATE followers SET is_u18 = ? WHERE did = ?;`;
-    this.db.run(query, [is_u18, id], (err) => {
-      if (err) {
-        console.error('Error updating data', err);
-      }
     });
   }
 

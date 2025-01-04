@@ -1,7 +1,7 @@
 const { Blueskyer } = require('blueskyer');
 const { getRandomWordByNegaposi }  = require('./randomword');
 const { generateAffirmativeWordByGemini, RequestPerDayGemini } = require('./gemini');
-const service = 'https://bsky.social';
+const { point } = require('./logger');
 const RPD = new RequestPerDayGemini();
 
 class MyBlueskyer extends Blueskyer {
@@ -60,28 +60,9 @@ class MyBlueskyer extends Blueskyer {
     const record = this.getRecordFromEvent(event, text_bot);
 
     // ポスト
-    if (process.env.NODE_ENV === "production") {
-      await this.post(record);
-    }
+    await this.post(record);
+
     return;
-  }
-
-  async confirmWordAndReply(event, wordArray, text_bot) {
-    const text_user = event.commit.record.text;
-
-    // O18判定
-    if (wordArray.every(elem => text_user.includes(elem))) {
-      const text_bot = "O18モードを設定しました!\n"
-                       "これからはたまにAIを使って全肯定しますね。"
-      const record = this.getRecordFromEvent(event, text_bot);
-
-      // ポスト
-      await this.post(record);
-
-      return true;
-    }
-
-    return false;
   }
 
   getLatestFeedWithoutConditions(author, feeds) {
@@ -170,9 +151,9 @@ class MyBlueskyer extends Blueskyer {
 
     did = this.isMention(record);
     if (record.reply) {
-      const uri = record.reply.uri;
+      const uri = record.reply.parent.uri;
       if (uri) {
-        did = this.getDidFromUri(uri);
+        did = this.getDidFromUri(uri)[0];
       }
     }
 
@@ -184,6 +165,17 @@ class MyBlueskyer extends Blueskyer {
 
   getDidFromUri(uri) {
     return uri.match(/did:plc:\w+/);
+  }
+
+  /**
+   * post()をオーバーライド。本番環境でのみポストし、レートリミットを増加
+   * @param {} record 
+   */
+  async post(record) {
+    if (process.env.NODE_ENV === "production") {
+      await super.post(record);
+      point.addCreate();
+    }
   }
 }
 const agent = new MyBlueskyer();

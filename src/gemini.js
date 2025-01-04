@@ -74,6 +74,19 @@ async function generateMorningGreets () {
   return result.response.text() + "\n【以下、管理人】\nbotたんの発言には間違いが含まれる場合もあります。ご容赦ください🙇";
 }
 
+async function generateUranaiResult(name_user) {
+  const prompt = `占いをしてください。運勢、ラッキースポット、ラッキーカラーを、100文字程度で出してください。\
+                  以下がユーザ名です。\n
+                  ${name_user}\n
+                  運勢は悪い内容が一切含まれないようにして、「最高潮」「絶好調」「最高」といった言葉は使わず、ワンパターンにならないようにしてください。\
+                  ラッキースポットはワンパターンにならないようにしてください。\
+                  ラッキーカラーはワンパターンにならないようにしてください。`;
+
+  const result = await gemini.getModel().generateContent(prompt);
+
+  return result.response.text();
+}
+
 class RequestPerDayGemini {
   constructor() {
     this.rpd = 0;
@@ -110,6 +123,9 @@ class RequestPerDayGemini {
   }
 }
 
-module.exports.generateAffirmativeWordByGemini = generateAffirmativeWordByGemini;
-module.exports.generateMorningGreets = generateMorningGreets;
-module.exports.RequestPerDayGemini = RequestPerDayGemini;
+module.exports = { 
+  generateAffirmativeWordByGemini,
+  generateMorningGreets,
+  generateUranaiResult,
+  RequestPerDayGemini,
+}
