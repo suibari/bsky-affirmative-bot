@@ -84,6 +84,45 @@ class MyBlueskyer extends Blueskyer {
     return false;
   }
 
+  getLatestFeedWithoutConditions(author, feeds) {
+    for (const feed of feeds) {
+      if ((author.did == feed.post.author.did) && !this.isMention(feed.post.record) && !this.isSpam(feed.post) && !this.isRepost(feed)) {
+        return feed;
+      };
+    };
+    // feed0件または全てリポスト
+    return;
+  }
+
+  isSpam(post) {
+    const labelArray = ["spam"];
+    
+    const authorLabels = post.author.labels;
+    if (authorLabels) {
+      for (const label of authorLabels) {
+        if (labelArray.some(elem => elem === label.val)) {
+          return true;
+        };
+      };
+    };
+    const postLabels = post.labels;
+    if (postLabels) {
+      for (const label of postLabels) {
+        if (labelArray.some(elem => elem === label.val)) {
+          return true;
+        };
+      };
+    };
+    return false;
+  }
+
+  isRepost(feed) {
+    if (feed.reason?.$type === "app.bsky.feed.defs#reasonRepost") {
+      return true;
+    };
+    return false;
+  }
+
   getRecordFromEvent(event, text_bot) {
     const uri = `at://${event.did}/app.bsky.feed.post/${event.commit.rkey}`;
     const cid = event.commit.cid;
