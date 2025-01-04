@@ -83,14 +83,23 @@ async function generateUranaiResult(name_user) {
   const category_spot = ["観光地", "公共施設", "商業施設", "自然", "歴史的建造物", "テーマパーク", "文化施設", "アウトドアスポット", "イベント会場", "温泉地", "グルメスポット", "スポーツ施設", "特殊施設"];
   const category_food = ["和食", "洋食", "中華料理", "エスニック料理", "カレー", "焼肉", "鍋", "ラーメン", "スイーツ"];
   const category_game = ["アクション", "アドベンチャー", "RPG", "シミュレーション", "ストラテジー", "パズル", "FPS", "ホラー", "シューティング", "レース"];
+  const category_anime = ["バトル", "恋愛", "ファンタジー", "日常系", "スポーツ", "SF", "ホラー", "コメディ", "ロボット", "歴史"];
+  const category_movie = ["アクション", "コメディ", "ドラマ", "ファンタジー", "ホラー", "ミュージカル", "サスペンス", "アニメ", "ドキュメンタリー", "恋愛"];
+  const category_music = ["ポップ", "ロック", "ジャズ", "クラシック", "EDM", "ヒップホップ", "R&B", "レゲエ", "カントリー", "インストゥルメンタル"];
+  const part_prompt = [
+    `* ラッキースポットは、日本にある、${getRandomItems(category_spot, 1)}かつ${getRandomItems(category_spot, 1)}の中で、具体的な名称をランダムに選ぶこと。`,
+    `* ラッキーフードは、${getRandomItems(category_food, 1)}かつ${getRandomItems(category_food, 1)}をあわせもつ料理の具体的な名称をランダムに選ぶこと。`,
+    `* ラッキーゲームは、${getRandomItems(category_game, 1)}と${getRandomItems(category_game, 1)}をあわせもつゲームの具体的な名称をランダムに選ぶこと。`,
+    `* ラッキーアニメは、${getRandomItems(category_anime, 1)}と${getRandomItems(category_anime, 1)}の要素をあわせもつアニメの具体的な名称をランダムに選ぶこと。`,
+    `* ラッキームービーは、${getRandomItems(category_movie, 1)}と${getRandomItems(category_movie, 1)}の要素をあわせもつ映画の具体的な名称をランダムに選ぶこと。`,
+    `* ラッキーミュージックは、${getRandomItems(category_music, 1)}と${getRandomItems(category_music, 1)}の要素をあわせもつ楽曲の具体的な名称をランダムに選ぶこと。`,
+  ];
 
   const prompt = `占いをしてください。
                   内容は150文字程度で、男女関係なく楽しめるようにしてください。
-                  占い結果、ラッキースポット、ラッキーフード、ラッキーゲームを以下の条件に基づいて生成してください。
-                  1. 占い結果は、「最高」などの最上級表現を使わないこと。
-                  2. ラッキースポットは、日本にある、${getRandomElement(category_spot)}かつ${getRandomElement(category_spot)}の中で、具体的な名称をランダムに選ぶこと。
-                  3. ラッキーフードは、${getRandomElement(category_food)}かつ${getRandomElement(category_food)}をあわせもつ料理の具体的な名称をランダムに選ぶこと。
-                  4. ラッキーゲームは、${getRandomElement(category_game)}と${getRandomElement(category_game)}をあわせもつゲームの具体的な名称をランダムに選ぶこと。
+                  占い結果などを以下の条件に基づいて生成してください。
+                  * 占い結果は、「最高」などの最上級表現を使わないこと。
+                  ${getRandomItems(part_prompt, 3)}
                   悪い内容が一切含まれないようにしてください。
                   以下がユーザ名です。
                   ${name_user}`;
@@ -151,12 +160,18 @@ class RequestPerDayGemini {
   }
 }
 
-function getRandomElement(array) {
-  if (!Array.isArray(array) || array.length === 0) {
-    throw new Error("引数は非空の配列でなければなりません");
+function getRandomItems(array, count) {
+  if (count > array.length) {
+    throw new Error("Requested count exceeds array length");
   }
-  const randomIndex = Math.floor(Math.random() * array.length);
-  return array[randomIndex];
+
+  const shuffled = array.slice(); // 配列を複製してシャッフル
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1)); // ランダムなインデックスを選択
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]; // 値を交換
+  }
+
+  return shuffled.slice(0, count); // シャッフルされた配列から先頭の要素を取得
 }
 
 module.exports = { 
