@@ -147,5 +147,6 @@ class MyBlueskyer extends Blueskyer {
     return uri.match(/did:plc:\w+/);
   }
 }
+const agent = new MyBlueskyer();
 
-module.exports = MyBlueskyer;
+module.exports = agent;

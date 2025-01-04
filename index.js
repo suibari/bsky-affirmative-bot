@@ -1,11 +1,9 @@
 require('dotenv').config();
-const MyBlueskyer = require('./src/bluesky');
-const SQLite3 = require('./src/database');
+const agent = require('./src/bluesky');
+const db = require('./src/database');
 const { startWebSocket } = require('./src/jetstream');
-const { TimeLogger, PointLogger } = require('./src/logger');
-const point = new PointLogger();
-const agent = new MyBlueskyer();
-const db = new SQLite3();
+const { TimeLogger, point } = require('./src/logger');
+const handleU18Registration = require('./src/u18mode');
 (async () => {
   await db.createDbIfNotExist();
 })();
@@ -14,8 +12,6 @@ global.fetch = require('node-fetch'); // for less than node-v17
 const SPAN_FOLLOW_CHECK = 30 * 60 * 1000;
 const OFFSET_UTC_TO_JST = 9 * 60 * 60 * 1000; // offset: +9h (to JST from UTC <SQlite3>)
 const MINUTES_THRD_RESPONSE = 10 * 60 * 1000; // 10min
-const ARRAY_WORD_O18 = ["定型文モード解除", "Disable Predefined Reply Mode"];
-const ARRAY_WORD_U18 = ["定型文モード", "Predefined Reply Mode"];
 let followers = [];
 
 // 定期実行タスク1
@@ -118,35 +114,9 @@ async function doReply(event) {
     }
     const displayName = follower.displayName;
 
-    // U18登録解除処理
-    const text_user = event.commit.record.text;
-    const isPostToMe = agent.isReplyOrMentionToMe(event.commit.record);
-    const isInactiveU18 = ARRAY_WORD_O18.some(elem => text_user.includes(elem));
-    if (isPostToMe && isInactiveU18) {
-      // リプライ
-      const record = agent.getRecordFromEvent(event, "定型文モードを解除しました! これからはたまにAIを使って全肯定しますね。");
-      await agent.post(record);
-      point.addCreate();
-
-      // DB登録
-      db.updateU18Db(did, 0);
-      console.log("[INFO] RELEASE U18-mode for DID: " + did);
-      
-      return;
-    }
-
-    // U18登録処理
-    const isActiveU18 = ARRAY_WORD_U18.some(elem => text_user.includes(elem));
-    if (isPostToMe && isActiveU18) {
-      // リプライ
-      const record = agent.getRecordFromEvent(event, "定型文モードを設定しました! これからはAIを使わずに全肯定しますね。");
-      await agent.post(record);
-      point.addCreate();
-
-      // DB登録
-      db.updateU18Db(did, 1);
-      console.log("[INFO] SET U18-mode for DID: " + did);
-      
+    // 定型文モード
+    const isRegisterU18 = await handleU18Registration(event);
+    if (isRegisterU18) {
       return;
     }
 

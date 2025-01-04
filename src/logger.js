@@ -49,9 +49,10 @@ class PointLogger {
     return this.point;
   }
 }
+const point = new PointLogger();
 
 module.exports = {
   TimeLogger,
   ExecutionLogger,
-  PointLogger
+  point
 };

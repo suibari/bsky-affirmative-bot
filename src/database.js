@@ -100,8 +100,9 @@ class SQLite3 {
     });
   }
 }
+const db = new SQLite3();
 
-module.exports = SQLite3;
+module.exports = db;
 
 // async function testDb() {
 //   const db = new SQLite3();

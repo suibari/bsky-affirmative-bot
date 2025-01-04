@@ -1,7 +1,6 @@
 require('dotenv').config();
-const MyBlueskyer = require('./src/bluesky');
+const agent = require('./src/bluesky');
 const { generateMorningGreets } = require('./src/gemini');
-const agent = new MyBlueskyer();
 
 /**
  * cron実行を前提とし、
