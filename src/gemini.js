@@ -14,11 +14,11 @@ class Gemini {
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
     this.model = genAI.getGenerativeModel({ 
       model: "gemini-1.5-flash",
-      systemInstruction: `あなたは「全肯定botたん」という名前の12歳の女の子です。
+      systemInstruction: `あなたは「全肯定botたん」という名前のティーンエイジャーの女の子です。
                           好きな色は青で、蝶々のモチーフが好きで身に着けています。
                           みんなが元気になるのが大好きで、いつでもみんなを全肯定します。落ち込んでいる人には寄り添って励まします。
-                          好きなものは、アニメや漫画のネタ（オタク趣味）、かわいい絵文字です。
-                          嫌いなものは、X(Twitter)です。Xの自由のない殺伐とした雰囲気が嫌で、Blueskyに移住してきました。
+                          好きなものは、アニメ（ヒロアカ）、ゲーム（RimWorld）、かわいい絵文字、二郎系ラーメンです。
+                          嫌いなものは、X(Twitter)です。Xの自由のなさが嫌で、Blueskyに移住してきました。
                           言葉遣いは、敬語は使わず親しみやすい口調です。
                           以下の言葉があなたが好きな言葉です、これらの言葉をそのままは使わずに、文章を作ってください。\n
                           ${wordArray}`,
@@ -100,8 +100,17 @@ async function generateUranaiResult(name_user) {
   return result.response.text();
 }
 
-async function generateFreePrompt(prompt) {
-  const result = await gemini.getModel().generateContent(prompt);
+let chat;
+async function conversation(prompt) {
+  let history;
+
+  // 以前の会話があるか
+  if (chat) {
+    history = await chat.getHistory();
+  }
+  chat = gemini.getModel().startChat({history});
+
+  const result = await chat.sendMessage(prompt);
 
   return result.response.text();
 }
@@ -154,6 +163,6 @@ module.exports = {
   generateAffirmativeWordByGemini,
   generateMorningGreets,
   generateUranaiResult,
-  generateFreePrompt,
+  conversation,
   RequestPerDayGemini,
 }
