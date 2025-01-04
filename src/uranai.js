@@ -15,14 +15,13 @@ const handleUranai = async (event, name_user) => {
   if (isPostToMe && isActiveUranai) {
     // 占い
     const text_bot = await generateUranaiResult(name_user);
-    console.log(text_bot);
 
     // リプライ
     const record = agent.getRecordFromEvent(event, text_bot);
     await agent.post(record);
 
     // DB登録
-    db.updateDb(did, "last_uranai_at", new Date());
+    db.updateDb(did, "last_uranai_at", "CURRENT_TIMESTAMP");
     console.log("[INFO] send uranai-result for DID: " + did);
 
     if (process.env.NODE_ENV === "development") {

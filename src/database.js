@@ -40,17 +40,14 @@ class SQLite3 {
 
   updateDb(id, col_name, value) {
     let query;
-    const params = [];
 
     if (col_name && value) {
-      query = `UPDATE followers SET ${col_name} = ?, updated_at = CURRENT_TIMESTAMP WHERE did = ?`;
-      params.push(value, id);
+      query = `UPDATE followers SET ${col_name} = ${value}, updated_at = CURRENT_TIMESTAMP WHERE did = ?`;
     } else {
       query = `UPDATE followers SET updated_at = CURRENT_TIMESTAMP WHERE did = ?`;
-      params.push(id);
     }
 
-    this.db.run(query, params, (err) => {
+    this.db.run(query, [id], (err) => {
       if (err) {
         console.error('Error updating data', err);
       }
