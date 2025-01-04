@@ -124,7 +124,7 @@ async function doReply(event) {
     const isInactiveU18 = ARRAY_WORD_O18.some(elem => text_user.includes(elem));
     if (isPostToMe && isInactiveU18) {
       // リプライ
-      const record = agent.getRecordFromEvent(event, "U18モードを解除しました! これからはたまにAIを使って全肯定しますね。");
+      const record = agent.getRecordFromEvent(event, "定型文モードを解除しました! これからはたまにAIを使って全肯定しますね。");
       await agent.post(record);
       point.addCreate();
 
@@ -139,7 +139,7 @@ async function doReply(event) {
     const isActiveU18 = ARRAY_WORD_U18.some(elem => text_user.includes(elem));
     if (isPostToMe && isActiveU18) {
       // リプライ
-      const record = agent.getRecordFromEvent(event, "U18モードを設定しました! これからはAIを使わずに全肯定しますね。");
+      const record = agent.getRecordFromEvent(event, "定型文モードを設定しました! これからはAIを使わずに全肯定しますね。");
       await agent.post(record);
       point.addCreate();
 
