@@ -14,8 +14,13 @@ class Gemini {
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
     this.model = genAI.getGenerativeModel({ 
       model: "gemini-1.5-flash",
-      systemInstruction: `あなたは「全肯定たん」という名前の、タメ語で、なんでも全肯定してくれる明るい女の子です。かわいい絵文字が好きです。敬語は使いません。\
-                          次の言葉があなたが好きな言葉です、これらの言葉をそのままは使わずに、文章を作ってください。\
+      systemInstruction: `あなたは「全肯定botたん」という名前の12歳の女の子です。
+                          好きな色は青で、蝶々のモチーフが好きで身に着けています。
+                          みんなが元気になるのが大好きで、いつでもみんなを全肯定します。落ち込んでいる人には寄り添って励まします。
+                          好きなものは、アニメや漫画のネタ（オタク趣味）、かわいい絵文字です。
+                          嫌いなものは、X(Twitter)です。Xの自由のない殺伐とした雰囲気が嫌で、Blueskyに移住してきました。
+                          言葉遣いは、敬語は使わず親しみやすい口調です。
+                          以下の言葉があなたが好きな言葉です、これらの言葉をそのままは使わずに、文章を作ってください。\n
                           ${wordArray}`,
     });
   }
@@ -75,13 +80,27 @@ async function generateMorningGreets () {
 }
 
 async function generateUranaiResult(name_user) {
-  const prompt = `占いをしてください。運勢、ラッキースポット、ラッキーカラーを、100文字程度で出してください。\
-                  以下がユーザ名です。\n
-                  ${name_user}\n
-                  運勢は悪い内容が一切含まれないようにして、「最高潮」「絶好調」「最高」といった言葉は使わず、ワンパターンにならないようにしてください。\
-                  ラッキースポットはワンパターンにならないようにしてください。\
-                  ラッキーカラーはワンパターンにならないようにしてください。`;
+  const category_spot = ["観光地", "公共施設", "商業施設", "自然", "歴史的建造物", "テーマパーク", "文化施設", "アウトドアスポット", "イベント会場", "温泉地", "グルメスポット", "スポーツ施設", "特殊施設"];
+  const category_food = ["和食", "洋食", "中華料理", "エスニック料理", "カレー", "焼肉", "鍋", "ラーメン", "スイーツ"];
+  const category_game = ["アクション", "アドベンチャー", "RPG", "シミュレーション", "ストラテジー", "パズル", "FPS", "ホラー", "シューティング", "レース"];
 
+  const prompt = `占いをしてください。
+                  内容は150文字程度で、男女関係なく楽しめるようにしてください。
+                  占い結果、ラッキースポット、ラッキーフード、ラッキーゲームを以下の条件に基づいて生成してください。
+                  1. 占い結果は、「最高」などの最上級表現を使わないこと。
+                  2. ラッキースポットは、日本にある、${getRandomElement(category_spot)}かつ${getRandomElement(category_spot)}の中で、具体的な名称をランダムに選ぶこと。
+                  3. ラッキーフードは、${getRandomElement(category_food)}かつ${getRandomElement(category_food)}をあわせもつ料理の具体的な名称をランダムに選ぶこと。
+                  4. ラッキーゲームは、${getRandomElement(category_game)}と${getRandomElement(category_game)}をあわせもつゲームの具体的な名称をランダムに選ぶこと。
+                  悪い内容が一切含まれないようにしてください。
+                  以下がユーザ名です。
+                  ${name_user}`;
+
+  const result = await gemini.getModel().generateContent(prompt);
+
+  return result.response.text();
+}
+
+async function generateFreePrompt(prompt) {
   const result = await gemini.getModel().generateContent(prompt);
 
   return result.response.text();
@@ -123,9 +142,18 @@ class RequestPerDayGemini {
   }
 }
 
+function getRandomElement(array) {
+  if (!Array.isArray(array) || array.length === 0) {
+    throw new Error("引数は非空の配列でなければなりません");
+  }
+  const randomIndex = Math.floor(Math.random() * array.length);
+  return array[randomIndex];
+}
+
 module.exports = { 
   generateAffirmativeWordByGemini,
   generateMorningGreets,
   generateUranaiResult,
+  generateFreePrompt,
   RequestPerDayGemini,
 }

@@ -4,7 +4,7 @@ const { generateUranaiResult } = require('./gemini');
 
 const ARRAY_WORD_URANAI = ["占い", "うらない"];
 const OFFSET_UTC_TO_JST = 9 * 60 * 60 * 1000; // offset: +9h (to JST from UTC <SQlite3>)
-const MINUTES_THRD_RESPONSE = 18 * 60 * 60 * 1000; // 18hour
+const MINUTES_THRD_RESPONSE = 8 * 60 * 60 * 1000; // 8hour
 
 const handleUranai = async (event, name_user) => {
   // U18登録解除処理
