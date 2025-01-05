@@ -71,7 +71,9 @@ Please refer [English README](./README_en.md) for not Japanese speakers.
 本botが収集した情報は、リプライ生成以外の目的では、第三者と共有されません。ただしAI生成リプライ時には、Google Gemini API利用のため、Google LLCとのデータ通信を行います。
 
 ### 年齢制限
-本botのAI生成リプライ機能はGoogle Gemini APIの利用規約に準拠しており、18歳以上のユーザのみを対象としています。**18歳未満の方は、以下使用方法に示す"定型文モード"で利用するか、利用をお控えください。**
+本botのAI生成リプライ機能はGoogle Gemini APIの利用規約に準拠しており、18歳以上のユーザのみを対象としています。
+
+**18歳未満の方は、以下使用方法に示す"定型文モード"で利用するか、利用をお控えください。**
 
 ### 地域制限
 本botのAI生成リプライ機能はGoogle Gemini APIの利用規約に準拠しており、次の地域ではご利用いただけません：
@@ -92,7 +94,10 @@ Please refer [English README](./README_en.md) for not Japanese speakers.
 ---
 
 ## ライセンス
-このプロジェクトはMITライセンスの下で提供されています。詳細は [LICENSE](./LICENSE) ファイルをご覧ください。
+このプロジェクトはOSSであり、MITライセンスの下で提供されています。詳細は [LICENSE](./LICENSE) ファイルをご覧ください。
+
+### 引用文献
+本botは感情分析に東北大学 乾・岡崎研究室の [日本語評価極性辞書](https://www.cl.ecei.tohoku.ac.jp/Open_Resources-Japanese_Sentiment_Polarity_Dictionary.html) を使用しています。
 
 ---
 
