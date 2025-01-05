@@ -19,7 +19,9 @@ class SQLite3 {
         did TEXT PRIMARY KEY,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        is_u18     INTEGER   DEFAULT 0
+        is_u18     INTEGER   DEFAULT 0,
+        last_uranai_at TIMESTAMP DEFAULT NULL,
+        reply_freq INTEGER   DEFAULT 100
       );
     `;
     this.db.run(query, (err) => {

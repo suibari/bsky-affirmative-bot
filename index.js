@@ -3,6 +3,7 @@ const agent = require('./src/bluesky');
 const db = require('./src/database');
 const { startWebSocket } = require('./src/jetstream');
 const { TimeLogger, point } = require('./src/logger');
+const handleRegisterFreq = require('./src/silentmode');
 const handleU18Registration = require('./src/u18mode');
 const handleUranai = require('./src/uranai');
 (async () => {
@@ -121,6 +122,11 @@ async function doReply(event) {
       return;
     }
 
+    const isRegisterFreq = await handleRegisterFreq(event);
+    if (isRegisterFreq) {
+      return;
+    }
+
     // 占いモード
     const isUranai = await handleUranai(event, displayName);
     if (isUranai) {
@@ -141,7 +147,12 @@ async function doReply(event) {
 
       // 時間判定
       const isPast = (postedAt.getTime() - updatedAtJst.getTime() > MINUTES_THRD_RESPONSE);
-      if (isPast) {
+
+      // 確立判定
+      const user_freq = Number(await db.selectDb(did, "reply_freq"));
+      const isValidFreq = isJudgeByFreq(user_freq);
+
+      if (isPast && isValidFreq) {
         try {
           // U18情報をDBから取得
           const is_u18 = await db.selectDb(did, "is_u18");
@@ -156,9 +167,11 @@ async function doReply(event) {
         } catch (replyError) {
           console.error(`[ERROR] Failed to reply or update DB for DID: ${did}`, replyError);
         }
+      } else {
+        console.log(`[INFO] Post was be ignored for DID: ${did}, for past:${isPast}/freq:${isValidFreq}`);
       }
     } else {
-      console.log(`[INFO] Post will be ignored for DID: ${did}`);
+      console.log(`[INFO] Post was be ignored for DID: ${did}, for reply or mention`);
     }
   } catch (eventError) {
     console.error("[ERROR] Failed to process incoming event:", eventError);
@@ -195,4 +208,12 @@ function arrayShuffle(array) {
     array[r] = tmp;
   }
   return array;
+}
+
+function isJudgeByFreq(probability) {
+  if (probability < 0 || probability > 100) {
+    throw new Error("Probability must be between 0 and 100.");
+  }
+
+  return Math.random() * 100 < probability;
 }
