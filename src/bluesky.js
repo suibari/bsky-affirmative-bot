@@ -7,13 +7,14 @@ const RPD = new RequestPerDayGemini();
 class MyBlueskyer extends Blueskyer {
   async replyGreets(replyPost) {
     const text = 
-`こんにちは！\n
-全肯定botたんです！\n
-これから${replyPost.author.displayName}さんのポストに時々全肯定でリプライするよ！\n
-これからもよろしくね！\n
-\n
-1日に1回、わたしに"占い"とリプライまたはメンションすると、占いするよ！\n
-あと、AI規約のため、18歳未満の方は"定型文モード"とリプライしてね。\n`;
+`こんにちは！
+全肯定botたんです！
+これから${replyPost.author.displayName}さんのポストに全肯定でリプライするよ！
+これからもよろしくね！
+
+リプライ頻度は、わたしに"freq50"などとリプライすると、指定した頻度に変えるよ(最初は100%リプライするね！)
+1日に1回、わたしに"占い"とリプライすると、占いするよ！
+AI規約のため、18歳未満の方は"定型文モード"とリプライしてね。`;
 
     const record = {
       text: text,
