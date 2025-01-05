@@ -22,23 +22,29 @@ const handleUranai = async (event, name_user) => {
   const isPast = (postedAt.getTime() - lastUranaiAtJst.getTime() > MINUTES_THRD_RESPONSE);
 
   if (isPast && isPostToMe && isActiveUranai) {
-    // 占い
-    const text_bot = await generateUranaiResult(name_user);
-
-    // リプライ
-    const record = agent.getRecordFromEvent(event, text_bot);
-    await agent.post(record);
-
-    // DB登録
-    db.updateDb(did, "last_uranai_at", "CURRENT_TIMESTAMP");
-    console.log("[INFO] send uranai-result for DID: " + did);
-
-    if (process.env.NODE_ENV === "development") {
-      console.log("[DEBUG] bot>>> " + text_bot);
+    try {
+      // 占い
+      const text_bot = await generateUranaiResult(name_user);
+  
+      // リプライ
+      const record = agent.getRecordFromEvent(event, text_bot);
+      await agent.post(record);
+  
+      // DB登録 (リプライ成功時のみ)
+      db.updateDb(did, "last_uranai_at", "CURRENT_TIMESTAMP");
+      console.log("[INFO] send uranai-result for DID: " + did);
+  
+      if (process.env.NODE_ENV === "development") {
+        console.log("[DEBUG] bot>>> " + text_bot);
+      }
+  
+      return true; // 処理済みを示す
+    } catch (error) {
+      // エラーハンドリング
+      console.error("[ERROR] Failed to process uranai:", error);
+      return true; // 処理失敗を示す
     }
-
-    return true; // 処理済みを示す
-  }
+  }  
 
   return false; // 処理されなかった
 };

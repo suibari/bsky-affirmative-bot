@@ -72,7 +72,9 @@ async function generateMorningGreets () {
   const date = String(now.getDate());
   const str_date = `${year}年${month}月${date}日`;
 
-  const prompt = `今日は${str_date}です。100文字程度で、今日一日を頑張れるように朝の挨拶と、今日が何の日か豆知識を出力してください。`;
+  const prompt = `今日は${str_date}です。
+                  100文字程度で、今日一日を頑張れるように朝の挨拶と、今日が何の日か豆知識を出力してください。
+                  フォロワー全体に向けたメッセージなので、名前の呼びかけは不要です。`;
 
   const result = await gemini.getModel().generateContent(prompt);
 
@@ -80,6 +82,8 @@ async function generateMorningGreets () {
 }
 
 async function generateUranaiResult(name_user) {
+  const length_output = 250;
+
   const category_spot = ["観光地", "公共施設", "商業施設", "自然", "歴史的建造物", "テーマパーク", "文化施設", "アウトドアスポット", "イベント会場", "温泉地", "グルメスポット", "スポーツ施設", "特殊施設"];
   const category_food = ["和食", "洋食", "中華料理", "エスニック料理", "カレー", "焼肉", "鍋", "ラーメン", "スイーツ"];
   const category_game = ["アクション", "アドベンチャー", "RPG", "シミュレーション", "ストラテジー", "パズル", "FPS", "ホラー", "シューティング", "レース"];
@@ -96,17 +100,35 @@ async function generateUranaiResult(name_user) {
   ];
 
   const prompt = `占いをしてください。
-                  内容は150文字程度で、男女関係なく楽しめるようにしてください。
+                  出力は${length_output - 10}文字までとし、占いは男女関係なく楽しめるようにしてください。
                   占い結果などを以下の条件に基づいて生成してください。
                   * 占い結果は、「最高」などの最上級表現を使わないこと。
-                  ${getRandomItems(part_prompt, 3)}
+                  ${getRandomItems(part_prompt, 2)}
                   悪い内容が一切含まれないようにしてください。
                   以下がユーザ名です。
                   ${name_user}`;
 
-  const result = await gemini.getModel().generateContent(prompt);
+  const result = await gemini.getModel().generateContent(content(prompt, length_output));
 
   return result.response.text();
+}
+
+function content(prompt, length) {
+  return {
+    contents: [
+      {
+        role: 'user',
+        parts: [
+          {
+            text: prompt,
+          }
+        ],
+      }
+    ],
+    generationConfig: {
+      maxOutputTokens: length / 2,  // 日本語だと文字数/2 = トークンな感じ
+    },
+  }
 }
 
 let chat;
@@ -120,6 +142,12 @@ async function conversation(prompt) {
   chat = gemini.getModel().startChat({history});
 
   const result = await chat.sendMessage(prompt);
+
+  return result.response.text();
+}
+
+async function generateFreePrompt(prompt) {
+  const result = await gemini.getModel().generateContent(prompt);
 
   return result.response.text();
 }
