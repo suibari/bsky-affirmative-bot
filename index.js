@@ -11,7 +11,7 @@ const handleUranai = require('./src/uranai');
 })();
 global.fetch = require('node-fetch'); // for less than node-v17
 
-const SPAN_FOLLOW_CHECK = 30 * 60 * 1000;
+const SPAN_FOLLOW_CHECK = 10 * 60 * 1000; // 10min
 const OFFSET_UTC_TO_JST = 9 * 60 * 60 * 1000; // offset: +9h (to JST from UTC <SQlite3>)
 const MINUTES_THRD_RESPONSE = 10 * 60 * 1000; // 10min
 let followers = [];
@@ -70,7 +70,7 @@ async function doFollowAndGreetIfFollowed() {
   }
 }
 if (process.env.NODE_ENV === "production") {
-  setInterval(doFollowAndGreetIfFollowed, SPAN_FOLLOW_CHECK); // 5 minutes
+  setInterval(doFollowAndGreetIfFollowed, SPAN_FOLLOW_CHECK);
 }
 
 // 定期実行タスク2
