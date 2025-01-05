@@ -122,7 +122,7 @@ async function doReply(event) {
       return;
     }
 
-    const isRegisterFreq = await handleRegisterFreq(event);
+    const isRegisterFreq = await handleRegisterFreq(event, displayName);
     if (isRegisterFreq) {
       return;
     }

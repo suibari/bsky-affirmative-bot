@@ -21,7 +21,7 @@ const handleRegisterFreq = async (event, name_user) => {
 
       
       // リプライ
-      const text_bot = `了解! ${text_user}さんへのリプライする頻度を${freq_user}%にするね! ちなみに占いはいつでもできるよ～`;
+      const text_bot = `了解! ${name_user}さんへのリプライする頻度を${freq_user}%にするね! ちなみに占いはいつでもできるよ～`;
       const record = agent.getRecordFromEvent(event, text_bot);
       await agent.post(record);
   
