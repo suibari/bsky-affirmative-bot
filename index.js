@@ -158,23 +158,23 @@ async function doReply(event) {
           const is_u18 = await db.selectDb(did, "is_u18");
 
           // 新しい投稿の検出とリプライ処理
-          console.log(`[INFO] New post detected: ${did} !!`);
+          console.log(`[INFO][${did}] New post !!`);
           await agent.replyAffermativeWord(displayName, event, is_u18);
           point.addCreate();
 
           // DB更新
           db.insertOrUpdateDb(did);
         } catch (replyError) {
-          console.error(`[ERROR] Failed to reply or update DB for DID: ${did}`, replyError);
+          console.error(`[ERROR][${did}] Failed to reply or update DB:`, replyError);
         }
       } else {
-        console.log(`[INFO] Post was be ignored for DID: ${did}, for past:${isPast}/freq:${isValidFreq}`);
+        console.log(`[INFO][${did}] Ignored post, past:${isPast}/freq:${isValidFreq}`);
       }
     } else {
-      console.log(`[INFO] Post was be ignored for DID: ${did}, for reply or mention`);
+      console.log(`[INFO][${did}] Ignored post, reply or mention`);
     }
   } catch (eventError) {
-    console.error("[ERROR] Failed to process incoming event:", eventError);
+    console.error(`[ERROR][${did}] Failed to process incoming event:`, eventError);
   }
 }
 

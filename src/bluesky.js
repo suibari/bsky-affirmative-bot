@@ -109,19 +109,21 @@ AI規約のため、18歳未満の方は"定型文モード"とリプライし�
   }
 
   getRecordFromEvent(event, text_bot) {
-    const uri = `at://${event.did}/app.bsky.feed.post/${event.commit.rkey}`;
-    const cid = event.commit.cid;
+    const uri_parent = `at://${event.did}/app.bsky.feed.post/${event.commit.rkey}`;
+    const cid_parent = event.commit.cid;
+    const uri_root = event.commit.record.reply?.root.uri;
+    const cid_root = event.commit.record.reply?.root.cid;
 
     return {
       text: text_bot,
       reply: {
         root: {
-          uri: uri,
-          cid: cid
+          uri: uri_root ? uri_root : uri_parent,
+          cid: cid_root ? cid_root : cid_parent
         },
         parent: {
-          uri: uri,
-          cid: cid
+          uri: uri_parent,
+          cid: cid_parent
         }
       }
     };
