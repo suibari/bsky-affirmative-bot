@@ -103,6 +103,18 @@ updateFollowersAndStartWS();
 async function doReply(event) {
   try {
     const did = event.did;
+    const text = event.commit.record.text;
+
+    // ==============
+    // tmp: スパム対策に、一時的にdonateを含むポストはすべて無視
+    // ==============
+    const donate_word = ["donate", "donation"];
+    const isIncludedDonate = donate_word.some(elem => 
+      text.toLowerCase().includes(elem.toLowerCase())
+    );
+    if (isIncludedDonate) {
+      return;
+    }
 
     // ==============
     // preprocess
@@ -174,7 +186,7 @@ async function doReply(event) {
       console.log(`[INFO][${did}] Ignored post, reply or mention`);
     }
   } catch (eventError) {
-    console.error(`[ERROR][${did}] Failed to process incoming event:`, eventError);
+    console.error(`[ERROR] Failed to process incoming event:`, eventError);
   }
 }
 
