@@ -245,7 +245,7 @@ AI規約のため、18歳未満の方は"定型文モード"とリプライし�
           collection: nsid,
           rkey: rkey
         });
-        text_embed = record.value.text;
+        text_embed = record.value.text ? record.value.text : "";
       } else if (embed.$type === 'app.bsky.embed.external') {
         uri_embed = embed.external.uri;
       } else if (embed.$type === 'app.bsky.embed.images') {
