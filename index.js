@@ -120,7 +120,7 @@ async function doReply(event) {
     // spam filter
     // ==============
     const text = event.commit.record.text;
-    const donate_word = ["donate", "donation"];
+    const donate_word = ["donate", "donation", "gofund.me", "paypal.me"];
     // check text
     const isIncludedDonate = donate_word.some(elem => 
       text.toLowerCase().includes(elem.toLowerCase())
