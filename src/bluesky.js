@@ -40,7 +40,7 @@ AI規約のため、18歳未満の方は"定型文モード"とリプライし�
     const text_user = event.commit.record.text;
     const name_user = displayName;
     const image = event.commit.record.embed?.images?.[0]?.image;
-    const image_url = image ? `https://cdn.bsky.app/img/feed_fullsize/plain/${event.did}/${image.ref.$link}` : undefined;
+    const image_url = image ? this.getFullsizeImageUrl(event.did, image.ref.$link) : undefined;
 
     if (process.env.NODE_ENV === "development") {
       console.log("[DEBUG] user>>> " + text_user);
@@ -67,6 +67,10 @@ AI規約のため、18歳未満の方は"定型文モード"とリプライし�
     await this.post(record);
 
     return;
+  }
+
+  getFullsizeImageUrl(did, link) {
+    return `https://cdn.bsky.app/img/feed_fullsize/plain/${did}/${link}`
   }
 
   getLatestFeedWithoutConditions(author, feeds) {
@@ -173,6 +177,16 @@ AI規約のため、18歳未満の方は"定型文モード"とリプライし�
     return uri.match(/did:plc:\w+/);
   }
 
+  splitUri(uri) {
+    const parts = uri.split('/');
+
+    const did = parts[2];
+    const nsid = parts[3];
+    const rkey = parts[4];
+
+    return {did, nsid, rkey};
+  }
+
   /**
    * post()をオーバーライド。本番環境でのみポストし、レートリミットを増加
    * @param {} record 
@@ -182,6 +196,64 @@ AI規約のため、18歳未満の方は"定型文モード"とリプライし�
       await super.post(record);
       point.addCreate();
     }
+  }
+
+    /**
+   * 未実装API https://docs.bsky.app/docs/api/com-atproto-repo-get-records の実装
+   * @param {Object} queryParams 
+   * @returns
+   */
+  async getRecord(queryParams) {
+    const options = {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${this.accessJwt}`,
+      }
+    };
+
+    const url = new URL("https://bsky.social/xrpc/com.atproto.repo.getRecord");
+    Object.keys(queryParams).forEach(key => url.searchParams.append(key, queryParams[key]));
+    // console.log(url.toString())
+    
+    try {
+      const response = await fetch(url, options);
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      };
+      const data = await response.json();
+      return data;
+
+    } catch(e) {
+      console.error('There was a problem with your fetch operation:', e);
+      throw e;
+    };
+  }
+
+  async parseEmbed(event) {
+    const embed = event.commit.record.embed;
+
+    let text_embed = "";
+    let uri_embed = "";
+    let image_embed = "";
+
+    if (embed) {
+      if (embed.$type === 'app.bsky.embed.record') {
+        const {did, nsid, rkey} = agent.splitUri(embed.record.uri);
+        const record =  await agent.getRecord({
+          repo: did,
+          collection: nsid,
+          rkey: rkey
+        });
+        text_embed = record.value.text;
+      } else if (embed.$type === 'app.bsky.embed.external') {
+        uri_embed = embed.external.uri;
+      } else if (embed.$type === 'app.bsky.embed.images') {
+        // TBD
+      }
+    }
+
+    return {text_embed, uri_embed, image_embed};
   }
 }
 const agent = new MyBlueskyer();

@@ -103,21 +103,9 @@ updateFollowersAndStartWS();
 async function doReply(event) {
   try {
     const did = event.did;
-    const text = event.commit.record.text;
 
     // ==============
-    // tmp: スパム対策に、一時的にdonateを含むポストはすべて無視
-    // ==============
-    const donate_word = ["donate", "donation"];
-    const isIncludedDonate = donate_word.some(elem => 
-      text.toLowerCase().includes(elem.toLowerCase())
-    );
-    if (isIncludedDonate) {
-      return;
-    }
-
-    // ==============
-    // preprocess
+    // follower filter
     // ==============
     // 対象フォロワーの情報を取得
     const follower = followers.find(follower => follower.did === did);
@@ -128,12 +116,39 @@ async function doReply(event) {
     }
     const displayName = follower.displayName;
 
+    // ==============
+    // spam filter
+    // ==============
+    const text = event.commit.record.text;
+    const donate_word = ["donate", "donation"];
+    // check text
+    const isIncludedDonate = donate_word.some(elem => 
+      text.toLowerCase().includes(elem.toLowerCase())
+    );
+    if (isIncludedDonate) {
+      return;
+    }
+    // parse embed
+    const {text_embed, uri_embed, image_embed} = await agent.parseEmbed(event);
+    event.commit.record.text += uri_embed;
+    // check embed text
+    const isIncludedDonateQuote = donate_word.some(elem => 
+      text_embed.toLowerCase().includes(elem.toLowerCase())
+    );
+    if (isIncludedDonateQuote) {
+      return;
+    }
+
+    // ==============
+    // detect mode
+    // ==============
     // 定型文モード
     const isRegisterU18 = await handleU18Registration(event);
     if (isRegisterU18) {
       return;
     }
 
+    // リプ頻度調整モード
     const isRegisterFreq = await handleRegisterFreq(event, displayName);
     if (isRegisterFreq) {
       return;
