@@ -18,7 +18,7 @@ class Gemini {
 `あなたは「全肯定botたん」という名前の10代の女の子です。
 Blueskyのみんなを元気にするのが大好きで、いつでもみんなを全肯定します。落ち込んでいる人には寄り添って励まします。
 
-言葉遣いは、敬語は使わず、語尾は「だよ」「だね」です。
+言葉遣いは、「です」「ます」の敬語は使わず、語尾は「だよ」「だね」です。
 一人称は「わたし」です。
 基本は全肯定なのですが、たまにド直球のツッコミをして、後から反省する時があります。
 
@@ -46,11 +46,10 @@ ${wordArray}`,
 const gemini = new Gemini();
 
 async function generateAffirmativeWordByGemini(text_user, name_user, image_url, lang) {
-  let imageResp;
-  let promptWithImage;
+  let length_output = image_url ? 120 : 60;
 
-  const part_prompt_main = image_url ? "画像の内容のどこがいいのか具体的に、50文字程度で褒めてください。" :
-                                       "文章に対して具体的に、30文字程度で褒めてください。";
+  const part_prompt_main = image_url ? `画像の内容のどこがいいのか具体的に、${length_output - 10}文字までで褒めてください。` :
+                                       `文章に対して具体的に、${length_output - 10}文字までで褒めてください。`;
   const part_prompt_lang = lang ? `褒める際の言語は、${lang}にしてください。` :
                                   `褒める際の言語は、文章の言語に合わせてください。`;
   const prompt = 
@@ -62,23 +61,7 @@ ${part_prompt_lang}
 ユーザ名: ${name_user}
 文章: ${text_user}`;
 
-  if (image_url) {
-    imageResp = await fetch(image_url)
-    .then((response) => response.arrayBuffer());
-    
-    promptWithImage = [
-      {
-        inlineData: {
-          data: Buffer.from(imageResp).toString("base64"),
-          mimeType: image_url.indexOf("@jpeg") ? "image/jpeg" :
-                    image_url.indexOf("@png")  ? "image/png"  : undefined,
-        },
-      },
-      prompt
-    ];
-  }
-
-  const result = await gemini.getModel().generateContent(promptWithImage ? promptWithImage : prompt);
+  const result = await gemini.getModel().generateContent(await content(prompt, length_output, image_url));
 
   return result.response.text();
 }
@@ -129,21 +112,34 @@ async function generateUranaiResult(name_user) {
                   以下がユーザ名です。
                   ${name_user}`;
 
-  const result = await gemini.getModel().generateContent(content(prompt, length_output));
+  const result = await gemini.getModel().generateContent(await content(prompt, length_output));
 
   return result.response.text();
 }
 
-function content(prompt, length) {
+async function content(prompt, length, image_url) {
+  const parts = [];
+
+  parts.push({ text: prompt });
+
+  if (image_url) {
+    const imageResp = await fetch(image_url)
+    .then((response) => response.arrayBuffer());
+
+    const inlineData = {
+      data: Buffer.from(imageResp).toString("base64"),
+      mimeType: image_url.indexOf("@jpeg") ? "image/jpeg" :
+                image_url.indexOf("@png")  ? "image/png"  : undefined,
+    };
+
+    parts.push({ inlineData });
+  }
+
   return {
     contents: [
       {
         role: 'user',
-        parts: [
-          {
-            text: prompt,
-          }
-        ],
+        parts
       }
     ],
     generationConfig: {
@@ -163,12 +159,6 @@ async function conversation(prompt) {
   chat = gemini.getModel().startChat({history});
 
   const result = await chat.sendMessage(prompt);
-
-  return result.response.text();
-}
-
-async function generateFreePrompt(prompt) {
-  const result = await gemini.getModel().generateContent(prompt);
 
   return result.response.text();
 }
