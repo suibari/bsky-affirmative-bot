@@ -41,6 +41,20 @@ AI規約のため、18歳未満の方は"定型文モード"とリプライし�
     const name_user = displayName;
     const image = event.commit.record.embed?.images?.[0]?.image;
     const image_url = image ? this.getFullsizeImageUrl(event.did, image.ref.$link) : undefined;
+    const lang = event.commit.record.langs?.length === 1 ? event.commit.record.langs[0] : undefined ;
+    const langMap = new Map([
+      ["en", "英語"],
+      ["ja", "日本語"],
+      ["fr", "フランス語"],
+      ["de", "ドイツ語"],
+      ["es", "スペイン語"],
+      ["zh", "中国語"],
+      ["ko", "韓国語"],
+      ["it", "イタリア語"],
+      ["ru", "ロシア語"],
+      ["ar", "アラビア語"],
+      ["pt", "ポルトガル語"],
+    ]);
 
     if (process.env.NODE_ENV === "development") {
       console.log("[DEBUG] user>>> " + text_user);
@@ -49,7 +63,7 @@ AI規約のため、18歳未満の方は"定型文モード"とリプライし�
 
     // AIを使うか判定
     if (RPD.checkMod() && !isU18mode) {
-      text_bot = await generateAffirmativeWordByGemini(text_user, name_user, image_url);
+      text_bot = await generateAffirmativeWordByGemini(text_user, name_user, image_url, langMap.get(lang));
       RPD.add();
     } else {
       text_bot = await getRandomWordByNegaposi(text_user);

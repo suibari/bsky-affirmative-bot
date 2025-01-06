@@ -3,7 +3,7 @@ const pathPos = './src/csv/affirmativeword_positive.csv';
 
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const REQUEST_PER_DAY_GEMINI = 1500;
-const EXEC_PER_COUNTS = 5;
+const EXEC_PER_COUNTS = 4;
 
 // Gemini API クライアントの初期化
 class Gemini {
@@ -45,18 +45,22 @@ ${wordArray}`,
 }
 const gemini = new Gemini();
 
-async function generateAffirmativeWordByGemini(text_user, name_user, image_url) {
+async function generateAffirmativeWordByGemini(text_user, name_user, image_url, lang) {
   let imageResp;
   let promptWithImage;
 
-  const part_prompt = image_url ? "画像の内容のどこがいいのか具体的に、50文字程度で褒めてください。" :
-                                  "文章に対して具体的に、30文字程度で褒めてください。";
-  const prompt = `${part_prompt}\
-                  褒める際にはユーザ名もできるかぎり合わせて褒めてください。\
-                  以下が、ユーザ名と文章です。\n
-                  -----\n
-                  ユーザ名: ${name_user}\n
-                  文章: ${text_user}`;
+  const part_prompt_main = image_url ? "画像の内容のどこがいいのか具体的に、50文字程度で褒めてください。" :
+                                       "文章に対して具体的に、30文字程度で褒めてください。";
+  const part_prompt_lang = lang ? `褒める際の言語は、${lang}にしてください。` :
+                                  `褒める際の言語は、文章の言語に合わせてください。`;
+  const prompt = 
+`${part_prompt_main}
+褒める際にはユーザ名もできるかぎり合わせて褒めてください。
+${part_prompt_lang}
+以下が、ユーザ名と文章です。
+-----
+ユーザ名: ${name_user}
+文章: ${text_user}`;
 
   if (image_url) {
     imageResp = await fetch(image_url)
