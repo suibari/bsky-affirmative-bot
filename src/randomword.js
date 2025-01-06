@@ -19,20 +19,21 @@ async function getRandomWordByNegaposi(posttext, lang) {
   let path;
   let tokens;
   let sentiment;
+  let pathCondition;
 
   // 単語判定
   for (const condition of CONDITIONS) {
     for (const keyword of condition.keywords) {
       if (posttext.includes(keyword)) {
-        return condition.path; // 一致するpathを返す
+        pathCondition = condition.path; // 一致するpathを返す
       }
     }
   }
 
   if (lang !== "日本語") {
     path = pathEn;
-  } else if (matchingCondition) {
-    path = matchingCondition.path;
+  } else if (pathCondition) {
+    path = pathCondition;
   } else {
     // ネガポジフェッチ
     const response = await fetch(process.env.NEGAPOSI_URL, {
