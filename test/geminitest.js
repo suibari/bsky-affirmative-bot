@@ -1,6 +1,7 @@
 require('dotenv').config();
 const readline = require('readline');
 const { conversation } = require('../src/gemini');
+const { synthesizeAndPlay } = require('../src/voicevox');
 
 (async () => {
   const rl = readline.createInterface({
@@ -23,6 +24,10 @@ const { conversation } = require('../src/gemini');
     // console.log("[INFO] user>>> " + input);
     try {
       const text_bot = await conversation(input);
+      
+      // voicevox
+      await synthesizeAndPlay(text_bot);
+      
       console.log("[INFO] bot>>> " + text_bot);
     } catch (err) {
       console.error("[ERROR] An error occurred: ", err);
