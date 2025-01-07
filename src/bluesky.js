@@ -280,6 +280,19 @@ AI規約のため、18歳未満の方は"定型文モード"とリプライし�
 
     return {text_embed, uri_embed};
   }
+
+  isNotPermittedLabel(labels) {
+    const labelArray = ["spam"];
+    
+    if (labels) {
+      for (const label of labels) {
+        if (labelArray.some(elem => elem === label.val)) {
+          return true;
+        };
+      };
+    };
+    return false;
+  }
 }
 const agent = new MyBlueskyer();
 
