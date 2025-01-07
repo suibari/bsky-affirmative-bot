@@ -129,7 +129,7 @@ async function doReply(event) {
       return;
     }
     // parse embed
-    const {text_embed, uri_embed, image_embed} = await agent.parseEmbed(event);
+    const {text_embed, uri_embed} = await agent.parseEmbed(event);
     event.commit.record.text += uri_embed;
     // check embed text
     const isIncludedDonateQuote = donate_word.some(elem => 

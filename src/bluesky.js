@@ -40,7 +40,8 @@ AI規約のため、18歳未満の方は"定型文モード"とリプライし�
     const text_user = event.commit.record.text;
     const name_user = displayName;
     const image = event.commit.record.embed?.images?.[0]?.image;
-    const image_url = image ? this.getFullsizeImageUrl(event.did, image.ref.$link) : undefined;
+    const image_url = image ? this.getFullsizeImageUrl(event.did, image.ref.$link) : 
+                      this.image_embed ? this.image_embed : undefined;
     const langs = event.commit.record.langs;
     const lang = (langs?.includes("ja")) ? "ja" :
                  (langs?.length === 1) ? event.commit.record.langs[0] : undefined ;
@@ -252,7 +253,7 @@ AI規約のため、18歳未満の方は"定型文モード"とリプライし�
 
     let text_embed = "";
     let uri_embed = "";
-    let image_embed = "";
+    // let image_embed = "";
 
     if (embed) {
       if (embed.$type === 'app.bsky.embed.record') {
@@ -262,15 +263,19 @@ AI規約のため、18歳未満の方は"定型文モード"とリプライし�
           collection: nsid,
           rkey: rkey
         });
+        
+        // embed text
         text_embed = record.value.text ? record.value.text : "";
+
+        // embed image
+        const image = record.value.embed?.images?.[0]?.image;
+        this.image_embed = image ? this.getFullsizeImageUrl(did, image.ref.$link) : "";
       } else if (embed.$type === 'app.bsky.embed.external') {
         uri_embed = embed.external.uri;
-      } else if (embed.$type === 'app.bsky.embed.images') {
-        // TBD
       }
     }
 
-    return {text_embed, uri_embed, image_embed};
+    return {text_embed, uri_embed};
   }
 }
 const agent = new MyBlueskyer();
