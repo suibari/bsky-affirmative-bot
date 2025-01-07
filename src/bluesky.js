@@ -84,6 +84,9 @@ AI規約のため、18歳未満の方は"定型文モード"とリプライし�
     // ポスト
     await this.post(record);
 
+    // 引用RP画像をクリアしておく
+    this.image_embed = "";
+
     return;
   }
 
