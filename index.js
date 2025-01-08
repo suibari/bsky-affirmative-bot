@@ -130,7 +130,7 @@ async function doReply(event) {
       return;
     }
     // parse embed
-    const {text_embed, uri_embed} = await agent.parseEmbed(event);
+    const {text_embed, uri_embed, image_embed} = await agent.parseEmbed(event);
     event.commit.record.text += uri_embed;
     // check embed text
     const isIncludedDonateQuote = donate_word.some(elem => 
@@ -141,11 +141,11 @@ async function doReply(event) {
     }
     // check profile
     const {data} = await agent.getProfile({actor: did});
-    const followsCount = data.followsCount;
-    const followersCount = data.followersCount;
-    const isOverFollows = (followsCount / followersCount) > THRD_FOLLOW_BY_FOLLOWER;
+    // const followsCount = data.followsCount;
+    // const followersCount = data.followersCount;
+    // const isOverFollows = (followsCount / followersCount) > THRD_FOLLOW_BY_FOLLOWER;
     const isNotPermittedLabel = agent.isNotPermittedLabel(data.labels);
-    if (isOverFollows || isNotPermittedLabel) {
+    if (isNotPermittedLabel) {
       return;
     }
 
@@ -196,7 +196,7 @@ async function doReply(event) {
 
           // 新しい投稿の検出とリプライ処理
           console.log(`[INFO][${did}] New post !!`);
-          await agent.replyAffermativeWord(displayName, event, is_u18);
+          await agent.replyAffermativeWord(displayName, event, is_u18, image_embed);
           point.addCreate();
 
           // DB更新

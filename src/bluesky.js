@@ -34,14 +34,14 @@ AI規約のため、18歳未満の方は"定型文モード"とリプライし�
     return;
   }
 
-  async replyAffermativeWord(displayName, event, isU18mode) {
+  async replyAffermativeWord(displayName, event, isU18mode, image_embed) {
     let text_bot;
 
     const text_user = event.commit.record.text;
     const name_user = displayName;
     const image = event.commit.record.embed?.images?.[0]?.image;
     const image_url = image ? this.getFullsizeImageUrl(event.did, image.ref.$link) : 
-                      this.image_embed ? this.image_embed : undefined;
+                      image_embed ? image_embed : undefined;
     const langs = event.commit.record.langs;
     const lang = (langs?.includes("ja")) ? "ja" :
                  (langs?.length === 1) ? event.commit.record.langs[0] : undefined ;
@@ -83,9 +83,6 @@ AI規約のため、18歳未満の方は"定型文モード"とリプライし�
 
     // ポスト
     await this.post(record);
-
-    // 引用RP画像をクリアしておく
-    this.image_embed = "";
 
     return;
   }
@@ -256,7 +253,7 @@ AI規約のため、18歳未満の方は"定型文モード"とリプライし�
 
     let text_embed = "";
     let uri_embed = "";
-    // let image_embed = "";
+    let image_embed = "";
 
     if (embed) {
       if (embed.$type === 'app.bsky.embed.record') {
@@ -272,13 +269,13 @@ AI規約のため、18歳未満の方は"定型文モード"とリプライし�
 
         // embed image
         const image = record.value.embed?.images?.[0]?.image;
-        this.image_embed = image ? this.getFullsizeImageUrl(did, image.ref.$link) : "";
+        image_embed = image ? this.getFullsizeImageUrl(did, image.ref.$link) : "";
       } else if (embed.$type === 'app.bsky.embed.external') {
         uri_embed = embed.external.uri;
       }
     }
 
-    return {text_embed, uri_embed};
+    return {text_embed, uri_embed, image_embed};
   }
 
   isNotPermittedLabel(labels) {
