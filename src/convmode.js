@@ -33,7 +33,7 @@ const handleConversation = async (event, name_user) => {
   // 会話継続判定
   const rootCidDb = await db.selectDb(did, "conv_root_cid");
   let rootCid = event.commit.record.reply?.root.cid;
-  const isValidRootCid = (rootCidDb === rootCid);
+  const isValidRootCid = (rootCidDb == rootCid);
 
   if (isPast && 
     (((isCalledMe || isPostToMe) && isActiveConv) || // 最初の呼びかけ、呼びかけ直し
