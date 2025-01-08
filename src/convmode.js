@@ -31,13 +31,13 @@ const handleConversation = async (event, name_user) => {
   const isPast = (postedAt.getTime() - lastConvAtJst.getTime() > MINUTES_THRD_RESPONSE) || (process.env.NODE_ENV === "development");
 
   // 会話継続判定
-  const rootUriDb = await db.selectDb(did, "conv_root_uri");
-  const rootUri = event.commit.record.reply?.root.uri;
-  const isValidRootUri = (rootUriDb === rootUri);
+  const rootCidDb = await db.selectDb(did, "conv_root_cid");
+  let rootCid = event.commit.record.reply?.root.cid;
+  const isValidRootCid = (rootCidDb === rootCid);
 
   if (isPast && 
     (((isCalledMe || isPostToMe) && isActiveConv) || // 最初の呼びかけ、呼びかけ直し
-    isValidRootUri)) // 2回目以降の会話
+    isValidRootCid)) // 2回目以降の会話
     {
     try {
       flagsWaiting.set(did, true);
@@ -62,10 +62,15 @@ const handleConversation = async (event, name_user) => {
         new_history.shift(); // 先頭から削除
       }
 
+      // 初回の呼びかけならrootUriがないのでそのポストのuriを取得
+      if (!rootCid) {
+        rootCid = event.commit.cid;
+      }
+
       // DB登録 (リプライ成功時のみ)
       db.updateDb(did, "last_conv_at", "CURRENT_TIMESTAMP");
       db.updateDb(did, "conv_history", JSON.stringify(new_history));
-      db.updateDb(did, "conv_root_uri", rootUri);
+      db.updateDb(did, "conv_root_cid", rootCid);
       console.log("[INFO] send coversation-result for DID: " + did);
   
       if (process.env.NODE_ENV === "development") {

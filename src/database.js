@@ -23,7 +23,7 @@ class SQLite3 {
         last_uranai_at TIMESTAMP DEFAULT NULL,
         reply_freq     INTEGER   DEFAULT 100,
         last_conv_at   TIMESTAMP DEFAULT NULL,
-        conv_root_uri  TEXT      DEFAULT NULL,
+        conv_root_cid  TEXT      DEFAULT NULL,
         conv_history   JSON      DEFAULT NULL
       );
     `;
