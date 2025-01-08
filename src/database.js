@@ -21,7 +21,10 @@ class SQLite3 {
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         is_u18     INTEGER   DEFAULT 0,
         last_uranai_at TIMESTAMP DEFAULT NULL,
-        reply_freq INTEGER   DEFAULT 100
+        reply_freq     INTEGER   DEFAULT 100,
+        last_conv_at   TIMESTAMP DEFAULT NULL,
+        conv_root_uri  TEXT      DEFAULT NULL,
+        conv_history   JSON      DEFAULT NULL
       );
     `;
     this.db.run(query, (err) => {
