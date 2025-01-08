@@ -2,7 +2,7 @@ const agent = require('./bluesky');
 const db = require('./database');
 const { generateUranaiResult } = require('./gemini');
 
-const ARRAY_MYNAME = ["全肯定botたん", "全肯定たん", "全肯定botたそ", "全肯定たそ"];
+const ARRAY_MYNAME = ["全肯定botたん", "全肯定たん", "botたん", "全肯定botたそ", "全肯定たそ", "botたそ"];
 const ARRAY_WORD_URANAI = ["占い", "うらない", "占って", "うらなって"];
 const OFFSET_UTC_TO_JST = 9 * 60 * 60 * 1000; // offset: +9h (to JST from UTC <SQlite3>)
 const MINUTES_THRD_RESPONSE = 8 * 60 * 60 * 1000; // 8hour

@@ -39,9 +39,7 @@ AI規約のため、18歳未満の方は"定型文モード"とリプライし�
 
     const text_user = event.commit.record.text;
     const name_user = displayName;
-    const image = event.commit.record.embed?.images?.[0]?.image;
-    const image_url = image ? this.getFullsizeImageUrl(event.did, image.ref.$link) : 
-                      image_embed ? image_embed : undefined;
+    const image_url = this.getImageUrl(event, image_embed);
     const langs = event.commit.record.langs;
     const lang = (langs?.includes("ja")) ? "ja" :
                  (langs?.length === 1) ? event.commit.record.langs[0] : undefined ;
@@ -85,10 +83,6 @@ AI規約のため、18歳未満の方は"定型文モード"とリプライし�
     await this.post(record);
 
     return;
-  }
-
-  getFullsizeImageUrl(did, link) {
-    return `https://cdn.bsky.app/img/feed_fullsize/plain/${did}/${link}`
   }
 
   getLatestFeedWithoutConditions(author, feeds) {
@@ -269,7 +263,7 @@ AI規約のため、18歳未満の方は"定型文モード"とリプライし�
 
         // embed image
         const image = record.value.embed?.images?.[0]?.image;
-        image_embed = image ? this.getFullsizeImageUrl(did, image.ref.$link) : "";
+        image_embed = image ? `https://cdn.bsky.app/img/feed_fullsize/plain/${did}/${image.ref.$link}` : "";
       } else if (embed.$type === 'app.bsky.embed.external') {
         uri_embed = embed.external.uri;
       }
@@ -289,6 +283,12 @@ AI規約のため、18歳未満の方は"定型文モード"とリプライし�
       };
     };
     return false;
+  }
+
+  getImageUrl(event, image_embed) {
+    const image = event.commit.record.embed?.images?.[0]?.image;
+    return image ? `https://cdn.bsky.app/img/feed_fullsize/plain/${event.did}/${image.ref.$link}` : 
+           image_embed ? image_embed : undefined;
   }
 }
 const agent = new MyBlueskyer();

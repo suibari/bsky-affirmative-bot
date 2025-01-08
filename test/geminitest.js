@@ -3,6 +3,8 @@ const readline = require('readline');
 const { conversation } = require('../src/gemini');
 const { synthesizeAndPlay } = require('../src/voicevox');
 
+let history;
+
 (async () => {
   const rl = readline.createInterface({
     input: process.stdin,
@@ -23,8 +25,9 @@ const { synthesizeAndPlay } = require('../src/voicevox');
 
     // console.log("[INFO] user>>> " + input);
     try {
-      const text_bot = await conversation(input);
-      
+      const {new_history, text_bot} = await conversation("すいばり", input, undefined, history);
+      history = new_history;
+
       // voicevox
       await synthesizeAndPlay(text_bot);
       

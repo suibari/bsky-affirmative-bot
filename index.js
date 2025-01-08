@@ -1,5 +1,6 @@
 require('dotenv').config();
 const agent = require('./src/bluesky');
+const handleConversation = require('./src/convmode');
 const db = require('./src/database');
 const { startWebSocket } = require('./src/jetstream');
 const { TimeLogger, point } = require('./src/logger');
@@ -167,6 +168,12 @@ async function doReply(event) {
     // 占いモード
     const isUranai = await handleUranai(event, displayName);
     if (isUranai) {
+      return;
+    }
+
+    // 会話モード
+    const isConversation = await handleConversation(event, displayName);
+    if (isConversation) {
       return;
     }
 
