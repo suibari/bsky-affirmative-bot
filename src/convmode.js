@@ -12,32 +12,28 @@ const flagsWaiting = new Map();
 
 const handleConversation = async (event, name_user) => {
   const did = event.did;
+
+  // 同じユーザが処理中か確認、処理中なら無視
+  if (flagsWaiting.get(did)) {
+    return false;
+  }
+
   const text_user = event.commit.record.text;
   const isCalledMe = ARRAY_MYNAME.some(elem => text_user.includes(elem));
   const isPostToMe = agent.isReplyOrMentionToMe(event.commit.record);
   const isActiveConv = ARRAY_WORD_CONV.some(elem => text_user.includes(elem));
 
-  // 同じユーザが処理中か確認
-  if (flagsWaiting.get(did)) {
-    return false;
-  }
-
-  // 前回占い日時の取得
-  const postedAt = new Date(event.commit.record.createdAt);
-  const lastConvAt = new Date(await db.selectDb(did, "last_conv_at"));
-  const lastConvAtJst = new Date(lastConvAt.getTime() + OFFSET_UTC_TO_JST);
-
-  // 時間判定
-  const isPast = (postedAt.getTime() - lastConvAtJst.getTime() > MINUTES_THRD_RESPONSE) || (process.env.NODE_ENV === "development");
-
-  // 会話継続判定
+  // 会話継続判定: eventにはuriは直接含まれずめんどくさいのでcidで比較する
   const rootCidDb = await db.selectDb(did, "conv_root_cid");
-  let rootCid = event.commit.record.reply?.root.cid;
-  const isValidRootCid = (rootCidDb == rootCid);
+  const reply = event.commit.record.reply;
+  let rootCid =  reply?.root.cid;
+  const parentUri = reply?.parent.uri;
+  const {did: parantDid} = parentUri ? agent.splitUri(parentUri) : {did: undefined};
+  const isValidRootCid = (rootCidDb) && (rootCidDb == rootCid); // DBに存在=会話済み
+  const isValidParent = (parantDid === did);
 
-  if (isPast && 
-    (((isCalledMe || isPostToMe) && isActiveConv) || // 最初の呼びかけ、呼びかけ直し
-    isValidRootCid)) // 2回目以降の会話
+  if ((((isCalledMe || isPostToMe) && isActiveConv) || // 最初の呼びかけ、呼びかけ直し
+    (isValidRootCid && isValidParent))) // 2回目以降の会話
     {
     try {
       flagsWaiting.set(did, true);
@@ -50,8 +46,10 @@ const handleConversation = async (event, name_user) => {
       const {new_history, text_bot} = await conversation(name_user, text_user, image_url, JSON.parse(history));
 
       // MINUTES_THRD_RESPONSE 分待つ
-      console.log(`[INFO][${did}] Waiting conversation...`);
-      await new Promise(resolve => setTimeout(resolve, MINUTES_THRD_RESPONSE));
+      if (process.env.NODE_ENV === "production") {
+        console.log(`[INFO][${did}] Waiting conversation...`);
+        await new Promise(resolve => setTimeout(resolve, MINUTES_THRD_RESPONSE));
+      }
 
       // リプライ
       const record = agent.getRecordFromEvent(event, text_bot);
@@ -62,7 +60,7 @@ const handleConversation = async (event, name_user) => {
         new_history.shift(); // 先頭から削除
       }
 
-      // 初回の呼びかけならrootUriがないのでそのポストのuriを取得
+      // 初回の呼びかけまたは呼びかけし直しならreplyがないのでそのポストのcidを取得
       if (!rootCid) {
         rootCid = event.commit.cid;
       }
@@ -71,7 +69,7 @@ const handleConversation = async (event, name_user) => {
       db.updateDb(did, "last_conv_at", "CURRENT_TIMESTAMP");
       db.updateDb(did, "conv_history", JSON.stringify(new_history));
       db.updateDb(did, "conv_root_cid", rootCid);
-      console.log("[INFO] send coversation-result for DID: " + did);
+      console.log(`[INFO][${did}] send coversation-result`);
   
       if (process.env.NODE_ENV === "development") {
         console.log("[DEBUG] bot>>> " + text_bot);
@@ -89,5 +87,6 @@ const handleConversation = async (event, name_user) => {
 
   return false; // 処理されなかった
 };
+
 
 module.exports = handleConversation;

@@ -193,8 +193,8 @@ async function doReply(event) {
       const isPast = (postedAt.getTime() - updatedAtJst.getTime() > MINUTES_THRD_RESPONSE);
 
       // 確立判定
-      const user_freq = Number(await db.selectDb(did, "reply_freq"));
-      const isValidFreq = isJudgeByFreq(user_freq);
+      const user_freq = await db.selectDb(did, "reply_freq");
+      const isValidFreq = isJudgeByFreq(user_freq !== null ? Number(user_freq) : 100); // フォロワーだがレコードにないユーザーであるため、通過させる
 
       if (isPast && isValidFreq) {
         try {
