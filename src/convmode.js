@@ -3,7 +3,7 @@ const db = require('./database');
 const { conversation } = require('./gemini');
 
 const ARRAY_MYNAME = ["全肯定botたん", "全肯定たん", "botたん", "全肯定botたそ", "全肯定たそ", "botたそ"];
-const ARRAY_WORD_CONV = ["お喋り", "おしゃべり", "相談", "質問", "お話", "おはなし"];
+const ARRAY_WORD_CONV = ["お喋り", "おしゃべり", "相談", "質問", "お話", "おはなし", "会話"];
 const OFFSET_UTC_TO_JST = 9 * 60 * 60 * 1000; // offset: +9h (to JST from UTC <SQlite3>)
 const MINUTES_THRD_RESPONSE = 10 * 60 * 1000; // 10min
 const MAX_BOT_MEMORY = 40;
@@ -30,7 +30,7 @@ const handleConversation = async (event, name_user) => {
   const parentUri = reply?.parent.uri;
   const {did: parantDid} = parentUri ? agent.splitUri(parentUri) : {did: undefined};
   const isValidRootCid = (rootCidDb) && (rootCidDb == rootCid); // DBに存在=会話済み
-  const isValidParent = (parantDid === did);
+  const isValidParent = (process.env.BSKY_DID === parantDid); // ポストの親ポストがbotのポスト
 
   if ((((isCalledMe || isPostToMe) && isActiveConv) || // 最初の呼びかけ、呼びかけ直し
     (isValidRootCid && isValidParent))) // 2回目以降の会話
