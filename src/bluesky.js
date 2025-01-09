@@ -199,6 +199,10 @@ AI規約のため、18歳未満の方は"定型文モード"とリプライし�
     return {did, nsid, rkey};
   }
 
+  uniteDidNsidRkey(did, nsid, rkey) {
+    return `at://${did}/${nsid}/${rkey}`;
+  }
+
   /**
    * post()をオーバーライド。本番環境でのみポストし、レートリミットを増加
    * @param {} record 
@@ -240,6 +244,18 @@ AI規約のため、18歳未満の方は"定型文モード"とリプライし�
       console.error('There was a problem with your fetch operation:', e);
       throw e;
     };
+  }
+
+  /**
+   * likeのオーバーライド
+   * 開発環境ではなにもしない
+   * @param {*} event 
+   */
+  async like(event) {
+    if (process.env.NODE_ENV === "production") {
+      const uri = agent.uniteDidNsidRkey(event.did, event.commit.collection, event.commit.rkey);
+      await super.like(uri, event.commit.cid);
+    }
   }
 
   async parseEmbed(event) {
