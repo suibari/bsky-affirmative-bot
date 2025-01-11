@@ -5,7 +5,7 @@ const { conversation } = require('./gemini');
 const ARRAY_MYNAME = ["全肯定botたん", "全肯定たん", "botたん", "全肯定botたそ", "全肯定たそ", "botたそ"];
 const ARRAY_WORD_CONV = ["お喋り", "おしゃべり", "相談", "質問", "お話", "おはなし", "会話"];
 const MINUTES_THRD_RESPONSE = 10 * 60 * 1000; // 10min
-const MAX_BOT_MEMORY = 40;
+const MAX_BOT_MEMORY = 100;
 
 const flagsWaiting = new Map();
 
