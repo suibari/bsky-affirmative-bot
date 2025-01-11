@@ -1,18 +1,18 @@
 const fs = require('fs');
-const pathNeg = './src/csv/affirmativeword_negative.csv';
-const pathNrm = './src/csv/affirmativeword_normal.csv';
-const pathPos = './src/csv/affirmativeword_positive.csv';
-const pathEn  = './src/csv/affirmativeword_en.txt';
+const pathNeg = './src/texts/affirmativeword_negative.txt';
+const pathNrm = './src/texts/affirmativeword_normal.txt';
+const pathPos = './src/texts/affirmativeword_positive.txt';
+const pathEn  = './src/texts/affirmativeword_en.txt';
 
 const HNY_WORDS = ["明けましておめでとう", "あけましておめでとう"];
 const OHAYO_WORDS = ["おはよう"];
 const OYASUMI_WORDS = ["おやすみ"];
 const OTSUKARE_WORDS = ["おつかれ", "お疲れ"];
 const CONDITIONS = [
-  { keywords: HNY_WORDS, path: './src/csv/affirmativeword_hny.csv' },
-  { keywords: OHAYO_WORDS, path: './src/csv/affirmativeword_morning.csv' },
-  { keywords: OYASUMI_WORDS, path: './src/csv/affirmativeword_night.csv' },
-  { keywords: OTSUKARE_WORDS, path: './src/csv/affirmativeword_gj.csv' },
+  { keywords: HNY_WORDS, path: './src/texts/affirmativeword_hny.txt' },
+  { keywords: OHAYO_WORDS, path: './src/texts/affirmativeword_morning.txt' },
+  { keywords: OYASUMI_WORDS, path: './src/texts/affirmativeword_night.txt' },
+  { keywords: OTSUKARE_WORDS, path: './src/texts/affirmativeword_gj.txt' },
 ];
 
 async function getRandomWordByNegaposi(posttext, lang) {

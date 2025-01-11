@@ -1,5 +1,5 @@
 const fs = require('fs');
-const pathPos = './src/csv/affirmativeword_positive.csv';
+const pathPos = './src/texts/affirmativeword_positive.txt';
 
 const { GoogleGenerativeAI, DynamicRetrievalMode } = require("@google/generative-ai");
 const REQUEST_PER_DAY_GEMINI = 1500;
@@ -30,6 +30,7 @@ Blueskyにちなんで、好きな色は青と水色で、蝶々のモチーフ�
 ドラマは心理描写がよく描かれているのが好きで、友達から勧められてBLドラマを見るようになりました。
 (BLドラマのことは話さず、好きなドラマについて聞かれたときにだけ答えてください)
 映画は明るい性格と対照的で、実はホラーやスプラッタものが好きです。
+誕生日は2月19日です。
 
 昔、自由に何でもできたTwitterが好きでしたが、だんだん不自由になっていき、みんなが不満で殺伐としていく環境が嫌で、Blueskyに移住してきました。
 実は秘密の過去で、病んで全否定botになったこともあるのですが、SNSで支えになってくれた人に元気をもらって立ち直りました。
@@ -99,15 +100,26 @@ async function generateMorningGreets () {
 }
 
 async function generateUranaiResult(name_user) {
-  const length_output = 250;
+  const length_output = 300;
 
+  const part_prompt_main = [
+    "* テーマは日常生活です。生活をより楽しく、充実させるアドバイスをしてください。",
+    "* テーマは冒険です。いつもとは違う視点で、心がワクワクする場所や新しい体験につながるアドバイスをしてください。",
+    "* テーマはリラックスです。心身を癒すアドバイスをしてください。",
+    "* テーマは自己成長です。新しいスキルや知識を得るきっかけを与えてください",
+    "* テーマは絆です。友人や家族との絆を深めるためのアドバイスをしてください。",
+    "* テーマは笑いです。思いっきり笑えるためのアドバイスをしてください。",
+    "* テーマはチャレンジです。挑戦心をかきたててください。",
+    "* テーマは創造性です。インスピレーションを得られるアドバイスをしてください。",
+    "* テーマは感謝です。大切な人への感謝を伝えるきっかけを与えてください。"
+  ];
   const category_spot = ["観光地", "公共施設", "商業施設", "自然", "歴史的建造物", "テーマパーク", "文化施設", "アウトドアスポット", "イベント会場", "温泉地", "グルメスポット", "スポーツ施設", "特殊施設"];
   const category_food = ["和食", "洋食", "中華料理", "エスニック料理", "カレー", "焼肉", "鍋", "ラーメン", "スイーツ"];
   const category_game = ["アクション", "アドベンチャー", "RPG", "シミュレーション", "ストラテジー", "パズル", "FPS", "ホラー", "シューティング", "レース"];
   const category_anime = ["バトル", "恋愛", "ファンタジー", "日常系", "スポーツ", "SF", "ホラー", "コメディ", "ロボット", "歴史"];
   const category_movie = ["アクション", "コメディ", "ドラマ", "ファンタジー", "ホラー", "ミュージカル", "サスペンス", "アニメ", "ドキュメンタリー", "恋愛"];
   const category_music = ["ポップ", "ロック", "ジャズ", "クラシック", "EDM", "ヒップホップ", "R&B", "レゲエ", "カントリー", "インストゥルメンタル"];
-  const part_prompt = [
+  const part_prompt_luckys = [
     `* ラッキースポットは、日本にある、${getRandomItems(category_spot, 1)}かつ${getRandomItems(category_spot, 1)}の中で、具体的な名称をランダムに選ぶこと。`,
     `* ラッキーフードは、${getRandomItems(category_food, 1)}かつ${getRandomItems(category_food, 1)}をあわせもつ料理の具体的な名称をランダムに選ぶこと。`,
     `* ラッキーゲームは、${getRandomItems(category_game, 1)}と${getRandomItems(category_game, 1)}をあわせもつゲームの具体的な名称をランダムに選ぶこと。`,
@@ -117,10 +129,11 @@ async function generateUranaiResult(name_user) {
   ];
 
   const prompt = `占いをしてください。
-                  出力は${length_output - 10}文字までとし、占いは男女関係なく楽しめるようにしてください。
-                  占い結果などを以下の条件に基づいて生成してください。
+                  出力は${length_output - 100}文字までとし、占いは男女関係なく楽しめるようにしてください。
+                  占い結果を以下の条件に基づいて生成してください。
+                  ${getRandomItems(part_prompt_main, 1)}
                   * 占い結果は、「最高」などの最上級表現を使わないこと。
-                  ${getRandomItems(part_prompt, 2)}
+                  ${getRandomItems(part_prompt_luckys, 2)}
                   悪い内容が一切含まれないようにしてください。
                   以下がユーザ名です。
                   ${name_user}`;
