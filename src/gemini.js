@@ -1,5 +1,6 @@
 const fs = require('fs');
 const pathPos = './src/texts/affirmativeword_positive.txt';
+const pathWhatday = './src/json/anniversary.json';
 
 const { GoogleGenerativeAI, DynamicRetrievalMode } = require("@google/generative-ai");
 const REQUEST_PER_DAY_GEMINI = 1500;
@@ -87,8 +88,13 @@ async function generateMorningGreets () {
   const date = String(now.getDate());
   const str_date = `${year}年${month}月${date}日`;
 
+  // 何の日情報を得る
+  const data = fs.readFileSync(pathWhatday);
+  const whatday = JSON.parse(data)[month][date];
+
   const prompt = `今日は${str_date}です。
                   100文字程度で、今日一日を頑張れるように朝の挨拶と、今日が何の日か説明してください。
+                  今日は${getRandomItems(whatday, 1)}です。
                   フォロワー全体に向けたメッセージなので、名前の呼びかけは不要です。`;
 
   const result = await gemini.getModel().generateContent(prompt);
