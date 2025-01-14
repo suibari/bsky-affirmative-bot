@@ -25,7 +25,7 @@ let history;
 
     // console.log("[INFO] user>>> " + input);
     try {
-      const {new_history, text_bot} = await conversation("すいばり", input, undefined, history);
+      const {new_history, text_bot} = await conversation("すいばり", input, undefined, "日本語", history);
       history = new_history;
 
       // voicevox

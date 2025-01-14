@@ -41,8 +41,9 @@ const handleConversation = async (event, name_user) => {
       const history = await db.selectDb(did, "conv_history");
 
       // 応答生成
+      const str_lang = agent.getLangStr(event.commit.record.langs);
       const image_url = agent.getImageUrl(event);
-      const {new_history, text_bot} = await conversation(name_user, text_user, image_url, JSON.parse(history));
+      const {new_history, text_bot} = await conversation(name_user, text_user, image_url, str_lang, JSON.parse(history));
 
       // いいね応答
       await agent.like(event);

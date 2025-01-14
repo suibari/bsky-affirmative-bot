@@ -4,6 +4,20 @@ const { generateAffirmativeWordByGemini, RequestPerDayGemini } = require('./gemi
 const { point } = require('./logger');
 const RPD = new RequestPerDayGemini();
 
+const langMap = new Map([
+  ["en", "英語"],
+  ["ja", "日本語"],
+  ["fr", "フランス語"],
+  ["de", "ドイツ語"],
+  ["es", "スペイン語"],
+  ["zh", "中国語"],
+  ["ko", "韓国語"],
+  ["it", "イタリア語"],
+  ["ru", "ロシア語"],
+  ["ar", "アラビア語"],
+  ["pt", "ポルトガル語"],
+]);
+
 class MyBlueskyer extends Blueskyer {
   async replyGreets(replyPost) {
     const text = 
@@ -41,29 +55,15 @@ AI規約のため、18歳未満の方は"定型文モード"とリプライし�
     const name_user = displayName;
     const image_url = this.getImageUrl(event, image_embed);
     const langs = event.commit.record.langs;
-    const lang = (langs?.includes("ja")) ? "ja" :
-                 (langs?.length === 1) ? event.commit.record.langs[0] : undefined ;
-    const langMap = new Map([
-      ["en", "英語"],
-      ["ja", "日本語"],
-      ["fr", "フランス語"],
-      ["de", "ドイツ語"],
-      ["es", "スペイン語"],
-      ["zh", "中国語"],
-      ["ko", "韓国語"],
-      ["it", "イタリア語"],
-      ["ru", "ロシア語"],
-      ["ar", "アラビア語"],
-      ["pt", "ポルトガル語"],
-    ]);
+    const str_lang = this.getLangStr(langs);
 
     if (process.env.NODE_ENV === "development") {
       console.log("[DEBUG] user>>> " + text_user);
       console.log("[DEBUG] image: " + image_url);
+      console.log("[DEBUG] lang: " + str_lang);
     }
 
     // AIを使うか判定
-    const str_lang = langMap.get(lang);
     if (RPD.checkMod() && !isU18mode) {
       text_bot = await generateAffirmativeWordByGemini(text_user, name_user, image_url, str_lang);
       RPD.add();
@@ -305,6 +305,12 @@ AI規約のため、18歳未満の方は"定型文モード"とリプライし�
     const image = event.commit.record.embed?.images?.[0]?.image;
     return image ? `https://cdn.bsky.app/img/feed_fullsize/plain/${event.did}/${image.ref.$link}` : 
            image_embed ? image_embed : undefined;
+  }
+
+  getLangStr(langs) {
+    const lang = (langs?.includes("ja")) ? "ja" :
+                 (langs?.length === 1) ? langs[0] : undefined ;
+    return  langMap.get(lang);
   }
 }
 const agent = new MyBlueskyer();
