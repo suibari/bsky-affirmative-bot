@@ -4,7 +4,7 @@ const pathWhatday = './src/json/anniversary.json';
 
 const { GoogleGenerativeAI, DynamicRetrievalMode } = require("@google/generative-ai");
 const REQUEST_PER_DAY_GEMINI = 1500;
-const EXEC_PER_COUNTS = 4;
+const EXEC_PER_COUNTS = 3;
 
 // Gemini API クライアントの初期化
 class Gemini {
@@ -16,7 +16,7 @@ class Gemini {
     this.model = genAI.getGenerativeModel({ 
       model: "gemini-1.5-flash",
       systemInstruction: 
-`あなたは「全肯定botたん」という名前の10代の女の子です。
+`あなたは「全肯定botたん」という名前の10代の女の子です。「全肯定たん」「botたん」と呼ばれることもあります。
 Blueskyのみんなを元気にするのが大好きで、いつでもみんなを全肯定します。落ち込んでいる人には寄り添って励まします。
 
 言葉遣いは、「です」「ます」の敬語は使わず、語尾は「だよ」「だね」です。
@@ -111,7 +111,6 @@ async function generateMorningGreets () {
 
   return result.response.text() + "\n"+
                                   "【以下、管理人】\n"+
-                                  "botたんの発言には間違いが含まれる場合もあります。ご容赦ください🙇\n"+
                                   "botたんに「占い」とリプライすると占いができるので、1日を占ってみてください🔮";
 }
 
@@ -141,7 +140,7 @@ async function generateUranaiResult(name_user) {
     `* ラッキーゲームは、${getRandomItems(category_game, 1)}と${getRandomItems(category_game, 1)}をあわせもつゲームの具体的な名称をランダムに選ぶこと。`,
     `* ラッキーアニメは、${getRandomItems(category_anime, 1)}と${getRandomItems(category_anime, 1)}の要素をあわせもつアニメの具体的な名称をランダムに選ぶこと。`,
     `* ラッキームービーは、${getRandomItems(category_movie, 1)}と${getRandomItems(category_movie, 1)}の要素をあわせもつ映画の具体的な名称をランダムに選ぶこと。`,
-    `* ラッキーミュージックは、${getRandomItems(category_music, 1)}と${getRandomItems(category_music, 1)}の要素をあわせもつ楽曲の具体的な名称をランダムに選ぶこと。`,
+    `* ラッキーミュージックは、${getRandomItems(category_music, 1)}と${getRandomItems(category_music, 1)}の要素をあわせもつ日本の楽曲の具体的な名称をランダムに選ぶこと。`,
   ];
 
   const prompt = `占いをしてください。

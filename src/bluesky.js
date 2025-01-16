@@ -19,8 +19,9 @@ const langMap = new Map([
 ]);
 
 class MyBlueskyer extends Blueskyer {
-  async replyGreets(replyPost) {
-    const text = 
+  async replyGreets(replyPost, lang) {
+    const text = (lang === "日本語") ?
+// 日本語
 `こんにちは！
 全肯定botたんです！
 これから${replyPost.author.displayName}さんのポストに全肯定でリプライするよ！
@@ -28,7 +29,14 @@ class MyBlueskyer extends Blueskyer {
 
 リプライ頻度は、わたしに"freq50"などとリプライすると、指定した頻度に変えるよ(最初は100%リプライするね！)
 1日に1回、わたしに"占い"とリプライすると、占いするよ！
-AI規約のため、18歳未満の方は"定型文モード"とリプライしてね。`;
+AI規約のため、18歳未満の方は"定型文モード"とリプライしてね。`:
+// 日本語以外の場合
+`Hello!
+I'm the Affirmative Bot! Call me Bot!
+I'll reply to ${replyPost.author.displayName}'s post with full positivity!
+Feel free to reach out!
+
+You can change reply frequency by saying "freq50". And for those under 18, reply "Predefined Reply Mode".`;
 
     const record = {
       text: text,
