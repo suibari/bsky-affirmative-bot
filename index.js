@@ -204,7 +204,7 @@ async function doReply(event) {
 
           // 新しい投稿の検出とリプライ処理
           console.log(`[INFO][${did}] New post !!`);
-          await agent.replyAffermativeWord(displayName, event, is_u18, image_embed);
+          await agent.replyAffermativeWord(displayName, event, is_u18);
           point.addCreate();
 
           // DB更新

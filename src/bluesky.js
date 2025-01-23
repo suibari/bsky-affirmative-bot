@@ -56,12 +56,12 @@ You can change reply frequency by saying "freq50". And for those under 18, reply
     return;
   }
 
-  async replyAffermativeWord(displayName, event, isU18mode, image_embed) {
+  async replyAffermativeWord(displayName, event, isU18mode) {
     let text_bot;
 
     const text_user = event.commit.record.text;
     const name_user = displayName;
-    const image_url = this.getImageUrl(event, image_embed);
+    const image_url = event.commit.record.embed?.images?.[0]?.image;;
     const langs = event.commit.record.langs;
     const str_lang = this.getLangStr(langs);
 
