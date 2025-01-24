@@ -163,7 +163,7 @@ async function content(prompt, length, image_url, mimeType, lang) {
 
   parts.push({ text: prompt });
 
-  if (image_url) {
+  if (image_url && mimeType) {
     const inlineData = await getInlineData(image_url, mimeType);
     if (inlineData) {
       parts.push({ inlineData });
@@ -183,7 +183,7 @@ async function content(prompt, length, image_url, mimeType, lang) {
   }
 }
 
-async function conversation(name_user, text_user, image_url, lang, history) {
+async function conversation(name_user, text_user, image_url, mimeType, lang, history) {
   const length_output = 300;
 
   const prompt = 
@@ -203,7 +203,7 @@ async function conversation(name_user, text_user, image_url, lang, history) {
   // message作成
   const request = [];
   request.push({text: prompt});
-  const inlineData = await getInlineData(image_url);
+  const inlineData = await getInlineData(image_url, mimeType);
   if (inlineData) {
     request.push({inlineData});
   }
@@ -216,16 +216,16 @@ async function conversation(name_user, text_user, image_url, lang, history) {
   return {new_history, text_bot};
 }
 
-async function getInlineData(image_url, minetype) {
+async function getInlineData(image_url, mimeType) {
   let inlineData;
 
-  if (image_url) {
+  if (image_url && mimeType) {
     const imageResp = await fetch(image_url)
     .then((response) => response.arrayBuffer());
 
     inlineData = {
       data: Buffer.from(imageResp).toString("base64"),
-      mimeType: minetype,
+      mimeType,
     };
   }
 
