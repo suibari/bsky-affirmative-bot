@@ -59,9 +59,12 @@ You can change reply frequency by saying "freq50". And for those under 18, reply
   async replyAffermativeWord(displayName, event, isU18mode) {
     let text_bot;
 
+    const did = event.did;
     const text_user = event.commit.record.text;
     const name_user = displayName;
-    const image_url = event.commit.record.embed?.images?.[0]?.image;;
+    const image_cid = event.commit.record.embed?.images?.[0]?.image.ref.$link;
+    const image_minetype = event.commit.record.embed?.images?.[0]?.image.minetype;
+    const image_url = image_cid ? `https://cdn.bsky.app/img/feed_fullsize/plain/${did}/${image_cid}` : undefined;
     const langs = event.commit.record.langs;
     const str_lang = this.getLangStr(langs);
 
@@ -73,7 +76,7 @@ You can change reply frequency by saying "freq50". And for those under 18, reply
 
     // AIを使うか判定
     if (RPD.checkMod() && !isU18mode) {
-      text_bot = await generateAffirmativeWordByGemini(text_user, name_user, image_url, str_lang);
+      text_bot = await generateAffirmativeWordByGemini(text_user, name_user, image_url, image_minetype, str_lang);
       RPD.add();
     } else {
       text_bot = await getRandomWordByNegaposi(text_user, str_lang);

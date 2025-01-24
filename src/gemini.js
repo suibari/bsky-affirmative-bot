@@ -69,7 +69,7 @@ ${wordArray}`,
 }
 const gemini = new Gemini();
 
-async function generateAffirmativeWordByGemini(text_user, name_user, image_url, lang) {
+async function generateAffirmativeWordByGemini(text_user, name_user, image_url, mimeType, lang) {
   let length_output = image_url ? 200 : 60;
 
   const part_prompt_main = image_url ? `画像の内容のどこがいいのか具体的に、${(lang === "英語") ? (length_output - 100) /2 : length_output - 100}文字までで褒めてください。` :
@@ -86,7 +86,7 @@ ${part_prompt_lang}
 ユーザ名: ${name_user}
 文章: ${text_user}`;
 
-  const result = await gemini.getModel().generateContent(await content(prompt, length_output, image_url, lang));
+  const result = await gemini.getModel().generateContent(await content(prompt, length_output, image_url, mimeType, lang));
 
   return result.response.text();
 }
@@ -158,14 +158,16 @@ async function generateUranaiResult(name_user) {
   return result.response.text();
 }
 
-async function content(prompt, length, image_url, lang) {
+async function content(prompt, length, image_url, mimeType, lang) {
   const parts = [];
 
   parts.push({ text: prompt });
 
-  const inlineData = await getInlineData(image_url);
-  if (inlineData) {
-    parts.push({ inlineData });
+  if (image_url) {
+    const inlineData = await getInlineData(image_url, mimeType);
+    if (inlineData) {
+      parts.push({ inlineData });
+    }  
   }
 
   return {
@@ -214,7 +216,7 @@ async function conversation(name_user, text_user, image_url, lang, history) {
   return {new_history, text_bot};
 }
 
-async function getInlineData(image_url) {
+async function getInlineData(image_url, minetype) {
   let inlineData;
 
   if (image_url) {
@@ -223,8 +225,7 @@ async function getInlineData(image_url) {
 
     inlineData = {
       data: Buffer.from(imageResp).toString("base64"),
-      mimeType: image_url.indexOf("@jpeg") ? "image/jpeg" :
-                image_url.indexOf("@png")  ? "image/png"  : undefined,
+      mimeType: minetype,
     };
   }
 
