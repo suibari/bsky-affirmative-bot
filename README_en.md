@@ -1,6 +1,6 @@
 # Zenkoutei Bot-tan
 
-Zenkoutei Bot-tan (全肯定botたん, Affirmative bot) is a Bluesky bot designed to send replies that completely affirm its followers. By leveraging sentiment analysis and generative AI, its goal is to encourage and uplift its followers.
+[Zenkoutei Bot-tan (全肯定botたん, Affirmative bot)](https://bsky.app/profile/suibari-bot.bsky.social) is a Bluesky bot designed to send replies that completely affirm its followers. By leveraging sentiment analysis and generative AI, its goal is to encourage and uplift its followers.
 
 This bot primarily processes posts written in Japanese.
 
@@ -12,6 +12,21 @@ This repository contains the code and configuration files for Zenkoutei Bot-tan.
 
 1. **AI-Generated Replies**: Uses generative AI (Google Gemini) to reply based on follower content (text and images).
 2. **Predefined Replies**: Performs sentiment analysis on follower posts (text) using a Japanese polarity dictionary, then selects and sends a response from a predefined list.
+3. **Predefined mode (AI disabled)**: Users can opt to disable AI-generated replies and receive only template-based responses.
+4. **Fortune-telling mode**: The bot can perform a fortune-telling feature upon request.
+5. **Reply frequency adjustment**: Users can adjust the bot’s reply frequency from 0% to 100%.
+6. **Conversation mode**: Users can engage in continuous conversation with the bot.
+
+---
+
+## How to Use
+
+1. Follow this bot on Bluesky.
+2. The bot will follow you back and start responding to your posts automatically.
+
+To stop receiving replies from this bot, either unfollow it or block the user.
+
+![bot process flow](https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:uixgxpiqf4i63p6rgpu7ytmx/bafkreidklyeg7ojkn733sownp2jqqy4ah2oigdzcd2cgctu45r4niecfru@jpeg)
 
 ---
 
@@ -49,30 +64,7 @@ The privacy policy may be updated from time to time. Any significant changes wil
 ### Contact
 
 For inquiries about this bot or its privacy policy, please contact:  
-[Suibari (suibari-cha.bsky.social)](https://bsky.app/profile/suibari-cha.bsky.social)
-
----
-
-## How to Use
-
-1. Follow this bot on Bluesky.
-2. The bot will follow you back and start responding to your posts automatically.
-
-To stop receiving replies from this bot, either unfollow it or block the user.
-
-### Predefined Reply Mode
-
-Predefined Reply Mode has been implemented to comply with the Google Gemini API Terms of Service and enforce age restrictions. By following the steps below, the AI-generated reply functionality will be disabled for a specific follower, and only predefined replies will be used:
-
-1. Ensure the bot follows you, as described in "How to Use."
-2. Mention or reply to the bot with the text **"Predefined Reply Mode"**.
-3. The bot will confirm the activation of Predefined Reply Mode via a reply.
-
-If you are 18 or older and want to disable U18 Mode, follow these steps:
-
-1. Ensure the bot follows you, as described in "How to Use."
-2. Mention or reply to the bot with the text **"Disable Predefined Reply Mode"**.
-3. The bot will confirm the deactivation of Predefined Reply Mode via a reply.
+[Suibari (suibari.com)](https://bsky.app/profile/suibari.com)
 
 ---
 
