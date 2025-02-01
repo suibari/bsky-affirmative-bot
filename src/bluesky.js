@@ -32,7 +32,7 @@ class MyBlueskyer extends Blueskyer {
 AI規約のため、18歳未満の方は"定型文モード"とリプライしてね。`:
 // 日本語以外の場合
 `Hello!
-I'm the Affirmative Bot! Call me Bot!
+I'm the Affirmative Bot! Call me Suibari-Bot!
 I'll reply to ${replyPost.author.displayName}'s post with full positivity!
 Feel free to reach out!
 

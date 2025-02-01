@@ -14,7 +14,7 @@ class Gemini {
 
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
     this.model = genAI.getGenerativeModel({ 
-      model: "gemini-1.5-flash",
+      model: "gemini-2.0-flash-exp",
       systemInstruction: 
 `あなたは「全肯定botたん」という名前の10代の女の子です。「全肯定たん」「botたん」と呼ばれることもあります。
 Blueskyのみんなを元気にするのが大好きで、いつでもみんなを全肯定します。落ち込んでいる人には寄り添って励まします。
@@ -70,16 +70,16 @@ ${wordArray}`,
 const gemini = new Gemini();
 
 async function generateAffirmativeWordByGemini(text_user, name_user, image_url, mimeType, lang) {
-  let length_output = image_url ? 200 : 60;
+  let length_output = image_url ? 200 : 80;
 
   const part_prompt_main = image_url ? `画像の内容のどこがいいのか具体的に、${(lang === "英語") ? (length_output - 100) /2 : length_output - 100}文字までで褒めてください。` :
                                        `文章に対して具体的に、${length_output - 20}文字までで褒めてください。`;
   const part_prompt_lang = lang ? `褒める際の言語は、${lang}にしてください。` :
                                   `褒める際の言語は、文章の言語に合わせてください。`;
   const prompt = 
-`"-----"以下に対して全肯定してください。この指示に対する回答は不要です。
+`"-----"の以下のユーザ名と文章に対して全肯定してください。
+重要：この指示に対する回答はしなくていいです。
 ${part_prompt_main}
-褒める際にはユーザ名もできるかぎり合わせて褒めてください。
 ${part_prompt_lang}
 以下が、ユーザ名と文章です。
 -----
@@ -111,11 +111,15 @@ async function generateMorningGreets () {
 
   return result.response.text() + "\n"+
                                   "【以下、管理人】\n"+
-                                  "botたんに「占い」とリプライすると占いができるので、1日を占ってみてください🔮";
+                                  "botたんに「占い」とリプライすると占いができるので、1日を占ってみてください🔮\n"+
+                                  'If you reply with "fortune" to bot, it will tell your fortune in English. Try it!';
 }
 
-async function generateUranaiResult(name_user) {
-  const length_output = 300;
+async function generateUranaiResult(name_user, str_lang) {
+  const length_output = str_lang === "日本語" ? 300 : 200;
+
+  const place_language = str_lang === "日本語" ? "日本" : "世界";
+  const part_language = `${str_lang}で回答は生成してください。`;
 
   const part_prompt_main = [
     "* テーマは日常生活です。生活をより楽しく、充実させるアドバイスをしてください。",
@@ -135,23 +139,25 @@ async function generateUranaiResult(name_user) {
   const category_movie = ["アクション", "コメディ", "ドラマ", "ファンタジー", "ホラー", "ミュージカル", "サスペンス", "アニメ", "ドキュメンタリー", "恋愛"];
   const category_music = ["ポップ", "ロック", "ジャズ", "クラシック", "EDM", "ヒップホップ", "R&B", "レゲエ", "カントリー", "インストゥルメンタル"];
   const part_prompt_luckys = [
-    `* ラッキースポットは、日本にある、${getRandomItems(category_spot, 1)}かつ${getRandomItems(category_spot, 1)}の中で、具体的な名称をランダムに選ぶこと。`,
+    `* ラッキースポットは、${place_language}にある、${getRandomItems(category_spot, 1)}かつ${getRandomItems(category_spot, 1)}の中で、具体的な名称をランダムに選ぶこと。`,
     `* ラッキーフードは、${getRandomItems(category_food, 1)}かつ${getRandomItems(category_food, 1)}をあわせもつ料理の具体的な名称をランダムに選ぶこと。`,
-    `* ラッキーゲームは、${getRandomItems(category_game, 1)}と${getRandomItems(category_game, 1)}をあわせもつゲームの具体的な名称をランダムに選ぶこと。`,
+    `* ラッキーゲームは、${getRandomItems(category_game, 1)}と${getRandomItems(category_game, 1)}をあわせもつ${place_language}のゲームの具体的な名称をランダムに選ぶこと。`,
     `* ラッキーアニメは、${getRandomItems(category_anime, 1)}と${getRandomItems(category_anime, 1)}の要素をあわせもつアニメの具体的な名称をランダムに選ぶこと。`,
     `* ラッキームービーは、${getRandomItems(category_movie, 1)}と${getRandomItems(category_movie, 1)}の要素をあわせもつ映画の具体的な名称をランダムに選ぶこと。`,
-    `* ラッキーミュージックは、${getRandomItems(category_music, 1)}と${getRandomItems(category_music, 1)}の要素をあわせもつ日本の楽曲の具体的な名称をランダムに選ぶこと。`,
+    `* ラッキーミュージックは、${getRandomItems(category_music, 1)}と${getRandomItems(category_music, 1)}の要素をあわせもつ${place_language}の楽曲の具体的な名称をランダムに選ぶこと。`,
   ];
 
-  const prompt = `占いをしてください。
-                  出力は${length_output - 100}文字までとし、占いは男女関係なく楽しめるようにしてください。
-                  占い結果を以下の条件に基づいて生成してください。
-                  ${getRandomItems(part_prompt_main, 1)}
-                  * 占い結果は、「最高」などの最上級表現を使わないこと。
-                  ${getRandomItems(part_prompt_luckys, 2)}
-                  悪い内容が一切含まれないようにしてください。
-                  以下がユーザ名です。
-                  ${name_user}`;
+  const prompt =
+`占いをしてください。
+${part_language}
+出力は${length_output - 100}文字までとし、占いは男女関係なく楽しめるようにしてください。
+占い結果を以下の条件に基づいて生成してください。
+${getRandomItems(part_prompt_main, 1)}
+* 占い結果は、「最高」などの最上級表現を使わないこと。
+${getRandomItems(part_prompt_luckys, 2)}
+悪い内容が一切含まれないようにしてください。
+以下がユーザ名です。
+${name_user}`;
 
   const result = await gemini.getModel().generateContent(await content(prompt, length_output));
 

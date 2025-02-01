@@ -2,8 +2,7 @@ const agent = require('./bluesky');
 const db = require('./database');
 const { conversation } = require('./gemini');
 
-const ARRAY_MYNAME = ["全肯定botたん", "全肯定たん", "全肯定botたそ", "全肯定たそ", "Botたん", "botたん"];
-const ARRAY_WORD_CONV = ["お喋り", "おしゃべり", "相談", "質問", "お話", "おはなし", "会話"];
+const { NICKNAMES_BOT, CONVMODE_TRIGGER } = require('./config/config');
 const MINUTES_THRD_RESPONSE = 10 * 60 * 1000; // 10min
 const MAX_BOT_MEMORY = 100;
 
@@ -18,9 +17,9 @@ const handleConversation = async (event, name_user) => {
   }
 
   const text_user = event.commit.record.text;
-  const isCalledMe = ARRAY_MYNAME.some(elem => text_user.includes(elem));
+  const isCalledMe = NICKNAMES_BOT.some(elem => text_user.includes(elem));
   const isPostToMe = agent.isReplyOrMentionToMe(event.commit.record);
-  const isActiveConv = ARRAY_WORD_CONV.some(elem => text_user.includes(elem));
+  const isActiveConv = CONVMODE_TRIGGER.some(elem => text_user.includes(elem));
 
   // 会話継続判定: eventにはuriは直接含まれずめんどくさいのでcidで比較する
   const rootCidDb = await db.selectDb(did, "conv_root_cid");

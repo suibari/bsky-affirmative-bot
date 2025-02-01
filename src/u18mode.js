@@ -2,8 +2,7 @@ const agent = require('./bluesky');
 const db = require('./database');
 const { point } = require('./logger');
 
-const ARRAY_WORD_O18 = ["定型文モード解除", "Disable Predefined Reply Mode"];
-const ARRAY_WORD_U18 = ["定型文モード", "Predefined Reply Mode"];
+const  {PREDEFINEDMODE_TRIGGER, PREDEFINEDMODE_RELEASE_TRIGGER } = require('./config/config');
 const TEXT_RELEASE_U18 = "定型文モードを解除しました! これからはたまにAIを使って全肯定しますね。";
 const TEXT_REGISTER_U18 = "定型文モードを設定しました! これからはAIを使わずに全肯定しますね。";
 
@@ -12,7 +11,7 @@ const handleU18Registration = async (event) => {
   const did = event.did;
   const text_user = event.commit.record.text;
   const isPostToMe = agent.isReplyOrMentionToMe(event.commit.record);
-  const isInactiveU18 = ARRAY_WORD_O18.some(elem => text_user.includes(elem));
+  const isInactiveU18 = PREDEFINEDMODE_RELEASE_TRIGGER.some(elem => text_user.includes(elem));
 
   if (isPostToMe && isInactiveU18) {
       // リプライ
@@ -27,7 +26,7 @@ const handleU18Registration = async (event) => {
   }
 
   // U18登録処理
-  const isActiveU18 = ARRAY_WORD_U18.some(elem => text_user.includes(elem));
+  const isActiveU18 = PREDEFINEDMODE_TRIGGER.some(elem => text_user.includes(elem));
   if (isPostToMe && isActiveU18) {
       // リプライ
       const record = agent.getRecordFromEvent(event, TEXT_REGISTER_U18);

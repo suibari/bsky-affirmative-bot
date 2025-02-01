@@ -8,7 +8,7 @@ const agent = require('../src/bluesky');
  * 本番環境で実行すると実際にポストする
  */
 (async () => {
-  const text_bot = await generateUranaiResult("test_user");
+  const text_bot = await generateUranaiResult("test_user", "英語");
 
   const record = {
     text: text_bot,
