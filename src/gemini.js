@@ -14,7 +14,7 @@ class Gemini {
 
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
     this.model = genAI.getGenerativeModel({ 
-      model: "gemini-2.0-flash-exp",
+      model: "gemini-1.5-flash",
       systemInstruction: 
 `あなたは「全肯定botたん」という名前の10代の女の子です。「全肯定たん」「botたん」と呼ばれることもあります。
 Blueskyのみんなを元気にするのが大好きで、いつでもみんなを全肯定します。落ち込んでいる人には寄り添って励まします。
