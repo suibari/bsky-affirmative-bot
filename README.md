@@ -17,6 +17,7 @@ Please refer [English README](./README_en.md) for not Japanese speakers.
 3. **定型文モード(AI無効化)**: ユーザの応答で、生成AIの使用を行わない設定、およびその解除が行えます
 4. **占いモード**: ユーザの応答で、占いを行います
 5. **リプ頻度調整**: ユーザの応答で、botがリプライする頻度の調整が0~100%で行えます
+6. **会話機能**: ユーザの応答で、botと連続した会話を行えます
 
 ---
 
@@ -25,6 +26,10 @@ Please refer [English README](./README_en.md) for not Japanese speakers.
 2. 一定時間後、本botがフォローバックし、以降、あなたのポストに反応するようになります
 
 本botのフォロー解除、またはユーザブロックにより、以降、本botはリプライしなくなります。
+
+botフォロー後に、botがあなたのポストにどう反応するかの処理フローは以下です。
+
+![bot処理フロー](https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:uixgxpiqf4i63p6rgpu7ytmx/bafkreidklyeg7ojkn733sownp2jqqy4ah2oigdzcd2cgctu45r4niecfru@jpeg)
 
 ### 定型文モード
 定型文モードはGoogle Gemini APIの利用規約に準拠し、年齢制限遵守に必要な措置として実装しました。
@@ -54,6 +59,19 @@ Please refer [English README](./README_en.md) for not Japanese speakers.
 1. "使用方法"に従い、本botからフォローされた状態となる
 2. 本botに対しメンションまたはリプライで **"freqN"(Nは0~100の整数)** とポストする
 3. 本botがあなたに設定完了をリプライします
+
+### 会話機能
+以下の手順を実施することで、そのフォロワーに対して会話を開始します。
+
+1. "使用方法"に従い、本botからフォローされた状態となる
+2. 本botに対しメンションまたはリプライで **お話** または **お喋り** とポストする
+3. 本botがあなたにいいねをします
+4. 3の10分後に本botがあなたにリプライします
+5. 4のリプライに対してあなたがリプライした場合、会話が継続します。3に戻ります
+
+会話機能を説明した画像を以下に掲載します。
+
+![会話機能説明画像](https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:qcwhrvzx6wmi5hz775uyi6fh/bafkreib5x75mtoy7md2eegafwgl6ug4vr23bwy7wyorqrmlwxbyhppzim4@jpeg)
 
 ---
 
@@ -89,7 +107,7 @@ Please refer [English README](./README_en.md) for not Japanese speakers.
 
 ### 問い合わせ
 本ボットまたはプライバシーポリシーに関するお問い合わせは、次の連絡先までお願いします：
-[すいばり (suibari-cha.bsky.social)](https://bsky.app/profile/suibari-cha.bsky.social)
+[すいばり (suibari.com)](https://bsky.app/profile/suibari-com)
 
 ---
 
