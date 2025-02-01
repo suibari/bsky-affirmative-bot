@@ -16,6 +16,10 @@ const CONVMODE_TRIGGER = [
   "おしゃべり",
   "お話",
   "おはなし",
+  "Conversation",
+  "conversation",
+  "Talk with me",
+  "talk with me",
 ];
 
 const PREDEFINEDMODE_TRIGGER = [
