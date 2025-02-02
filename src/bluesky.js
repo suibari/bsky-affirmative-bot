@@ -213,16 +213,43 @@ You can change reply frequency by saying "freq50". And for those under 18, reply
 
   /**
    * post()をオーバーライド。本番環境でのみポストし、レートリミットを増加
+   * 300文字以上のポストの場合、自動で分割投稿する
    * @param {} record 
    */
   async post(record) {
-    if (process.env.NODE_ENV === "production") {
-      await super.post(record);
-      point.addCreate();
+    const MAX_LENGTH = 300;
+    let text = record.text;
+    let parts = [];
+  
+    // 300文字ごとに分割
+    for (let i = 0; i < text.length; i += MAX_LENGTH) {
+      parts.push(text.slice(i, i + MAX_LENGTH));
+    }
+  
+    let replyPost = null;
+    
+    for (let i = 0; i < parts.length; i++) {
+      const newRecord = {
+        text: parts[i],
+        reply: i === 0 
+          ? record.reply // 1回目は元のrecordのリプライ先を使用
+          : {
+              root: replyPost.reply.root,
+              parent: {
+                uri: replyPost.uri,
+                cid: replyPost.cid
+              }
+            }
+      };
+  
+      if (process.env.NODE_ENV === "production") {
+        replyPost = await super.post(newRecord);  // 投稿し、そのポストを次のリプライ元にする
+        point.addCreate();
+      }
     }
   }
 
-    /**
+  /**
    * 未実装API https://docs.bsky.app/docs/api/com-atproto-repo-get-records の実装
    * @param {Object} queryParams 
    * @returns

@@ -182,9 +182,9 @@ async function content(prompt, length, image_url, mimeType, lang) {
         parts
       }
     ],
-    generationConfig: {
-      maxOutputTokens: lang === "英語" ? length : length / 2 // 日本語だと文字数/2 = トークンな感じ
-    },
+    // generationConfig: {
+    //   maxOutputTokens: lang === "英語" ? length : length / 2 // 日本語だと文字数/2 = トークンな感じ
+    // },
   }
 }
 
