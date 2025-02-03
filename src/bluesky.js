@@ -220,6 +220,7 @@ You can change reply frequency by saying "freq50". And for those under 18, reply
     const MAX_LENGTH = 300;
     let text = record.text;
     let parts = [];
+    const root = record.reply.root;
   
     // 300文字ごとに分割
     for (let i = 0; i < text.length; i += MAX_LENGTH) {
@@ -234,7 +235,7 @@ You can change reply frequency by saying "freq50". And for those under 18, reply
         reply: i === 0 
           ? record.reply // 1回目は元のrecordのリプライ先を使用
           : {
-              root: replyPost.reply.root,
+              root,
               parent: {
                 uri: replyPost.uri,
                 cid: replyPost.cid
