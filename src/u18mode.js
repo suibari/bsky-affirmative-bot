@@ -16,7 +16,7 @@ const handleU18Registration = async (event) => {
   if (isPostToMe && isInactiveU18) {
       // リプライ
       const record = agent.getRecordFromEvent(event, TEXT_RELEASE_U18);
-      await agent.post(record);
+      await agent.postContinuous(record);
 
       // DB登録
       db.updateDb(did, "is_u18", 0);
@@ -30,7 +30,7 @@ const handleU18Registration = async (event) => {
   if (isPostToMe && isActiveU18) {
       // リプライ
       const record = agent.getRecordFromEvent(event, TEXT_REGISTER_U18);
-      await agent.post(record);
+      await agent.postContinuous(record);
 
       // DB登録
       db.updateDb(did, "is_u18", 1);

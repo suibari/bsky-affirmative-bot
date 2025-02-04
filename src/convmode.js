@@ -55,7 +55,7 @@ const handleConversation = async (event, name_user) => {
 
       // リプライ
       const record = agent.getRecordFromEvent(event, text_bot);
-      await agent.post(record);
+      await agent.postContinuous(record);
 
       // historyのクリップ処理
       while (new_history.length > MAX_BOT_MEMORY) {

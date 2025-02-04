@@ -14,7 +14,7 @@ const agent = require('../src/bluesky');
     text: text_bot,
   };
 
-  await agent.post(record);
+  await agent.postContinuous(record);
 
   if (process.env.NODE_ENV === "development") {
     console.log("[DEBUG] bot>>> " + text_bot);

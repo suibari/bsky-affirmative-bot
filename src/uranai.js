@@ -30,7 +30,7 @@ const handleUranai = async (event, name_user) => {
   
       // リプライ
       const record = agent.getRecordFromEvent(event, text_bot);
-      await agent.post(record);
+      await agent.postContinuous(record);
   
       // DB登録 (リプライ成功時のみ)
       db.updateDb(did, "last_uranai_at", "CURRENT_TIMESTAMP");

@@ -23,7 +23,7 @@ const handleRegisterFreq = async (event, name_user) => {
       // リプライ
       const text_bot = `了解! ${name_user}さんへのリプライする頻度を${freq_user}%にするね! ちなみに占いはいつでもできるよ～`;
       const record = agent.getRecordFromEvent(event, text_bot);
-      await agent.post(record);
+      await agent.postContinuous(record);
   
       // DB登録 (リプライ成功時のみ)
       db.updateDb(did, "reply_freq", freq_user);

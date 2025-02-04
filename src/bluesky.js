@@ -52,7 +52,7 @@ You can change reply frequency by saying "freq50". And for those under 18, reply
       }
     };
 
-    await this.post(record);
+    await this.postContinuous(record);
     return;
   }
 
@@ -88,7 +88,7 @@ You can change reply frequency by saying "freq50". And for those under 18, reply
     const record = this.getRecordFromEvent(event, text_bot);
 
     // ポスト
-    await this.post(record);
+    await this.postContinuous(record);
 
     return;
   }
@@ -212,11 +212,11 @@ You can change reply frequency by saying "freq50". And for those under 18, reply
   }
 
   /**
-   * post()をオーバーライド。本番環境でのみポストし、レートリミットを増加
    * 300文字以上のポストの場合、自動で分割投稿する
+   * !! ただし、リプライでないポストには対応しない !!
    * @param {} record 
    */
-  async post(record) {
+  async postContinuous(record) {
     const MAX_LENGTH = 300;
     let text = record.text;
     let parts = [];
@@ -247,6 +247,18 @@ You can change reply frequency by saying "freq50". And for those under 18, reply
         replyPost = await super.post(newRecord);  // 投稿し、そのポストを次のリプライ元にする
         point.addCreate();
       }
+    }
+  }
+
+  /**
+   * postのオーバーライド
+   * 開発環境ではなにもしない
+   * @param {*} record 
+   */
+  async post(record) {
+    if (process.env.NODE_ENV === "production") {
+      replyPost = await super.post(record);  // 投稿し、そのポストを次のリプライ元にする
+      point.addCreate();
     }
   }
 
