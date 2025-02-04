@@ -257,7 +257,7 @@ You can change reply frequency by saying "freq50". And for those under 18, reply
    */
   async post(record) {
     if (process.env.NODE_ENV === "production") {
-      replyPost = await super.post(record);  // 投稿し、そのポストを次のリプライ元にする
+      await super.post(record);  // 投稿し、そのポストを次のリプライ元にする
       point.addCreate();
     }
   }
