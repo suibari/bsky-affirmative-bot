@@ -71,16 +71,15 @@ const gemini = new Gemini();
 async function generateAffirmativeWordByGemini(text_user, name_user, image_url, mimeType, lang) {
   let length_output = image_url ? 200 : 80;
 
-  const part_prompt_main = image_url ? `画像の内容のどこがいいのか具体的に、${(lang === "英語") ? (length_output - 100) /2 : length_output - 100}文字までで褒めてください。` :
+  const part_prompt_main = image_url ? `画像の内容について、${(lang === "英語") ? (length_output - 100) /2 : length_output - 100}文字までで褒めてください。画像の内容について具体的に言及して褒めるようにしてください。` :
                                        `文章に対して具体的に、${length_output - 20}文字までで褒めてください。`;
-  const part_prompt_lang = lang ? `褒める際の言語は、${lang}にしてください。` :
-                                  `褒める際の言語は、文章の言語に合わせてください。`;
+  const part_prompt_lang = lang ? `褒める際の言語は、${lang}を使ってください。` :
+                                  `褒める際の言語は、ユーザの文章の言語に合わせてください。`;
   const prompt = 
-`"-----"の以下のユーザ名と文章に対して全肯定してください。
+`
 ${part_prompt_main}
 ${part_prompt_lang}
-以下が、ユーザ名と文章です。
------
+-----この下がユーザからのメッセージです-----
 ユーザ名: ${name_user}
 文章: ${text_user}`;
 
@@ -167,7 +166,7 @@ async function content(prompt, length, image_url, mimeType, lang) {
 
   parts.push({ text: prompt });
 
-  if (image_url && mimeType) {
+  if (image_url) {
     const inlineData = await getInlineData(image_url, mimeType);
     if (inlineData) {
       parts.push({ inlineData });
@@ -222,19 +221,21 @@ async function conversation(name_user, text_user, image_url, mimeType, lang, his
 }
 
 async function getInlineData(image_url, mimeType) {
-  let inlineData;
+  if (image_url) {
+    const response = await fetch(image_url);
+    if (!response.ok) {
+      console.error(`Error fetching image: ${response.statusText}`);
+      return null;
+    }
+    const imageResp = await response.arrayBuffer();
 
-  if (image_url && mimeType) {
-    const imageResp = await fetch(image_url)
-    .then((response) => response.arrayBuffer());
-
-    inlineData = {
+    return {
       data: Buffer.from(imageResp).toString("base64"),
-      mimeType,
+      mimeType: mimeType ?? "image/jpeg",
     };
   }
 
-  return inlineData;
+  return null;
 }
 
 class RequestPerDayGemini {
