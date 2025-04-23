@@ -41,7 +41,7 @@ async function getRandomWordByNegaposi(posttext, lang) {
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({text: posttext})
+      body: JSON.stringify({texts: [posttext]})
     });
   
     // レスポンスが正常であればsentimentを取得
