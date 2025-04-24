@@ -2,7 +2,9 @@ const fs = require('fs');
 const pathNeg = './src/texts/affirmativeword_negative.txt';
 const pathNrm = './src/texts/affirmativeword_normal.txt';
 const pathPos = './src/texts/affirmativeword_positive.txt';
-const pathEn  = './src/texts/affirmativeword_en.txt';
+const pathNegEn = './src/texts/affirmativeword_negative_en.txt';
+const pathNrmEn = './src/texts/affirmativeword_normal_en.txt';
+const pathPosEn = './src/texts/affirmativeword_positive_en.txt';
 
 const HNY_WORDS = ["明けましておめでとう", "あけましておめでとう"];
 const OHAYO_WORDS = ["おはよう"];
@@ -17,8 +19,7 @@ const CONDITIONS = [
 
 async function getRandomWordByNegaposi(posttext, lang) {
   let path;
-  let tokens;
-  let sentiment;
+  let sentiment = 0;
   let pathCondition;
 
   // 単語判定
@@ -30,9 +31,8 @@ async function getRandomWordByNegaposi(posttext, lang) {
     }
   }
 
-  if (lang !== "日本語") {
-    path = pathEn;
-  } else if (pathCondition) {
+  if (pathCondition) {
+    // あいさつ判定
     path = pathCondition;
   } else {
     // ネガポジフェッチ
@@ -47,20 +47,30 @@ async function getRandomWordByNegaposi(posttext, lang) {
     // レスポンスが正常であればsentimentを取得
     if (response.ok) {
       const json = await response.json();
-      tokens = json.tokens;
-      sentiment = json.sentiment;
+      sentiment = json.average_sentiments;
     } else {
       throw new Error('Failed to fetch sentiment from NEGPOSI_URL');
     }
 
     // 感情分析
-    if (sentiment <= -0.2) {
-      path = pathNeg;
-    } else if (sentiment <= 0.2) {
-      path = pathNrm;
+    console.log(sentiment)
+    if (lang == "日本語") {
+      if (sentiment <= -0.2) {
+        path = pathNeg;
+      } else if (sentiment >= 0.2) {
+        path = pathPos;
+      } else {
+        path = pathNrm;
+      };
     } else {
-      path = pathPos;
-    };
+      if (sentiment <= -0.05) {
+        path = pathNegEn;
+      } else if (sentiment >= 0.05) {
+        path = pathPosEn;
+      } else {
+        path = pathNrmEn;
+      };
+    }
   }
 
   const data = fs.readFileSync(path);
