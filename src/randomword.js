@@ -53,7 +53,6 @@ async function getRandomWordByNegaposi(posttext, lang) {
     }
 
     // 感情分析
-    console.log(sentiment)
     if (lang == "日本語") {
       if (sentiment <= -0.2) {
         path = pathNeg;
