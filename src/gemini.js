@@ -71,9 +71,9 @@ const gemini = new Gemini();
 async function generateAffirmativeWordByGemini(text_user, name_user, image_url, mimeType, lang) {
   let length_output = image_url ? 200 : 80;
 
-  const part_prompt_main = image_url ? `画像の内容について、${(lang === "英語") ? (length_output - 100) /2 : length_output - 100}文字までで褒めてください。画像の内容について具体的に言及して褒めるようにしてください。` :
-                                       `文章に対して具体的に、${length_output - 20}文字までで褒めてください。`;
-  const part_prompt_lang = lang ? `褒める際の言語は、${lang}を使ってください。` :
+  const part_prompt_main = image_url ? `ユーザの画像の内容について、${(lang === "英語") ? (length_output - 100) /2 : length_output - 100}文字までで褒めてください。画像の内容について具体的に言及して褒めるようにしてください。` :
+                                       `ユーザからの文章に対して具体的に、${length_output - 20}文字までで褒めてください。`;
+  const part_prompt_lang = lang ? `${lang}で褒めてください。${lang}以外の言語は絶対に使わないでください。` :
                                   `褒める際の言語は、ユーザの文章の言語に合わせてください。`;
   const prompt = 
 `
