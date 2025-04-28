@@ -84,6 +84,9 @@ You can change reply frequency by saying "freq50". And for those under 18, reply
       console.log("[DEBUG] bot>>> " + text_bot);
     }
 
+    // AI出力のサニタイズ("-----"を含むときそれ以降の文字列を削除)
+    text_bot = text_bot.split("-----")[0];
+
     // record整形
     const record = this.getRecordFromEvent(event, text_bot);
 

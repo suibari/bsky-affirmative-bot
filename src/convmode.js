@@ -53,8 +53,11 @@ const handleConversation = async (event, name_user) => {
         await new Promise(resolve => setTimeout(resolve, MINUTES_THRD_RESPONSE));
       }
 
+      // AI出力のサニタイズ("-----"を含むときそれ以降の文字列を削除)
+      const text_bot_split = text_bot.split("-----")[0];
+
       // リプライ
-      const record = agent.getRecordFromEvent(event, text_bot);
+      const record = agent.getRecordFromEvent(event, text_bot_split);
       await agent.postContinuous(record);
 
       // historyのクリップ処理
@@ -74,7 +77,7 @@ const handleConversation = async (event, name_user) => {
       console.log(`[INFO][${did}] send coversation-result`);
   
       if (process.env.NODE_ENV === "development") {
-        console.log("[DEBUG] bot>>> " + text_bot);
+        console.log("[DEBUG] bot>>> " + text_bot_split);
       }
   
       return true; // 処理済みを示す

@@ -1,10 +1,10 @@
 const fs = require('fs');
 const pathPos = './src/texts/affirmativeword_positive.txt';
 const pathWhatday = './src/json/anniversary.json';
+const { EXEC_PER_COUNTS } = require('./config/config');
 
 const { GoogleGenerativeAI, DynamicRetrievalMode } = require("@google/generative-ai");
 const REQUEST_PER_DAY_GEMINI = 1500;
-const EXEC_PER_COUNTS = 3;
 
 // Gemini API クライアントの初期化
 class Gemini {

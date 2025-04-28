@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 const NICKNAMES_BOT = [
   "全肯定botたん",
   "全肯定たん",
@@ -42,10 +44,13 @@ const FORTUNE_TRIGGER = [
   "FORTUNE",
 ]
 
+const EXEC_PER_COUNTS = process.env.NODE_ENV === "development" ? 1 : 3; // 何回に1回AI応答するか
+
 module.exports = {
   NICKNAMES_BOT,
   CONVMODE_TRIGGER,
   PREDEFINEDMODE_TRIGGER,
   PREDEFINEDMODE_RELEASE_TRIGGER,
   FORTUNE_TRIGGER,
+  EXEC_PER_COUNTS,
 };
