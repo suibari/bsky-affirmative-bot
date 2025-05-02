@@ -2,7 +2,6 @@
 [全肯定botたん](https://bsky.app/profile/suibari-bot.bsky.social) は、フォロワーを全肯定するリプライを送るBluesky botです。
 感情分析および生成AIを活用し、フォロワーを励ますことを目的とします。
 
-本botは基本的に日本語のポストを解析対象とします。
 Please refer [English README](./README_en.md) for not Japanese speakers.
 
 ---
@@ -18,6 +17,7 @@ Please refer [English README](./README_en.md) for not Japanese speakers.
 4. **占いモード**: ユーザの応答で、占いを行います
 5. **リプ頻度調整**: ユーザの応答で、botがリプライする頻度の調整が0~100%で行えます
 6. **会話機能**: ユーザの応答で、botと連続した会話を行えます
+7. **ポスト分析機能**: ユーザの応答で、ユーザの性格分析を行えます
 
 ---
 
@@ -29,7 +29,7 @@ Please refer [English README](./README_en.md) for not Japanese speakers.
 
 botフォロー後に、botがあなたのポストにどう反応するかの処理フローは以下です。
 
-![bot処理フロー](https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:uixgxpiqf4i63p6rgpu7ytmx/bafkreidklyeg7ojkn733sownp2jqqy4ah2oigdzcd2cgctu45r4niecfru@jpeg)
+![bot処理フロー](https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:uixgxpiqf4i63p6rgpu7ytmx/bafkreihxgiteyk25cpv3e7lkdsggntpb3jj6ybha4btq5ykf2fzdyq7j6u@jpeg)
 
 ### 定型文モード
 定型文モードはGoogle Gemini APIの利用規約に準拠し、年齢制限遵守に必要な措置として実装しました。
@@ -73,6 +73,14 @@ botフォロー後に、botがあなたのポストにどう反応するかの�
 
 ![会話機能説明画像](https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:qcwhrvzx6wmi5hz775uyi6fh/bafkreib5x75mtoy7md2eegafwgl6ug4vr23bwy7wyorqrmlwxbyhppzim4@jpeg)
 
+### ポスト分析モード
+以下の手順を実施することで、本botが性格分析結果をリプライします。
+性格分析は1度行うと数日間行えません。
+
+1. "使用方法"に従い、本botからフォローされた状態となる
+2. 本botに対しメンションまたはリプライで **"分析して"** とポストする
+3. 本botがあなたに分析結果を画像付きリプライします
+
 ---
 
 ## プライバシーポリシー
@@ -115,7 +123,8 @@ botフォロー後に、botがあなたのポストにどう反応するかの�
 このプロジェクトはOSSであり、MITライセンスの下で提供されています。詳細は [LICENSE](./LICENSE) ファイルをご覧ください。
 
 ### 引用文献
-本botは感情分析に東北大学 乾・岡崎研究室の [日本語評価極性辞書](https://www.cl.ecei.tohoku.ac.jp/Open_Resources-Japanese_Sentiment_Polarity_Dictionary.html) を使用しています。
+本botは日本語感情分析に東北大学 乾・岡崎研究室の [日本語評価極性辞書](https://www.cl.ecei.tohoku.ac.jp/Open_Resources-Japanese_Sentiment_Polarity_Dictionary.html) を使用しています。
+本botは英語感情分析に東京工業大学 奥村・高村研究室の [単語感情極性対応表](http://www.lr.pi.titech.ac.jp/~takamura/pndic_en.html) を使用しています。
 
 ---
 

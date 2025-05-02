@@ -16,6 +16,7 @@ This repository contains the code and configuration files for Zenkoutei Bot-tan.
 4. **Fortune-telling mode**: The bot can perform a fortune-telling feature upon request.
 5. **Reply frequency adjustment**: Users can adjust the bot’s reply frequency from 0% to 100%.
 6. **Conversation mode**: Users can engage in continuous conversation with the bot.
+7. **Post-analysis mode**: Users can perform a personality analysis by the user's recent posts.
 
 ---
 
@@ -26,7 +27,7 @@ This repository contains the code and configuration files for Zenkoutei Bot-tan.
 
 To stop receiving replies from this bot, either unfollow it or block the user.
 
-![bot process flow](https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:uixgxpiqf4i63p6rgpu7ytmx/bafkreidklyeg7ojkn733sownp2jqqy4ah2oigdzcd2cgctu45r4niecfru@jpeg)
+![bot process flow](https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:uixgxpiqf4i63p6rgpu7ytmx/bafkreihxgiteyk25cpv3e7lkdsggntpb3jj6ybha4btq5ykf2fzdyq7j6u@jpeg)
 
 ---
 
