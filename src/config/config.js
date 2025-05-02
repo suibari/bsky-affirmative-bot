@@ -44,6 +44,13 @@ const FORTUNE_TRIGGER = [
   "FORTUNE",
 ]
 
+const ANALYZE_TRIGGER = [
+  "分析して",
+  "Analyze me",
+  "analyze me",
+  "ANALYZE ME",
+]
+
 const EXEC_PER_COUNTS = process.env.NODE_ENV === "development" ? 1 : 3; // 何回に1回AI応答するか
 
 module.exports = {
@@ -52,5 +59,6 @@ module.exports = {
   PREDEFINEDMODE_TRIGGER,
   PREDEFINEDMODE_RELEASE_TRIGGER,
   FORTUNE_TRIGGER,
+  ANALYZE_TRIGGER,
   EXEC_PER_COUNTS,
 };

@@ -7,6 +7,7 @@ const { TimeLogger, point } = require('./src/logger');
 const handleRegisterFreq = require('./src/silentmode');
 const handleU18Registration = require('./src/u18mode');
 const handleUranai = require('./src/uranai');
+const { handleAnalyze } = require('./src/analyze');
 (async () => {
   await db.createDbIfNotExist();
 })();
@@ -169,6 +170,12 @@ async function doReply(event) {
     // 占いモード
     const isUranai = await handleUranai(event, displayName);
     if (isUranai) {
+      return;
+    }
+
+    // 分析モード
+    const isAnalyze = await handleAnalyze(event, displayName);
+    if (isAnalyze) {
       return;
     }
 

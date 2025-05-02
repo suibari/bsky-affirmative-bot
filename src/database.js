@@ -24,7 +24,8 @@ class SQLite3 {
         reply_freq     INTEGER   DEFAULT 100,
         last_conv_at   TIMESTAMP DEFAULT NULL,
         conv_root_cid  TEXT      DEFAULT NULL,
-        conv_history   JSON      DEFAULT NULL
+        conv_history   JSON      DEFAULT NULL,
+        last_analyze_at TIMESTAMP DEFAULT NULL
       );
     `;
     this.db.run(query, (err) => {

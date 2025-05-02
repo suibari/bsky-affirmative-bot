@@ -4,7 +4,9 @@
     "@skyware/jetstream": "^0.2.1",
     "axios": "^1.7.9",
     "blueskyer": "^1.2.4",
+    "canvas": "^3.1.0",
     "dotenv": "^16.4.5",
+    "marked": "^15.0.11",
     "node-fetch": "^2.7.0",
     "sqlite3": "^5.0.0",
     "ws": "^8.18.0"

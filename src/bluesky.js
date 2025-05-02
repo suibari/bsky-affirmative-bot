@@ -135,13 +135,13 @@ You can change reply frequency by saying "freq50". And for those under 18, reply
     return false;
   }
 
-  getRecordFromEvent(event, text_bot) {
+  getRecordFromEvent(event, text_bot, imgdata) {
     const uri_parent = `at://${event.did}/app.bsky.feed.post/${event.commit.rkey}`;
     const cid_parent = event.commit.cid;
     const uri_root = event.commit.record.reply?.root.uri;
     const cid_root = event.commit.record.reply?.root.cid;
 
-    return {
+    const record = {
       text: text_bot,
       reply: {
         root: {
@@ -154,6 +154,24 @@ You can change reply frequency by saying "freq50". And for those under 18, reply
         }
       }
     };
+
+    if (imgdata) {
+      const embed = {
+        $type: "app.bsky.embed.images",
+        images: [
+          {
+            image: {
+              cid: imgdata.cid,
+              mimeType: imgdata.mimeType,
+            },
+            alt: imgdata.alt
+          }
+        ]
+      }
+      record.embed = embed;;
+    }
+
+    return record
   }
 
   isReply(record) {
