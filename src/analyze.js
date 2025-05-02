@@ -13,17 +13,18 @@ async function handleAnalyze (event, name_user) {
   const text_user = event.commit.record.text;
   const isCalledMe = NICKNAMES_BOT.some(elem => text_user.includes(elem));
   const isPostToMe = agent.isReplyOrMentionToMe(event.commit.record);
-  const isActiveUranai = ANALYZE_TRIGGER.some(elem => text_user.includes(elem));
+  const isActiveAnalyze = ANALYZE_TRIGGER.some(elem => text_user.includes(elem));
 
-  // 前回占い日時の取得
+  // 前回分析日時の取得
   const postedAt = new Date(event.commit.record.createdAt);
-  const lastAnalyzeAt = new Date(await db.selectDb(did, "last_analyze_at"));
+  const lastAnalyzeAtRaw = await db.selectDb(did, "last_analyze_at");
+  const lastAnalyzeAt = lastAnalyzeAtRaw ? new Date(lastAnalyzeAtRaw) : new Date(0);
   const lastAnalyzeAtJst = new Date(lastAnalyzeAt.getTime() + OFFSET_UTC_TO_JST);
 
   // 時間判定
   const isPast = (postedAt.getTime() - lastAnalyzeAtJst.getTime() > MINUTES_THRD_RESPONSE) ;
 
-  if ((isPast || process.env.NODE_ENV === "development") && (isCalledMe || isPostToMe) && isActiveUranai) {
+  if ((isPast || process.env.NODE_ENV === "development") && (isCalledMe || isPostToMe) && isActiveAnalyze) {
     try {
       const str_lang = agent.getLangStr(event.commit.record.langs);
       const imgBuffer = await getFeedAndAnalyze(did, name_user, str_lang);
