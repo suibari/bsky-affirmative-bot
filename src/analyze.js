@@ -40,8 +40,7 @@ async function handleAnalyze (event, name_user) {
         event,
         text_define,
         {
-          cid: response.data.blob.ref.$link,
-          minetipe: response.data.blob.mimeType,
+          blob: response.data.blob,
           alt: `${name_user}さんの全肯定分析結果!`,
         }
       );

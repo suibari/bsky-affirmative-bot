@@ -160,11 +160,12 @@ You can change reply frequency by saying "freq50". And for those under 18, reply
         $type: "app.bsky.embed.images",
         images: [
           {
-            image: {
-              cid: imgdata.cid,
-              mimeType: imgdata.mimeType,
-            },
-            alt: imgdata.alt
+            image: imgdata.blob,
+            alt: imgdata.alt,
+            aspectRatio: {
+              width: 688,
+              height: 688
+            }
           }
         ]
       }
