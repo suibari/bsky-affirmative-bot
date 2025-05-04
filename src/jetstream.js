@@ -14,10 +14,10 @@ async function startWebSocket(didArray, userCallback) {
   // 現在のdidArrayで接続開始
   jetstream = new Jetstream({
     ws,
-    url: process.env.URL_JETSTREAM,
     wantedCollections: ["app.bsky.feed.post"],
     // wantedDids: didArray,  // 312要素より大きいと400 errorになる
   });
+  jetstream.url = process.env.URL_JETSTREAM;
   jetstream.start();
   console.log("[INFO] JetStream connection established.");
 
