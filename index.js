@@ -13,7 +13,7 @@ const { handleAnalyze } = require('./src/analyze');
 })();
 global.fetch = require('node-fetch'); // for less than node-v17
 
-const SPAN_FOLLOW_CHECK = 10 * 60 * 1000; // 10min
+const SPAN_FOLLOW_CHECK = 2 * 60 * 1000; // 2min
 const OFFSET_UTC_TO_JST = 9 * 60 * 60 * 1000; // offset: +9h (to JST from UTC <SQlite3>)
 const MINUTES_THRD_RESPONSE = 10 * 60 * 1000; // 10min
 const THRD_FOLLOW_BY_FOLLOWER = 2.5;
