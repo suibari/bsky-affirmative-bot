@@ -16,7 +16,10 @@ export async function post(record: Record): Promise<{
       uri: response.uri,
       cid: response.cid,
     };
+  } else if (process.env.NODE_ENV === "development") {
+    console.log(`[DEBUG] bot>>> ${record.text}`);
   }
+
   return {
     uri: "dev-stub-uri",
     cid: "dev-stub-cid",

@@ -16,6 +16,7 @@ import { handleU18Register, handleU18Release } from './modes/u18Mode.js';
 import { handleFreq } from './modes/freqMode.js';
 import { handleFortune } from './modes/fortuneMode.js';
 import { replyAffermativeWord } from './bsky/replyAffirmativeWord.js';
+import { handleAnalyaze } from './modes/analyzeMode.js';
 
 // 起動時処理
 (async () => {
@@ -205,7 +206,7 @@ async function doReply(event: CommitCreateEvent<"app.bsky.feed.post">) {
     }
 
     // 分析モード
-    const isAnalyze = await handleFortune(event, follower);
+    const isAnalyze = await handleAnalyaze(event, follower);
     if (isAnalyze) {
       return;
     }

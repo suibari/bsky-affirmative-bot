@@ -41,10 +41,6 @@ export async function replyAffermativeWord(follower: ProfileView, event: CommitC
     text_bot = await getRandomWordByNegaposi(text_user, langStr);
     text_bot = text_bot.replace("${name}", follower.displayName ?? "");
   }
-  
-  if (process.env.NODE_ENV === "development") {
-    console.log("[DEBUG] bot>>> " + text_bot);
-  }
 
   // AI出力のサニタイズ("-----"を含むときそれ以降の文字列を削除)
   text_bot = text_bot.split("-----")[0];

@@ -27,11 +27,11 @@ export const handleMode = async (
   if (!isReplyOrMentionToMe(record) && !NICKNAMES_BOT.some(elem => text.includes(elem))) return false;
 
   // トリガーワード判定
-  const matchedTrigger = options.triggers.find(trigger => text.includes(trigger));
+  const matchedTrigger = options.triggers.some(trigger => text.includes(trigger));
   if (!matchedTrigger) return false;
 
   // 追加条件判定
-  if (!options.checkConditions) {
+  if (process.env.NODE_ENV !== "development" && (options.checkConditions !== undefined && !options.checkConditions)) {
     return false;
   }
 

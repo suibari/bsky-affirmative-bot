@@ -6,7 +6,7 @@ import { UserInfoGemini } from "../types.js";
 export async function generateAffirmativeWord(userinfo: UserInfoGemini) {
   const part_prompt_main = userinfo.image_url ? `ユーザの画像の内容について、200文字までで褒めてください。画像の内容について具体的に言及して褒めるようにしてください。` :
                                                 `ユーザからの文章に対して具体的に、100文字までで褒めてください。`;
-  const part_prompt_lang = userinfo.langStr ? `${userinfo.langStr}で褒めてください。` :
+  const part_prompt_lang = userinfo.langStr ? `出力する文章はすべて${userinfo.langStr}としてください。` :
                                               `褒める際の言語は、ユーザの文章の言語に合わせてください。`;
   const prompt = 
 `

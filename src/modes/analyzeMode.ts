@@ -13,7 +13,7 @@ import { db } from '../db/index.js';
 const OFFSET_UTC_TO_JST = 9 * 60 * 60 * 1000; // offset: +9h (to JST from UTC <SQlite3>)
 const MINUTES_THRD_RESPONSE = 7 * 24 * 60 * 60 * 1000; // 7day
 
-export async function handleFortune (event: CommitCreateEvent<"app.bsky.feed.post">, follower: ProfileView) {
+export async function handleAnalyaze (event: CommitCreateEvent<"app.bsky.feed.post">, follower: ProfileView) {
   const record = event.commit.record as Record;
 
   return await handleMode(event, {
@@ -31,10 +31,10 @@ export async function handleFortune (event: CommitCreateEvent<"app.bsky.feed.pos
 
 async function isPast(event: CommitCreateEvent<"app.bsky.feed.post">) {
   const postedAt = new Date((event.commit.record as Record).createdAt);
-  const lastUranaiAt = new Date(String(await db.selectDb(event.did, "last_uranai_at")) || 0);
-  const lastUranaiAtJst = new Date(lastUranaiAt.getTime() + OFFSET_UTC_TO_JST);
+  const lastAt = new Date(String(await db.selectDb(event.did, "last_analyze_at")) || 0);
+  const lastAtJst = new Date(lastAt.getTime() + OFFSET_UTC_TO_JST);
 
-  return (postedAt.getTime() - lastUranaiAtJst.getTime() > MINUTES_THRD_RESPONSE);
+  return (postedAt.getTime() - lastAtJst.getTime() > MINUTES_THRD_RESPONSE);
 }
 
 async function getBlobWithAnalyze(userinfo: UserInfoGemini): Promise<GeminiResponseResult> {
