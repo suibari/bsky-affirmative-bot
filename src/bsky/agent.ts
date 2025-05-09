@@ -21,7 +21,12 @@ export async function initAgent() {
 /**
  * トークンの期限チェックと更新
  */
-export async function checkWithRefreshSession() {
+export async function createOrRefreshSession() {
+  if (!accessJwt && !refreshJwt) {
+    await initAgent();
+    return;
+  }
+
   try {
     await agent.getTimeline();  // 成功すればそのまま
   } catch (err: any) {
@@ -41,7 +46,4 @@ export async function checkWithRefreshSession() {
   }
 }
 
-/**
- * 他のモジュールから使える共通エージェント
- */
 export { agent };

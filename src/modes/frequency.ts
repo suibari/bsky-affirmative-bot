@@ -1,7 +1,7 @@
 import { ProfileView } from "@atproto/api/dist/client/types/app/bsky/actor/defs";
 import { Record } from "@atproto/api/dist/client/types/app/bsky/feed/post";
 import { CommitCreateEvent } from "@skyware/jetstream";
-import { handleMode } from "./handleMode.js";
+import { handleMode } from "./index.js";
 
 const REGEX_FREQ = /freq(\d+)/gi;
 

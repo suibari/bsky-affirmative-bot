@@ -1,11 +1,12 @@
 import { BlobRef } from "@atproto/api";
 import { ProfileView } from "@atproto/api/dist/client/types/app/bsky/actor/defs";
+import { Content } from "@google/genai";
 
 export type UserInfoGemini = {
   follower: ProfileView;
   langStr?: string;
   posts?: string[];
-  history?: HistoryGemini[];
+  history?: Content[];
   image_url?: string;
   image_mimeType?: string;
 };
@@ -15,7 +16,3 @@ export type GeminiResponseResult = string | {
   imageBlob?: BlobRef;
 };
 
-export type HistoryGemini = {
-  role: "user" | "model";
-  parts: [{text: string}];
-}

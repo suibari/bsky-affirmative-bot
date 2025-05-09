@@ -1,7 +1,7 @@
 import { ProfileView } from "@atproto/api/dist/client/types/app/bsky/actor/defs";
 import { Record } from "@atproto/api/dist/client/types/app/bsky/feed/post";
 import { CommitCreateEvent } from "@skyware/jetstream";
-import { handleMode } from "./handleMode.js";
+import { handleMode } from "./index.js";
 import { generateFortuneResult } from "../gemini/generateFortuneResult.js";
 import { getLangStr } from "../bsky/util.js";
 import { FORTUNE_TRIGGER } from '../config/index.js';
@@ -16,7 +16,7 @@ export async function handleFortune (event: CommitCreateEvent<"app.bsky.feed.pos
   return await handleMode(event, {
     triggers: FORTUNE_TRIGGER,
     dbColumn: "last_uranai_at",
-    dbValue: "CURRENT_TIMESTAMP",
+    dbValue: new Date().toISOString(),
     generateText: generateFortuneResult,
     checkConditions: await isPast(event),
   },

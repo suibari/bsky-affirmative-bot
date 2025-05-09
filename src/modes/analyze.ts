@@ -1,10 +1,10 @@
 import { Record } from '@atproto/api/dist/client/types/app/bsky/feed/post';
 import { ProfileView } from "@atproto/api/dist/client/types/app/bsky/actor/defs";
 import { CommitCreateEvent } from "@skyware/jetstream";
-import { agent, checkWithRefreshSession } from '../bsky/agent.js';
+import { agent } from '../bsky/agent.js';
 import { getLangStr } from "../bsky/util.js";
 import { ANALYZE_TRIGGER } from "../config/index.js";
-import { handleMode } from "./handleMode.js";
+import { handleMode } from "./index.js";
 import { GeminiResponseResult, UserInfoGemini } from '../types.js';
 import { generateAnalyzeResult } from '../gemini/generateAnalyzeResult.js';
 import { textToImageBufferWithBackground } from '../util/canvas.js';
@@ -19,7 +19,7 @@ export async function handleAnalyaze (event: CommitCreateEvent<"app.bsky.feed.po
   return await handleMode(event, {
     triggers: ANALYZE_TRIGGER,
     dbColumn: "last_analyze_at",
-    dbValue: "CURRENT_TIMESTAMP",
+    dbValue: new Date().toISOString(),
     generateText: getBlobWithAnalyze,
     checkConditions: await isPast(event),
   },
@@ -41,8 +41,6 @@ async function getBlobWithAnalyze(userinfo: UserInfoGemini): Promise<GeminiRespo
   const TEXT_INTRO_ANALYZE = (userinfo.langStr === "日本語") ?
   `${userinfo.follower.displayName}さんのポストから、あなたの性格を分析したよ！ 画像を貼るので見てみてね。性格分析は1週間に1回までしかできないので、時間がたったらまたやってみてね！` :
   `${userinfo.follower.displayName}, I analyzed your personality from your posts! Check the image. You can only do personality analysis once a week, so try again after some time!`;
-
-  await checkWithRefreshSession();
 
   // ポスト収集
   const response = await agent.getAuthorFeed({ 

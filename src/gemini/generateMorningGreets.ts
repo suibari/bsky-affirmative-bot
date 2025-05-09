@@ -2,7 +2,8 @@ import { PartListUnion } from '@google/genai';
 import { gemini } from './index.js';
 import { MODEL_GEMINI, SYSTEM_INSTRUCTION } from '../config/index.js';
 import { getRandomItems } from './util.js';
-const whatday: WhatDayMap = require('../json/anniversary.json');
+import rawWhatday from '../json/anniversary.json' assert { type: 'json' };
+const whatday: WhatDayMap = rawWhatday;
 
 type WhatDayMap = {
   [month: string]: {

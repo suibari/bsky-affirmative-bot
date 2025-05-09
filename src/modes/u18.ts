@@ -1,6 +1,6 @@
 import { CommitCreateEvent } from '@skyware/jetstream';
 import { PREDEFINEDMODE_TRIGGER, PREDEFINEDMODE_RELEASE_TRIGGER } from '../config/index.js';
-import { handleMode } from './handleMode.js';
+import { handleMode } from './index.js';
 
 const TEXT_RELEASE_U18 = "定型文モードを解除しました! これからはたまにAIを使って全肯定しますね。";
 const TEXT_REGISTER_U18 = "定型文モードを設定しました! これからはAIを使わずに全肯定しますね。";

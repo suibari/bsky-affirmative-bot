@@ -43,9 +43,9 @@ export const ANALYZE_TRIGGER = [
 ];
 
 export const HNY_WORDS = ["明けましておめでとう", "あけましておめでとう", "あけおめ"];
-export const OHAYO_WORDS = ["おはよう", "おは"];
+export const OHAYO_WORDS = ["おは"];
 export const OYASUMI_WORDS = ["おやす"];
-export const OTSUKARE_WORDS = ["おつかれ", "お疲れ", "おつ"];
+export const OTSUKARE_WORDS = ["お疲れ", "おつ"];
 
 export const EXEC_PER_COUNTS = process.env.NODE_ENV === "development" ? 1 : 3; // 何回に1回AI応答するか
 

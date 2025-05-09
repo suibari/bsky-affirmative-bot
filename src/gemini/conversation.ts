@@ -18,7 +18,7 @@ export async function conversation(userinfo: UserInfoGemini) {
 
   const chat = gemini.chats.create({
     model: MODEL_GEMINI,
-    history: userinfo.history || [],
+    history: userinfo.history || undefined,
     config: {
       systemInstruction: SYSTEM_INSTRUCTION,
     }

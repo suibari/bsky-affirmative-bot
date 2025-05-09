@@ -3,8 +3,8 @@ import { Record } from '@atproto/api/dist/client/types/app/bsky/feed/post.js';
 import { isReplyOrMentionToMe } from "../bsky/util.js";
 import { postContinuous } from "../bsky/postContinuous.js";
 import { db } from "../db/index.js";
-import { GeminiResponseResult, UserInfoGemini } from "../types";
-import { NICKNAMES_BOT } from "../config";
+import { GeminiResponseResult, UserInfoGemini } from "../types.js";
+import { NICKNAMES_BOT } from "../config/index.js";
 
 type TriggeredReplyHandlerOptions = {
   triggers: string[]; // 発火ワード一覧

@@ -1,6 +1,7 @@
-require('dotenv').config();
-const agent = require('./src/bluesky.ts');
-const { generateMorningGreets } = require('./src/gemini.ts');
+import 'dotenv/config';
+import { createOrRefreshSession, initAgent } from './bsky/agent.js';
+import { postContinuous } from './bsky/postContinuous.js';
+import { generateMorningGreets } from './gemini/generateMorningGreets.js';
 
 /**
  * cron実行を前提とし、
@@ -8,18 +9,10 @@ const { generateMorningGreets } = require('./src/gemini.ts');
  */
 (async () => {
   console.log("[INFO] start cron routine.")
-  await agent.createOrRefleshSession(process.env.BSKY_IDENTIFIER, process.env.BSKY_APP_PASSWORD);
+  await createOrRefreshSession();
 
   const text_bot = await generateMorningGreets();
 
-  const record = {
-    text: text_bot,
-  };
-
-  await agent.post(record);
+  await postContinuous(text_bot);
   console.log("[INFO] posted morning greets.");
-
-  if (process.env.NODE_ENV === "development") {
-    console.log("[DEBUG] bot>>> " + text_bot);
-  }
 })();

@@ -62,7 +62,7 @@ class SQLite3 {
     });
   }
 
-  selectDb(id: string, col_name: string): Promise<Record<string, any> | null> {
+  selectDb(id: string, col_name: string): Promise<any> | null {
     return new Promise((resolve, reject) => {
       const query = `SELECT * FROM followers WHERE did = ?;`;
       this.db.get(query, [id], (err, row: Record<string, any>) => {
@@ -70,7 +70,11 @@ class SQLite3 {
           console.error('Error selecting data', err);
           reject(err);
         } else {
-          resolve(row ? row[col_name] : null);
+          try {
+            resolve(row ? JSON.parse(row[col_name]) : null);
+          } catch (e) {
+            resolve(row[col_name]);
+          }
         }
       });
     });

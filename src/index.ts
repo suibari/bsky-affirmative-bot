@@ -1,7 +1,7 @@
 import 'dotenv/config';
-import { agent, checkWithRefreshSession, initAgent } from './bsky/agent.js';
+import { agent, createOrRefreshSession, initAgent } from './bsky/agent.js';
 import { parseEmbedPost } from './bsky/parseEmbedPost.js';
-import { handleConversation } from './modes/convmode.js';
+import { handleConversation } from './modes/conversation.js';
 import { db } from './db/index.js';
 import { startWebSocket } from './bsky/jetstream.js';
 import { pointRateLimit, TimeLogger } from './util/logger.js';
@@ -12,11 +12,11 @@ import { replyGreets } from './bsky/replyGreets.js';
 import { getConcatFollowers } from './bsky/getConcatFollowers.js';
 import { ProfileView } from '@atproto/api/dist/client/types/app/bsky/actor/defs.js';
 import { CommitCreateEvent } from '@skyware/jetstream';
-import { handleU18Register, handleU18Release } from './modes/u18Mode.js';
-import { handleFreq } from './modes/freqMode.js';
-import { handleFortune } from './modes/fortuneMode.js';
+import { handleU18Register, handleU18Release } from './modes/u18.js';
+import { handleFreq } from './modes/frequency.js';
+import { handleFortune } from './modes/fortune.js';
 import { replyAffermativeWord } from './bsky/replyAffirmativeWord.js';
-import { handleAnalyaze } from './modes/analyzeMode.js';
+import { handleAnalyaze } from './modes/analyze.js';
 
 // 起動時処理
 (async () => {
@@ -45,8 +45,7 @@ async function doFollowAndGreetIfFollowed() {
     const timer = new TimeLogger();
     timer.tic();
 
-    await initAgent();
-    await checkWithRefreshSession();
+    await createOrRefreshSession();
     const notifications = await listUnreadNotifications({limit: 100});
     for (let notification of notifications) {
       if (notification.reason == 'follow') {
@@ -104,8 +103,7 @@ if (process.env.NODE_ENV === "production") {
 async function updateFollowersAndStartWS() {
   try {
     console.log("[INFO] Starting session refresh...");
-    await initAgent();
-    await checkWithRefreshSession();
+    await createOrRefreshSession();
 
     console.log("[INFO] Fetching followers...");
     followers = await getConcatFollowers({actor: process.env.BSKY_IDENTIFIER!}, 10000);

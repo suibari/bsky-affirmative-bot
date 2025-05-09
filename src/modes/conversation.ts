@@ -5,10 +5,11 @@ import { CommitCreateEvent } from "@skyware/jetstream";
 import { agent } from "../bsky/agent.js";
 import { getImageUrl, getLangStr, splitUri, uniteDidNsidRkey } from "../bsky/util.js";
 import { conversation } from "../gemini/conversation.js";
-import { handleMode } from "./handleMode.js";
+import { handleMode } from "./index.js";
 import { CONVMODE_TRIGGER } from '../config/index.js';
-import { GeminiResponseResult, HistoryGemini, UserInfoGemini } from "../types.js";
+import { GeminiResponseResult, UserInfoGemini } from "../types.js";
 import { db } from "../db/index.js";
+import { Content } from "@google/genai";
 
 const MINUTES_THRD_RESPONSE = 10 * 60 * 1000; // 10min
 const MAX_BOT_MEMORY = 100;
@@ -34,7 +35,7 @@ export async function handleConversation (event: CommitCreateEvent<"app.bsky.fee
   return await handleMode(event, {
     triggers: CONVMODE_TRIGGER,
     dbColumn: "last_conv_at",
-    dbValue: "CURRENT_TIMESTAMP",
+    dbValue: new Date().toISOString(),
     generateText: waitAndGenReply,
     checkConditions: await isTalking(did, record), // 会話スレッドの判定
   },
@@ -64,9 +65,13 @@ async function waitAndGenReply (userinfo: UserInfoGemini, event: CommitCreateEve
   flagsWaiting.set(userinfo.follower.did, true);
 
   // 前回までの会話取得
-  const history = await db.selectDb(userinfo.follower.did, "conv_history");
+  const history = await db.selectDb(userinfo.follower.did, "conv_history") as Content[];
   if (history) {
-    userinfo.history = history as HistoryGemini[];
+    // 先頭要素がmodelの発話だとエラーになるので回避する
+    if (history[0].role === "model") {
+      history.shift();
+    };
+    userinfo.history = history;
   }
 
   // 応答生成
@@ -95,10 +100,6 @@ async function waitAndGenReply (userinfo: UserInfoGemini, event: CommitCreateEve
   db.updateDb(userinfo.follower.did, "conv_history", JSON.stringify(new_history));
   db.updateDb(userinfo.follower.did, "conv_root_cid", rootCid);
   console.log(`[INFO][${userinfo.follower.did}] send coversation-result`);
-
-  if (process.env.NODE_ENV === "development") {
-    console.log("[DEBUG] bot>>> " + text_bot);
-  }
 
   return text_bot;
 }
