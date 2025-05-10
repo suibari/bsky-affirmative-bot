@@ -60,13 +60,10 @@ export const handleMode = async (
   return true;
 };
 
-const OFFSET_UTC_TO_JST = 9 * 60 * 60 * 1000; // offset: +9h (to JST from UTC <SQlite3>)
-
 export async function isPast(event: CommitCreateEvent<"app.bsky.feed.post">, db_colname: string, hours_thrd: number) {
   const msec_thrd = hours_thrd * 60 * 60 * 1000;
   const postedAt = new Date((event.commit.record as Record).createdAt);
   const lastAt = new Date(String(await db.selectDb(event.did, db_colname)) || 0);
-  const lastAtJst = new Date(lastAt.getTime() + OFFSET_UTC_TO_JST);
 
-  return (postedAt.getTime() - lastAtJst.getTime() > msec_thrd);
+  return (postedAt.getTime() - lastAt.getTime() > msec_thrd);
 }
