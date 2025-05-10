@@ -1,6 +1,5 @@
-import { gemini } from "./index.js";
-import { MODEL_GEMINI, SYSTEM_INSTRUCTION } from "../config/index.js";
 import { UserInfoGemini } from "../types.js";
+import { generateSingleResponse } from "./util.js";
 
 export async function generateAnalyzeResult(userinfo: UserInfoGemini) {
   const part_language = `${userinfo.langStr === "日本語" ? "日本語" : "英語"}で回答は生成してください。`;
@@ -23,13 +22,7 @@ ${userinfo.langStr === "日本語" ? "文字数は500文字程度としてくだ
 ポスト内容: ${userinfo.posts || ""}
 `;
 
-  const response = await gemini.models.generateContent({
-    model: MODEL_GEMINI,
-    contents: prompt,
-    config: {
-      systemInstruction: SYSTEM_INSTRUCTION,
-    }
-  });
+  const response = await generateSingleResponse(prompt, userinfo);
 
   // AI出力のサニタイズ("-----"を含むときそれ以降の文字列を削除)
   const result = response.text?.split("-----")[0];

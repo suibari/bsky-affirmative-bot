@@ -1,7 +1,5 @@
-import { gemini } from "./index.js";
-import { MODEL_GEMINI, SYSTEM_INSTRUCTION } from "../config/index.js";
 import { UserInfoGemini } from "../types.js";
-import { getRandomItems } from "./util.js";
+import { generateSingleResponse, getRandomItems } from "./util.js";
 
 export async function generateFortuneResult(userinfo: UserInfoGemini): Promise<string> {
   const place_language = userinfo.langStr === "日本語" ? "日本" : "世界";
@@ -45,13 +43,7 @@ ${getRandomItems(part_prompt_luckys, 2)}
 -----
 ユーザ名: ${userinfo.follower.displayName}`;
 
-  const response = await gemini.models.generateContent({
-    model: MODEL_GEMINI,
-    contents: prompt,
-    config: {
-      systemInstruction: SYSTEM_INSTRUCTION,
-    }
-  });
+  const response = await generateSingleResponse(prompt, userinfo);
   
   // AI出力のサニタイズ("-----"を含むときそれ以降の文字列を削除)
   const result = response.text?.split("-----")[0];

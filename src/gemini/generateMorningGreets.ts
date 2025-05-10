@@ -1,7 +1,4 @@
-import { PartListUnion } from '@google/genai';
-import { gemini } from './index.js';
-import { MODEL_GEMINI, SYSTEM_INSTRUCTION } from '../config/index.js';
-import { getRandomItems } from './util.js';
+import { generateSingleResponse, getRandomItems } from './util.js';
 import rawWhatday from '../json/anniversary.json' assert { type: 'json' };
 const whatday: WhatDayMap = rawWhatday;
 
@@ -24,14 +21,7 @@ export async function generateMorningGreets () {
                   今日は${getRandomItems(whatday[month][date], 1)}です。
                   フォロワー全体に向けたメッセージなので、名前の呼びかけは不要です。`;
 
-  const contents: PartListUnion = [prompt];
-  const response = await gemini.models.generateContent({
-    model: MODEL_GEMINI,
-    contents,
-    config: {
-      systemInstruction: SYSTEM_INSTRUCTION,
-    }
-  })
+  const response = await generateSingleResponse(prompt);
 
   return response.text + "\n"+
                          "【以下、管理人】\n"+

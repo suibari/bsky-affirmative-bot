@@ -12,8 +12,10 @@ type TriggeredReplyHandlerOptions = {
   dbColumn: string;   // 更新するDBのカラム名（例: "is_u18"）
   dbValue: number | string; // 登録時にセットする値（例: 1）
   generateText: GeminiResponseResult | ((userinfo: UserInfoGemini, event: CommitCreateEvent<"app.bsky.feed.post">) => Promise<GeminiResponseResult>); // 返信するテキスト(コールバック対応)
-  checkConditionsOR?: boolean; // 呼びかけ OR追加条件 (呼びかけまたは本条件を満たすと関数実行)
-  checkConditionsAND?: boolean; // 呼びかけ AND追加条件（呼びかけ、かつ本条件を満たしてはじめて関数実行）
+  checkConditionsOR?: boolean; // 呼びかけ OR追加条件 (呼びかけ&&トリガーワード、または本条件を満たすと関数実行)
+  checkConditionsAND?: boolean; // 呼びかけ AND追加条件（呼びかけ&&トリガーワード、かつ本条件を満たしてはじめて関数実行）
+  disableDefaultCondition?: boolean; // 呼びかけの無効化。トリガーワードは常に有効
+  disableReply?: boolean; // リプライの無効化
 };
 
 export const handleMode = async (
@@ -29,8 +31,8 @@ export const handleMode = async (
 
   if (!options.checkConditionsOR) {
     // botへの呼びかけ判定
-    const called = !isReplyOrMentionToMe(record) && !NICKNAMES_BOT.some(elem => text.includes(elem));
-    if (called) return false;
+    const notCalled = !isReplyOrMentionToMe(record) && !NICKNAMES_BOT.some(elem => text.includes(elem));
+    if (notCalled && !options.disableDefaultCondition) return false;
 
     // トリガーワード判定
     const matchedTrigger = options.triggers.some(trigger => text.includes(trigger));
@@ -64,7 +66,11 @@ export const handleMode = async (
   }
 
   if (typeof result === "string") {
-    await postContinuous(result, {uri, cid, record});
+    if (options.disableReply) {
+      await postContinuous(result);
+    } else {
+      await postContinuous(result, {uri, cid, record});
+    }
   } else if (result.imageBlob) {
     await postContinuous(result.text, {uri, cid, record}, {blob: result.imageBlob, alt: `Dear ${userinfo?.follower.displayName}, From 全肯定botたん`});
   };

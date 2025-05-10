@@ -17,6 +17,7 @@ import { handleFreq } from './modes/frequency.js';
 import { handleFortune } from './modes/fortune.js';
 import { replyAffermativeWord } from './bsky/replyAffirmativeWord.js';
 import { handleAnalyaze } from './modes/analyze.js';
+import { handleCheer } from './modes/cheer.js';
 
 // 起動時処理
 (async () => {
@@ -181,33 +182,27 @@ async function doReply(event: CommitCreateEvent<"app.bsky.feed.post">) {
     // ==============
     // 定型文モード解除
     const isReleaseU18 = await handleU18Release(event)
-    if (isReleaseU18) {
-      return;
-    }
+    if (isReleaseU18) return;
     
     // 定型文モード
     const isRegisterU18 = await handleU18Register(event)
-    if (isRegisterU18) {
-      return;
-    }
+    if (isRegisterU18) return;
 
     // リプ頻度調整モード
     const isRegisterFreq = await handleFreq(event, follower);
-    if (isRegisterFreq) {
-      return;
-    }
+    if (isRegisterFreq) return;
 
     // 占いモード
     const isUranai = await handleFortune(event, follower);
-    if (isUranai) {
-      return;
-    }
+    if (isUranai) return;
 
     // 分析モード
     const isAnalyze = await handleAnalyaze(event, follower);
-    if (isAnalyze) {
-      return;
-    }
+    if (isAnalyze) return;
+
+    // 応援モード
+    const isCheer = await handleCheer(event, follower);
+    if (isCheer) return;
 
     // 会話モード
     const isConversation = await handleConversation(event, follower);

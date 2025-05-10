@@ -41,7 +41,6 @@ async function getBlobWithAnalyze(userinfo: UserInfoGemini): Promise<GeminiRespo
     .map(post => (post.post.record as Record).text);
   userinfo.posts = posts;
 
-  // 占い
   const result = await generateAnalyzeResult(userinfo);
 
   if (process.env.NODE_ENV === "development") {

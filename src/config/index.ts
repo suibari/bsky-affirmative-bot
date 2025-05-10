@@ -42,6 +42,11 @@ export const ANALYZE_TRIGGER = [
   "analyze me",
 ];
 
+export const CHEER_TRIGGER = [
+  "#全肯定応援団",
+  "#SuiBotSquad",
+];
+
 export const HNY_WORDS = ["明けましておめでとう", "あけましておめでとう", "あけおめ"];
 export const OHAYO_WORDS = ["おは"];
 export const OYASUMI_WORDS = ["おやす"];

@@ -1,4 +1,4 @@
-import { createPartFromUri, Part, PartListUnion } from "@google/genai";
+import { PartListUnion } from "@google/genai";
 import { gemini } from "./index.js";
 import { MODEL_GEMINI, SYSTEM_INSTRUCTION } from "../config/index.js";
 import { UserInfoGemini } from "../types.js";

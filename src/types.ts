@@ -15,4 +15,3 @@ export type GeminiResponseResult = string | {
   text: string;
   imageBlob?: BlobRef;
 };
-
