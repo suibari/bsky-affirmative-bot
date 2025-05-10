@@ -22,6 +22,7 @@ export async function handleCheer (event: CommitCreateEvent<"app.bsky.feed.post"
   },
   {
     follower,
+    posts: [record.text],
     langStr: getLangStr(record.langs),
   });
 }

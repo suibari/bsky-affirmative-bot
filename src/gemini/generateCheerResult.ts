@@ -2,14 +2,14 @@ import { UserInfoGemini } from "../types.js";
 import { generateSingleResponse } from "./util.js";
 
 export async function generateCheerResult(userinfo: UserInfoGemini) {
-  const part_language = `${userinfo.langStr === "日本語" ? "日本語" : "英語"}で回答は生成してください。`;
-
   const prompt =
-`ユーザが添付画像を拡散したがっています。
-この画像の良いところ・見るべきポイントを、他のBlueskyユーザ向けに宣伝してあげてください。
-${part_language}
-空の行は入れないでください。
+`ユーザがポストおよび添付画像を拡散したがっています。
+以下を他のBlueskyユーザ向けに宣伝してあげてください。
+* ユーザのポスト内容のいいところや見るべきポイント
+* 画像のいいところや見るべきポイント
+日本語と、それを訳した英語を並べて回答を生成してください。
 悪い内容は含まず、全肯定のスタンスで宣伝してください。
+ハッシュタグについては言及しないでください。
 以下がユーザ名およびポストです。
 -----
 ユーザ名: ${userinfo.follower.displayName}
@@ -22,6 +22,6 @@ ${part_language}
   const result = response.text?.split("-----")[0];
 
   // 末尾にハッシュタグを付与し返却
-  const hashtag = userinfo.langStr === "日本語" ? " #全肯定応援団" : " #SuiBotSquad";
+  const hashtag = userinfo.langStr === "日本語" ? " #全肯定応援団" : " #Bot-tanSquad";
   return result ? result + hashtag : "";
 }
