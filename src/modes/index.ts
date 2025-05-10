@@ -61,9 +61,10 @@ export const handleMode = async (
 };
 
 export async function isPast(event: CommitCreateEvent<"app.bsky.feed.post">, db_colname: string, hours_thrd: number) {
+  const did = String(event.did);
   const msec_thrd = hours_thrd * 60 * 60 * 1000;
   const postedAt = new Date((event.commit.record as Record).createdAt);
-  const lastAt = new Date(String(await db.selectDb(event.did, db_colname)) || 0);
+  const lastAt = new Date(await db.selectDb(did, db_colname) || 0);
 
   return (postedAt.getTime() - lastAt.getTime() > msec_thrd);
 }
