@@ -26,7 +26,7 @@ export const handleMode = async (
   const record = event.commit.record as Record;
   const text = record.text.toLowerCase();
 
-  if (!options.checkConditionsOR) {
+  if (options.checkConditionsOR === undefined || !options.checkConditionsOR) {
     // botへの呼びかけ判定
     if (!isReplyOrMentionToMe(record) && !NICKNAMES_BOT.some(elem => text.includes(elem))) return false;
 
@@ -65,7 +65,6 @@ export async function isPast(event: CommitCreateEvent<"app.bsky.feed.post">, db_
   const msec_thrd = hours_thrd * 60 * 60 * 1000;
   const postedAt = new Date((event.commit.record as Record).createdAt);
   const lastAt = new Date(await db.selectDb(did, db_colname) || 0);
-  console.log(postedAt, lastAt)
 
   return (postedAt.getTime() - lastAt.getTime() > msec_thrd);
 }
