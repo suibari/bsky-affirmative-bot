@@ -58,6 +58,8 @@ export const handleMode = async (
   };
   db.updateDb(did, options.dbColumn, options.dbValue);
 
+  console.log(`[INFO][${did}] exec mode: ${options.dbColumn}`)
+
   return true;
 };
 
