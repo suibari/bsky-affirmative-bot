@@ -1,10 +1,11 @@
 import { CommitCreateEvent } from "@skyware/jetstream";
 import { Record } from '@atproto/api/dist/client/types/app/bsky/feed/post.js';
-import { isReplyOrMentionToMe, uniteDidNsidRkey } from "../bsky/util.js";
+import { getImageUrl, isReplyOrMentionToMe, uniteDidNsidRkey } from "../bsky/util.js";
 import { postContinuous } from "../bsky/postContinuous.js";
 import { db } from "../db/index.js";
 import { GeminiResponseResult, UserInfoGemini } from "../types.js";
 import { NICKNAMES_BOT } from "../config/index.js";
+import { AppBskyEmbedImages } from "@atproto/api";
 
 type TriggeredReplyHandlerOptions = {
   triggers: string[]; // 発火ワード一覧
@@ -42,6 +43,17 @@ export const handleMode = async (
   }
 
   // -----ここからmain処理-----
+  // 画像読み出し
+  let image_url: string | undefined = undefined;
+  let mimeType: string | undefined = undefined;
+  if (record.embed && record.embed.$type === "app.bsky.embed.images") {
+    ({image_url, mimeType} = getImageUrl(did, record.embed as AppBskyEmbedImages.Main));
+  }
+  if (userinfo) {
+    userinfo.image_url = image_url;
+    userinfo.image_mimeType = mimeType;
+  }
+
   // ポスト&DB更新
   let result: GeminiResponseResult;
   if (typeof options.generateText === "function") {
