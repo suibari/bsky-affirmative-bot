@@ -21,7 +21,7 @@ export async function handleAnalyaze (event: CommitCreateEvent<"app.bsky.feed.po
     dbColumn: "last_analyze_at",
     dbValue: new Date().toISOString(),
     generateText: getBlobWithAnalyze,
-    checkConditions: await isPast(event),
+    checkConditionsOR: await isPast(event),
   },
   {
     follower,

@@ -37,7 +37,7 @@ export async function handleConversation (event: CommitCreateEvent<"app.bsky.fee
     dbColumn: "last_conv_at",
     dbValue: new Date().toISOString(),
     generateText: waitAndGenReply,
-    checkConditions: await isTalking(did, record), // 会話スレッドの判定
+    checkConditionsAND: await isTalking(did, record), // 会話スレッドの判定
   },
   {
     follower,

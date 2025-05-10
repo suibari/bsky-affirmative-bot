@@ -11,7 +11,8 @@ type TriggeredReplyHandlerOptions = {
   dbColumn: string;   // 更新するDBのカラム名（例: "is_u18"）
   dbValue: number | string; // 登録時にセットする値（例: 1）
   generateText: GeminiResponseResult | ((userinfo: UserInfoGemini, event: CommitCreateEvent<"app.bsky.feed.post">) => Promise<GeminiResponseResult>); // 返信するテキスト(コールバック対応)
-  checkConditions?: boolean; // オプションの追加条件、結果を入れる
+  checkConditionsOR?: boolean; // 呼びかけ OR 追加条件
+  checkConditionsAND?: boolean; // 呼びかけ AND 追加条件
 };
 
 export const handleMode = async (
@@ -25,15 +26,17 @@ export const handleMode = async (
   const record = event.commit.record as Record;
   const text = record.text.toLowerCase();
 
-  // botへの呼びかけ判定
-  if (!isReplyOrMentionToMe(record) && !NICKNAMES_BOT.some(elem => text.includes(elem))) return false;
+  if (!options.checkConditionsAND) {
+    // botへの呼びかけ判定
+    if (!isReplyOrMentionToMe(record) && !NICKNAMES_BOT.some(elem => text.includes(elem))) return false;
 
-  // トリガーワード判定
-  const matchedTrigger = options.triggers.some(trigger => text.includes(trigger));
-  if (!matchedTrigger) return false;
+    // トリガーワード判定
+    const matchedTrigger = options.triggers.some(trigger => text.includes(trigger));
+    if (!matchedTrigger) return false;
+  }  
 
   // 追加条件判定
-  if (process.env.NODE_ENV !== "development" && (options.checkConditions !== undefined && !options.checkConditions)) {
+  if (process.env.NODE_ENV !== "development" && (options.checkConditionsOR !== undefined && !options.checkConditionsOR)) {
     return false;
   }
 
