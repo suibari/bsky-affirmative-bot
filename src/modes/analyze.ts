@@ -4,14 +4,10 @@ import { CommitCreateEvent } from "@skyware/jetstream";
 import { agent } from '../bsky/agent.js';
 import { getLangStr } from "../bsky/util.js";
 import { ANALYZE_TRIGGER } from "../config/index.js";
-import { handleMode } from "./index.js";
+import { handleMode, isPast } from "./index.js";
 import { GeminiResponseResult, UserInfoGemini } from '../types.js';
 import { generateAnalyzeResult } from '../gemini/generateAnalyzeResult.js';
 import { textToImageBufferWithBackground } from '../util/canvas.js';
-import { db } from '../db/index.js';
-
-const OFFSET_UTC_TO_JST = 9 * 60 * 60 * 1000; // offset: +9h (to JST from UTC <SQlite3>)
-const MINUTES_THRD_RESPONSE = 7 * 24 * 60 * 60 * 1000; // 7day
 
 export async function handleAnalyaze (event: CommitCreateEvent<"app.bsky.feed.post">, follower: ProfileView) {
   const record = event.commit.record as Record;
@@ -21,20 +17,12 @@ export async function handleAnalyaze (event: CommitCreateEvent<"app.bsky.feed.po
     dbColumn: "last_analyze_at",
     dbValue: new Date().toISOString(),
     generateText: getBlobWithAnalyze,
-    checkConditionsOR: await isPast(event),
+    checkConditionsAND: await isPast(event, 6 * 24), // 6days
   },
   {
     follower,
     langStr: getLangStr(record.langs),
   });
-}
-
-async function isPast(event: CommitCreateEvent<"app.bsky.feed.post">) {
-  const postedAt = new Date((event.commit.record as Record).createdAt);
-  const lastAt = new Date(String(await db.selectDb(event.did, "last_analyze_at")) || 0);
-  const lastAtJst = new Date(lastAt.getTime() + OFFSET_UTC_TO_JST);
-
-  return (postedAt.getTime() - lastAtJst.getTime() > MINUTES_THRD_RESPONSE);
 }
 
 async function getBlobWithAnalyze(userinfo: UserInfoGemini): Promise<GeminiResponseResult> {

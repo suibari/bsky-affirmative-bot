@@ -11,8 +11,8 @@ type TriggeredReplyHandlerOptions = {
   dbColumn: string;   // 更新するDBのカラム名（例: "is_u18"）
   dbValue: number | string; // 登録時にセットする値（例: 1）
   generateText: GeminiResponseResult | ((userinfo: UserInfoGemini, event: CommitCreateEvent<"app.bsky.feed.post">) => Promise<GeminiResponseResult>); // 返信するテキスト(コールバック対応)
-  checkConditionsOR?: boolean; // 呼びかけ OR 追加条件
-  checkConditionsAND?: boolean; // 呼びかけ AND 追加条件
+  checkConditionsOR?: boolean; // 呼びかけ OR追加条件 (呼びかけまたは本条件を満たすと関数実行)
+  checkConditionsAND?: boolean; // 呼びかけ AND追加条件（呼びかけ、かつ本条件を満たしてはじめて関数実行）
 };
 
 export const handleMode = async (
@@ -26,7 +26,7 @@ export const handleMode = async (
   const record = event.commit.record as Record;
   const text = record.text.toLowerCase();
 
-  if (!options.checkConditionsAND) {
+  if (!options.checkConditionsOR) {
     // botへの呼びかけ判定
     if (!isReplyOrMentionToMe(record) && !NICKNAMES_BOT.some(elem => text.includes(elem))) return false;
 
@@ -36,7 +36,7 @@ export const handleMode = async (
   }  
 
   // 追加条件判定
-  if (process.env.NODE_ENV !== "development" && (options.checkConditionsOR !== undefined && !options.checkConditionsOR)) {
+  if (process.env.NODE_ENV !== "development" && (options.checkConditionsAND !== undefined && !options.checkConditionsAND)) {
     return false;
   }
 
@@ -59,3 +59,14 @@ export const handleMode = async (
 
   return true;
 };
+
+const OFFSET_UTC_TO_JST = 9 * 60 * 60 * 1000; // offset: +9h (to JST from UTC <SQlite3>)
+
+export async function isPast(event: CommitCreateEvent<"app.bsky.feed.post">, hours_thrd: number) {
+  const msec_thrd = hours_thrd * 60 * 60 * 1000;
+  const postedAt = new Date((event.commit.record as Record).createdAt);
+  const lastAt = new Date(String(await db.selectDb(event.did, "last_uranai_at")) || 0);
+  const lastAtJst = new Date(lastAt.getTime() + OFFSET_UTC_TO_JST);
+
+  return (postedAt.getTime() - lastAtJst.getTime() > msec_thrd);
+}
