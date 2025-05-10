@@ -1,32 +1,47 @@
 import { Record } from "@atproto/api/dist/client/types/app/bsky/feed/post";
 import { BlobRef } from "@atproto/api";
 import { post } from "./post.js";
+import { Main } from "@atproto/api/dist/client/types/com/atproto/repo/strongRef.js";
 
 /**
  * 300文字以上のポストの場合、自動で分割投稿する
- * @param {} record 
  */
 export async function postContinuous(
   text: string,
-  replyToRecord?: Record,
+  replyTo?: {
+    uri: string,
+    cid: string,
+    record: Record,
+  },
   image?: {
     blob: BlobRef,
     alt: string,
   }
 ): Promise<void> {
   const MAX_LENGTH = 300;
-  let parts = [];
+  const parts = [];
 
-  // 300文字ごとに分割
   for (let i = 0; i < text.length; i += MAX_LENGTH) {
     parts.push(text.slice(i, i + MAX_LENGTH));
   }
 
-  let parentPost: {uri: string; cid: string} | null = null;
+  let root: Main | undefined = undefined;
+  let parentPost: Main | undefined = undefined;
 
-  // reply の root があるなら使う（なければ最初のリプライの投稿が root になる）
-  const root = replyToRecord?.reply?.root ?? null;
-  
+  // replyToの内容によってroot/parentPostを決定
+  if (replyTo) {
+    const { uri, cid, record } = replyTo;
+    if (record.reply) {
+      // 3. リプライツリー投稿
+      root = record.reply.root;
+      parentPost = { uri, cid };
+    } else {
+      // 2. 通常ポストへの返信
+      root = { uri, cid };
+      parentPost = { uri, cid };
+    }
+  }
+
   for (let i = 0; i < parts.length; i++) {
     const currentText = parts[i];
     const isFirst = i === 0;
@@ -34,25 +49,35 @@ export async function postContinuous(
     const newRecord: Record = {
       $type: 'app.bsky.feed.post',
       text: currentText,
-      ...(replyToRecord && {
-        reply: isFirst
-          ? replyToRecord.reply
-          : {
-              root: root ?? {
-                uri: parentPost?.uri ?? "placeholder:uri",
-                cid: parentPost?.cid ?? "placeholder:cid"
-              },
-              parent: {
-                uri: parentPost?.uri ?? "placeholder:uri",
-                cid: parentPost?.cid ?? "placeholder:cid"
-              }
-            }
-      }),
       createdAt: new Date().toISOString()
     };
 
-    // 画像があれば、botリプライの先頭ポストに付与
-    if (i === 0 && image) {
+    // リプライ構造の設定
+    if (replyTo) {
+      if (isFirst) {
+        newRecord.reply = {
+          root: root!,
+          parent: parentPost!
+        };
+      } else {
+        newRecord.reply = {
+          root: root!,
+          parent: parentPost!
+        };
+      }
+    } else if (!replyTo && !isFirst) {
+      // 1. replyToなしで2個目以降 → 自分の1個目がroot
+      if (!root || !parentPost) {
+        throw new Error("rootまたはparentPostが未定義です（自己連投時）");
+      }
+      newRecord.reply = {
+        root,
+        parent: parentPost
+      };
+    }
+
+    // 初回投稿に画像を添付
+    if (isFirst && image) {
       newRecord.embed = {
         $type: 'app.bsky.embed.images',
         images: [
@@ -64,6 +89,12 @@ export async function postContinuous(
       };
     }
 
-    parentPost = await post(newRecord);
+    const result = await post(newRecord);
+    parentPost = result;
+
+    // 1. 最初の投稿がrootになるケース
+    if (isFirst && !replyTo) {
+      root = result;
+    }
   }
 }

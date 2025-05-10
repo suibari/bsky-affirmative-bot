@@ -3,6 +3,7 @@ import { Record } from "@atproto/api/dist/client/types/app/bsky/feed/post";
 import { postContinuous } from "./postContinuous.js";
 
 export async function replyGreets(parentPost: PostView, langStr: string) {
+  const record = parentPost.record as Record;
   const text = (langStr === "日本語") ?
 // 日本語
 `こんにちは！
@@ -21,6 +22,6 @@ Feel free to reach out!
 
 You can change reply frequency by saying "freq50". And for those under 18, reply "Predefined Reply Mode".`;
 
-  await postContinuous(text, parentPost.record as Record);
+  await postContinuous(text, {uri: parentPost.uri, cid: parentPost.cid, record});
   return;
 }

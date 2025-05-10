@@ -1,6 +1,6 @@
 import { CommitCreateEvent } from "@skyware/jetstream";
 import { Record } from '@atproto/api/dist/client/types/app/bsky/feed/post.js';
-import { isReplyOrMentionToMe } from "../bsky/util.js";
+import { isReplyOrMentionToMe, uniteDidNsidRkey } from "../bsky/util.js";
 import { postContinuous } from "../bsky/postContinuous.js";
 import { db } from "../db/index.js";
 import { GeminiResponseResult, UserInfoGemini } from "../types.js";
@@ -19,7 +19,9 @@ export const handleMode = async (
   options: TriggeredReplyHandlerOptions,
   userinfo?: UserInfoGemini
 ): Promise<boolean> => {
-  const did = event.did;
+  const did = String(event.did);
+  const cid = String(event.commit.cid);
+  const uri = uniteDidNsidRkey(did, event.commit.collection, event.commit.rkey);
   const record = event.commit.record as Record;
   const text = record.text.toLowerCase();
 
@@ -46,9 +48,9 @@ export const handleMode = async (
   }
 
   if (typeof result === "string") {
-    await postContinuous(result, record);
+    await postContinuous(result, {uri, cid, record});
   } else if (result.imageBlob) {
-    await postContinuous(result.text, record, {blob: result.imageBlob, alt: `Dear ${userinfo?.follower.displayName}, From 全肯定botたん`});
+    await postContinuous(result.text, {uri, cid, record}, {blob: result.imageBlob, alt: `Dear ${userinfo?.follower.displayName}, From 全肯定botたん`});
   };
   db.updateDb(did, options.dbColumn, options.dbValue);
 

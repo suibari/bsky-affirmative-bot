@@ -1,7 +1,7 @@
 import { ProfileView } from "@atproto/api/dist/client/types/app/bsky/actor/defs";
 import { CommitCreateEvent } from "@skyware/jetstream";
 import { AppBskyEmbedImages } from "@atproto/api";
-import { getImageUrl, getLangStr } from "./util.js";
+import { getImageUrl, getLangStr, uniteDidNsidRkey } from "./util.js";
 import { generateAffirmativeWord } from "../gemini/generateAffirmativeWord.js";
 import { Record } from "@atproto/api/dist/client/types/app/bsky/feed/post";
 import { getRandomWordByNegaposi } from "../modes/randomword.js";
@@ -11,6 +11,9 @@ import { RPD } from "../gemini/index.js";
 export async function replyAffermativeWord(follower: ProfileView, event: CommitCreateEvent<"app.bsky.feed.post">, isU18mode = false) {
   const record = event.commit.record as Record;
   const langStr = getLangStr(record.langs);
+  const cid = event.commit.cid;
+  const uri = uniteDidNsidRkey(follower.did, event.commit.collection, event.commit.rkey);
+
   let text_bot;
 
   const text_user = record.text;
@@ -46,7 +49,7 @@ export async function replyAffermativeWord(follower: ProfileView, event: CommitC
   text_bot = text_bot.split("-----")[0];
 
   // ポスト
-  await postContinuous(text_bot, record);
+  await postContinuous(text_bot, {uri, cid, record});
 
   return;
 }
