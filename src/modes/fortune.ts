@@ -14,7 +14,7 @@ export async function handleFortune (event: CommitCreateEvent<"app.bsky.feed.pos
     dbColumn: "last_uranai_at",
     dbValue: new Date().toISOString(),
     generateText: generateFortuneResult,
-    checkConditionsAND: await isPast(event, 8), // 8hours
+    checkConditionsAND: await isPast(event, "last_uranai_at", 8), // 8hours
   },
   {
     follower,
