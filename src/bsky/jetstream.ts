@@ -12,10 +12,9 @@ export async function startWebSocket(userCallback: (evt: any) => Promise<void>) 
   
   jetstream = new Jetstream({
     ws,
-    url: process.env.URL_JETSTREAM,
+    endpoint: process.env.URL_JETSTREAM,
     wantedCollections: ["app.bsky.feed.post"],
   });
-  jetstream.url = new URL(process.env.URL_JETSTREAM ?? "wss://jetstream1.us-east.bsky.network/subscribe");
 
   jetstream.start();
   console.log("[INFO] JetStream connection established.");
