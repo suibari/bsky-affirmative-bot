@@ -26,12 +26,16 @@ export const handleMode = async (
   const record = event.commit.record as Record;
   const text = record.text.toLowerCase();
 
-  if (options.checkConditionsOR === undefined || !options.checkConditionsOR) {
+  console.log("")
+  if (!options.checkConditionsOR) {
     // botへの呼びかけ判定
-    if (!isReplyOrMentionToMe(record) && !NICKNAMES_BOT.some(elem => text.includes(elem))) return false;
+    const called = !isReplyOrMentionToMe(record) && !NICKNAMES_BOT.some(elem => text.includes(elem));
+    console.log(called)
+    if (called) return false;
 
     // トリガーワード判定
     const matchedTrigger = options.triggers.some(trigger => text.includes(trigger));
+    console.log(matchedTrigger)
     if (!matchedTrigger) return false;
   }  
 
