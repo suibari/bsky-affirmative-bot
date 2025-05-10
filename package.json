@@ -1,6 +1,7 @@
 {
   "dependencies": {
-    "@google/generative-ai": "^0.21.0",
+    "@atproto/api": "^0.15.6",
+    "@google/genai": "^0.13.0",
     "@skyware/jetstream": "^0.2.1",
     "axios": "^1.7.9",
     "blueskyer": "^1.2.4",
@@ -12,12 +13,21 @@
     "ws": "^8.18.0"
   },
   "name": "bsky_affirmative_bot",
+  "type": "module",
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "tsx src/index.ts",
+    "start_cron": "tsx src/cron.ts"
   },
   "author": "suibari",
   "license": "MIT",
-  "description": ""
+  "description": "",
+  "devDependencies": {
+    "@types/node": "^22.15.12",
+    "@types/sqlite3": "^3.1.11",
+    "@types/ws": "^8.18.1",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3"
+  }
 }
