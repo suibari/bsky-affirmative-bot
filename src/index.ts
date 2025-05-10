@@ -179,15 +179,15 @@ async function doReply(event: CommitCreateEvent<"app.bsky.feed.post">) {
     // ==============
     // detect mode
     // ==============
-    // 定型文モード
-    const isRegisterU18 = await handleU18Register(event)
-    if (isRegisterU18) {
-      return;
-    }
-
     // 定型文モード解除
     const isReleaseU18 = await handleU18Release(event)
     if (isReleaseU18) {
+      return;
+    }
+    
+    // 定型文モード
+    const isRegisterU18 = await handleU18Register(event)
+    if (isRegisterU18) {
       return;
     }
 
