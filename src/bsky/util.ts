@@ -1,4 +1,4 @@
-import { AppBskyEmbedImages } from "@atproto/api";
+import { AppBskyEmbedExternal, AppBskyEmbedImages } from "@atproto/api";
 import { PostView } from "@atproto/api/dist/client/types/app/bsky/feed/defs";
 import { Record } from "@atproto/api/dist/client/types/app/bsky/feed/post";
 
@@ -126,16 +126,25 @@ export function getLangStr(langs: string[] | undefined): string {
 
 /**
  * 画像URLを取得
+ * 画像と外部リンクの画像に対応
  */
-export function getImageUrl(did: string, embed: AppBskyEmbedImages.Main) {
+export function getImageUrl(did: string, embed: AppBskyEmbedImages.Main | AppBskyEmbedExternal.Main) {
   let image_url = undefined;
   let mimeType = undefined;
 
-  const image = embed.images?.[0]?.image;
-  if (image) {
-    image_url = `https://cdn.bsky.app/img/feed_fullsize/plain/${did}/${(image.ref as any).$link}`; // 回避策
-    mimeType = image.mimeType;
+  if (embed.$type === "app.bsky.embed.images") {
+    const image = embed.images?.[0]?.image;
+    if (image) {
+      image_url = `https://cdn.bsky.app/img/feed_fullsize/plain/${did}/${(image.ref as any).$link}`; // 回避策
+      mimeType = image.mimeType;
+    }
+  } else if (embed.$type === "app.bsky.embed.external") {
+    const thumb = embed.external.thumb;
+    if (thumb) {
+      image_url = `https://cdn.bsky.app/img/feed_fullsize/plain/${did}/${(thumb.ref as any).$link}`; // 回避策
+      mimeType = thumb.mimeType;
+    }
   }
-
+  
   return {image_url, mimeType};
 }
