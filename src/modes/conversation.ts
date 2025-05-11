@@ -41,6 +41,7 @@ export async function handleConversation (event: CommitCreateEvent<"app.bsky.fee
   },
   {
     follower,
+    posts: [record.text],
     langStr: getLangStr(record.langs),
     image_url: image_url,
     image_mimeType: mimeType,
