@@ -17,7 +17,8 @@ export async function handleCheer (event: CommitCreateEvent<"app.bsky.feed.post"
     dbColumn: "last_cheer_at",
     dbValue: new Date().toISOString(),
     generateText: repostAndGenerate,
-    checkConditionsAND: await isPast(event, "last_cheer_at", 8) && await isPastFollowed(event, 31), // 8hours since prev, 31days since follow
+    checkConditionsAND: await isPast(event, "last_cheer_at", 8) , // 8hours since prev
+    // checkConditionsAND: await isPast(event, "last_cheer_at", 8) && await isPastFollowed(event, 31), // 8hours since prev, 31days since follow
     disableDefaultCondition: true,
     disableReply: true,
   },
