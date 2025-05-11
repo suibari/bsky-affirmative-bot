@@ -16,7 +16,7 @@ export async function handleDJ (event: CommitCreateEvent<"app.bsky.feed.post">, 
     dbColumn: "last_dj_at",
     dbValue: new Date().toISOString(),
     generateText: getSongLink,
-    checkConditionsAND: await isPast(event, "last_dj_at", 8), // 8hours
+    checkConditionsAND: await isPast(event, "last_dj_at", 5), // 5mins
   },
   {
     follower,
