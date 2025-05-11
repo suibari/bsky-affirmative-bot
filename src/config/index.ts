@@ -47,6 +47,12 @@ export const CHEER_TRIGGER = [
   "#suibotcheersquad",
 ];
 
+export const DJ_TRIGGER = [
+  "djお願い",
+  "djおねがい",
+  "dj, please",
+];
+
 export const HNY_WORDS = ["明けましておめでとう", "あけましておめでとう", "あけおめ"];
 export const OHAYO_WORDS = ["おは"];
 export const OYASUMI_WORDS = ["おやす"];

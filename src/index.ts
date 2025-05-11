@@ -18,6 +18,7 @@ import { handleFortune } from './modes/fortune.js';
 import { replyAffermativeWord } from './bsky/replyAffirmativeWord.js';
 import { handleAnalyaze } from './modes/analyze.js';
 import { handleCheer } from './modes/cheer.js';
+import { handleDJ } from './modes/dj.js';
 
 // 起動時処理
 (async () => {
@@ -176,11 +177,13 @@ async function doReply(event: CommitCreateEvent<"app.bsky.feed.post">) {
     const isCheer = await handleCheer(event, follower);
     if (isCheer) return;
 
+    // 応援モード
+    const isDJ = await handleDJ(event, follower);
+    if (isDJ) return;
+
     // 会話モード
     const isConversation = await handleConversation(event, follower);
-    if (isConversation) {
-      return;
-    }
+    if (isConversation) return;
 
     // ==============
     // main
