@@ -32,7 +32,12 @@ async function getSongLink(userinfo: UserInfoGemini): Promise<GeminiResponseResu
   const resultYoutube = await searchYoutubeLink(`"${resultGemini.title}" "${resultGemini.artist}"`);
   console.log("bot>>> ", resultYoutube);
 
-  const result = resultGemini.comment + "\n" + resultYoutube;
+  const result = `
+${resultGemini.comment}\n
+title: ${resultGemini.title}\n
+artist: ${resultGemini.artist}\n
+\n
+${resultYoutube}`;
 
   return result;
 }

@@ -4,6 +4,7 @@ import { GeminiRecommendation, GeminiSchemaRecommendedSong, UserInfoGemini } fro
 import { gemini } from "./index.js";
 
 export async function generateRecommendedSong(userinfo: UserInfoGemini) {
+  const part_language = `${userinfo.langStr === "日本語" ? "日本語" : "英語"}で回答は生成してください。`;
   const SCHEMA_DJBOT: GeminiSchemaRecommendedSong = {
     type: Type.ARRAY,
     items: {
@@ -28,6 +29,7 @@ export async function generateRecommendedSong(userinfo: UserInfoGemini) {
 以下のユーザが流す曲をリクエストしています。
 ユーザの指定する雰囲気に合った曲を選曲してあげてください。
 実在しない曲は挙げてはいけません。
+${part_language}
 -----この下がユーザからのメッセージです-----
 ユーザ名: ${userinfo.follower.displayName}
 文章: ${userinfo.posts?.[0] || ""}`;
