@@ -17,6 +17,7 @@ This repository contains the code and configuration files for Zenkoutei Bot-tan.
 5. **Reply frequency adjustment**: Users can adjust the bot’s reply frequency from 0% to 100%.
 6. **Conversation mode**: Users can engage in continuous conversation with the bot.
 7. **Post-analysis mode**: Users can perform a personality analysis by the user's recent posts.
+8. **Cheer mode**: 
 
 ---
 
@@ -28,6 +29,53 @@ This repository contains the code and configuration files for Zenkoutei Bot-tan.
 To stop receiving replies from this bot, either unfollow it or block the user.
 
 ![bot process flow](https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:uixgxpiqf4i63p6rgpu7ytmx/bafkreihxgiteyk25cpv3e7lkdsggntpb3jj6ybha4btq5ykf2fzdyq7j6u@jpeg)
+
+### Predefined Reply Mode
+
+1. Wait to be followed back by the bot.
+2. Then mention or reply to the bot with "Predefined Reply Mode".
+3. The bot will reply to confirm the mode is enabled.
+
+To disable this mode (for users 18+), mention or reply with "Disable Predefined Reply Mode".
+The bot will confirm it is disabled.
+
+### Fortune Mode
+
+1. Wait to be followed back by the bot.
+2. Then mention or reply with "Fortune".
+3. The bot will reply with your fortune.
+
+You can only use this once every few hours.
+
+### Reply Frequency
+
+1. Wait to be followed back by the bot.
+2. Then mention or reply with "freqN" (N = 0 to 100).
+3. The bot will confirm your new reply frequency setting.
+
+### Conversation Mode
+
+1. Wait to be followed back by the bot.
+2. Then mention or reply with "Talk with me" or "Conversation".
+3. The bot will like your post.
+4. 10 minutes later, the bot will reply.
+5. If you reply to that, the conversation continues.
+
+### Post Analysis Mode
+
+1. Wait to be followed back by the bot.
+2. Then mention or reply with "Analyze me".
+3. The bot will reply with an analysis image.
+
+This can only be used once every few days.
+
+### Cheer Mode
+
+1. Wait to be followed back by the bot.
+2. Then post with the hashtag "#SuiBotCheerSquad" and include what you want support for (image optional).
+3. The bot will repost it to support you.
+
+This can only be used once every few hours.
 
 ---
 

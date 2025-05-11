@@ -21,12 +21,12 @@ export const CONVMODE_TRIGGER = [
 
 export const PREDEFINEDMODE_TRIGGER = [
   "定型文モード",
-  "Predefined Reply Mode",
+  "predefined reply mode",
 ];
 
 export const PREDEFINEDMODE_RELEASE_TRIGGER = [
   "定型文モード解除",
-  "Disable Predefined Reply Mode",
+  "disable predefined reply mode",
 ];
 
 export const FORTUNE_TRIGGER = [
@@ -44,7 +44,7 @@ export const ANALYZE_TRIGGER = [
 
 export const CHEER_TRIGGER = [
   "#全肯定応援団",
-  "#SuiBotSquad",
+  "#suibotcheersquad",
 ];
 
 export const HNY_WORDS = ["明けましておめでとう", "あけましておめでとう", "あけおめ"];
