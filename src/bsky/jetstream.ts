@@ -53,5 +53,17 @@ export async function startWebSocket(
   // 接続終了時
   jetstream.on("close", () => {
     console.log("[INFO] WebSocket connection closed.");
+    reconnectWebSocket(postCallback, followCallback, likeCallback);
   });
+}
+
+const RECONNECT_DELAY_MS = 1000;
+async function reconnectWebSocket(
+  postCallback?: (evt: any) => Promise<void>,
+  followCallback?: (evt: any) => Promise<void>,
+  likeCallback?: (evt: any) => Promise<void>
+) {
+  console.log(`[INFO] Attempting to reconnect in ${RECONNECT_DELAY_MS / 1000} seconds...`);
+  await new Promise(res => setTimeout(res, RECONNECT_DELAY_MS));
+  await startWebSocket(postCallback, followCallback, likeCallback);
 }
