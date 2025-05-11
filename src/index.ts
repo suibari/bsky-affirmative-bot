@@ -56,7 +56,7 @@ async function doFollowAndGreet(event: CommitCreateEvent<"app.bsky.graph.follow"
     const record = event.commit.record as RecordFollow;
 
     // bot対象以外を除外
-    if (did !== record.subject) return;
+    if (record.subject !== process.env.BSKY_DID) return;
 
     // DB登録済みは除外
     const isExist = await db.selectDb(did, "created_at");
