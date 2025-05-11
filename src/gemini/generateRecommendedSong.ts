@@ -1,10 +1,10 @@
 import { PartListUnion, Type } from "@google/genai";
 import { MODEL_GEMINI, SYSTEM_INSTRUCTION } from "../config/index.js";
-import { UserInfoGemini } from "../types.js";
+import { GeminiRecommendation, GeminiSchemaRecommendedSong, UserInfoGemini } from "../types.js";
 import { gemini } from "./index.js";
 
 export async function generateRecommendedSong(userinfo: UserInfoGemini) {
-  const SCHEMA_DJBOT = {
+  const SCHEMA_DJBOT: GeminiSchemaRecommendedSong = {
     type: Type.ARRAY,
     items: {
       type: Type.OBJECT,
@@ -27,6 +27,7 @@ export async function generateRecommendedSong(userinfo: UserInfoGemini) {
 `
 以下のユーザが流す曲をリクエストしています。
 ユーザの指定する雰囲気に合った曲を選曲してあげてください。
+実在しない曲は挙げてはいけません。
 -----この下がユーザからのメッセージです-----
 ユーザ名: ${userinfo.follower.displayName}
 文章: ${userinfo.posts?.[0] || ""}`;
@@ -41,6 +42,7 @@ export async function generateRecommendedSong(userinfo: UserInfoGemini) {
       responseSchema: SCHEMA_DJBOT,
     }
   });
+  const result = JSON.parse(response.text || "") as GeminiRecommendation;
 
-  return response.text ?? "";
+  return result[0];
 }
