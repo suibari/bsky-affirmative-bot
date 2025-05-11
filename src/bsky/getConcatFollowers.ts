@@ -8,14 +8,14 @@ import { agent } from './agent.js';
  * @param {number} threshold_follower - フォロワーしきい値
  * @returns {Promise<Array>} - フォロワーの配列
  */
-export async function getConcatFollowers(params: QueryParams, threshold_follower: number): Promise<Array<ProfileView>> {
+export async function getConcatFollowers(params: QueryParams, threshold_follower?: number): Promise<Array<ProfileView>> {
   let followers: ProfileView[] = [];
 
   try {
     let response = await agent.getFollowers(params);
     followers = response.data.followers;
 
-    while (('cursor' in response.data) && (threshold_follower > followers.length)) {
+    while (('cursor' in response.data) && (threshold_follower ?? Infinity > followers.length)) {
       const paramswithcursor = Object.assign(params, {
         cursor: response.data.cursor
       });

@@ -5,9 +5,9 @@ import { handleConversation } from './modes/conversation.js';
 import { db } from './db/index.js';
 import { startWebSocket } from './bsky/jetstream.js';
 import { pointRateLimit, TimeLogger } from './util/logger.js';
-import { listUnreadNotifications } from './bsky/listUnreadNotifications.js';
 import { getLangStr, isMention, isSpam } from './bsky/util.js';
-import { Record } from '@atproto/api/dist/client/types/app/bsky/feed/post.js';
+import { Record as RecordPost } from '@atproto/api/dist/client/types/app/bsky/feed/post.js';
+import { Record as RecordFollow } from '@atproto/api/dist/client/types/app/bsky/graph/follow.js';
 import { replyGreets } from './bsky/replyGreets.js';
 import { getConcatFollowers } from './bsky/getConcatFollowers.js';
 import { ProfileView } from '@atproto/api/dist/client/types/app/bsky/actor/defs.js';
@@ -21,8 +21,20 @@ import { handleCheer } from './modes/cheer.js';
 
 // 起動時処理
 (async () => {
-  await initAgent();
-  db.createDbIfNotExist();
+  try {
+    console.log("[INFO] Initialize AtpAgent...");
+    await initAgent();
+
+    db.createDbIfNotExist();
+
+    console.log("[INFO] Fetching followers...");
+    followers = await getConcatFollowers({actor: process.env.BSKY_IDENTIFIER!});
+
+    console.log("[INFO] Connecting to JetStream...");
+    await startWebSocket(doReply, doFollowAndGreet);
+  } catch (error) {
+    console.error("[ERROR] Failed to update followers and start WebSocket:", error);
+  }
 })();
 // global.fetch = require('node-fetch'); // for less than node-v17
 
@@ -32,92 +44,52 @@ const MINUTES_THRD_RESPONSE = 10 * 60 * 1000; // 10min
 const THRD_FOLLOW_BY_FOLLOWER = 2.5;
 let followers: ProfileView[] = [];
 
-// 定期実行タスク1
+// followイベントコールバック
 // * フォロー通知があったら以下を行う
 //   - フォロー済みか判定
 //   - フォロー済みでなければ、以下を実行
 //     * その人をフォローバック
 //     * その人にあいさつポスト
-async function doFollowAndGreetIfFollowed() {
+async function doFollowAndGreet(event: CommitCreateEvent<"app.bsky.graph.follow">) {
   try {
-    let isFollowedNewly = false;
+    const did = String(event.did);
+    const record = event.commit.record as RecordFollow;
 
-    console.log(`[INFO] start follow check.`);
-    const timer = new TimeLogger();
-    timer.tic();
+    // bot対象以外を除外
+    if (did !== record.subject) return;
 
-    await createOrRefreshSession();
-    const notifications = await listUnreadNotifications({limit: 100});
-    for (let notification of notifications) {
-      if (notification.reason == 'follow') {
-        const did = notification.author.did;
-        const isExist = await db.selectDb(did, "updated_at");
-        if (!isExist) {
-          console.log(`[INFO] detect new follower: ${did} !!`);
-          await agent.follow(did);
-          pointRateLimit.addCreate();
-          
-          const response = await agent.getAuthorFeed({actor: did, filter: 'posts_no_replies'});
-          for (const feed of response.data.feed) {
-            if (
-              (notification.author.did === feed.post.author.did) &&
-              (isMention(feed.post.record as Record) !== null) &&
-              (!feed.reason) &&
-              (!isSpam(feed.post))
-            ) {
-                const langStr = getLangStr((feed.post.record as Record).langs);
-                await replyGreets(feed.post, langStr);
-                pointRateLimit.addCreate();
+    // DB登録済みは除外
+    const isExist = await db.selectDb(did, "created_at");
+    if (isExist) return;
 
-                break;
-              }
-          }
-          db.insertDb(did);
-        };
+    console.log(`[INFO] detect new follower: ${did} !!`);
+    await agent.follow(did);
+    pointRateLimit.addCreate();
 
-        isFollowedNewly = true;
-      };
-    };
-    await agent.updateSeenNotifications(new Date().toISOString());
+    const response = await agent.getAuthorFeed({actor: did, filter: 'posts_no_replies'});
+    for (const feed of response.data.feed) {
+      if (
+        (isMention(feed.post.record as RecordPost) !== null) &&
+        (!feed.reason) &&
+        (!isSpam(feed.post))
+      ) {
+        const langStr = getLangStr((feed.post.record as RecordPost).langs);
+        await replyGreets(feed.post, langStr);
+        pointRateLimit.addCreate();
 
-    if (isFollowedNewly) {
-      // フォロワーが増えたのでwebsocket再接続
-      updateFollowersAndStartWS();
+        break;
+      }
     }
+    db.insertDb(did);
 
-    // db.closeDb();
-    const elapsedTime = timer.tac();
-    console.log(`[INFO] finish follow check, elapsed time is ${elapsedTime} [sec].`);
-
+    console.log("[INFO] Re-fetching followers...");
+    followers = await getConcatFollowers({actor: process.env.BSKY_IDENTIFIER!});
   } catch(e) {
     console.error(e);
   }
 }
-if (process.env.NODE_ENV === "production") {
-  setInterval(doFollowAndGreetIfFollowed, SPAN_FOLLOW_CHECK);
-}
 
-// 定期実行タスク2
-// * 現在のフォロワー全員のDIDを取得
-//   - JetStreamにDIDで接続
-//   - message受信時にコールバック関数を実行
-async function updateFollowersAndStartWS() {
-  try {
-    console.log("[INFO] Starting session refresh...");
-    await createOrRefreshSession();
-
-    console.log("[INFO] Fetching followers...");
-    followers = await getConcatFollowers({actor: process.env.BSKY_IDENTIFIER!}, 10000);
-
-    console.log("[INFO] Connecting to JetStream...");
-    startWebSocket(doReply);
-  } catch (error) {
-    console.error("[ERROR] Failed to update followers and start WebSocket:", error);
-  }
-}
-updateFollowersAndStartWS();
-
-// 定期実行タスク2
+// postイベントコールバック
 // * コールバック関数仕様
 //   - 前回反応日時をDBから取得
 //   - 条件でフィルタリング
@@ -126,7 +98,7 @@ updateFollowersAndStartWS();
 async function doReply(event: CommitCreateEvent<"app.bsky.feed.post">) {
   try {
     const did = event.did;
-    const record = event.commit.record as Record;
+    const record = event.commit.record as RecordPost;
 
     // ==============
     // follower filter
@@ -253,12 +225,14 @@ async function doReply(event: CommitCreateEvent<"app.bsky.feed.post">) {
   }
 }
 
-// 1時間おきにRate Limit Pointを出力
-// setInterval(() => {
-//   const currentPoint = point.getPoint();
-//   console.log(`[INFO] rate limit point is ${currentPoint} on this hour.`);
-//   point.initPoint();
-// }, 60 * 60 * 1000); // 1 hour
+// 1時間おきにセッション確認、Rate Limit Pointを出力
+setInterval(async () => {
+  await createOrRefreshSession()
+  
+  const currentPoint = pointRateLimit.getPoint();
+  console.log(`[INFO] rate limit point is ${currentPoint} on this hour.`);
+  pointRateLimit.initPoint();
+}, 60 * 60 * 1000); // 1 hour
 
 // アプリケーションの終了時にデータベース接続を閉じる
 process.on('exit', async () => {

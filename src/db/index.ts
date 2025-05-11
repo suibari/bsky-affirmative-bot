@@ -38,7 +38,7 @@ class SQLite3 {
   }
 
   insertDb(id: string) {
-    const query = `INSERT INTO followers (did) VALUES (?);`;
+    const query = `INSERT OR IGNORE INTO followers (did) VALUES (?);`;
     this.db.run(query, [id], (err) => {
       if (err) {
         console.error('Error inserting data', err);
