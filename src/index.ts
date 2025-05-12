@@ -289,8 +289,15 @@ async function checkTotalScoreAndPost () {
     const text_bot = await generateWhimsicalPost({
       follower: response.data as ProfileView,
       posts: [post],
+      langStr: "日本語"
     });
     postContinuous(text_bot);
+    const text_bot_en = await generateWhimsicalPost({
+      follower: response.data as ProfileView,
+      posts: [post],
+      langStr: "英語"
+    });
+    postContinuous(text_bot_en);
 
     // テーブルクリア
     dbPosts.clearAllRows();

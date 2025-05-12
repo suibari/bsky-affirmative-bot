@@ -2,7 +2,7 @@ import { UserInfoGemini } from "../types.js";
 import { generateSingleResponse } from "./util.js";
 
 export async function generateAnalyzeResult(userinfo: UserInfoGemini) {
-  const part_language = `${userinfo.langStr === "日本語" ? "日本語" : "英語"}で回答は生成してください。`;
+  const part_language = `${userinfo.langStr === "日本語" ? "日本語" : "英語"}で生成してください。`;
 
   const prompt =
 `ユーザのBlueskyポスト100件を基に、性格分析をしてください。
