@@ -19,6 +19,7 @@ import { replyAffermativeWord } from './bsky/replyAffirmativeWord.js';
 import { handleAnalyaze } from './modes/analyze.js';
 import { handleCheer } from './modes/cheer.js';
 import { handleDJ } from './modes/dj.js';
+import retry from 'async-retry';
 
 // 起動時処理
 (async () => {
@@ -52,45 +53,69 @@ let followers: ProfileView[] = [];
 //     * その人をフォローバック
 //     * その人にあいさつポスト
 async function doFollowAndGreet(event: CommitCreateEvent<"app.bsky.graph.follow">) {
-  try {
-    const did = String(event.did);
-    const record = event.commit.record as RecordFollow;
+  const did = String(event.did);
+  const record = event.commit.record as RecordFollow;
 
-    // bot対象以外を除外
-    if (record.subject !== process.env.BSKY_DID) return;
+  // bot対象以外を除外
+  if (record.subject !== process.env.BSKY_DID) return;
 
-    // DB登録済みは除外
-    const isExist = await db.selectDb(did, "created_at");
-    if (isExist) return;
+  // DB登録済みは除外
+  const isExist = await db.selectDb(did, "created_at");
+  if (isExist) return;
 
-    console.log(`[INFO] detect new follower: ${did} !!`);
-    await agent.follow(did);
-    pointRateLimit.addCreate();
+  console.log(`[INFO] detect new follower: ${did} !!`);
 
-    const response = await agent.getAuthorFeed({actor: did, filter: 'posts_no_replies'});
-    for (const feed of response.data.feed) {
-      if (
-        (isMention(feed.post.record as RecordPost) !== null) &&
-        (!feed.reason) &&
-        (!isSpam(feed.post))
-      ) {
-        const langStr = getLangStr((feed.post.record as RecordPost).langs);
-        await replyGreets(feed.post, langStr);
-        pointRateLimit.addCreate();
-
-        break;
-      }
+  // ---main処理---
+  // 1. followers更新
+  const refreshFollowers = retry(
+    async () => {
+      console.log("[INFO] Re-fetching followers...");
+      const newFollowers = await getConcatFollowers({ actor: process.env.BSKY_IDENTIFIER! });
+      followers.length = 0;
+      followers.push(...newFollowers);
+    },
+    {
+      retries: 5,
+      onRetry: (err, attempt) => {
+        console.warn(`[WARN] Retry attempt ${attempt} to refresh followers failed:`, err);
+      },
     }
-    db.insertDb(did);
+  );
 
-    console.log("[INFO] Re-fetching followers...");
-    const newFollowers = await getConcatFollowers({actor: process.env.BSKY_IDENTIFIER!});
+  // 2. フォロー挨拶処理
+  const followAndGreet = (async () => {
+    try {
+      await agent.follow(did);
+      pointRateLimit.addCreate();
 
-　　　// 配列の中身を破壊的に更新
-　　　followers.length = 0;
-　　　followers.push(...newFollowers);
-  } catch(e) {
-    console.error(e);
+      const response = await agent.getAuthorFeed({ actor: did, filter: 'posts_no_replies' });
+      for (const feed of response.data.feed) {
+        if (
+          (isMention(feed.post.record as RecordPost) !== null) &&
+          (!feed.reason) &&
+          (!isSpam(feed.post))
+        ) {
+          const langStr = getLangStr((feed.post.record as RecordPost).langs);
+          await replyGreets(feed.post, langStr);
+          pointRateLimit.addCreate();
+          break;
+        }
+      }
+
+      db.insertDb(did);
+    } catch (e) {
+      console.error("[ERROR] Failed during follow/greet process:", e);
+    }
+  })();
+
+  // 1. 2. 両方の完了を待つ（片方失敗しても両方実行はされる）
+  const [followersResult, greetResult] = await Promise.allSettled([
+    refreshFollowers,
+    followAndGreet,
+  ]);
+
+  if (followersResult.status === 'rejected') {
+    console.error("[ERROR] Failed to refresh followers after retries:", followersResult.reason);
   }
 }
 
