@@ -50,7 +50,10 @@ export const CHEER_TRIGGER = [
 export const DJ_TRIGGER = [
   "djお願い",
   "djおねがい",
+  "dj頼む",
+  "djたのむ",
   "dj, please",
+  "dj please",
 ];
 
 export const HNY_WORDS = ["明けましておめでとう", "あけましておめでとう", "あけおめ"];
