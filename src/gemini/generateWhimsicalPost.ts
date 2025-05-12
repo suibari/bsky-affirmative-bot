@@ -19,6 +19,8 @@ export async function generateWhimsicalPost(userinfo: UserInfoGemini) {
 
   // AI出力のサニタイズ("-----"を含むときそれ以降の文字列を削除)
   const result = response.text?.split("-----")[0];
+  
+  const mention = "@" + userinfo.follower.handle;
 
-  return result || "";
+  return (result + " " + mention) || "";
 }

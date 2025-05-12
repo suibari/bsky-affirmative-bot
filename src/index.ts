@@ -244,8 +244,8 @@ async function doReply(event: CommitCreateEvent<"app.bsky.feed.post">) {
           console.log(`[INFO][${did}] New post !!`);
           const result = await replyAffermativeWord(follower, event, is_u18 === 1);
 
-          // ポスト記憶
-          if (result.score) {
+          // ポストスコア記憶
+          if (result.score && !follower.displayName?.toLowerCase().includes("bot")) { // botアカウントは集計対象としない
             dbPosts.insertDb(did);
             const prevScore = Number(await dbPosts.selectDb(did, "score") || 0);
             if (prevScore < result.score) {
@@ -254,8 +254,9 @@ async function doReply(event: CommitCreateEvent<"app.bsky.feed.post">) {
               dbPosts.updateDb(did, "score", result.score);
             }
             totalScoreByBot += result.score;
+
+            await checkTotalScoreAndPost();
           }
-          await checkTotalScoreAndPost();
 
           // DB更新
           db.insertOrUpdateDb(did);
