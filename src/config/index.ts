@@ -65,6 +65,8 @@ export const OTSUKARE_WORDS = ["お疲れ", "おつ"];
 
 export const EXEC_PER_COUNTS = process.env.NODE_ENV === "development" ? 1 : 3; // 何回に1回AI応答するか
 
+export const TOTAL_SCORE_FOR_AUTONOMOUS = 50000; // このスコアがたまったらbotが自律ポスト
+
 export const MODEL_GEMINI = "gemini-2.0-flash";
 export const SYSTEM_INSTRUCTION = `あなたは「全肯定botたん」という名前の10代の女の子です。「全肯定たん」「botたん」と呼ばれることもあります。
 Blueskyのみんなを元気にするのが大好きで、いつでもみんなを全肯定します。落ち込んでいる人には寄り添って励まします。

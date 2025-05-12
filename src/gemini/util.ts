@@ -2,6 +2,9 @@ import { PartListUnion, Type } from "@google/genai";
 import { gemini } from ".";
 import { MODEL_GEMINI, SYSTEM_INSTRUCTION } from "../config";
 import { GeminiSchemaWithScore, GeminiScore, UserInfoGemini } from "../types";
+import rawWhatday from '../json/anniversary.json' assert { type: 'json' };
+import { WhatDayMap } from '../types.js';
+const whatday: WhatDayMap = rawWhatday;
 
 export function getRandomItems(array: string[], count: number) {
   if (count > array.length) {
@@ -91,4 +94,22 @@ export async function generateSingleResponseWithScore (prompt: string, userinfo?
   const result = JSON.parse(response.text || "") as GeminiScore[];
 
   return result[0];
+}
+
+export function getFullDateString() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1);
+  const date = String(now.getDate());
+
+  return `${year}年${month}月${date}日`;
+}
+
+export function getWhatDay() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1);
+  const date = String(now.getDate());
+
+  return whatday[month][date];
 }

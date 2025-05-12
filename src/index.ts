@@ -258,6 +258,8 @@ async function doReply(event: CommitCreateEvent<"app.bsky.feed.post">) {
   }
 }
 
+// bot自律動作
+
 // 1時間おきにセッション確認、Rate Limit Pointを出力
 setInterval(async () => {
   await createOrRefreshSession()

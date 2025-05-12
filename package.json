@@ -9,6 +9,7 @@
     "dotenv": "^16.4.5",
     "node-fetch": "^2.7.0",
     "open-graph-scraper": "^6.10.0",
+    "rss-parser": "^3.13.0",
     "sqlite3": "^5.0.0",
     "ws": "^8.18.0"
   },

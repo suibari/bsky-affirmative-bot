@@ -1,5 +1,6 @@
+import { fetchJapaneseNews } from "../gnews/index.js";
 import { UserInfoGemini } from "../types.js";
-import { generateSingleResponseWithScore } from "./util.js";
+import { generateSingleResponseWithScore, getWhatDay } from "./util.js";
 
 export async function generateAffirmativeWord(userinfo: UserInfoGemini) {
   const part_prompt_main = userinfo.image_url ? `ユーザの画像の内容について、200文字までで褒めてください。画像の内容について具体的に言及して褒めるようにしてください。` :
@@ -16,6 +17,10 @@ ${part_prompt_lang}
 * score:
 あなたの考えでユーザからの投稿について点数をつけてください。点数は0から100までです。
 あなたが好きな話題や面白いと感じた話題は高得点、苦手な話題やつまらないと感じた話題は低い得点とします。
+今日は以下の日なので、これらのテーマには加点してください。
+${getWhatDay()}
+現在の最新ニュースは以下なので、これらのテーマには加点してください。(ただし苦手な話題であれば加点は不要です)
+${fetchJapaneseNews()}
 commentにはこのscoreが出力されないようにしてください。
 -----この下がユーザからの投稿です-----
 ユーザ名: ${userinfo.follower.displayName}
