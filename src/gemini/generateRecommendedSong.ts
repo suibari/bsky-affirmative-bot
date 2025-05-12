@@ -28,6 +28,7 @@ export async function generateRecommendedSong(userinfo: UserInfoGemini) {
 `
 以下のユーザが流す曲をリクエストしています。
 ユーザの指定する雰囲気に合った曲を選曲してあげてください。
+アニメやゲームのネタがあった場合、それにあった曲を選曲してあげてください。
 実在しない曲は挙げてはいけません。
 ${part_language}
 -----この下がユーザからのメッセージです-----
