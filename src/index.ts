@@ -84,7 +84,11 @@ async function doFollowAndGreet(event: CommitCreateEvent<"app.bsky.graph.follow"
     db.insertDb(did);
 
     console.log("[INFO] Re-fetching followers...");
-    followers = await getConcatFollowers({actor: process.env.BSKY_IDENTIFIER!});
+    const newFollowers = await getConcatFollowers({actor: process.env.BSKY_IDENTIFIER!});
+
+　　　// 配列の中身を破壊的に更新
+　　　followers.length = 0;
+　　　followers.push(...newFollowers);
   } catch(e) {
     console.error(e);
   }
