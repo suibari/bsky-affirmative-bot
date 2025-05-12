@@ -2,7 +2,7 @@ import 'dotenv/config';
 import { agent, createOrRefreshSession, initAgent } from './bsky/agent.js';
 import { parseEmbedPost } from './bsky/parseEmbedPost.js';
 import { handleConversation } from './modes/conversation.js';
-import { db } from './db/index.js';
+import { db, dbPosts } from './db/index.js';
 import { startWebSocket } from './bsky/jetstream.js';
 import { pointRateLimit, TimeLogger } from './util/logger.js';
 import { getLangStr, isMention, isSpam } from './bsky/util.js';
@@ -21,14 +21,15 @@ import { handleCheer } from './modes/cheer.js';
 import { handleDJ } from './modes/dj.js';
 import retry from 'async-retry';
 import { follow } from './bsky/follow.js';
+import { TOTAL_SCORE_FOR_AUTONOMOUS } from './config/index.js';
+import { generateWhimsicalPost } from './gemini/generateWhimsicalPost.js';
+import { postContinuous } from './bsky/postContinuous.js';
 
 // 起動時処理
 (async () => {
   try {
     console.log("[INFO] Initialize AtpAgent...");
     await initAgent();
-
-    db.createDbIfNotExist();
 
     console.log("[INFO] Fetching followers...");
     followers = await getConcatFollowers({actor: process.env.BSKY_IDENTIFIER!});
@@ -46,6 +47,7 @@ const OFFSET_UTC_TO_JST = 9 * 60 * 60 * 1000; // offset: +9h (to JST from UTC <S
 const MINUTES_THRD_RESPONSE = 10 * 60 * 1000; // 10min
 const THRD_FOLLOW_BY_FOLLOWER = 2.5;
 let followers: ProfileView[] = [];
+let totalScoreByBot: number = 0;
 
 // followイベントコールバック
 // * フォロー通知があったら以下を行う
@@ -240,7 +242,20 @@ async function doReply(event: CommitCreateEvent<"app.bsky.feed.post">) {
 
           // 新しい投稿の検出とリプライ処理
           console.log(`[INFO][${did}] New post !!`);
-          await replyAffermativeWord(follower, event, is_u18 === 1);
+          const result = await replyAffermativeWord(follower, event, is_u18 === 1);
+
+          // ポスト記憶
+          if (result.score) {
+            dbPosts.insertDb(did);
+            const prevScore = Number(await dbPosts.selectDb(did, "score") || 0);
+            if (prevScore < result.score) {
+              // ポスト更新
+              dbPosts.updateDb(did, "post", (event.commit.record as RecordPost).text);
+              dbPosts.updateDb(did, "score", result.score);
+            }
+            totalScoreByBot += result.score;
+          }
+          await checkTotalScoreAndPost();
 
           // DB更新
           db.insertOrUpdateDb(did);
@@ -258,7 +273,28 @@ async function doReply(event: CommitCreateEvent<"app.bsky.feed.post">) {
   }
 }
 
-// bot自律動作
+async function checkTotalScoreAndPost () {
+  if (totalScoreByBot > TOTAL_SCORE_FOR_AUTONOMOUS) {
+    // スコアクリア
+    totalScoreByBot = 0;
+
+    // スコアTOPのfollowerを取得
+    const row = await dbPosts.getHighestScore();
+    const did = row.did;
+    const post = row.post;
+    const response = await agent.getProfile({actor: did});
+    
+    // ポスト
+    const text_bot = await generateWhimsicalPost({
+      follower: response.data as ProfileView,
+      posts: [post],
+    });
+    postContinuous(text_bot);
+
+    // テーブルクリア
+    dbPosts.clearAllRows();
+  }
+}
 
 // 1時間おきにセッション確認、Rate Limit Pointを出力
 setInterval(async () => {

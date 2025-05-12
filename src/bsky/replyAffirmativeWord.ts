@@ -50,5 +50,5 @@ export async function replyAffermativeWord(follower: ProfileView, event: CommitC
   // ポスト
   await postContinuous(text_bot, {uri, cid, record});
 
-  return;
+  return {text: text_bot, score: result?.score};
 }

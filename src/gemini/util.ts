@@ -105,6 +105,15 @@ export function getFullDateString() {
   return `${year}年${month}月${date}日`;
 }
 
+export function getFullDateAndTimeString(): string {
+  const fulldate = getFullDateString();
+  const now = new Date();
+  const hours = String(now.getHours());
+  const minutes = String(now.getMinutes());
+
+  return `${fulldate}${hours}時${minutes}分`;
+}
+
 export function getWhatDay() {
   const now = new Date();
   const year = now.getFullYear();

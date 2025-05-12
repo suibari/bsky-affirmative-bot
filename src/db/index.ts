@@ -2,8 +2,9 @@ import sqlite3 from 'sqlite3';
 
 class SQLite3 {
   db: sqlite3.Database;
+  tableName: string;
 
-  constructor() {
+  constructor(tableName = 'followers') {
     const dbFile = process.env.SQLITE_DB_FILE || ':memory:'; // Use in-memory DB if no file is specified
     this.db = new sqlite3.Database(dbFile, (err) => {
       if (err) {
@@ -12,33 +13,12 @@ class SQLite3 {
         console.log('Connected to SQLite database');
       }
     });
+    this.tableName = tableName;
     return this;
   }
 
-  createDbIfNotExist() {
-    const query = `
-      CREATE TABLE IF NOT EXISTS followers (
-        did TEXT PRIMARY KEY,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        is_u18     INTEGER   DEFAULT 0,
-        last_uranai_at TIMESTAMP DEFAULT NULL,
-        reply_freq     INTEGER   DEFAULT 100,
-        last_conv_at   TIMESTAMP DEFAULT NULL,
-        conv_root_cid  TEXT      DEFAULT NULL,
-        conv_history   JSON      DEFAULT NULL,
-        last_analyze_at TIMESTAMP DEFAULT NULL
-      );
-    `;
-    this.db.run(query, (err) => {
-      if (err) {
-        console.error('Error creating table', err);
-      }
-    });
-  }
-
   insertDb(id: string) {
-    const query = `INSERT OR IGNORE INTO followers (did) VALUES (?);`;
+    const query = `INSERT OR IGNORE INTO ${this.tableName} (did) VALUES (?);`;
     this.db.run(query, [id], (err) => {
       if (err) {
         console.error('Error inserting data', err);
@@ -48,13 +28,11 @@ class SQLite3 {
 
   updateDb(did: string, column: string, value?: string | number) {
     const query = `
-      UPDATE followers
+      UPDATE ${this.tableName}
       SET ${column} = ?, updated_at = CURRENT_TIMESTAMP
       WHERE did = ?
     `;
-  
     const params = [value, did];
-  
     this.db.run(query, params, (err) => {
       if (err) {
         console.error('Error updating data', err);
@@ -64,7 +42,7 @@ class SQLite3 {
 
   selectDb(id: string, col_name: string): Promise<any> | null {
     return new Promise((resolve, reject) => {
-      const query = `SELECT * FROM followers WHERE did = ?;`;
+      const query = `SELECT * FROM ${this.tableName} WHERE did = ?;`;
       this.db.get(query, [id], (err, row: Record<string, any>) => {
         if (err) {
           console.error('Error selecting data', err);
@@ -82,7 +60,7 @@ class SQLite3 {
 
   insertOrUpdateDb(id: string) {
     const query = `
-      INSERT INTO followers (did)
+      INSERT INTO ${this.tableName} (did)
       VALUES (?)
       ON CONFLICT(did) DO UPDATE
       SET updated_at = CURRENT_TIMESTAMP;
@@ -103,16 +81,47 @@ class SQLite3 {
       }
     });
   }
-}
-export const db = new SQLite3();
 
-// async function testDb() {
-//   const db = new SQLite3();
-//   db.createDbIfNotExist();
-//   // db.insertDb('hoge');
-//   // db.updateDb('hoge');
-//   const updated_at = await db.selectDb('hoge');
-//   console.log(updated_at);
-//   db.closeDb();
-// }
-// testDb();
+  getHighestScore(): Promise<any> {
+    return new Promise((resolve, reject) => {
+      const query = `
+        SELECT * FROM ${this.tableName}
+        WHERE score IS NOT NULL
+        ORDER BY score DESC
+        LIMIT 1;
+      `;
+      this.db.get(query, [], (err, row) => {
+        if (err) {
+          console.error('Error fetching highest score', err);
+          reject(err);
+        } else {
+          resolve(row);
+        }
+      });
+    });
+  }
+
+  clearAllRows(): void {
+    const query = `DELETE FROM ${this.tableName};`;
+
+    this.db.run(query, (err) => {
+      if (err) {
+        console.error('Error clearing table', err);
+      } else {
+        console.log(`All rows deleted from ${this.tableName}`);
+
+        // データベースファイルのサイズを削減
+        this.db.run('VACUUM;', (vacuumErr) => {
+          if (vacuumErr) {
+            console.error('Error running VACUUM', vacuumErr);
+          } else {
+            console.log('Database vacuumed successfully');
+          }
+        });
+      }
+    });
+  }
+}
+
+export const db = new SQLite3("followers");
+export const dbPosts = new SQLite3("posts");
