@@ -1,23 +1,31 @@
 import { UserInfoGemini } from "../types.js";
-import { generateSingleResponse } from "./util.js";
+import { generateSingleResponseWithScore } from "./util.js";
 
 export async function generateAffirmativeWord(userinfo: UserInfoGemini) {
   const part_prompt_main = userinfo.image_url ? `ユーザの画像の内容について、200文字までで褒めてください。画像の内容について具体的に言及して褒めるようにしてください。` :
                                                 `ユーザからの文章に対して具体的に、100文字までで褒めてください。`;
   const part_prompt_lang = userinfo.langStr ? `出力する文章はすべて${userinfo.langStr}としてください。` :
-                                              `褒める際の言語は、ユーザの文章の言語に合わせてください。`;
+                                              `出力する文章はすべて英語としてください。`;
   const prompt = 
 `
+ユーザからの投稿について、commentとscoreにそれぞれ以下を出力してください。
+* comment:
 ${part_prompt_main}
 ${part_prompt_lang}
------この下がユーザからのメッセージです-----
+絶対にscoreが分かる内容を入れないでください。
+* score:
+あなたの考えでユーザからの投稿について点数をつけてください。点数は0から100までです。
+あなたが好きな話題や面白いと感じた話題は高得点、苦手な話題やつまらないと感じた話題は低い得点とします。
+commentにはこのscoreが出力されないようにしてください。
+-----この下がユーザからの投稿です-----
 ユーザ名: ${userinfo.follower.displayName}
 文章: ${userinfo.posts?.[0] || ""}`;
 
-  const response = await generateSingleResponse(prompt, userinfo);
-  
-  // AI出力のサニタイズ("-----"を含むときそれ以降の文字列を削除)
-  const result = response.text?.split("-----")[0];
+  const result = await generateSingleResponseWithScore(prompt, userinfo);
 
-  return result ?? "";
+  if (process.env.NODE_ENV === "development") {
+    console.log(`[DEBUG][${userinfo.follower.did}] Score: ${result.score}`);
+  }
+  
+  return result;
 }

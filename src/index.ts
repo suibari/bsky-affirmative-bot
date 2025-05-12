@@ -20,6 +20,7 @@ import { handleAnalyaze } from './modes/analyze.js';
 import { handleCheer } from './modes/cheer.js';
 import { handleDJ } from './modes/dj.js';
 import retry from 'async-retry';
+import { follow } from './bsky/follow.js';
 
 // 起動時処理
 (async () => {
@@ -85,7 +86,7 @@ async function doFollowAndGreet(event: CommitCreateEvent<"app.bsky.graph.follow"
   // 2. フォロー挨拶処理
   const followAndGreet = (async () => {
     try {
-      await agent.follow(did);
+      await follow(did);
       pointRateLimit.addCreate();
 
       const response = await agent.getAuthorFeed({ actor: did, filter: 'posts_no_replies' });

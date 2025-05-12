@@ -42,3 +42,24 @@ export type GeminiRecommendation = [
     comment: string;
   }
 ]
+
+export type GeminiSchemaWithScore = {
+  type: Type.ARRAY;
+  items: {
+    type: Type.OBJECT;
+    properties: {
+      comment: {
+        type: Type.STRING;
+      };
+      score: {
+        type: Type.INTEGER;
+      };
+    };
+    propertyOrdering: ["comment", "score"];
+  }
+}
+
+export type GeminiScore = {
+  comment: string;
+  score: number;
+}

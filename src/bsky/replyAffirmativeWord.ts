@@ -7,6 +7,7 @@ import { Record } from "@atproto/api/dist/client/types/app/bsky/feed/post";
 import { getRandomWordByNegaposi } from "../modes/randomword.js";
 import { postContinuous } from "./postContinuous.js";
 import { RPD } from "../gemini/index.js";
+import { GeminiScore } from "../types.js";
 
 export async function replyAffermativeWord(follower: ProfileView, event: CommitCreateEvent<"app.bsky.feed.post">, isU18mode = false) {
   const record = event.commit.record as Record;
@@ -14,8 +15,8 @@ export async function replyAffermativeWord(follower: ProfileView, event: CommitC
   const cid = event.commit.cid;
   const uri = uniteDidNsidRkey(follower.did, event.commit.collection, event.commit.rkey);
 
-  let text_bot;
-
+  let result: GeminiScore | undefined;
+  let text_bot: string;
   const text_user = record.text;
 
   let image_url: string | undefined = undefined;
@@ -32,21 +33,19 @@ export async function replyAffermativeWord(follower: ProfileView, event: CommitC
 
   // AIを使うか判定
   if (RPD.checkMod() && !isU18mode) {
-    text_bot = await generateAffirmativeWord({
+    result = await generateAffirmativeWord({
       follower,
       langStr,
       posts: [record.text],
       image_url,
       image_mimeType: mimeType,
     });
+    text_bot = result.comment;
     RPD.add();
   } else {
     text_bot = await getRandomWordByNegaposi(text_user, langStr);
     text_bot = text_bot.replace("${name}", follower.displayName ?? "");
   }
-
-  // AI出力のサニタイズ("-----"を含むときそれ以降の文字列を削除)
-  text_bot = text_bot.split("-----")[0];
 
   // ポスト
   await postContinuous(text_bot, {uri, cid, record});
