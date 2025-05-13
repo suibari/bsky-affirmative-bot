@@ -8,6 +8,7 @@ import { getRandomWordByNegaposi } from "../modes/randomword.js";
 import { postContinuous } from "./postContinuous.js";
 import { RPD } from "../gemini/index.js";
 import { GeminiScore } from "../types.js";
+import { dbLikes } from "../db/index.js";
 
 export async function replyAffermativeWord(follower: ProfileView, event: CommitCreateEvent<"app.bsky.feed.post">, isU18mode = false) {
   const record = event.commit.record as Record;
@@ -33,10 +34,17 @@ export async function replyAffermativeWord(follower: ProfileView, event: CommitC
 
   // AIを使うか判定
   if (RPD.checkMod() && !isU18mode) {
+    // ユーザからのいいねがあれば取得し、row削除
+    const likedPost = await dbLikes.selectDb(follower.did, "liked_post");
+    if (likedPost) {
+      dbLikes.deleteRow(follower.did);
+    }
+
     result = await generateAffirmativeWord({
       follower,
       langStr,
       posts: [record.text],
+      likedByFollower: likedPost,
       image_url,
       image_mimeType: mimeType,
     });

@@ -2,12 +2,13 @@ import 'dotenv/config';
 import { agent, createOrRefreshSession, initAgent } from './bsky/agent.js';
 import { parseEmbedPost } from './bsky/parseEmbedPost.js';
 import { handleConversation } from './modes/conversation.js';
-import { db, dbPosts } from './db/index.js';
+import { db, dbLikes, dbPosts } from './db/index.js';
 import { startWebSocket } from './bsky/jetstream.js';
 import { pointRateLimit, TimeLogger } from './util/logger.js';
-import { getLangStr, isMention, isSpam } from './bsky/util.js';
+import { getLangStr, isMention, isSpam, splitUri } from './bsky/util.js';
 import { Record as RecordPost } from '@atproto/api/dist/client/types/app/bsky/feed/post.js';
 import { Record as RecordFollow } from '@atproto/api/dist/client/types/app/bsky/graph/follow.js';
+import { Record as RecordLike } from '@atproto/api/dist/client/types/app/bsky/feed/like.js';
 import { replyGreets } from './bsky/replyGreets.js';
 import { getConcatFollowers } from './bsky/getConcatFollowers.js';
 import { ProfileView } from '@atproto/api/dist/client/types/app/bsky/actor/defs.js';
@@ -35,7 +36,7 @@ import { postContinuous } from './bsky/postContinuous.js';
     followers = await getConcatFollowers({actor: process.env.BSKY_IDENTIFIER!});
 
     console.log("[INFO] Connecting to JetStream...");
-    await startWebSocket(doReply, doFollowAndGreet);
+    await startWebSocket(doReply, doFollowAndGreet, saveLike);
   } catch (error) {
     console.error("[ERROR] Failed to update followers and start WebSocket:", error);
   }
@@ -272,6 +273,32 @@ async function doReply(event: CommitCreateEvent<"app.bsky.feed.post">) {
   } catch (eventError) {
     console.error(`[ERROR] Failed to process incoming event:`, eventError);
   }
+}
+
+// likeイベントコールバック
+// * コールバック関数仕様
+//   - did, textをDBに格納
+async function saveLike (event: CommitCreateEvent<"app.bsky.feed.like">) {
+  const did = String(event.did);
+  const record = event.commit.record as RecordLike;
+  const {did: subjectDid, nsid, rkey} = splitUri(record.subject.uri);
+
+  // 自分宛以外のlikeを除外
+  if (subjectDid !== process.env.BSKY_DID) return;
+
+  console.log(`[INFO] detect liked by: ${did}`);
+
+  // likeされた元ポストの取得
+  const response = await agent.com.atproto.repo.getRecord({
+    repo: subjectDid,
+    collection: nsid,
+    rkey,
+  });
+  const text = (response.data.value as RecordPost).text;
+
+  // DB格納
+  dbLikes.insertDb(did);
+  dbLikes.updateDb(did, "liked_post", text);
 }
 
 async function checkTotalScoreAndPost () {

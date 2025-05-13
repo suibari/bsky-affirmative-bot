@@ -37,13 +37,13 @@ export async function startWebSocket(
       console.error('[ERROR] No callback defined');
     }
   });
-  // jetstream.onCreate("app.bsky.feed.like", async event => {
-  //   if (likeCallback) {
-  //     await likeCallback(event);
-  //   } else {
-  //     console.error('[ERROR] No callback defined');
-  //   }
-  // });
+  jetstream.onCreate("app.bsky.feed.like", async event => {
+    if (likeCallback) {
+      await likeCallback(event);
+    } else {
+      console.error('[ERROR] No callback defined');
+    }
+  });
 
   // エラーハンドリング
   jetstream.on("error", (err) => {

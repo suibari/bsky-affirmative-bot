@@ -72,6 +72,17 @@ class SQLite3 {
     });
   }
 
+  deleteRow(did: string): void {
+    const query = `DELETE FROM ${this.tableName} WHERE did = ?;`;
+    this.db.run(query, [did], (err) => {
+      if (err) {
+        console.error(`Error deleting row with did=${did}`, err);
+      } else {
+        console.log(`Row with did=${did} deleted`);
+      }
+    });
+  }
+
   closeDb() {
     this.db.close((err) => {
       if (err) {
@@ -125,3 +136,4 @@ class SQLite3 {
 
 export const db = new SQLite3("followers");
 export const dbPosts = new SQLite3("posts");
+export const dbLikes = new SQLite3("likes");

@@ -3,16 +3,18 @@ import { UserInfoGemini } from "../types.js";
 import { generateSingleResponseWithScore, getWhatDay } from "./util.js";
 
 export async function generateAffirmativeWord(userinfo: UserInfoGemini) {
-  const part_prompt_main = userinfo.image_url ? `ユーザの画像の内容について、200文字までで褒めてください。画像の内容について具体的に言及して褒めるようにしてください。` :
-                                                `ユーザからの文章に対して具体的に、100文字までで褒めてください。`;
+  const part_prompt_main = userinfo.image_url ? `ユーザの画像の内容について褒めてください。画像の内容について具体的に言及して褒めるようにしてください。` :
+                                                `ユーザからの文章に対して具体的に褒めてください。`;
   const part_prompt_lang = userinfo.langStr ? `出力する文章はすべて${userinfo.langStr}としてください。` :
                                               `出力する文章はすべて英語としてください。`;
+  const part_prompt_like = userinfo.likedByFollower ? `ユーザが次のあなたの投稿をイイネしてくれました。その感謝も伝えてください。${userinfo.likedByFollower}` : "";
   const prompt = 
 `
 ユーザからの投稿について、commentとscoreにそれぞれ以下を出力してください。
 * comment:
 ${part_prompt_main}
 ${part_prompt_lang}
+${part_prompt_like}
 絶対にscoreが分かる内容を入れないでください。
 * score:
 あなたの考えでユーザからの投稿について点数をつけてください。点数は0から100までです。

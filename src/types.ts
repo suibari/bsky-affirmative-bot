@@ -12,6 +12,7 @@ export type UserInfoGemini = {
   follower: ProfileView;
   langStr?: string;
   posts?: string[];
+  likedByFollower?: string[];
   history?: Content[];
   image_url?: string;
   image_mimeType?: string;
