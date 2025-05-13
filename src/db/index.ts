@@ -77,8 +77,6 @@ class SQLite3 {
     this.db.run(query, [did], (err) => {
       if (err) {
         console.error(`Error deleting row with did=${did}`, err);
-      } else {
-        console.log(`Row with did=${did} deleted`);
       }
     });
   }

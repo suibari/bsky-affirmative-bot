@@ -105,6 +105,7 @@ async function doFollowAndGreet(event: CommitCreateEvent<"app.bsky.graph.follow"
       ) {
         const langStr = getLangStr((feed.post.record as RecordPost).langs);
         await replyGreets(feed.post, langStr);
+        console.log(`[INFO] replied greet: ${did}`);
         pointRateLimit.addCreate();
         break;
       }
