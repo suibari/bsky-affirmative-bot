@@ -8,6 +8,7 @@ import { db } from "../db/index.js";
 import { generateCheerResult } from "../gemini/generateCheerResult.js";
 import { UserInfoGemini, GeminiResponseResult } from "../types.js";
 import { repost } from "../bsky/repost.js";
+import { judgeCheerSubject } from "../gemini/judgeCheerSubject.js";
 
 export async function handleCheer (event: CommitCreateEvent<"app.bsky.feed.post">, follower: ProfileView) {
   const record = event.commit.record as Record;
@@ -29,9 +30,16 @@ export async function handleCheer (event: CommitCreateEvent<"app.bsky.feed.post"
   });
 }
 
-async function repostAndGenerate(userinfo: UserInfoGemini, event: CommitCreateEvent<"app.bsky.feed.post">): Promise<GeminiResponseResult> {
+async function repostAndGenerate(userinfo: UserInfoGemini, event: CommitCreateEvent<"app.bsky.feed.post">): Promise<GeminiResponseResult | undefined> {
   const uri = uniteDidNsidRkey(event.did, event.commit.collection, event.commit.rkey);
   const cid = String(event.commit.cid);
+
+  const judge = await judgeCheerSubject(userinfo);
+  if (!judge.result) {
+    console.log(`[INFO][${userinfo.follower.did}] judged as inappropriate post!`);
+    console.log(`[INFO] judge>>> ${judge.comment}`);
+    return undefined;
+  }
   
   await repost(uri, cid);
 

@@ -11,7 +11,7 @@ type TriggeredReplyHandlerOptions = {
   triggers: string[]; // 発火ワード一覧
   dbColumn: string;   // 更新するDBのカラム名（例: "is_u18"）
   dbValue: number | string; // 登録時にセットする値（例: 1）
-  generateText: GeminiResponseResult | ((userinfo: UserInfoGemini, event: CommitCreateEvent<"app.bsky.feed.post">) => Promise<GeminiResponseResult>); // 返信するテキスト(コールバック対応)
+  generateText: GeminiResponseResult | ((userinfo: UserInfoGemini, event: CommitCreateEvent<"app.bsky.feed.post">) => Promise<GeminiResponseResult | undefined>); // 返信するテキスト(コールバック対応)
   checkConditionsOR?: boolean; // 呼びかけ OR追加条件 (呼びかけ&&トリガーワード、または本条件を満たすと関数実行)
   checkConditionsAND?: boolean; // 呼びかけ AND追加条件（呼びかけ&&トリガーワード、かつ本条件を満たしてはじめて関数実行）
   disableDefaultCondition?: boolean; // 呼びかけの無効化。トリガーワードは常に有効
@@ -57,7 +57,7 @@ export const handleMode = async (
   }
 
   // ポスト&DB更新
-  let result: GeminiResponseResult;
+  let result: GeminiResponseResult | undefined;
   if (typeof options.generateText === "function") {
     if (!userinfo) throw new Error("userinfo is required for responseText function.");
     result = await options.generateText(userinfo, event);
@@ -65,15 +65,17 @@ export const handleMode = async (
     result = options.generateText;
   }
 
-  if (typeof result === "string") {
-    if (options.disableReply) {
-      await postContinuous(result);
-    } else {
-      await postContinuous(result, {uri, cid, record});
-    }
-  } else if (result.imageBlob) {
-    await postContinuous(result.text, {uri, cid, record}, {blob: result.imageBlob, alt: `Dear ${userinfo?.follower.displayName}, From 全肯定botたん`});
-  };
+  if (result !== undefined) { // generateTextがundefinedを返すのはSPAM判定時のみ
+    if (typeof result === "string") {
+      if (options.disableReply) {
+        await postContinuous(result);
+      } else {
+        await postContinuous(result, {uri, cid, record});
+      }
+    } else if (result.imageBlob) {
+      await postContinuous(result.text, {uri, cid, record}, {blob: result.imageBlob, alt: `Dear ${userinfo?.follower.displayName}, From 全肯定botたん`});
+    };
+  }
   db.updateDb(did, options.dbColumn, options.dbValue);
 
   console.log(`[INFO][${did}] exec mode: ${options.dbColumn}`)

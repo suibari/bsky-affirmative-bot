@@ -23,6 +23,7 @@ export type GeminiResponseResult = string | {
   imageBlob?: BlobRef;
 };
 
+// DJ mode
 export type GeminiSchemaRecommendedSong = {
   type: Type.ARRAY;
   items: {
@@ -50,6 +51,7 @@ export type GeminiRecommendation = [
   }
 ]
 
+// Reply
 export type GeminiSchemaWithScore = {
   type: Type.ARRAY;
   items: {
@@ -69,4 +71,26 @@ export type GeminiSchemaWithScore = {
 export type GeminiScore = {
   comment: string;
   score: number;
+}
+
+// Judge
+export type GeminiSchemaCheckCheer = {
+  type: Type.ARRAY,
+  items: {
+    type: Type.OBJECT,
+    properties: {
+      result: {
+        type: Type.BOOLEAN,
+      },
+      comment: {
+        type: Type.STRING,
+      }
+    },
+    propertyOrdering: ["result", "comment"],
+  }
+}
+
+export type GeminiJudgeResult = {
+  result: boolean;
+  comment: string;
 }
