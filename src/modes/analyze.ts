@@ -10,6 +10,8 @@ import { GeminiResponseResult, UserInfoGemini } from '../types.js';
 import { generateAnalyzeResult } from '../gemini/generateAnalyzeResult.js';
 import { textToImageBufferWithBackground } from '../util/canvas.js';
 import { getConcatPosts } from '../bsky/getConcatPosts.js';
+import { AtpAgent } from "@atproto/api";
+import { getPds } from '../bsky/getPds.js';
 
 export async function handleAnalyaze (event: CommitCreateEvent<"app.bsky.feed.post">, follower: ProfileView) {
   const record = event.commit.record as RecordPost;
@@ -44,7 +46,8 @@ async function getBlobWithAnalyze(userinfo: UserInfoGemini): Promise<GeminiRespo
   userinfo.posts = posts;
 
   // いいね収集
-  const responseLike = await agent.com.atproto.repo.listRecords({
+  const agentPDS = new AtpAgent({service: await getPds(userinfo.follower.did)});
+  const responseLike = await agentPDS.com.atproto.repo.listRecords({
     repo: userinfo.follower.did,
     collection: "app.bsky.feed.like",
     limit: 100,
