@@ -31,15 +31,24 @@ async function getBlobWithAnalyze(userinfo: UserInfoGemini): Promise<GeminiRespo
   `${userinfo.follower.displayName}, I analyzed your personality from your posts! Check the image. You can only do personality analysis once a week, so try again after some time!`;
 
   // ポスト収集
-  const response = await agent.getAuthorFeed({ 
+  const responsePost = await agent.getAuthorFeed({ 
     actor: userinfo.follower.did,
     limit: 100,
     filter: "posts_with_replies",
   });
-  const posts = response.data.feed
+  const posts = responsePost.data.feed
     .filter(post  => !post.reason) // リポスト除外
     .map(post => (post.post.record as Record).text);
   userinfo.posts = posts;
+
+  // いいね収集
+  const responseLike = await agent.getActorLikes({
+    actor: userinfo.follower.did,
+    limit: 100,
+  });
+  const likes = responseLike.data.feed
+    .map(like => (like.post.record as Record).text);
+  userinfo.likedByFollower = likes;
 
   const result = await generateAnalyzeResult(userinfo);
 
