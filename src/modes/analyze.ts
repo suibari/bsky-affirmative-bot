@@ -53,7 +53,7 @@ async function getBlobWithAnalyze(userinfo: UserInfoGemini): Promise<GeminiRespo
     limit: 100,
   });
   const uris = (responseLike.data.records as RecordList[])
-    .map(record => record.uri);
+    .map(record => (record.value as any).subject.uri);
   const likes = (await getConcatPosts(uris))
     .map(like => (like.record as RecordPost).text);
   userinfo.likedByFollower = likes;
