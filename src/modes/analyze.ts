@@ -1,4 +1,5 @@
-import { Record } from '@atproto/api/dist/client/types/app/bsky/feed/post';
+import { Record as RecordPost } from '@atproto/api/dist/client/types/app/bsky/feed/post';
+import { Record as RecordList } from '@atproto/api/dist/client/types/com/atproto/repo/listRecords';
 import { ProfileView } from "@atproto/api/dist/client/types/app/bsky/actor/defs";
 import { CommitCreateEvent } from "@skyware/jetstream";
 import { agent } from '../bsky/agent.js';
@@ -8,9 +9,10 @@ import { handleMode, isPast } from "./index.js";
 import { GeminiResponseResult, UserInfoGemini } from '../types.js';
 import { generateAnalyzeResult } from '../gemini/generateAnalyzeResult.js';
 import { textToImageBufferWithBackground } from '../util/canvas.js';
+import { getConcatPosts } from '../bsky/getConcatPosts.js';
 
 export async function handleAnalyaze (event: CommitCreateEvent<"app.bsky.feed.post">, follower: ProfileView) {
-  const record = event.commit.record as Record;
+  const record = event.commit.record as RecordPost;
 
   return await handleMode(event, {
     triggers: ANALYZE_TRIGGER,
@@ -38,16 +40,19 @@ async function getBlobWithAnalyze(userinfo: UserInfoGemini): Promise<GeminiRespo
   });
   const posts = responsePost.data.feed
     .filter(post  => !post.reason) // リポスト除外
-    .map(post => (post.post.record as Record).text);
+    .map(post => (post.post.record as RecordPost).text);
   userinfo.posts = posts;
 
   // いいね収集
-  const responseLike = await agent.getActorLikes({
-    actor: userinfo.follower.did,
+  const responseLike = await agent.com.atproto.repo.listRecords({
+    repo: userinfo.follower.did,
+    collection: "app.bsky.feed.like",
     limit: 100,
   });
-  const likes = responseLike.data.feed
-    .map(like => (like.post.record as Record).text);
+  const uris = (responseLike.data.records as RecordList[])
+    .map(record => record.uri);
+  const likes = (await getConcatPosts(uris))
+    .map(like => (like.record as RecordPost).text);
   userinfo.likedByFollower = likes;
 
   const result = await generateAnalyzeResult(userinfo);
