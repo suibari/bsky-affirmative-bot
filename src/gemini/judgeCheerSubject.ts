@@ -1,6 +1,6 @@
 import { PartListUnion, Type } from "@google/genai";
-import { MODEL_GEMINI, SYSTEM_INSTRUCTION } from "../config/index.js";
-import { GeminiJudgeResult, GeminiRecommendation, GeminiSchemaCheckCheer, UserInfoGemini } from "../types.js";
+import { MODEL_GEMINI } from "../config/index.js";
+import { GeminiJudgeResult, GeminiSchemaCheckCheer, UserInfoGemini } from "../types.js";
 import { gemini } from "./index.js";
 
 export async function judgeCheerSubject(userinfo: UserInfoGemini) {
@@ -26,7 +26,7 @@ export async function judgeCheerSubject(userinfo: UserInfoGemini) {
 resultに、拡散してよいならtrue, 拡散NGならfalseを出力してください。
 commentには、そう判断した理由を出力してください。
 ジャッジのポイントは以下です。
-* イラスト、音楽、ブログなどが含まれており、「ユーザの創作物の拡散」という目的にあっているか
+* イラスト、音楽、ブログ、撮影した写真などが含まれており、「ユーザの創作物の拡散」という目的にあっているか
 * 上記内容のないポストはNG
 * イラストで、あまりに直接的なR-18はNG(微エロくらいはOK)
 * 政治宗教などの活動はNG
