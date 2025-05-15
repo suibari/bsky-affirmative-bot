@@ -1,4 +1,7 @@
 # 全肯定botたん
+
+![bot header](https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:qcwhrvzx6wmi5hz775uyi6fh/bafkreic7dxnqovwoytjla37gav4ovphnhmlb3dwqdh3nfsmku4vygxqiia@jpeg)
+
 [全肯定botたん](https://bsky.app/profile/suibari-bot.bsky.social) は、フォロワーを全肯定するリプライを送るBluesky botです。
 感情分析および生成AIを活用し、フォロワーを励ますことを目的とします。
 

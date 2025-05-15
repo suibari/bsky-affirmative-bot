@@ -1,8 +1,8 @@
 # Zenkoutei Bot-tan
 
-[Zenkoutei Bot-tan (全肯定botたん, Affirmative bot)](https://bsky.app/profile/suibari-bot.bsky.social) is a Bluesky bot designed to send replies that completely affirm its followers. By leveraging sentiment analysis and generative AI, its goal is to encourage and uplift its followers.
+![bot header](https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:qcwhrvzx6wmi5hz775uyi6fh/bafkreicd74lb33ywyc54lzgqfyotfuzs55x2cnxztpob5ifg2nr4kiji2e@jpeg)
 
-This bot primarily processes posts written in Japanese.
+[Zenkoutei Bot-tan (全肯定botたん, Affirmative bot)](https://bsky.app/profile/suibari-bot.bsky.social) is a Bluesky bot designed to send replies that completely affirm its followers. By leveraging sentiment analysis and generative AI, its goal is to encourage and uplift its followers.
 
 ---
 
