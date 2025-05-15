@@ -103,42 +103,28 @@ function splitTextSmart(text: string, MAX_LENGTH: number) {
     let end = Math.min(start + MAX_LENGTH, text.length);
     let slice = text.slice(start, end);
 
-    // 条件を満たすようにカット位置を調整
-    const boundaryRegex = /[\s.,!?、。？！\n]/g; // 句読点やスペースを単語区切りとみなす
-    let lastValidCut = -1;
+    // 文字列の終端であればそのまま
+    if (end === text.length) {
+      parts.push(slice);
+      break;
+    }
 
-    // 単語途中や @# を避ける調整
-    for (let i = slice.length - 1; i > 0; i--) {
-      const char = slice[i];
-      const prevChar = slice[i - 1];
+    // 直後が英単語/＠/#の途中なら、手前で切るよう調整
+    const rest = text.slice(end); // 残りの文字列
+    const match = rest.match(/^([a-zA-Z0-9_]+|@[^\s]+|#[^\s]+)/);
 
-      // 途中に @ や # があったら、その前で切る
-      if (char.match(/\w/) && (prevChar === '@' || prevChar === '#')) {
-        lastValidCut = i - 1;
-        break;
-      }
+    if (match) {
+      const overlap = match[0].length;
 
-      // 英単語途中で切らない（直前の空白などまで戻る）
-      if (char.match(/\s/)) {
-        lastValidCut = i;
-        break;
-      }
-
-      // ツイート風に句読点・改行も区切りに使える
-      if (char.match(boundaryRegex)) {
-        lastValidCut = i + 1;
-        break;
+      // MAX_LENGTHで切ると途中になるため、安全な位置を探す
+      const lastSpace = slice.lastIndexOf(' ');
+      if (lastSpace > 0) {
+        slice = slice.slice(0, lastSpace);
+        end = start + lastSpace;
       }
     }
 
-    if (lastValidCut > 0) {
-      end = start + lastValidCut;
-    }
-
-    const segment = text.slice(start, end);
-    if (segment.trim() !== '') {
-      parts.push(segment);
-    }
+    parts.push(slice);
     start = end;
   }
 
