@@ -37,7 +37,7 @@ export async function parseEmbedPost(record: Record) {
     ) {
       image_embed_blob = (value_embed.embed as AppBskyEmbedImages.Main).images[0]?.image;
     }
-    image_embed = image_embed_blob ? `https://cdn.bsky.app/img/feed_fullsize/plain/${did_embed}/${image_embed_blob.ref}` : null;
+    image_embed = image_embed_blob ? `https://cdn.bsky.app/img/feed_thumbnail/plain/${did_embed}/${(image_embed_blob.ref as any).$link}` : null;
   } else if (embed.$type === 'app.bsky.embed.external') {
     uri_embed = embed.external.uri;
   }

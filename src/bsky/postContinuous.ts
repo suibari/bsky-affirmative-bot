@@ -19,11 +19,7 @@ export async function postContinuous(
   }
 ): Promise<void> {
   const MAX_LENGTH = 300;
-  const parts = [];
-
-  for (let i = 0; i < text.length; i += MAX_LENGTH) {
-    parts.push(text.slice(i, i + MAX_LENGTH));
-  }
+  const parts = splitTextSmart(text, MAX_LENGTH);
 
   let root: Main | undefined = undefined;
   let parentPost: Main | undefined = undefined;
@@ -97,4 +93,54 @@ export async function postContinuous(
       root = result;
     }
   }
+}
+
+function splitTextSmart(text: string, MAX_LENGTH: number) {
+  const parts = [];
+  let start = 0;
+
+  while (start < text.length) {
+    let end = Math.min(start + MAX_LENGTH, text.length);
+    let slice = text.slice(start, end);
+
+    // 条件を満たすようにカット位置を調整
+    const boundaryRegex = /[\s.,!?、。？！\n]/g; // 句読点やスペースを単語区切りとみなす
+    let lastValidCut = -1;
+
+    // 単語途中や @# を避ける調整
+    for (let i = slice.length - 1; i > 0; i--) {
+      const char = slice[i];
+      const prevChar = slice[i - 1];
+
+      // 途中に @ や # があったら、その前で切る
+      if (char.match(/\w/) && (prevChar === '@' || prevChar === '#')) {
+        lastValidCut = i - 1;
+        break;
+      }
+
+      // 英単語途中で切らない（直前の空白などまで戻る）
+      if (char.match(/\s/)) {
+        lastValidCut = i;
+        break;
+      }
+
+      // ツイート風に句読点・改行も区切りに使える
+      if (char.match(boundaryRegex)) {
+        lastValidCut = i + 1;
+        break;
+      }
+    }
+
+    if (lastValidCut > 0) {
+      end = start + lastValidCut;
+    }
+
+    const segment = text.slice(start, end);
+    if (segment.trim() !== '') {
+      parts.push(segment);
+    }
+    start = end;
+  }
+
+  return parts;
 }

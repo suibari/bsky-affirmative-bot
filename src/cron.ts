@@ -13,6 +13,8 @@ import { generateMorningGreets } from './gemini/generateMorningGreets.js';
 
   const text_bot = await generateMorningGreets();
 
-  await postContinuous(text_bot);
-  console.log("[INFO] posted morning greets.");
+  if (text_bot) {
+    await postContinuous(text_bot);
+    console.log("[INFO] posted morning greets.");
+  }
 })();

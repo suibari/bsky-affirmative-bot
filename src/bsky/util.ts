@@ -141,7 +141,7 @@ export function getImageUrl(did: string, embed: AppBskyEmbedImages.Main | AppBsk
   } else if (embed.$type === "app.bsky.embed.external") {
     const thumb = embed.external.thumb;
     if (thumb) {
-      image_url = `https://cdn.bsky.app/img/feed_fullsize/plain/${did}/${(thumb.ref as any).$link}`; // 回避策
+      image_url = `https://cdn.bsky.app/img/feed_thumbnail/plain/${did}/${(thumb.ref as any).$link}`; // 回避策
       mimeType = thumb.mimeType;
     }
   }

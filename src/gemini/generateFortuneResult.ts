@@ -3,7 +3,7 @@ import { generateSingleResponse, getRandomItems } from "./util.js";
 
 export async function generateFortuneResult(userinfo: UserInfoGemini): Promise<string> {
   const place_language = userinfo.langStr === "日本語" ? "日本" : "世界";
-  const part_language = `${userinfo.langStr}で回答は生成してください。`;
+  const part_language = `${userinfo.langStr}で出力してください。`;
   const category_main = ["日常", "冒険", "リラックス", "自己成長", "絆", "笑い", "チャレンジ", "創造性", "感謝"];
   const category_spot = ["観光地", "公共施設", "商業施設", "自然", "歴史的建造物", "テーマパーク", "文化施設", "アウトドアスポット", "イベント会場", "温泉地", "グルメスポット", "スポーツ施設", "特殊施設"];
   const category_food = ["和食", "洋食", "中華料理", "エスニック料理", "カレー", "焼肉", "鍋", "ラーメン", "スイーツ"];

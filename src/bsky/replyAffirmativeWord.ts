@@ -22,7 +22,7 @@ export async function replyAffermativeWord(follower: ProfileView, event: CommitC
 
   let image_url: string | undefined = undefined;
   let mimeType: string | undefined = undefined;
-  if (record.embed && record.embed.$type === "app.bsky.embed.images") {
+  if (record.embed) {
     ({image_url, mimeType} = getImageUrl(follower.did, record.embed as AppBskyEmbedImages.Main));
   }
 

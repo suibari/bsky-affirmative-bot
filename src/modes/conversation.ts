@@ -28,7 +28,7 @@ export async function handleConversation (event: CommitCreateEvent<"app.bsky.fee
   // 添付画像取得
   let image_url: string | undefined = undefined;
   let mimeType: string | undefined = undefined;
-  if (record.embed && record.embed.$type === "app.bsky.embed.images") {
+  if (record.embed) {
     ({image_url, mimeType} = getImageUrl(follower.did, record.embed as AppBskyEmbedImages.Main));
   }
 
