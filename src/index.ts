@@ -347,15 +347,17 @@ async function checkTotalScoreAndPost () {
     
     // ポスト
     const text_bot = await generateWhimsicalPost({
-      follower: response.data as ProfileView,
-      posts: [post],
-      langStr: "日本語"
+      topFollower: response.data as ProfileView,
+      topPost: post,
+      langStr: "日本語",
+      currentStatus: botBiothythmManager.getOutput,
     });
     postContinuous(text_bot);
     const text_bot_en = await generateWhimsicalPost({
-      follower: response.data as ProfileView,
-      posts: [post],
-      langStr: "英語"
+      topFollower: response.data as ProfileView,
+      topPost: post,
+      langStr: "英語",
+      currentStatus: botBiothythmManager.getOutput,
     });
     postContinuous(text_bot_en);
 
