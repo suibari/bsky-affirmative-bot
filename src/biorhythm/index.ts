@@ -1,0 +1,157 @@
+import eventsMorningWorkday from "../json/event_evening_workday.json";
+import eventsMorningDayoff from "../json/event_evening_dayoff.json";
+import eventsNoonWorkday from "../json/event_noon_workday.json";
+import eventsNoonDayoff from "../json/event_noon_dayoff.json";
+import eventsEveningWorkday from "../json/event_evening_workday.json";
+import eventsEveningDayoff from "../json/event_evening_dayoff.json";
+import eventsNight from "../json/event_night.json";
+import eventsMidnight from "../json/event_midnight.json";
+import { MODEL_GEMINI, SYSTEM_INSTRUCTION } from '../config';
+import { gemini } from '../gemini';
+
+type Status = 'WakeUp' | 'Study' | 'FreeTime' | 'Relax' | 'Sleep';
+const ENERGY_MAXIMUM = 10000;
+
+export class BiothythmManager {
+  private status: Status = 'Sleep';
+  private statusPrev: Status = 'Sleep';
+  private energy: number = 5000;
+  private energyPrev: number = 5000;
+  private timePrev: string = '';
+  private outputPrev: string = '';
+
+  // --- クラスメソッド ---
+  incEnergy0p1() { this.energy = Math.min(this.energy + 10, ENERGY_MAXIMUM); }
+  incEnergy0p5() { this.energy = Math.min(this.energy + 50, ENERGY_MAXIMUM); }
+  incEnergy1() { this.energy = Math.min(this.energy + 100, ENERGY_MAXIMUM); }
+  incEnergy2() { this.energy = Math.min(this.energy + 200, ENERGY_MAXIMUM); }
+  get getEnergy(): number { return this.energy / 100; }
+  get getOutput(): string { return this.outputPrev; }
+
+  // --- メインループ ---
+  async step() {
+    this.statusPrev = this.status;
+    this.energyPrev = this.energy;
+    this.timePrev = new Date().toISOString();
+
+    const now = new Date();
+    const hour = now.getHours();
+    const isWeekend = now.getDay() === 0 || now.getDay() === 6;
+
+    const newStatus = this.getNextStatus(hour, isWeekend);
+
+    // 状態変更（20%の確率で維持）
+    if (Math.random() >= 0.2) {
+      this.status = newStatus;
+    }
+
+    // エネルギー変動処理
+    this.handleEnergyByStatus();
+
+    // LLMプロンプトを生成
+    const prompt = this.buildPrompt(now.toISOString());
+
+    let isPost: boolean = false;
+    let output: string = "";
+    try {
+      if (this.energy >= 6000) {
+        const probability = Math.random() * ENERGY_MAXIMUM;
+        if (probability < this.energy) {
+          console.log(`$[INFO][BIORYTHM] post and decrease energy!`)
+          output = await this.generateStatus(prompt); // LLM出力取得
+          this.outputPrev = output;
+
+          // ポスト処理をここに追加（Geminiなど）
+          // await handleWhimsicalPost();
+          this.energy -= 5000;
+          isPost = true;
+        }
+      }
+
+      // ポスト条件を満たさなかった or ポストしなかった場合は、通常通り LLM 呼び出し（例：状態更新用）
+      if (!isPost) {
+        output = await this.generateStatus(prompt);
+        this.outputPrev = output;
+      }
+    } catch (e) {
+      // エラー時はスキップする
+      console.error(e);
+    }
+
+    // ログ出力
+    console.log(`[INFO][BIORYTHM] status: ${this.status}, energy: ${this.getEnergy}, action: ${output}`);
+    
+    // 次回スケジュール（5〜60分、開発環境では1分ごと）
+    const nextInterval = process.env.NODE_ENV === "development" ? 60 * 1000 : Math.floor(Math.random() * (60 - 5 + 1) + 5) * 60 * 1000;
+    setTimeout(() => this.step(), nextInterval);
+  }
+
+  private getNextStatus(hour: number, isWeekend: boolean): Status {
+    if (hour >= 6 && hour < 9) return 'WakeUp';
+    if (hour >= 9 && hour < 17) return isWeekend ? 'FreeTime' : 'Study';
+    if (hour >= 17 && hour < 19) return 'FreeTime';
+    if (hour >= 19 && hour < 23) return 'Relax';
+    return 'Sleep';
+  }
+
+  private handleEnergyByStatus() {
+    if (this.status !== this.statusPrev) {
+      // 遷移した場合だけ処理
+      if (this.status === 'WakeUp') {
+        this.energy = Math.min(this.energy + 2000, ENERGY_MAXIMUM);
+      } else if (this.status === 'Sleep') {
+        this.energy = Math.max(this.energy - 2000, 0);
+      }
+    }
+
+    // 状態にかかわらず、現在の行動によるランダム変動（継続状態でも発生）
+    if (this.status === 'Study') {
+      this.energy += Math.floor(Math.random() * 1100) - 500; // -500 ~ +500
+    } else if (this.status === 'FreeTime') {
+      this.energy += Math.floor(Math.random() * 900) + 200; // +200 ~ +1000
+    }
+
+    // 範囲を保証
+    this.energy = Math.max(0, Math.min(ENERGY_MAXIMUM, this.energy));
+  }
+
+  private buildPrompt(timeNow: string): string {
+    return `
+以下のキャラクターの行動を描写してほしいです。
+${SYSTEM_INSTRUCTION}
+このキャラクターが現在どんな気分でなにをしているか、前回の行動ももとにして、具体的に考えてください。
+結果は「あなたは～しています」という、AIに入力する平易なプロンプト文で出力してください。
+'WakeUp'のステータスの時、このキャラクターの起床時間です。以下を参考に、朝の支度から外出までの出来事を設定してください。
+${eventsMorningWorkday}${eventsMorningDayoff}
+'Study'のステータスの時、このキャラクターは学校で勉強しています。以下を参考に、学校での出来事を設定してください。
+${eventsNoonWorkday}${eventsEveningWorkday}
+'FreeTime'のステータスの時、このキャラクターは余暇を楽しんでいます。以下を参考に、街中や家での遊びを設定してください。
+${eventsNoonDayoff}${eventsEveningDayoff}
+'Relax'のステータスの時、このキャラクターはくつろいでいます。以下を参考に、テレビや読書などのリラックスできる出来事を設定してください。
+${eventsNight}
+'Sleep'のステータスの時、このキャラクターは就寝中です。行動はしなくてよいです。以下を参考に、夢を見ているならその内容を設定してください。
+${eventsMidnight}
+-----以下がキャラクターの状態-----
+・現在
+現在時刻：${timeNow}
+ステータス：${this.status}
+体力気力（0～100）：${this.getEnergy}
+・前回
+前回時刻：${this.timePrev}
+ステータス：${this.statusPrev}
+体力気力（0～100）：${this.energyPrev / 100}
+前回した行動：${this.outputPrev}
+`;
+  }
+
+  private async generateStatus(prompt: string): Promise<string> {
+    const response = await gemini.models.generateContent({
+      model: MODEL_GEMINI,
+      contents: prompt,
+    });
+    return response.text || "";
+  }
+}
+
+export const botBiothythmManager = new BiothythmManager();
+botBiothythmManager.step();

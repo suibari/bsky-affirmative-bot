@@ -25,6 +25,7 @@ import { follow } from './bsky/follow.js';
 import { TOTAL_SCORE_FOR_AUTONOMOUS } from './config/index.js';
 import { generateWhimsicalPost } from './gemini/generateWhimsicalPost.js';
 import { postContinuous } from './bsky/postContinuous.js';
+import { botBiothythmManager } from './biorhythm/index.js';
 
 // 起動時処理
 (async () => {
@@ -194,23 +195,38 @@ async function doReply(event: CommitCreateEvent<"app.bsky.feed.post">) {
 
         // 占いモード
         const isUranai = await handleFortune(event, follower);
-        if (isUranai) return;
+        if (isUranai) {
+          botBiothythmManager.incEnergy1();
+          return;
+        }
 
         // 分析モード
         const isAnalyze = await handleAnalyaze(event, follower);
-        if (isAnalyze) return;
+        if (isAnalyze) {
+          botBiothythmManager.incEnergy2();
+          return;
+        }
 
         // 応援モード
         const isCheer = await handleCheer(event, follower);
-        if (isCheer) return;
+        if (isCheer) {
+          botBiothythmManager.incEnergy2();
+          return;
+        }
 
-        // 応援モード
+        // DJモード
         const isDJ = await handleDJ(event, follower);
-        if (isDJ) return;
+        if (isDJ) {
+          botBiothythmManager.incEnergy0p5();
+          return;
+        }
 
         // 会話モード
         const isConversation = await handleConversation(event, follower);
-        if (isConversation) return;
+        if (isConversation) {
+          botBiothythmManager.incEnergy1();
+          return;
+        }
 
         // ==============
         // main
@@ -299,6 +315,9 @@ async function saveLike (event: CommitCreateEvent<"app.bsky.feed.like">) {
           rkey,
         });
         const text = (response.data.value as RecordPost).text;
+
+        // BioRhythm操作
+        botBiothythmManager.incEnergy0p1();
 
         // DB格納
         dbLikes.insertDb(did);
