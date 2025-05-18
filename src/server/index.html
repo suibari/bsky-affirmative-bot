@@ -10,19 +10,29 @@
 </head>
 <body>
   <h1>🤖 Botたんのきもち</h1>
-  <p><strong>Energy:</strong> <span id="energy">---</span></p>
-  <p><strong>Message:</strong> <span id="status">---</span></p>
+  <p><strong>元気:</strong> <span id="energy">---</span></p>
+  <p><strong>今の気分:</strong> <span id="mood">---</span></p>
+  <p><strong>いいねされた回数:</strong> <span id="likes">---</span></p>
+  <p><strong>全肯定した人数:</strong> <span id="affirmations">---</span></p>
+  <p><strong>占った回数:</strong> <span id="fortune">---</span></p>
+  <p><strong>応援した回数:</strong> <span id="cheer">---</span></p>
+  <p><strong>分析した回数:</strong> <span id="analysis">---</span></p>
+  <p><strong>DJした回数:</strong> <span id="dj">---</span></p>
+  <p>※毎日AM3時にリセット</p>
 
   <script>
-    const energyEl = document.getElementById('energy');
-    const statusEl = document.getElementById('status');
-
     const socket = new WebSocket(`ws://${location.host}`);
 
     socket.onmessage = (event) => {
       const data = JSON.parse(event.data);
-      energyEl.textContent = data.energy;
-      statusEl.textContent = data.status;
+      document.getElementById('energy').textContent = data.energy.toFixed(1);
+      document.getElementById('mood').textContent = data.mood || 'No Status';
+      document.getElementById('likes').textContent = data.dailyStats.likes;
+      document.getElementById('affirmations').textContent = data.dailyStats.affirmations;
+      document.getElementById('fortune').textContent = data.dailyStats.fortune;
+      document.getElementById('cheer').textContent = data.dailyStats.cheer;
+      document.getElementById('analysis').textContent = data.dailyStats.analysis;
+      document.getElementById('dj').textContent = data.dailyStats.dj;
     };
   </script>
 </body>

@@ -13,6 +13,20 @@ import EventEmitter from "events";
 import { startServer } from "../server";
 
 type Status = 'WakeUp' | 'Study' | 'FreeTime' | 'Relax' | 'Sleep';
+interface BotStat {
+  energy: number;
+  mood: string;
+  dailyStats: {
+    followers: number;
+    likes: number;
+    affirmations: number;
+    fortune: number;
+    cheer: number;
+    analysis: number;
+    dj: number;
+  }
+}
+
 const ENERGY_MAXIMUM = 10000;
 
 export class BiorhythmManager extends EventEmitter {
@@ -21,32 +35,96 @@ export class BiorhythmManager extends EventEmitter {
   private energy: number = 5000;
   private energyPrev: number = 5000;
   private timePrev: string = '';
-  private outputPrev: string = '';
+  private moodPrev: string = '';
+  private dailyStats = {
+    followers: 0,
+    likes: 0,
+    affirmations: new Set<string>(),
+    fortune: 0,
+    cheer: 0,
+    analysis: 0,
+    dj: 0,
+  }
 
-  // --- クラスメソッド ---
-  incEnergy0p1() { this.changeEnergy(10); }
-  incEnergy0p5() { this.changeEnergy(50); }
-  incEnergy1() { this.changeEnergy(100); }
-  incEnergy2() { this.changeEnergy(200); }
+  constructor() {
+    super();
+    this.scheduleDailyReset();
+  }
+
+  // --------
+  // メソッド
+  // --------
+  addLike() {
+    this.dailyStats.likes++;
+    this.emit('statsChange', this.getCurrentState());
+  }
+
+  addAffirmation(did: string) {
+    const sizeBefore = this.dailyStats.affirmations.size;
+    this.dailyStats.affirmations.add(did);
+    if (this.dailyStats.affirmations.size !== sizeBefore) {
+      this.emit('statsChange', this.getCurrentState());
+    }
+  }
+
+  addFortune() {
+    this.dailyStats.fortune++;
+    this.changeEnergy(100);
+    this.emit('statsChange', this.getCurrentState());
+  }
+
+  addCheer() {
+    this.dailyStats.cheer++;
+    this.changeEnergy(100);
+    this.emit('statsChange', this.getCurrentState());
+  }
+
+  addAnalysis() {
+    this.dailyStats.analysis++;
+    this.changeEnergy(200);
+    this.emit('statsChange', this.getCurrentState());
+  }
+
+  addDJ() {
+    this.dailyStats.dj++;
+    this.changeEnergy(50);
+    this.emit('statsChange', this.getCurrentState());
+  }
+
+  addConversation() {
+    this.dailyStats.dj++;
+    this.changeEnergy(50);
+    this.emit('statsChange', this.getCurrentState());
+  }
+
+  addFollower() {
+    this.dailyStats.followers++;
+    this.changeEnergy(100);
+    this.emit('statsChange', this.getCurrentState());
+  }
+
   get getEnergy(): number { return this.energy / 100; }
-  get getOutput(): string { return this.outputPrev; }
+  get getMood(): string { return this.moodPrev; }
 
-  private changeEnergy(amount: number) {
-    const newEnergy = Math.min(this.energy + amount, ENERGY_MAXIMUM);
-    if (newEnergy !== this.energy) {
-      this.energy = newEnergy;
-      this.emit('energyChange', this.energy / 100);
-    }
+  getCurrentState(): BotStat {
+    return {
+      energy: this.getEnergy,
+      mood: this.getMood,
+      dailyStats: {
+        followers: this.dailyStats.followers,
+        likes: this.dailyStats.likes,
+        affirmations: this.dailyStats.affirmations.size, // ← Set → 配列に変換
+        fortune: this.dailyStats.fortune,
+        cheer: this.dailyStats.cheer,
+        analysis: this.dailyStats.analysis,
+        dj: this.dailyStats.dj,
+      },
+    };
   }
 
-  private setOutput(newOutput: string) {
-    if (newOutput !== this.outputPrev) {
-      this.outputPrev = newOutput;
-      this.emit('statusChange', newOutput);
-    }
-  }
-
-  // --- メインループ ---
+  // --------
+  // メインループ
+  // --------
   async step() {
     this.statusPrev = this.status;
     this.energyPrev = this.energy;
@@ -96,7 +174,7 @@ export class BiorhythmManager extends EventEmitter {
     }
 
     // ログ出力
-    console.log(`[INFO][BIORYTHM] status: ${this.status}, energy: ${this.getEnergy}, action: ${this.getOutput}`);
+    console.log(`[INFO][BIORYTHM] status: ${this.status}, energy: ${this.getEnergy}, action: ${this.getMood}`);
     
     // 次回スケジュール（5〜60分、開発環境では1分ごと）
     const nextInterval = process.env.NODE_ENV === "development" ? 60 * 1000 : Math.floor(Math.random() * (60 - 5 + 1) + 5) * 60 * 1000;
@@ -157,7 +235,7 @@ ${eventsMidnight}
 前回時刻：${this.timePrev}
 ステータス：${this.statusPrev}
 体力気力（0～100）：${this.energyPrev / 100}
-前回した行動：${this.outputPrev}
+前回した行動：${this.moodPrev}
 `;
   }
 
@@ -167,6 +245,51 @@ ${eventsMidnight}
       contents: prompt,
     });
     return response.text || "";
+  }
+
+  private changeEnergy(amount: number) {
+    const newEnergy = Math.min(this.energy + amount, ENERGY_MAXIMUM);
+    if (newEnergy !== this.energy) {
+      this.energy = newEnergy;
+      this.emit('statsChange', this.getCurrentState());
+    }
+  }
+
+  private setOutput(newOutput: string) {
+    if (newOutput !== this.moodPrev) {
+      this.moodPrev = newOutput;
+      this.emit('statsChange', this.getCurrentState());
+    }
+  }
+
+  private scheduleDailyReset() {
+    const now = new Date();
+    const nextReset = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate() + (now.getHours() >= 3 ? 1 : 0),
+      3, 0, 0, 0
+    );
+    const delay = nextReset.getTime() - now.getTime();
+
+    setTimeout(() => {
+      this.resetDailyStats();
+      setInterval(() => this.resetDailyStats(), 24 * 60 * 60 * 1000);
+    }, delay);
+  }
+
+  private resetDailyStats() {
+    this.dailyStats = {
+      followers: 0,
+      likes: 0,
+      affirmations: new Set<string>(),
+      fortune: 0,
+      cheer: 0,
+      analysis: 0,
+      dj: 0,
+    };
+    this.emit('statsChange', this.getCurrentState());
+    console.log('[INFO] Daily stats reset at 03:00');
   }
 }
 

@@ -67,6 +67,7 @@ async function doFollowAndGreet(event: CommitCreateEvent<"app.bsky.graph.follow"
   if (isExist) return;
 
   console.log(`[INFO] detect new follower: ${did} !!`);
+  botBiothythmManager.addFollower();
 
   // 1. followers更新をawaitで確実に待つ
   try {
@@ -196,35 +197,35 @@ async function doReply(event: CommitCreateEvent<"app.bsky.feed.post">) {
         // 占いモード
         const isUranai = await handleFortune(event, follower);
         if (isUranai) {
-          botBiothythmManager.incEnergy1();
+          botBiothythmManager.addFortune();
           return;
         }
 
         // 分析モード
         const isAnalyze = await handleAnalyaze(event, follower);
         if (isAnalyze) {
-          botBiothythmManager.incEnergy2();
+          botBiothythmManager.addAnalysis();
           return;
         }
 
         // 応援モード
         const isCheer = await handleCheer(event, follower);
         if (isCheer) {
-          botBiothythmManager.incEnergy2();
+          botBiothythmManager.addCheer();
           return;
         }
 
         // DJモード
         const isDJ = await handleDJ(event, follower);
         if (isDJ) {
-          botBiothythmManager.incEnergy0p5();
+          botBiothythmManager.addDJ();
           return;
         }
 
         // 会話モード
         const isConversation = await handleConversation(event, follower);
         if (isConversation) {
-          botBiothythmManager.incEnergy1();
+          botBiothythmManager.addConversation();
           return;
         }
 
@@ -263,6 +264,9 @@ async function doReply(event: CommitCreateEvent<"app.bsky.feed.post">) {
                 dbPosts.updateDb(did, "post", (event.commit.record as RecordPost).text);
                 dbPosts.updateDb(did, "score", result.score);
               }
+
+              // 全肯定した人数加算
+              botBiothythmManager.addAffirmation(did);
 
               // DB更新
               db.insertOrUpdateDb(did);
@@ -312,7 +316,7 @@ async function saveLike (event: CommitCreateEvent<"app.bsky.feed.like">) {
         const text = (response.data.value as RecordPost).text;
 
         // BioRhythm操作
-        botBiothythmManager.incEnergy0p1();
+        botBiothythmManager.addLike();
 
         // DB格納
         dbLikes.insertDb(did);
@@ -341,14 +345,14 @@ export async function doWhimsicalPost () {
     topFollower: response.data as ProfileView,
     topPost: post,
     langStr: "日本語",
-    currentStatus: botBiothythmManager.getOutput,
+    currentStatus: botBiothythmManager.getMood,
   });
   postContinuous(text_bot);
   const text_bot_en = await generateWhimsicalPost({
     topFollower: response.data as ProfileView,
     topPost: post,
     langStr: "英語",
-    currentStatus: botBiothythmManager.getOutput,
+    currentStatus: botBiothythmManager.getMood,
   });
   postContinuous(text_bot_en);
 
