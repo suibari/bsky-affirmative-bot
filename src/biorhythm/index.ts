@@ -9,11 +9,13 @@ import eventsMidnight from "../json/event_midnight.json";
 import { MODEL_GEMINI, SYSTEM_INSTRUCTION } from '../config';
 import { gemini } from '../gemini';
 import { doWhimsicalPost } from "..";
+import EventEmitter from "events";
+import { startServer } from "../server";
 
 type Status = 'WakeUp' | 'Study' | 'FreeTime' | 'Relax' | 'Sleep';
 const ENERGY_MAXIMUM = 10000;
 
-export class BiothythmManager {
+export class BiorhythmManager extends EventEmitter {
   private status: Status = 'Sleep';
   private statusPrev: Status = 'Sleep';
   private energy: number = 5000;
@@ -22,12 +24,27 @@ export class BiothythmManager {
   private outputPrev: string = '';
 
   // --- クラスメソッド ---
-  incEnergy0p1() { this.energy = Math.min(this.energy + 10, ENERGY_MAXIMUM); }
-  incEnergy0p5() { this.energy = Math.min(this.energy + 50, ENERGY_MAXIMUM); }
-  incEnergy1() { this.energy = Math.min(this.energy + 100, ENERGY_MAXIMUM); }
-  incEnergy2() { this.energy = Math.min(this.energy + 200, ENERGY_MAXIMUM); }
+  incEnergy0p1() { this.changeEnergy(10); }
+  incEnergy0p5() { this.changeEnergy(50); }
+  incEnergy1() { this.changeEnergy(100); }
+  incEnergy2() { this.changeEnergy(200); }
   get getEnergy(): number { return this.energy / 100; }
   get getOutput(): string { return this.outputPrev; }
+
+  private changeEnergy(amount: number) {
+    const newEnergy = Math.min(this.energy + amount, ENERGY_MAXIMUM);
+    if (newEnergy !== this.energy) {
+      this.energy = newEnergy;
+      this.emit('energyChange', this.energy / 100);
+    }
+  }
+
+  private setOutput(newOutput: string) {
+    if (newOutput !== this.outputPrev) {
+      this.outputPrev = newOutput;
+      this.emit('statusChange', newOutput);
+    }
+  }
 
   // --- メインループ ---
   async step() {
@@ -53,14 +70,13 @@ export class BiothythmManager {
     const prompt = this.buildPrompt(now.toISOString());
 
     let isPost: boolean = false;
-    let output: string = "";
     try {
       if (this.energy >= 6000) {
         const probability = Math.random() * ENERGY_MAXIMUM;
         if (probability < this.energy) {
           console.log(`$[INFO][BIORYTHM] post and decrease energy!`)
-          output = await this.generateStatus(prompt); // LLM出力取得
-          this.outputPrev = output;
+          const newOutput = await this.generateStatus(prompt); // LLM出力取得
+          this.setOutput(newOutput);
 
           // ポスト処理をここに追加（Geminiなど）
           await doWhimsicalPost();
@@ -71,8 +87,8 @@ export class BiothythmManager {
 
       // ポスト条件を満たさなかった or ポストしなかった場合は、通常通り LLM 呼び出し（例：状態更新用）
       if (!isPost) {
-        output = await this.generateStatus(prompt);
-        this.outputPrev = output;
+        const newOutput = await this.generateStatus(prompt); // LLM出力取得
+        this.setOutput(newOutput);
       }
     } catch (e) {
       // エラー時はスキップする
@@ -80,7 +96,7 @@ export class BiothythmManager {
     }
 
     // ログ出力
-    console.log(`[INFO][BIORYTHM] status: ${this.status}, energy: ${this.getEnergy}, action: ${output}`);
+    console.log(`[INFO][BIORYTHM] status: ${this.status}, energy: ${this.getEnergy}, action: ${this.getOutput}`);
     
     // 次回スケジュール（5〜60分、開発環境では1分ごと）
     const nextInterval = process.env.NODE_ENV === "development" ? 60 * 1000 : Math.floor(Math.random() * (60 - 5 + 1) + 5) * 60 * 1000;
@@ -154,5 +170,6 @@ ${eventsMidnight}
   }
 }
 
-export const botBiothythmManager = new BiothythmManager();
+export const botBiothythmManager = new BiorhythmManager();
 botBiothythmManager.step();
+startServer(botBiothythmManager);

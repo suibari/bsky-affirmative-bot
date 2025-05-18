@@ -7,6 +7,7 @@
     "axios": "^1.7.9",
     "canvas": "^3.1.0",
     "dotenv": "^16.4.5",
+    "express": "^5.1.0",
     "node-fetch": "^2.7.0",
     "open-graph-scraper": "^6.10.0",
     "rss-parser": "^3.13.0",
@@ -26,6 +27,7 @@
   "description": "",
   "devDependencies": {
     "@types/async-retry": "^1.4.9",
+    "@types/express": "^5.0.2",
     "@types/node": "^22.15.12",
     "@types/sqlite3": "^3.1.11",
     "@types/ws": "^8.18.1",

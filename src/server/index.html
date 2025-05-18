@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>Botたんの部屋</title>
+  <style>
+    body { font-family: sans-serif; padding: 2em; }
+    h1 { color: #007acc; }
+  </style>
+</head>
+<body>
+  <h1>🤖 Botたんのきもち</h1>
+  <p><strong>Energy:</strong> <span id="energy">---</span></p>
+  <p><strong>Message:</strong> <span id="status">---</span></p>
+
+  <script>
+    const energyEl = document.getElementById('energy');
+    const statusEl = document.getElementById('status');
+
+    const socket = new WebSocket(`ws://${location.host}`);
+
+    socket.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      energyEl.textContent = data.energy;
+      statusEl.textContent = data.status;
+    };
+  </script>
+</body>
+</html>
