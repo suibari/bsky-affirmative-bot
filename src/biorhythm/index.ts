@@ -8,6 +8,7 @@ import eventsNight from "../json/event_night.json";
 import eventsMidnight from "../json/event_midnight.json";
 import { MODEL_GEMINI, SYSTEM_INSTRUCTION } from '../config';
 import { gemini } from '../gemini';
+import { doWhimsicalPost } from "..";
 
 type Status = 'WakeUp' | 'Study' | 'FreeTime' | 'Relax' | 'Sleep';
 const ENERGY_MAXIMUM = 10000;
@@ -62,7 +63,7 @@ export class BiothythmManager {
           this.outputPrev = output;
 
           // ポスト処理をここに追加（Geminiなど）
-          // await handleWhimsicalPost();
+          await doWhimsicalPost();
           this.energy -= 5000;
           isPost = true;
         }

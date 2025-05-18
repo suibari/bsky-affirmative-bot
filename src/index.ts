@@ -256,17 +256,12 @@ async function doReply(event: CommitCreateEvent<"app.bsky.feed.post">) {
               const result = await replyAffermativeWord(follower, event, is_u18 === 1);
 
               // ポストスコア記憶
-              if (result.score && !follower.displayName?.toLowerCase().includes("bot")) { // botアカウントは集計対象としない
-                dbPosts.insertDb(did);
-                const prevScore = Number(await dbPosts.selectDb(did, "score") || 0);
-                if (prevScore < result.score) {
-                  // ポスト更新
-                  dbPosts.updateDb(did, "post", (event.commit.record as RecordPost).text);
-                  dbPosts.updateDb(did, "score", result.score);
-                }
-                totalScoreByBot += result.score;
-
-                await checkTotalScoreAndPost();
+              dbPosts.insertDb(did);
+              const prevScore = Number(await dbPosts.selectDb(did, "score") || 0);
+              if (result.score && prevScore < result.score) {
+                // お気に入りポスト更新
+                dbPosts.updateDb(did, "post", (event.commit.record as RecordPost).text);
+                dbPosts.updateDb(did, "score", result.score);
               }
 
               // DB更新
@@ -334,36 +329,31 @@ async function saveLike (event: CommitCreateEvent<"app.bsky.feed.like">) {
   }
 }
 
-async function checkTotalScoreAndPost () {
-  if (totalScoreByBot > TOTAL_SCORE_FOR_AUTONOMOUS) {
-    // スコアクリア
-    totalScoreByBot = 0;
+export async function doWhimsicalPost () {
+  // スコアTOPのfollowerを取得
+  const row = await dbPosts.getHighestScore();
+  const did = row.did;
+  const post = row.post;
+  const response = await agent.getProfile({actor: did});
+  
+  // ポスト
+  const text_bot = await generateWhimsicalPost({
+    topFollower: response.data as ProfileView,
+    topPost: post,
+    langStr: "日本語",
+    currentStatus: botBiothythmManager.getOutput,
+  });
+  postContinuous(text_bot);
+  const text_bot_en = await generateWhimsicalPost({
+    topFollower: response.data as ProfileView,
+    topPost: post,
+    langStr: "英語",
+    currentStatus: botBiothythmManager.getOutput,
+  });
+  postContinuous(text_bot_en);
 
-    // スコアTOPのfollowerを取得
-    const row = await dbPosts.getHighestScore();
-    const did = row.did;
-    const post = row.post;
-    const response = await agent.getProfile({actor: did});
-    
-    // ポスト
-    const text_bot = await generateWhimsicalPost({
-      topFollower: response.data as ProfileView,
-      topPost: post,
-      langStr: "日本語",
-      currentStatus: botBiothythmManager.getOutput,
-    });
-    postContinuous(text_bot);
-    const text_bot_en = await generateWhimsicalPost({
-      topFollower: response.data as ProfileView,
-      topPost: post,
-      langStr: "英語",
-      currentStatus: botBiothythmManager.getOutput,
-    });
-    postContinuous(text_bot_en);
-
-    // テーブルクリア
-    dbPosts.clearAllRows();
-  }
+  // テーブルクリア
+  dbPosts.clearAllRows();
 }
 
 // 1時間おきにセッション確認、Rate Limit Pointを出力
