@@ -56,6 +56,7 @@ export class BiorhythmManager extends EventEmitter {
   // --------
   addLike() {
     this.dailyStats.likes++;
+    this.changeEnergy(10);
     this.emit('statsChange', this.getCurrentState());
   }
 
@@ -149,9 +150,9 @@ export class BiorhythmManager extends EventEmitter {
 
     let isPost: boolean = false;
     try {
-      if (this.energy >= 6000) {
-        const probability = Math.random() * ENERGY_MAXIMUM;
-        if (probability < this.energy) {
+      if (this.getEnergy >= 60) {
+        const probability = Math.random() * 100;
+        if (probability < this.getEnergy) {
           console.log(`$[INFO][BIORYTHM] post and decrease energy!`)
           const newOutput = await this.generateStatus(prompt); // LLM出力取得
           this.setOutput(newOutput);
