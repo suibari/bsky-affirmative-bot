@@ -25,7 +25,7 @@
   <p>※毎日AM3時にリセット</p>
 
   <script>
-    const socket = new WebSocket(`ws://${location.host}`);
+    const socket = new WebSocket(`wss://${location.host}`);
 
     socket.onmessage = (event) => {
       const data = JSON.parse(event.data);
