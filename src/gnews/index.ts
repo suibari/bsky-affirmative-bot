@@ -2,9 +2,14 @@ import Parser from 'rss-parser';
 
 const parser = new Parser();
 
-export async function fetchJapaneseNews() {
+/**
+ * ニュースフェッチ
+ * @param locale "ja"で日本、"en"でUSA
+ * @returns 
+ */
+export async function fetchNews(locale: string) {
   const feed = await parser.parseURL(
-    'https://news.google.com/rss?hl=ja&gl=JP&ceid=JP:ja'
+    `https://news.google.com/rss?hl=${locale}`
   );
 
   // for (const item of feed.items) {

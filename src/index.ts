@@ -277,22 +277,26 @@ async function saveLike (event: CommitCreateEvent<"app.bsky.feed.like">) {
   const record = event.commit.record as RecordLike;
   const {did: subjectDid, nsid, rkey} = splitUri(record.subject.uri);
 
-  // 自分宛以外のlikeを除外
-  if (subjectDid !== process.env.BSKY_DID) return;
-
-  console.log(`[INFO] detect liked by: ${did}`);
-
-  // likeされた元ポストの取得
-  const response = await agent.com.atproto.repo.getRecord({
-    repo: subjectDid,
-    collection: nsid,
-    rkey,
-  });
-  const text = (response.data.value as RecordPost).text;
-
-  // DB格納
-  dbLikes.insertDb(did);
-  dbLikes.updateDb(did, "liked_post", text);
+  try {  
+    // 自分宛以外のlikeを除外
+    if (subjectDid !== process.env.BSKY_DID) return;
+  
+    console.log(`[INFO] detect liked by: ${did}`);
+  
+    // likeされた元ポストの取得
+    const response = await agent.com.atproto.repo.getRecord({
+      repo: subjectDid,
+      collection: nsid,
+      rkey,
+    });
+    const text = (response.data.value as RecordPost).text;
+  
+    // DB格納
+    dbLikes.insertDb(did);
+    dbLikes.updateDb(did, "liked_post", text);
+  } catch (e) {
+    console.error(`[ERROR][${did}] like process failed: ${e}`);
+  }
 }
 
 async function checkTotalScoreAndPost () {

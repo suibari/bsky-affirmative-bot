@@ -24,17 +24,7 @@ export async function generateRecommendedSong(userinfo: UserInfoGemini) {
     }
   }
 
-  const prompt = 
-`
-以下のユーザが流す曲をリクエストしています。
-ユーザの指定する雰囲気に合った曲を選曲してあげてください。
-アニメやゲームのネタがあった場合、それにあった曲を選曲してあげてください。
-実在しない曲は挙げてはいけません。
-${part_language}
------この下がユーザからのメッセージです-----
-ユーザ名: ${userinfo.follower.displayName}
-文章: ${userinfo.posts?.[0] || ""}`;
-
+  const prompt = PROMPT_DJ(userinfo);
   const contents: PartListUnion = prompt;
   const response = await gemini.models.generateContent({
     model: MODEL_GEMINI,
@@ -49,3 +39,23 @@ ${part_language}
 
   return result[0];
 }
+
+const PROMPT_DJ = (userinfo: UserInfoGemini) => {
+  return userinfo.langStr === "日本語" ?
+`以下のユーザが流す曲をリクエストしています。
+ユーザの指定する雰囲気に合った曲を選曲してあげてください。
+アニメやゲームのネタがあった場合、それにあった曲を選曲してあげてください。
+実在しない曲は挙げてはいけません。
+-----この下がユーザからのメッセージです-----
+ユーザ名: ${userinfo.follower.displayName}
+文章: ${userinfo.posts?.[0] || ""}
+` :
+`The following user is requesting a song.
+Please select a song that matches the atmosphere the user specifies.
+If the user mentions any anime or game references, please choose a song related to those.
+Do not suggest any songs that do not actually exist.  
+The output should be in ${userinfo.langStr}.
+-----Below is the user's message-----  
+Username: ${userinfo.follower.displayName}  
+Message: ${userinfo.posts?.[0] || ""}
+`};
