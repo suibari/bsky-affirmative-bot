@@ -13,6 +13,8 @@ export function startServer(bot: BiorhythmManager) {
   const server = http.createServer(app);
   const wss = new WebSocketServer({ server });
 
+  app.use('/public', express.static(path.join(__dirname, 'public')));
+
   app.get('/', (_req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
   });

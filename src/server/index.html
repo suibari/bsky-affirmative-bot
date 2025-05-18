@@ -5,11 +5,15 @@
   <title>Botたんの部屋</title>
   <style>
     body { font-family: sans-serif; padding: 2em; }
-    h1 { color: #007acc; }
+    h1 { color: #4bb7ff; }
   </style>
 </head>
 <body>
-  <h1>🤖 Botたんのきもち</h1>
+  <h1>
+    <img src="./public/bot_icon.png" alt="Botたんアイコン" style="width: 5%; vertical-align: middle; margin-right: 0.5em;">
+    Botたんのきもち
+  </h1>
+  <p><strong>現在時刻(JST):</strong> <span id="jst-time">--:--:--</span></p>
   <p><strong>元気:</strong> <span id="energy">---</span></p>
   <p><strong>今の気分:</strong> <span id="mood">---</span></p>
   <p><strong>いいねされた回数:</strong> <span id="likes">---</span></p>
@@ -34,6 +38,22 @@
       document.getElementById('analysis').textContent = data.dailyStats.analysis;
       document.getElementById('dj').textContent = data.dailyStats.dj;
     };
+
+    function updateJSTTime() {
+      const now = new Date();
+
+      // JSTに変換（日本はUTC+9）
+      const jst = new Date(now.getTime() + (9 * 60 * 60 * 1000));
+      const timeString = jst.toISOString().substr(11, 8); // "HH:MM:SS"
+
+      document.getElementById('jst-time').textContent = timeString;
+    }
+
+    // 初回表示
+    updateJSTTime();
+
+    // 1秒ごとに更新
+    setInterval(updateJSTTime, 1000);
   </script>
 </body>
 </html>
