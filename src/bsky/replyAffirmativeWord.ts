@@ -10,7 +10,11 @@ import { RPD } from "../gemini/index.js";
 import { GeminiScore } from "../types.js";
 import { dbLikes } from "../db/index.js";
 
-export async function replyAffermativeWord(follower: ProfileView, event: CommitCreateEvent<"app.bsky.feed.post">, isU18mode = false) {
+export async function replyAffermativeWord(
+  follower: ProfileView,
+  event: CommitCreateEvent<"app.bsky.feed.post">,
+  isU18mode = false
+) {
   const record = event.commit.record as Record;
   const langStr = getLangStr(record.langs);
   const cid = event.commit.cid;
@@ -23,7 +27,7 @@ export async function replyAffermativeWord(follower: ProfileView, event: CommitC
   let image_url: string | undefined = undefined;
   let mimeType: string | undefined = undefined;
   if (record.embed) {
-    ({image_url, mimeType} = getImageUrl(follower.did, record.embed as AppBskyEmbedImages.Main));
+    ({ image_url, mimeType } = getImageUrl(follower.did, record.embed as AppBskyEmbedImages.Main));
   }
 
   if (process.env.NODE_ENV === "development") {
@@ -34,29 +38,40 @@ export async function replyAffermativeWord(follower: ProfileView, event: CommitC
 
   // AIを使うか判定
   if (RPD.checkMod() && !isU18mode) {
-    // ユーザからのいいねがあれば取得し、row削除
-    const likedPost = await dbLikes.selectDb(follower.did, "liked_post");
-    if (likedPost) {
-      dbLikes.deleteRow(follower.did);
-    }
+    try {
+      const likedPost = await dbLikes.selectDb(follower.did, "liked_post");
+      if (likedPost) {
+        dbLikes.deleteRow(follower.did);
+      }
 
-    result = await generateAffirmativeWord({
-      follower,
-      langStr,
-      posts: [record.text],
-      likedByFollower: likedPost,
-      image_url,
-      image_mimeType: mimeType,
-    });
-    text_bot = result.comment;
-    RPD.add();
+      result = await generateAffirmativeWord({
+        follower,
+        langStr,
+        posts: [record.text],
+        likedByFollower: likedPost,
+        image_url,
+        image_mimeType: mimeType,
+      });
+
+      text_bot = result.comment;
+      RPD.add();
+    } catch (e: any) {
+      if (e.message?.includes("429")) {
+        console.warn("[WARN] Gemini fetch failed due to billing error, falling back to random word.");
+      } else {
+        console.error("[ERROR] Gemini fetch failed: ", e);
+      }
+
+      text_bot = await getRandomWordByNegaposi(text_user, langStr);
+      text_bot = text_bot.replace("${name}", follower.displayName ?? "");
+    }
   } else {
     text_bot = await getRandomWordByNegaposi(text_user, langStr);
     text_bot = text_bot.replace("${name}", follower.displayName ?? "");
   }
 
   // ポスト
-  await postContinuous(text_bot, {uri, cid, record});
+  await postContinuous(text_bot, { uri, cid, record });
 
-  return {text: text_bot, score: result?.score};
+  return { text: text_bot, score: result?.score };
 }
