@@ -43,10 +43,8 @@ import { postContinuous } from './bsky/postContinuous.js';
 })();
 // global.fetch = require('node-fetch'); // for less than node-v17
 
-const SPAN_FOLLOW_CHECK = 2 * 60 * 1000; // 2min
 const OFFSET_UTC_TO_JST = 9 * 60 * 60 * 1000; // offset: +9h (to JST from UTC <SQlite3>)
 const MINUTES_THRD_RESPONSE = 10 * 60 * 1000; // 10min
-const THRD_FOLLOW_BY_FOLLOWER = 2.5;
 let followers: ProfileView[] = [];
 let totalScoreByBot: number = 0;
 
@@ -124,146 +122,155 @@ async function doFollowAndGreet(event: CommitCreateEvent<"app.bsky.graph.follow"
 //   - 前回反応日時から5分経過していたら反応
 //   - 全肯定リプライ
 async function doReply(event: CommitCreateEvent<"app.bsky.feed.post">) {
+  const did = String(event.did);
+  const record = event.commit.record as RecordPost;
+
   try {
-    const did = String(event.did);
-    const record = event.commit.record as RecordPost;
-
-    // ==============
-    // follower filter
-    // ==============
-    // 対象フォロワーの情報を取得
-    const follower = followers.find(follower => follower.did === did);
-    if (!follower) {
-      // フォロワーではないポストなので無視
-      // console.warn(`[WARNING] No follower found for DID: ${did}`);
-      return;
-    }
-
-    // ==============
-    // spam filter
-    // ==============
-    const text = record.text;
-    const donate_word = ["donate", "donation", "donating", "gofund.me", "paypal.me"];
-    // check text
-    const isIncludedDonate = donate_word.some(elem => 
-      text.toLowerCase().includes(elem.toLowerCase())
-    );
-    if (isIncludedDonate) {
-      return;
-    }
-    // parse embed
-    if (record.embed) {
-      const {text_embed, uri_embed, image_embed} = await parseEmbedPost(record);
-      // check embed text
-      const isIncludedDonateQuote = 
-        donate_word.some(elem => 
-          text_embed?.toLowerCase().includes(elem.toLowerCase())
-        ) || 
-        donate_word.some(elem =>
-          uri_embed?.toLowerCase().includes(elem.toLowerCase())
-        );
-      if (isIncludedDonateQuote) {
-        return;
-      }
-    }
-    // check label
-    const labelsForbidden = ["spam"];
-    const {data} = await agent.getProfile({actor: did});
-    if (data.labels) {
-      for (const label of data.labels) {
-        if (labelsForbidden.some(elem => elem === label.val)) {
+    retry(
+      async () => {
+        // ==============
+        // follower filter
+        // ==============
+        // 対象フォロワーの情報を取得
+        const follower = followers.find(follower => follower.did === did);
+        if (!follower) {
+          // フォロワーではないポストなので無視
+          // console.warn(`[WARNING] No follower found for DID: ${did}`);
           return;
         }
-      }
-    }
 
-    // ==============
-    // detect mode
-    // ==============
-    // 定型文モード解除
-    const isReleaseU18 = await handleU18Release(event)
-    if (isReleaseU18) return;
-    
-    // 定型文モード
-    const isRegisterU18 = await handleU18Register(event)
-    if (isRegisterU18) return;
-
-    // リプ頻度調整モード
-    const isRegisterFreq = await handleFreq(event, follower);
-    if (isRegisterFreq) return;
-
-    // 占いモード
-    const isUranai = await handleFortune(event, follower);
-    if (isUranai) return;
-
-    // 分析モード
-    const isAnalyze = await handleAnalyaze(event, follower);
-    if (isAnalyze) return;
-
-    // 応援モード
-    const isCheer = await handleCheer(event, follower);
-    if (isCheer) return;
-
-    // 応援モード
-    const isDJ = await handleDJ(event, follower);
-    if (isDJ) return;
-
-    // 会話モード
-    const isConversation = await handleConversation(event, follower);
-    if (isConversation) return;
-
-    // ==============
-    // main
-    // ==============
-    // フィルタリング: リプライでない、かつメンションでない投稿を対象とする
-    if (!record.reply && !isMention(record)) {
-
-      // 前回反応日時の取得
-      const postedAt = new Date(record.createdAt);
-      const updatedAt = new Date(String(await db.selectDb(did, "updated_at")));
-      const updatedAtJst = new Date(updatedAt.getTime() + OFFSET_UTC_TO_JST);
-
-      // 時間判定
-      const isPast = (postedAt.getTime() - updatedAtJst.getTime() > MINUTES_THRD_RESPONSE);
-
-      // 確立判定
-      const user_freq = await db.selectDb(did, "reply_freq");
-      const isValidFreq = isJudgeByFreq(user_freq !== null ? Number(user_freq) : 100); // フォロワーだがレコードにないユーザーであるため、通過させる
-
-      if (isPast && isValidFreq) {
-        try {
-          // U18情報をDBから取得
-          const is_u18 = Number(await db.selectDb(did, "is_u18"));
-
-          // 新しい投稿の検出とリプライ処理
-          console.log(`[INFO][${did}] New post !!`);
-          const result = await replyAffermativeWord(follower, event, is_u18 === 1);
-
-          // ポストスコア記憶
-          if (result.score && !follower.displayName?.toLowerCase().includes("bot")) { // botアカウントは集計対象としない
-            dbPosts.insertDb(did);
-            const prevScore = Number(await dbPosts.selectDb(did, "score") || 0);
-            if (prevScore < result.score) {
-              // ポスト更新
-              dbPosts.updateDb(did, "post", (event.commit.record as RecordPost).text);
-              dbPosts.updateDb(did, "score", result.score);
-            }
-            totalScoreByBot += result.score;
-
-            await checkTotalScoreAndPost();
-          }
-
-          // DB更新
-          db.insertOrUpdateDb(did);
-        } catch (replyError) {
-          console.error(`[ERROR][${did}] Failed to reply or update DB:`, replyError);
+        // ==============
+        // spam filter
+        // ==============
+        const text = record.text;
+        const donate_word = ["donate", "donation", "donating", "gofund.me", "paypal.me"];
+        // check text
+        const isIncludedDonate = donate_word.some(elem => 
+          text.toLowerCase().includes(elem.toLowerCase())
+        );
+        if (isIncludedDonate) {
+          return;
         }
-      } else {
-        console.log(`[INFO][${did}] Ignored post, past:${isPast}/freq:${isValidFreq}`);
+        // parse embed
+        if (record.embed) {
+          const {text_embed, uri_embed, image_embed} = await parseEmbedPost(record);
+          // check embed text
+          const isIncludedDonateQuote = 
+            donate_word.some(elem => 
+              text_embed?.toLowerCase().includes(elem.toLowerCase())
+            ) || 
+            donate_word.some(elem =>
+              uri_embed?.toLowerCase().includes(elem.toLowerCase())
+            );
+          if (isIncludedDonateQuote) {
+            return;
+          }
+        }
+        // check label
+        const labelsForbidden = ["spam"];
+        const {data} = await agent.getProfile({actor: did});
+        if (data.labels) {
+          for (const label of data.labels) {
+            if (labelsForbidden.some(elem => elem === label.val)) {
+              return;
+            }
+          }
+        }
+
+        // ==============
+        // detect mode
+        // ==============
+        // 定型文モード解除
+        const isReleaseU18 = await handleU18Release(event)
+        if (isReleaseU18) return;
+        
+        // 定型文モード
+        const isRegisterU18 = await handleU18Register(event)
+        if (isRegisterU18) return;
+
+        // リプ頻度調整モード
+        const isRegisterFreq = await handleFreq(event, follower);
+        if (isRegisterFreq) return;
+
+        // 占いモード
+        const isUranai = await handleFortune(event, follower);
+        if (isUranai) return;
+
+        // 分析モード
+        const isAnalyze = await handleAnalyaze(event, follower);
+        if (isAnalyze) return;
+
+        // 応援モード
+        const isCheer = await handleCheer(event, follower);
+        if (isCheer) return;
+
+        // 応援モード
+        const isDJ = await handleDJ(event, follower);
+        if (isDJ) return;
+
+        // 会話モード
+        const isConversation = await handleConversation(event, follower);
+        if (isConversation) return;
+
+        // ==============
+        // main
+        // ==============
+        // フィルタリング: リプライでない、かつメンションでない投稿を対象とする
+        if (!record.reply && !isMention(record)) {
+
+          // 前回反応日時の取得
+          const postedAt = new Date(record.createdAt);
+          const updatedAt = new Date(String(await db.selectDb(did, "updated_at")));
+          const updatedAtJst = new Date(updatedAt.getTime() + OFFSET_UTC_TO_JST);
+
+          // 時間判定
+          const isPast = (postedAt.getTime() - updatedAtJst.getTime() > MINUTES_THRD_RESPONSE);
+
+          // 確立判定
+          const user_freq = await db.selectDb(did, "reply_freq");
+          const isValidFreq = isJudgeByFreq(user_freq !== null ? Number(user_freq) : 100); // フォロワーだがレコードにないユーザーであるため、通過させる
+
+          if (isPast && isValidFreq) {
+            try {
+              // U18情報をDBから取得
+              const is_u18 = Number(await db.selectDb(did, "is_u18"));
+
+              // 新しい投稿の検出とリプライ処理
+              console.log(`[INFO][${did}] New post !!`);
+              const result = await replyAffermativeWord(follower, event, is_u18 === 1);
+
+              // ポストスコア記憶
+              if (result.score && !follower.displayName?.toLowerCase().includes("bot")) { // botアカウントは集計対象としない
+                dbPosts.insertDb(did);
+                const prevScore = Number(await dbPosts.selectDb(did, "score") || 0);
+                if (prevScore < result.score) {
+                  // ポスト更新
+                  dbPosts.updateDb(did, "post", (event.commit.record as RecordPost).text);
+                  dbPosts.updateDb(did, "score", result.score);
+                }
+                totalScoreByBot += result.score;
+
+                await checkTotalScoreAndPost();
+              }
+
+              // DB更新
+              db.insertOrUpdateDb(did);
+            } catch (replyError) {
+              console.error(`[ERROR][${did}] Failed to reply or update DB:`, replyError);
+            }
+          } else {
+            console.log(`[INFO][${did}] Ignored post, past:${isPast}/freq:${isValidFreq}`);
+          }
+        } else {
+          console.log(`[INFO][${did}] Ignored post, reply or mention`);
+        }
+      },{
+        retries: 3,
+        onRetry: (err, attempt) => {
+          console.warn(`[WARN] Retry attempt ${attempt} to doReply:`, err);
+        },
       }
-    } else {
-      console.log(`[INFO][${did}] Ignored post, reply or mention`);
-    }
+    )
   } catch (eventError) {
     console.error(`[ERROR] Failed to process incoming event:`, eventError);
   }
@@ -277,23 +284,32 @@ async function saveLike (event: CommitCreateEvent<"app.bsky.feed.like">) {
   const record = event.commit.record as RecordLike;
   const {did: subjectDid, nsid, rkey} = splitUri(record.subject.uri);
 
-  try {  
-    // 自分宛以外のlikeを除外
-    if (subjectDid !== process.env.BSKY_DID) return;
-  
-    console.log(`[INFO] detect liked by: ${did}`);
-  
-    // likeされた元ポストの取得
-    const response = await agent.com.atproto.repo.getRecord({
-      repo: subjectDid,
-      collection: nsid,
-      rkey,
-    });
-    const text = (response.data.value as RecordPost).text;
-  
-    // DB格納
-    dbLikes.insertDb(did);
-    dbLikes.updateDb(did, "liked_post", text);
+  try {
+    retry(
+      async () => {
+        // 自分宛以外のlikeを除外
+        if (subjectDid !== process.env.BSKY_DID) return;
+          
+        console.log(`[INFO] detect liked by: ${did}`);
+
+        // likeされた元ポストの取得
+        const response = await agent.com.atproto.repo.getRecord({
+          repo: subjectDid,
+          collection: nsid,
+          rkey,
+        });
+        const text = (response.data.value as RecordPost).text;
+
+        // DB格納
+        dbLikes.insertDb(did);
+        dbLikes.updateDb(did, "liked_post", text);
+      },{
+        retries: 3,
+        onRetry: (err, attempt) => {
+          console.warn(`[WARN] Retry attempt ${attempt} to saveLike:`, err);
+        }
+      }
+    )
   } catch (e) {
     console.error(`[ERROR][${did}] like process failed: ${e}`);
   }
