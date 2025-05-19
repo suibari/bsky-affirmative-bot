@@ -155,7 +155,7 @@ export class BiorhythmManager extends EventEmitter {
 
     let isPost: boolean = false;
     try {
-      if ((this.getEnergy >= 60) && (newStatus !== "Sleep")) {
+      if (((this.getEnergy >= 60) && (newStatus !== "Sleep")) || (process.env.NODE_ENV === "development")) {
         const probability = Math.random() * 100;
         if (probability < this.getEnergy) {
           console.log(`$[INFO][BIORYTHM] post and decrease energy!`)

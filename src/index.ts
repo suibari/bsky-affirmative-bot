@@ -355,14 +355,14 @@ export async function doWhimsicalPost () {
     langStr: "日本語",
     currentMood: botBiothythmManager.getMood,
   });
-  postContinuous(text_bot);
+  await postContinuous(text_bot);
   const text_bot_en = await generateWhimsicalPost({
     topFollower: topFollower ?? undefined,
     topPost: post,
     langStr: "英語",
     currentMood: botBiothythmManager.getMood,
   });
-  postContinuous(text_bot_en);
+  await postContinuous(text_bot_en);
 
   // テーブルクリア
   dbPosts.clearAllRows();

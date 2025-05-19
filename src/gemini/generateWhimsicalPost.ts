@@ -1,5 +1,4 @@
 import { ProfileView } from "@atproto/api/dist/client/types/app/bsky/actor/defs.js";
-import { UserInfoGemini } from "../types.js";
 import { generateSingleResponse, getFullDateAndTimeString, getRandomItems, getWhatDay } from "./util.js";
 import { fetchNews } from "../gnews/index.js";
 
@@ -54,20 +53,22 @@ const PROMPT_WHIMSICAL_WANT_PART = async (params: {topFollower?: ProfileView, to
     * 今日のポジティブニュースの紹介：${(await fetchNews("ja")).map(article => article.title)}
     ${params.topFollower && params.topPost ?
     `* これまで見ていたポストの中で面白かった以下のポストの紹介。具体的に面白かったポイントを言ってください。
-      以下がユーザ名およびポストです。
+      以下がユーザ名、ハンドル名、ポストです。ハンドル名は、( @handle )というようにスペースを前後に入れてアットマークをつけてください。
       -----ユーザ名とポスト-----
       ユーザ名: ${params.topFollower.displayName}
+      ハンドル名: ${params.topFollower.handle}
       ポスト内容: ${params.topPost || ""}` : ""
     }
     ` :
     `
-    * Introduce a piece of what day it is today: ${getWhatDay()}
+    * Introduce a piece of what day it is today in Japan: ${getWhatDay()}
     * Introduce a piece of positive news for today: ${(await fetchNews("en")).map(article => article.title)}
     ${params.topFollower && params.topPost ?
     `* Introduce the following post that you found interesting among the ones you've seen. Be specific about what you found interesting.
-      Here is the username and the post content:
+      Here is the username, handle and the post content. To enter a handle name, enter an @sign followed by a space ( @handle ):
       ----- Username and Post -----
       Username: ${params.topFollower.displayName}
+      handle: ${params.topFollower.handle}
       Post content: ${params.topPost || ""}` : ""
     }
     `;
@@ -82,10 +83,10 @@ const PROMPT_INTRO_BOT_FEATURE = (langStr: string) => {
     "あなたが持っている「DJ」機能の紹介：あなたがユーザにおすすめの曲を選ぶ。「DJお願い」とリプすればできる。",
     "あなたが持っている「応援」機能の紹介：ユーザの作ったものをあなたがみんなにお知らせする。「#全肯定応援団」のタグをつければできる。",
   ] : [
-    'Introducing the Fortune Telling feature you have. You can get your fortune told once a day. Just reply "Fortune"',
-    'Introducing the Personality Analysis feature you have. You can get a personality diagnosis once a week. Just reply "Analyze me."',
-    'Introducing the DJ feature you have. You choose songs you recommend to users. Just reply "DJ, please"',
-    'Introducing the Cheering feature you have. You let everyone know what users have made. Just add the tag "#SuiBotCheerQquad"',
+    "Introducing the Fortune Telling feature you have. You can get your fortune told once a day by replying \"Fortune\"",
+    "Introducing the Personality Analysis feature you have. You can get a personality diagnosis once a week by replying \"Analyze me\"",
+    "Introducing the DJ feature you have. You choose songs you recommend to users by replying \"DJ, please\"",
+    "Introducing the Cheering feature you have. You let everyone know what users have made by adding the tag \"#SuiBotCheerQquad\"",
   ]
   return getRandomItems(features, 1);
 }
