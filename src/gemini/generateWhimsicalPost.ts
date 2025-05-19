@@ -7,55 +7,47 @@ export async function generateWhimsicalPost(params: {
   topFollower?: ProfileView,
   topPost?: string,
   langStr: string,
-  currentStatus: string,
+  currentMood: string,
 }) {
   const prompt = await PROMPT_WHIMSICAL_POST(params);
   const response = await generateSingleResponse(prompt);
   
-  let result: string = response.text || "";
-  if (params.topFollower) {
-    result += "@" + params.topFollower.handle;  
-  }
-
-  return result;
+  return response.text || "";
 }
 
 const PROMPT_WHIMSICAL_POST = async (params: {
   topFollower?: ProfileView,
   topPost?: string,
   langStr: string,
-  currentStatus: string,
+  currentMood: string,
 }) => {
   return params.langStr === "日本語" ?
 `現在、${getFullDateAndTimeString()}です。
 あなたの気まぐれでSNSに投稿する文章をこれから生成します。
-最大500文字以内とします。
+文章は最大500文字以内とします。
 文章には以下を含めてください。
 [MUST: 必ず含める]
 * フォロワーへの挨拶
-* この時間にあなたは次の気分・状態であること：${params.currentStatus}
-[WANT: あなたが一番面白いと思うものをいずれか1つだけ含める]
+* あなたが次の気分・状態であることを、一言で説明。文章をそのまま出力せず、要約してください：${params.currentMood}
+[WANT: あなたが一番面白いと思うものを**いずれか1つだけ**含める]
 ${await PROMPT_WHIMSICAL_WANT_PART(params)}
 [MUST: 必ず含める]
-${PROMPT_INTRO_BOT_FEATURE}
+${PROMPT_INTRO_BOT_FEATURE("日本語")}
 ` :
 `The current date and time is ${getFullDateAndTimeString()}.  
 You are going to write a whimsical social media post.
-The output should be in ${params.langStr}.
-characters aer At most 500.
+The output should be in **English**, and should be at most 500 characters.
 Please make sure your post includes the following:
 [MUST: includes all of the following]
 * A friendly greeting to your followers
-* A mention that the following event happened around this time: ${params.currentStatus}
-[WANT: ideally include the thing you're most interested in right now]
+* Explain your current mood/state in a single phrase. Do not repeat the input text directly—summarize it: ${params.currentMood}
+[WANT: ideally include the thing you're **most** interested in right now]
 ${await PROMPT_WHIMSICAL_WANT_PART(params)}
 [MUST: includes all of the following]
-${PROMPT_INTRO_BOT_FEATURE}
+${PROMPT_INTRO_BOT_FEATURE("英語")}
 `};
 
 const PROMPT_WHIMSICAL_WANT_PART = async (params: {topFollower?: ProfileView, topPost?: string, langStr: string}) => {
-  const now = new Date();
-  const hour = now.getHours();
   const prompt = params.langStr === "日本語" ?
     `
     * 今日は何の日か紹介：${getWhatDay()}

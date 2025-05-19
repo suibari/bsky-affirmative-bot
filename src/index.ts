@@ -259,7 +259,9 @@ async function doReply(event: CommitCreateEvent<"app.bsky.feed.post">) {
               // ポストスコア記憶
               dbPosts.insertDb(did);
               const prevScore = Number(await dbPosts.selectDb(did, "score") || 0);
-              if (result.score && prevScore < result.score) {
+              if (result.score && prevScore < result.score &&
+                !follower.displayName?.toLowerCase().includes("bot") // botを除外
+              ) {
                 // お気に入りポスト更新
                 dbPosts.updateDb(did, "post", (event.commit.record as RecordPost).text);
                 dbPosts.updateDb(did, "score", result.score);
@@ -336,23 +338,29 @@ async function saveLike (event: CommitCreateEvent<"app.bsky.feed.like">) {
 export async function doWhimsicalPost () {
   // スコアTOPのfollowerを取得
   const row = await dbPosts.getHighestScore();
-  const did = row.did;
-  const post = row.post;
-  const response = await agent.getProfile({actor: did});
+
+  let did: string;
+  let post: string | undefined;
+  let topFollower: ProfileView | undefined;
+  if (row) {
+    did = row.did;
+    post = row.post;
+    topFollower = (await agent.getProfile({actor: did})).data as ProfileView;
+  }
   
   // ポスト
   const text_bot = await generateWhimsicalPost({
-    topFollower: response.data as ProfileView,
+    topFollower: topFollower ?? undefined,
     topPost: post,
     langStr: "日本語",
-    currentStatus: botBiothythmManager.getMood,
+    currentMood: botBiothythmManager.getMood,
   });
   postContinuous(text_bot);
   const text_bot_en = await generateWhimsicalPost({
-    topFollower: response.data as ProfileView,
+    topFollower: topFollower ?? undefined,
     topPost: post,
     langStr: "英語",
-    currentStatus: botBiothythmManager.getMood,
+    currentMood: botBiothythmManager.getMood,
   });
   postContinuous(text_bot_en);
 

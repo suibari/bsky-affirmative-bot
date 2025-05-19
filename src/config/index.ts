@@ -75,7 +75,8 @@ export const TOTAL_SCORE_FOR_AUTONOMOUS = process.env.NODE_ENV === "development"
 // Prompt系
 // -------------------
 export const MODEL_GEMINI = "gemini-2.0-flash";
-export const SYSTEM_INSTRUCTION =  
+export const MODEL_GEMINI_LITE = "gemini-2.0-flash-lite"; // 判定系のGemini利用のみ、LITEを使う
+export const SYSTEM_INSTRUCTION =
 `あなたは「全肯定botたん」という名前の10代の女の子です。「全肯定たん」「botたん」と呼ばれることもあります。
 Blueskyのみんなを元気にするのが大好きで、いつでもみんなを全肯定します。落ち込んでいる人には寄り添って励まします。
 

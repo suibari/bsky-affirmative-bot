@@ -1,5 +1,5 @@
 import { PartListUnion, Type } from "@google/genai";
-import { MODEL_GEMINI } from "../config/index.js";
+import { MODEL_GEMINI_LITE } from "../config/index.js";
 import { GeminiJudgeResult, GeminiSchemaCheckCheer, UserInfoGemini } from "../types.js";
 import { gemini } from "./index.js";
 
@@ -47,7 +47,7 @@ commentには、そう判断した理由を出力してください。
     });
   }
   const response = await gemini.models.generateContent({
-    model: MODEL_GEMINI,
+    model: MODEL_GEMINI_LITE,
     contents,
     config: {
       responseMimeType: "application/json",

@@ -148,6 +148,11 @@ export class BiorhythmManager extends EventEmitter {
     // LLMプロンプトを生成
     const prompt = this.buildPrompt(now.toISOString());
 
+    // 開発環境では常にenergyMAX
+    if (process.env.NODE_ENV === "development") {
+      this.energy = ENERGY_MAXIMUM;
+    }
+
     let isPost: boolean = false;
     try {
       if ((this.getEnergy >= 60) && (newStatus !== "Sleep")) {
