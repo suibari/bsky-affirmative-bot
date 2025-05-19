@@ -11,23 +11,25 @@ export async function generateFortuneResult(userinfo: UserInfoGemini): Promise<s
   const category_anime = ["バトル", "恋愛", "ファンタジー", "日常系", "スポーツ", "SF", "ホラー", "コメディ", "ロボット", "歴史"];
   const category_movie = ["アクション", "コメディ", "ドラマ", "ファンタジー", "ホラー", "ミュージカル", "サスペンス", "アニメ", "ドキュメンタリー", "恋愛"];
   const category_music = ["ポップ", "ロック", "ジャズ", "クラシック", "EDM", "ヒップホップ", "R&B", "レゲエ", "カントリー", "インストゥルメンタル"];
+  const category_animal = ["肉食", "草食", "夜行性", "昼行性", "飛行", "水生", "爬虫類", "哺乳類", "昆虫", "群れで行動", "単独行動"];
   const part_prompt_luckys = [
-    `* ラッキースポットは、${place_language}にある、${getRandomItems(category_spot, 2)}の中で、具体的な名称をランダムに選ぶこと。`,
-    `* ラッキーフードは、${getRandomItems(category_food, 2)}をあわせもつ料理の具体的な名称をランダムに選ぶこと。`,
-    `* ラッキーゲームは、${getRandomItems(category_game, 2)}をあわせもつ${place_language}のゲームの具体的な名称をランダムに選ぶこと。`,
-    `* ラッキーアニメは、${getRandomItems(category_anime, 2)}の要素をあわせもつアニメの具体的な名称をランダムに選ぶこと。`,
-    `* ラッキームービーは、${getRandomItems(category_movie, 2)}の要素をあわせもつ映画の具体的な名称をランダムに選ぶこと。`,
-    `* ラッキーミュージックは、${getRandomItems(category_music, 2)}の要素をあわせもつ${place_language}の楽曲の具体的な名称をランダムに選ぶこと。`,
+    `* ラッキースポットは、${place_language}にある、${getRandomItems(category_spot, 2)}の中で、具体的な名称をランダムに選ぶこと。そのスポットを選んだ理由も合わせて説明してください。`,
+    `* ラッキーフードは、${getRandomItems(category_food, 2)}をあわせもつ料理の具体的な名称をランダムに選ぶこと。その料理を選んだ理由も合わせて説明してください。`,
+    `* ラッキーゲームは、${getRandomItems(category_game, 2)}をあわせもつ${place_language}のゲームの具体的な名称をランダムに選ぶこと。そのゲームを選んだ理由も合わせて説明してください。`,
+    `* ラッキーアニメは、${getRandomItems(category_anime, 2)}の要素をあわせもつアニメの具体的な名称をランダムに選ぶこと。そのアニメを選んだ理由も合わせて説明してください。`,
+    `* ラッキームービーは、${getRandomItems(category_movie, 2)}の要素をあわせもつ映画の具体的な名称をランダムに選ぶこと。その映画を選んだ理由も合わせて説明してください。`,
+    `* ラッキーミュージックは、${getRandomItems(category_music, 2)}の要素をあわせもつ${place_language}の楽曲の具体的な名称（およびアーティスト）をランダムに選ぶこと。その楽曲を選んだ理由も合わせて説明してください。`,
+    `* ラッキーアニマルは、${getRandomItems(category_animal, 2)}の要素をあわせもつ動物の具体的な名称をランダムに選ぶこと。その動物を選んだ理由も合わせて説明してください。`,
   ];
 
   const prompt =
 `占いをしてください。
 ${part_language}
-出力は200~300文字とし、占いは男女関係なく楽しめるようにしてください。
 占い結果を以下の条件に基づいて生成してください。
+最大500文字としてください。
 * 占いテーマは${getRandomItems(category_main, 2)}です。2つのテーマを合わせたアドバイスをしてください。
 * 占い結果は、「最高」などの最上級表現を使わないこと。
-${getRandomItems(part_prompt_luckys, 2)}
+${getRandomItems(part_prompt_luckys, 3)}
 悪い内容が一切含まれないようにしてください。
 以下がユーザ名です。
 -----
