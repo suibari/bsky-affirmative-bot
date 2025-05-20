@@ -198,9 +198,7 @@ export class BiorhythmManager extends EventEmitter {
   private handleEnergyByStatus() {
     if (this.status !== this.statusPrev) {
       // 遷移した場合だけ処理
-      if (this.status === 'WakeUp') {
-        this.energy = Math.min(this.energy + 2000, ENERGY_MAXIMUM);
-      } else if (this.status === 'Sleep') {
+      if (this.status === 'Sleep') {
         this.energy = Math.max(this.energy - 2000, 0);
       }
     }

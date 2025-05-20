@@ -22,8 +22,7 @@ import { handleCheer } from './modes/cheer.js';
 import { handleDJ } from './modes/dj.js';
 import retry from 'async-retry';
 import { follow } from './bsky/follow.js';
-import { TOTAL_SCORE_FOR_AUTONOMOUS } from './config/index.js';
-import { generateWhimsicalPost } from './gemini/generateWhimsicalPost.js';
+import { whimsicalPostGen } from './gemini/generateWhimsicalPost.js';
 import { postContinuous } from './bsky/postContinuous.js';
 import { botBiothythmManager } from './biorhythm/index.js';
 
@@ -349,14 +348,14 @@ export async function doWhimsicalPost () {
   }
   
   // ポスト
-  const text_bot = await generateWhimsicalPost({
+  const text_bot = await whimsicalPostGen.generate({
     topFollower: topFollower ?? undefined,
     topPost: post,
     langStr: "日本語",
     currentMood: botBiothythmManager.getMood,
   });
   await postContinuous(text_bot);
-  const text_bot_en = await generateWhimsicalPost({
+  const text_bot_en = await whimsicalPostGen.generate({
     topFollower: topFollower ?? undefined,
     topPost: post,
     langStr: "英語",
