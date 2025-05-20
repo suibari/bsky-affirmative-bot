@@ -1,10 +1,15 @@
 import { PartListUnion, Type } from "@google/genai";
 import { gemini } from ".";
 import { MODEL_GEMINI, SYSTEM_INSTRUCTION } from "../config";
-import { GeminiSchemaWithScore, GeminiScore, UserInfoGemini } from "../types";
+import { UserInfoGemini } from "../types";
 import rawWhatday from '../json/anniversary.json' assert { type: 'json' };
 import { WhatDayMap } from '../types.js';
 const whatday: WhatDayMap = rawWhatday;
+
+type GeminiScore = {
+  comment: string;
+  score: number;
+}
 
 export function getRandomItems(array: string[], count: number) {
   if (count > array.length) {
@@ -54,7 +59,7 @@ export async function generateSingleResponse (prompt: string, userinfo?: UserInf
  */
 export async function generateSingleResponseWithScore (prompt: string, userinfo?: UserInfoGemini) {
   const contents: PartListUnion = [prompt];
-  const responseSchema: GeminiSchemaWithScore = {
+  const responseSchema = {
     type: Type.ARRAY,
     items: {
       type: Type.OBJECT,

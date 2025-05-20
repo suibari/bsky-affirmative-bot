@@ -7,9 +7,23 @@ import { DJ_TRIGGER } from '../config/index.js';
 import { generateRecommendedSong } from "../gemini/generateRecommendedSong.js";
 import { GeminiResponseResult, UserInfoGemini } from "../types.js";
 import { searchYoutubeLink } from "../youtube/index.js";
+import { agent } from "../bsky/agent.js";
 
 export async function handleDJ (event: CommitCreateEvent<"app.bsky.feed.post">, follower: ProfileView) {
   const record = event.commit.record as Record;
+
+  // ポスト収集
+  const response = await agent.getAuthorFeed({ 
+    actor: follower.did,
+    limit: 100,
+    filter: "posts_with_replies",
+  });
+  const posts = response.data.feed
+    .filter(post  => !post.reason) // リポスト除外
+    .map(post => (post.post.record as Record).text);
+
+  // 0要素目にDJリクエストポスト、1要素目以降に過去ポストをセット
+  posts.unshift(record.text);
 
   return await handleMode(event, {
     triggers: DJ_TRIGGER,
@@ -20,7 +34,7 @@ export async function handleDJ (event: CommitCreateEvent<"app.bsky.feed.post">, 
   },
   {
     follower,
-    posts: [record.text],
+    posts,
     langStr: getLangStr(record.langs),
   });
 }

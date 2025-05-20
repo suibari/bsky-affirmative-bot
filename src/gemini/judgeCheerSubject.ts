@@ -1,10 +1,15 @@
 import { PartListUnion, Type } from "@google/genai";
 import { MODEL_GEMINI_LITE } from "../config/index.js";
-import { GeminiJudgeResult, GeminiSchemaCheckCheer, UserInfoGemini } from "../types.js";
+import { UserInfoGemini } from "../types.js";
 import { gemini } from "./index.js";
 
+type GeminiJudgeResult = {
+  result: boolean;
+  comment: string;
+}
+
 export async function judgeCheerSubject(userinfo: UserInfoGemini) {
-  const SCHEMA_CHECKCHEER: GeminiSchemaCheckCheer = {
+  const SCHEMA_CHECKCHEER = {
     type: Type.ARRAY,
     items: {
       type: Type.OBJECT,

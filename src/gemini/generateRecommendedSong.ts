@@ -1,11 +1,18 @@
 import { PartListUnion, Type } from "@google/genai";
 import { MODEL_GEMINI, SYSTEM_INSTRUCTION } from "../config/index.js";
-import { GeminiRecommendation, GeminiSchemaRecommendedSong, UserInfoGemini } from "../types.js";
+import { UserInfoGemini } from "../types.js";
 import { gemini } from "./index.js";
 
+type GeminiRecommendation = [
+  {
+    title: string;
+    artist: string;
+    comment: string;
+  }
+]
+
 export async function generateRecommendedSong(userinfo: UserInfoGemini) {
-  const part_language = `${userinfo.langStr === "日本語" ? "日本語" : "英語"}で回答は生成してください。`;
-  const SCHEMA_DJBOT: GeminiSchemaRecommendedSong = {
+  const SCHEMA_DJBOT = {
     type: Type.ARRAY,
     items: {
       type: Type.OBJECT,
@@ -41,21 +48,26 @@ export async function generateRecommendedSong(userinfo: UserInfoGemini) {
 }
 
 const PROMPT_DJ = (userinfo: UserInfoGemini) => {
+  const requestPost = userinfo.posts?.[0];
+  const pastPosts = (userinfo.posts && userinfo.posts.length > 1) ? userinfo.posts?.slice(1) : undefined;
+
   return userinfo.langStr === "日本語" ?
 `以下のユーザが流す曲をリクエストしています。
 ユーザの指定する雰囲気に合った曲を選曲してあげてください。
 アニメやゲームのネタがあった場合、それにあった曲を選曲してあげてください。
 実在しない曲は挙げてはいけません。
------この下がユーザからのメッセージです-----
+選曲の際には過去のユーザのポストも参考にしてください: ${pastPosts}
+-----この下がユーザからのリクエストです-----
 ユーザ名: ${userinfo.follower.displayName}
-文章: ${userinfo.posts?.[0] || ""}
+リクエスト: ${requestPost}
 ` :
 `The following user is requesting a song.
 Please select a song that matches the atmosphere the user specifies.
 If the user mentions any anime or game references, please choose a song related to those.
-Do not suggest any songs that do not actually exist.  
+Do not suggest any songs that do not actually exist.
+When choosing songs, please refer to past user posts: ${pastPosts}
 The output should be in ${userinfo.langStr}.
------Below is the user's message-----  
+-----Below is the user's request-----  
 Username: ${userinfo.follower.displayName}  
-Message: ${userinfo.posts?.[0] || ""}
+Request: ${requestPost}
 `};
