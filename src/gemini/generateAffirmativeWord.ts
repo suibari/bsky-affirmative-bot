@@ -25,8 +25,7 @@ ${userinfo.likedByFollower ? `ユーザが次のあなたの投稿をイイネ�
 * score:
 あなたの考えでユーザからの投稿について点数をつけてください。点数は0から100までです。
 あなたが好きな話題や面白いと感じた話題は高得点、苦手な話題やつまらないと感じた話題は低い得点とします。
-今日は以下の日なので、これらのテーマには加点してください。
-${getWhatDay()}
+**AIイラストは投稿数が多いので多様化のために減点するようにしてください。**
 現在の最新ニュースは以下なので、これらのテーマには加点してください。(ただし苦手な話題であれば加点は不要です)
 ${(await fetchNews("ja")).map(article => article.title)}
 commentにはこのscoreが出力されないようにしてください。
@@ -47,10 +46,7 @@ Do **not** include any information that reveals or implies the score.
 Assign a score from 0 to 100 based on your personal impression of the user's post.  
 Higher scores should reflect topics you personally enjoy or find interesting.  
 Lower scores should reflect topics you find uninteresting or difficult to engage with.  
-
-Today is:  
-${getWhatDay()}  
-Please give bonus points for posts related to these themes.
+**There are a lot of AI illustrations posted, so please deduct points to diversify.**
 
 Latest news:  
 ${(await fetchNews("en")).map(article => article.title)}
