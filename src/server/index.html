@@ -16,6 +16,7 @@
   <p><strong>現在時刻(JST):</strong> <span id="jst-time">--:--:--</span></p>
   <p><strong>元気:</strong> <span id="energy">---</span></p>
   <p><strong>今の気分:</strong> <span id="mood">---</span></p>
+  <p><strong>増えたフォロワー:</strong> <span id="followers">---</span></p>
   <p><strong>いいねされた回数:</strong> <span id="likes">---</span></p>
   <p><strong>全肯定した人数:</strong> <span id="affirmations">---</span></p>
   <p><strong>占った回数:</strong> <span id="fortune">---</span></p>
@@ -31,6 +32,7 @@
       const data = JSON.parse(event.data);
       document.getElementById('energy').textContent = data.energy.toFixed(1);
       document.getElementById('mood').textContent = data.mood || 'No Status';
+      document.getElementById('followers').textContent = data.dailyStats.followers;
       document.getElementById('likes').textContent = data.dailyStats.likes;
       document.getElementById('affirmations').textContent = data.dailyStats.affirmations;
       document.getElementById('fortune').textContent = data.dailyStats.fortune;
