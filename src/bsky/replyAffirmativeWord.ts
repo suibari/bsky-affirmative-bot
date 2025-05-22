@@ -53,7 +53,7 @@ export async function replyAffermativeWord(
         image_mimeType: mimeType,
       });
 
-      text_bot = result.comment;
+      text_bot = result?.comment || "";
       RPD.add();
     } catch (e: any) {
       if (e.message?.includes("429")) {

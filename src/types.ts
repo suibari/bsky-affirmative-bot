@@ -22,3 +22,8 @@ export type GeminiResponseResult = string | {
   text: string;
   imageBlob?: BlobRef;
 };
+
+export type GeminiScore = {
+  comment: string;
+  score: number;
+}

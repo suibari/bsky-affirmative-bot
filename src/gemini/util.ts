@@ -1,15 +1,10 @@
 import { PartListUnion, Type } from "@google/genai";
 import { gemini } from ".";
 import { MODEL_GEMINI, SYSTEM_INSTRUCTION } from "../config";
-import { UserInfoGemini } from "../types";
+import { GeminiScore, UserInfoGemini } from "../types";
 import rawWhatday from '../json/anniversary.json' assert { type: 'json' };
 import { WhatDayMap } from '../types.js';
 const whatday: WhatDayMap = rawWhatday;
-
-type GeminiScore = {
-  comment: string;
-  score: number;
-}
 
 export function getRandomItems(array: string[], count: number) {
   if (count > array.length) {

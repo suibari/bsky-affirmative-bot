@@ -158,7 +158,7 @@ export class BiorhythmManager extends EventEmitter {
       if (((this.getEnergy >= 60) && (newStatus !== "Sleep")) || (process.env.NODE_ENV === "development")) {
         const probability = Math.random() * 100;
         if (probability < this.getEnergy) {
-          console.log(`$[INFO][BIORYTHM] post and decrease energy!`)
+          console.log(`[INFO][BIORHYTHM] post and decrease energy!`)
           const newOutput = await this.generateStatus(prompt); // LLM出力取得
           this.setOutput(newOutput);
 
@@ -180,7 +180,7 @@ export class BiorhythmManager extends EventEmitter {
     }
 
     // ログ出力
-    console.log(`[INFO][BIORYTHM] status: ${this.status}, energy: ${this.getEnergy}, action: ${this.getMood}`);
+    console.log(`[INFO][BIORHYTHM] status: ${this.status}, energy: ${this.getEnergy}, action: ${this.getMood}`);
     
     // 次回スケジュール（5〜60分、開発環境では1分ごと）
     const nextInterval = process.env.NODE_ENV === "development" ? 60 * 1000 : Math.floor(Math.random() * (60 - 5 + 1) + 5) * 60 * 1000;

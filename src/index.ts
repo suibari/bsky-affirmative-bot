@@ -33,7 +33,7 @@ import { botBiothythmManager } from './biorhythm/index.js';
     await initAgent();
 
     console.log("[INFO] Fetching followers...");
-    followers = await getConcatFollowers({actor: process.env.BSKY_IDENTIFIER!});
+    followers = await getConcatFollowers({actor: process.env.BSKY_IDENTIFIER!, limit: 100});
 
     console.log("[INFO] Connecting to JetStream...");
     await startWebSocket(doReply, doFollowAndGreet, saveLike);
