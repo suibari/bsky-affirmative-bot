@@ -77,8 +77,6 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
         // Reply/Mention Filter
         // -----------
         if (isReplyOrMentionToMe(record)) {
-          console.log(`[INFO][${did}] New Post: reply or mention by all user !!`);
-
           user = follower;
           if (!user) {
             const { data } = await agent.getProfile({ actor: did });
