@@ -13,7 +13,7 @@ import { getConcatPosts } from '../bsky/getConcatPosts.js';
 import { AtpAgent } from "@atproto/api";
 import { getPds } from '../bsky/getPds.js';
 
-export async function handleAnalyaze (event: CommitCreateEvent<"app.bsky.feed.post">, follower: ProfileView) {
+export async function handleAnalyze (event: CommitCreateEvent<"app.bsky.feed.post">, follower: ProfileView) {
   const record = event.commit.record as RecordPost;
 
   return await handleMode(event, {

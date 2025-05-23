@@ -4,7 +4,7 @@ import { isMention, isReplyOrMentionToMe } from "../bsky/util";
 import { Record } from "@atproto/api/dist/client/types/app/bsky/feed/post";
 import { agent } from "../bsky/agent";
 import { handleFortune } from "../modes/fortune";
-import { handleAnalyaze } from "../modes/analyze";
+import { handleAnalyze } from "../modes/analyze";
 import { handleDJ } from "../modes/dj";
 import { parseEmbedPost } from "../bsky/parseEmbedPost";
 import { botBiothythmManager } from "../biorhythm";
@@ -90,7 +90,7 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
             botBiothythmManager.addFortune();
             return;
           }
-          if (await handleAnalyaze(event, user)) {
+          if (await handleAnalyze(event, user)) {
             botBiothythmManager.addAnalysis();
             return;
           }
@@ -123,7 +123,7 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
           }
 
           // 分析モード
-          if (await handleAnalyaze(event, follower)) {
+          if (await handleAnalyze(event, follower)) {
             botBiothythmManager.addAnalysis();
             return;
           }
