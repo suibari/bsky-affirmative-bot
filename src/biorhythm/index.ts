@@ -164,7 +164,7 @@ export class BiorhythmManager extends EventEmitter {
 
           // ポスト処理をここに追加（Geminiなど）
           await doWhimsicalPost();
-          this.energy -= 5000;
+          this.energy -= 6000;
           isPost = true;
         }
       }
@@ -204,11 +204,11 @@ export class BiorhythmManager extends EventEmitter {
     }
 
     // 状態にかかわらず、現在の行動によるランダム変動（継続状態でも発生）
-    if (this.status === 'Study') {
-      this.energy += Math.floor(Math.random() * 1100) - 500; // -500 ~ +500
-    } else if (this.status === 'FreeTime') {
-      this.energy += Math.floor(Math.random() * 900) + 200; // +200 ~ +1000
-    }
+    // if (this.status === 'Study') {
+    //   this.energy += Math.floor(Math.random() * 1100) - 500; // -500 ~ +500
+    // } else if (this.status === 'FreeTime') {
+    //   this.energy += Math.floor(Math.random() * 900) + 200; // +200 ~ +1000
+    // }
 
     // 範囲を保証
     this.energy = Math.max(0, Math.min(ENERGY_MAXIMUM, this.energy));
