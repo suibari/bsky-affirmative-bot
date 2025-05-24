@@ -13,7 +13,7 @@ import { handleConversation } from "../modes/conversation";
 import { handleFreq } from "../modes/frequency";
 import { handleU18Release, handleU18Register } from "../modes/u18";
 import { replyAffermativeWord } from "../bsky/replyAffirmativeWord";
-import { db, dbPosts } from "../db";
+import { db, dbNotFollowers, dbPosts } from "../db";
 import retry from 'async-retry';
 import { followers } from "..";
 
@@ -79,22 +79,22 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
         if (isReplyOrMentionToMe(record)) {
           user = follower;
           if (!user) {
-            const { data } = await agent.getProfile({ actor: did });
+            // フォロワーでなければSpam Filterチェック時のProfileを使う
             user = data as ProfileView;
           }
 
           // -----------
           // Mode Detect (All user)
           // -----------
-          if (await handleFortune(event, user)) {
+          if (await handleFortune(event, user, dbNotFollowers)) {
             botBiothythmManager.addFortune();
             return;
           }
-          if (await handleAnalyze(event, user)) {
+          if (await handleAnalyze(event, user, dbNotFollowers)) {
             botBiothythmManager.addAnalysis();
             return;
           }
-          if (await handleDJ(event, user)) {
+          if (await handleDJ(event, user, dbNotFollowers)) {
             botBiothythmManager.addDJ();
             return;
           }
@@ -108,40 +108,40 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
           // Mode Detect (only followers)
           // -----------
           // 定型文モード解除
-          if (await handleU18Release(event)) return;
+          if (await handleU18Release(event, db)) return;
 
           // 定型文モード
-          if (await handleU18Register(event)) return;
+          if (await handleU18Register(event, db)) return;
 
           // リプ頻度調整モード
-          if (await handleFreq(event, follower)) return;
+          if (await handleFreq(event, follower, db)) return;
 
           // 占いモード
-          if (await handleFortune(event, follower)) {
+          if (await handleFortune(event, follower, db)) {
             botBiothythmManager.addFortune();
             return;
           }
 
           // 分析モード
-          if (await handleAnalyze(event, follower)) {
+          if (await handleAnalyze(event, follower, db)) {
             botBiothythmManager.addAnalysis();
             return;
           }
 
           // 応援モード
-          if (await handleCheer(event, follower)) {
+          if (await handleCheer(event, follower, db)) {
             botBiothythmManager.addCheer();
             return;
           }
 
           // DJモード
-          if (await handleDJ(event, follower)) {
+          if (await handleDJ(event, follower, db)) {
             botBiothythmManager.addDJ();
             return;
           }
 
           // 会話モード
-          if (await handleConversation(event, follower)) {
+          if (await handleConversation(event, follower, db)) {
             botBiothythmManager.addConversation();
             return;
           }

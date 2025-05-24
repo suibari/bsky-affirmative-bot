@@ -4,21 +4,22 @@ import { CommitCreateEvent } from "@skyware/jetstream";
 import { handleMode, isPast } from "./index.js";
 import { getLangStr, uniteDidNsidRkey } from "../bsky/util.js";
 import { CHEER_TRIGGER } from '../config/index.js';
-import { db } from "../db/index.js";
+import { SQLite3 } from "../db/index.js";
 import { generateCheerResult } from "../gemini/generateCheerResult.js";
 import { UserInfoGemini, GeminiResponseResult } from "../types.js";
 import { repost } from "../bsky/repost.js";
 import { judgeCheerSubject } from "../gemini/judgeCheerSubject.js";
 
-export async function handleCheer (event: CommitCreateEvent<"app.bsky.feed.post">, follower: ProfileView) {
+export async function handleCheer (event: CommitCreateEvent<"app.bsky.feed.post">, follower: ProfileView, db: SQLite3) {
   const record = event.commit.record as Record;
 
   return await handleMode(event, {
     triggers: CHEER_TRIGGER,
+    db,
     dbColumn: "last_cheer_at",
     dbValue: new Date().toISOString(),
     generateText: repostAndGenerate,
-    checkConditionsAND: await isPast(event, "last_cheer_at", 8 * 60) , // 8hours since prev
+    checkConditionsAND: await isPast(event, db, "last_cheer_at", 8 * 60) , // 8hours since prev
     // checkConditionsAND: await isPast(event, "last_cheer_at", 8) && await isPastFollowed(event, 31), // 8hours since prev, 31days since follow
     disableDefaultCondition: true,
     disableReply: true,
@@ -50,7 +51,7 @@ async function repostAndGenerate(userinfo: UserInfoGemini, event: CommitCreateEv
 
 const OFFSET_UTC_TO_JST = 9 * 60 * 60 * 1000; // offset: +9h (to JST from UTC <SQlite3>)
 
-export async function isPastFollowed(event: CommitCreateEvent<"app.bsky.feed.post">, days_thrd: number) {
+export async function isPastFollowed(event: CommitCreateEvent<"app.bsky.feed.post">, days_thrd: number, db: SQLite3) {
   const did = String(event.did);
   const msec_thrd = days_thrd * 24 * 60 * 60 * 1000;
   const now = new Date().getTime();

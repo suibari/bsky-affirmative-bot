@@ -12,16 +12,18 @@ import { textToImageBufferWithBackground } from '../util/canvas.js';
 import { getConcatPosts } from '../bsky/getConcatPosts.js';
 import { AtpAgent } from "@atproto/api";
 import { getPds } from '../bsky/getPds.js';
+import { SQLite3 } from '../db/index.js';
 
-export async function handleAnalyze (event: CommitCreateEvent<"app.bsky.feed.post">, follower: ProfileView) {
+export async function handleAnalyze (event: CommitCreateEvent<"app.bsky.feed.post">, follower: ProfileView, db: SQLite3) {
   const record = event.commit.record as RecordPost;
 
   return await handleMode(event, {
     triggers: ANALYZE_TRIGGER,
+    db,
     dbColumn: "last_analyze_at",
     dbValue: new Date().toISOString(),
     generateText: getBlobWithAnalyze,
-    checkConditionsAND: await isPast(event, "last_analyze_at", 6 * 24 * 60), // 6days
+    checkConditionsAND: await isPast(event, db, "last_analyze_at", 6 * 24 * 60), // 6days
   },
   {
     follower,

@@ -8,7 +8,7 @@ import { conversation } from "../gemini/conversation.js";
 import { handleMode } from "./index.js";
 import { CONVMODE_TRIGGER } from '../config/index.js';
 import { GeminiResponseResult, UserInfoGemini } from "../types.js";
-import { db } from "../db/index.js";
+import { SQLite3 } from "../db/index.js";
 import { Content } from "@google/genai";
 
 const MINUTES_THRD_RESPONSE = 10 * 60 * 1000; // 10min
@@ -16,7 +16,7 @@ const MAX_BOT_MEMORY = 100;
 
 const flagsWaiting = new Map();
 
-export async function handleConversation (event: CommitCreateEvent<"app.bsky.feed.post">, follower: ProfileView) {
+export async function handleConversation (event: CommitCreateEvent<"app.bsky.feed.post">, follower: ProfileView, db: SQLite3) {
   const did = event.did;
   const record = event.commit.record as Record;
 
@@ -34,10 +34,11 @@ export async function handleConversation (event: CommitCreateEvent<"app.bsky.fee
 
   return await handleMode(event, {
     triggers: CONVMODE_TRIGGER,
+    db,
     dbColumn: "last_conv_at",
     dbValue: new Date().toISOString(),
     generateText: waitAndGenReply,
-    checkConditionsOR: await isTalking(did, record), // 会話スレッドの判定
+    checkConditionsOR: await isTalking(did, record, db), // 会話スレッドの判定
   },
   {
     follower,
@@ -48,7 +49,7 @@ export async function handleConversation (event: CommitCreateEvent<"app.bsky.fee
   });
 }
 
-async function isTalking (did: string, record: Record) {
+async function isTalking (did: string, record: Record, db: SQLite3) {
   // 会話継続判定: eventにはuriは直接含まれずめんどくさいのでcidで比較する
   const rootCidDb = String(await db.selectDb(did, "conv_root_cid"));
   let rootCid =  record.reply?.root.cid;
@@ -60,7 +61,7 @@ async function isTalking (did: string, record: Record) {
   return isValidRootCid && isValidParent;
 }
 
-async function waitAndGenReply (userinfo: UserInfoGemini, event: CommitCreateEvent<"app.bsky.feed.post">): Promise<GeminiResponseResult> {
+async function waitAndGenReply (userinfo: UserInfoGemini, event: CommitCreateEvent<"app.bsky.feed.post">, db: SQLite3): Promise<GeminiResponseResult> {
   const record = event.commit.record as Record;
 
   flagsWaiting.set(userinfo.follower.did, true);

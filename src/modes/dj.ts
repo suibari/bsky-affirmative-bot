@@ -8,8 +8,9 @@ import { generateRecommendedSong } from "../gemini/generateRecommendedSong.js";
 import { GeminiResponseResult, UserInfoGemini } from "../types.js";
 import { searchYoutubeLink } from "../youtube/index.js";
 import { agent } from "../bsky/agent.js";
+import { SQLite3 } from "../db/index.js";
 
-export async function handleDJ (event: CommitCreateEvent<"app.bsky.feed.post">, follower: ProfileView) {
+export async function handleDJ (event: CommitCreateEvent<"app.bsky.feed.post">, follower: ProfileView, db: SQLite3) {
   const record = event.commit.record as Record;
 
   // ポスト収集
@@ -27,10 +28,11 @@ export async function handleDJ (event: CommitCreateEvent<"app.bsky.feed.post">, 
 
   return await handleMode(event, {
     triggers: DJ_TRIGGER,
+    db,
     dbColumn: "last_dj_at",
     dbValue: new Date().toISOString(),
     generateText: getSongLink,
-    checkConditionsAND: await isPast(event, "last_dj_at", 5), // 5mins
+    checkConditionsAND: await isPast(event, db, "last_dj_at", 5), // 5mins
   },
   {
     follower,

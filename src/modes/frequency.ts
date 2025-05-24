@@ -2,10 +2,11 @@ import { ProfileView } from "@atproto/api/dist/client/types/app/bsky/actor/defs"
 import { Record } from "@atproto/api/dist/client/types/app/bsky/feed/post";
 import { CommitCreateEvent } from "@skyware/jetstream";
 import { handleMode } from "./index.js";
+import { SQLite3 } from "../db/index.js";
 
 const REGEX_FREQ = /freq(\d+)/gi;
 
-export async function handleFreq (event: CommitCreateEvent<"app.bsky.feed.post">, follower: ProfileView) {
+export async function handleFreq (event: CommitCreateEvent<"app.bsky.feed.post">, follower: ProfileView, db: SQLite3) {
   const record = event.commit.record as Record;
   const match_freq = REGEX_FREQ.exec(record.text.toLowerCase());
 
@@ -21,6 +22,7 @@ export async function handleFreq (event: CommitCreateEvent<"app.bsky.feed.post">
 
   return await handleMode(event, {
     triggers: ["freq"],
+    db,
     dbColumn: "reply_freq",
     dbValue: Number(match_freq[1]),
     generateText: `了解! ${follower.displayName}さんへのリプライする頻度を${match_freq[1]}%にするね! ちなみに占いはいつでもできるよ～`,

@@ -1,6 +1,6 @@
 import sqlite3 from 'sqlite3';
 
-class SQLite3 {
+export class SQLite3 {
   db: sqlite3.Database;
   tableName: string;
 
@@ -135,3 +135,4 @@ class SQLite3 {
 export const db = new SQLite3("followers");
 export const dbPosts = new SQLite3("posts");
 export const dbLikes = new SQLite3("likes");
+export const dbNotFollowers = new SQLite3("not_followers");
