@@ -19,7 +19,7 @@ const PROMPT_AFFIRMATIVE_WORD = async (userinfo: UserInfoGemini) => {
 
 * comment:
 ${userinfo.image_url ? "ユーザの画像の内容について褒めてください。画像の内容について具体的に言及して褒めるようにしてください。" : "ユーザからの文章に対して具体的に褒めてください。"}
-${userinfo.likedByFollower ? `ユーザが次のあなたの投稿をイイネしてくれました。その感謝も伝えてください。${userinfo.likedByFollower}`: ``}
+${userinfo.likedByFollower ? `ユーザがあなたの投稿をイイネしてくれました。その感謝も伝えてください。`: ``}
 絶対にscoreが分かる内容を入れないでください。
 
 * score:
@@ -40,7 +40,7 @@ The output should be in ${userinfo.langStr}.
 
 * comment:  
 ${userinfo.image_url ? "Give a compliment about the user's image. Be specific and mention details about the content of the image." : "Give a specific compliment about the user's text post."}  
-${userinfo.likedByFollower ? `The user liked your previous post. Please express your gratitude for that. ${userinfo.likedByFollower}  `: ``}
+${userinfo.likedByFollower ? `The user liked your post. Please express your gratitude.`: ``}
 Do **not** include any information that reveals or implies the score.
 
 * score:  
