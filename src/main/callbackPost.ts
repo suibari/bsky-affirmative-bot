@@ -87,15 +87,16 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
           // -----------
           // Mode Detect (All user)
           // -----------
-          if (await handleFortune(event, user, dbNotFollowers)) {
+          const targetDb = follower ? db : dbNotFollowers;
+          if (await handleFortune(event, user, targetDb)) {
             botBiothythmManager.addFortune();
             return;
           }
-          if (await handleAnalyze(event, user, dbNotFollowers)) {
+          if (await handleAnalyze(event, user, targetDb)) {
             botBiothythmManager.addAnalysis();
             return;
           }
-          if (await handleDJ(event, user, dbNotFollowers)) {
+          if (await handleDJ(event, user, targetDb)) {
             botBiothythmManager.addDJ();
             return;
           }
