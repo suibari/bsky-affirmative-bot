@@ -77,6 +77,7 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
         // Reply/Mention Filter
         // -----------
         if (isReplyOrMentionToMe(record)) {
+          console.log(`[INFO][${did}] New post: reply/mention me by all users !!`);
           user = follower;
           if (!user) {
             // フォロワーでなければSpam Filterチェック時のProfileを使う
