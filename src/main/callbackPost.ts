@@ -31,9 +31,10 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
     retry(
       async () => {
         // ==============
-        // Reply/Mention or Follower Filter (IMPORTANT!!)
+        // Reply/Mention or Follower or Myself Filter (IMPORTANT!!)
         // ==============
         if (!isReplyOrMentionToMe(record) && !follower) return;
+        if ((did === process.env.BSKY_DID)) return;
 
         // ==============
         // Spam Filter
