@@ -30,11 +30,13 @@ export async function generateFortuneResult(userinfo: UserInfoGemini): Promise<s
 `占いをしてください。
 ${part_language}
 占い結果を以下の条件に基づいて生成してください。
-最大500文字としてください。
+600文字程度としてください。
+空の行は入れないでください。
+絵文字は使わないでください。
+占い結果に、「最高」などの最上級表現を使わないこと。
 * 占いテーマは${getRandomItems(category_main, 2)}です。2つのテーマを合わせたアドバイスをしてください。
-* 占い結果は、「最高」などの最上級表現を使わないこと。
 * ラッキーアクションは、${getRandomItems(category_action_attr, 1)}で${getRandomItems(category_action_place, 1)}の場所で、${getRandomItems(category_action_subject, 1)}を${getRandomItems(category_action_act, 1)}する指示を出してください。自然な文章にしてください。
-${getRandomItems(part_prompt_luckys, 2)}
+${getRandomItems(part_prompt_luckys, 3)}
 悪い内容が一切含まれないようにしてください。
 以下がユーザ名です。
 -----
@@ -42,8 +44,5 @@ ${getRandomItems(part_prompt_luckys, 2)}
 
   const response = await generateSingleResponse(prompt, userinfo);
   
-  // AI出力のサニタイズ("-----"を含むときそれ以降の文字列を削除)
-  const result = response.text?.split("-----")[0];
-
-  return result ?? "";
+  return response.text ?? "";
 }
