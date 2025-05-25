@@ -12,6 +12,10 @@ export async function generateFortuneResult(userinfo: UserInfoGemini): Promise<s
   const category_movie = ["アクション", "コメディ", "ドラマ", "ファンタジー", "ホラー", "ミュージカル", "サスペンス", "アニメ", "ドキュメンタリー", "恋愛"];
   const category_music = ["ポップ", "ロック", "ジャズ", "クラシック", "EDM", "ヒップホップ", "R&B", "レゲエ", "カントリー", "インストゥルメンタル"];
   const category_animal = ["肉食", "草食", "夜行性", "昼行性", "飛行", "水生", "爬虫類", "哺乳類", "昆虫", "群れで行動", "単独行動"];
+  const category_action_place = ["公共交通機関", "コンビニ", "公園", "橋の上", "おしゃれなお店", "スーパーマーケット", "ベンチ", "高いところ", "いつもと違う道", "会社やオフィスビル"];
+  const category_action_attr = ["赤色", "青色", "緑色", "白色", "黒色", "朝", "夜", "暖かみのある", "冷たい", "恋愛にまつわるもの", "歴史にまつわるもの", "ホラーにまつわるもの", "混んでいる", "空いている", "かわいい", "全肯定botたんっぽい"];
+  const category_action_act = ["食べる", "写真を撮る", "誰かに話しかける", "音を聞く", "手に取る", "歩く", "匂いをかぐ", "座る", "空を見上げる", "絵を描く", "メモやブログを書く", "Blueskyにポストする"];
+  const category_action_subject = ["経験したことないもの", "期間や季節の限定", "動いているもの", "浮いているもの", "異性の方", "年配の方", "年下の方", "初対面", "知らないブランドやメーカー", "ゆっくり", "素早く", "最初に目に入ったもの"];
   const part_prompt_luckys = [
     `* ラッキースポットは、${place_language}にある、${getRandomItems(category_spot, 2)}の中で、具体的な名称をランダムに選ぶこと。そのスポットを選んだ理由も合わせて説明してください。`,
     `* ラッキーフードは、${getRandomItems(category_food, 2)}をあわせもつ料理の具体的な名称をランダムに選ぶこと。その料理を選んだ理由も合わせて説明してください。`,
@@ -29,7 +33,8 @@ ${part_language}
 最大500文字としてください。
 * 占いテーマは${getRandomItems(category_main, 2)}です。2つのテーマを合わせたアドバイスをしてください。
 * 占い結果は、「最高」などの最上級表現を使わないこと。
-${getRandomItems(part_prompt_luckys, 3)}
+* ラッキーアクションは、${getRandomItems(category_action_attr, 1)}で${getRandomItems(category_action_place, 1)}の場所で、${getRandomItems(category_action_subject, 1)}を${getRandomItems(category_action_act, 1)}する指示を出してください。自然な文章にしてください。
+${getRandomItems(part_prompt_luckys, 2)}
 悪い内容が一切含まれないようにしてください。
 以下がユーザ名です。
 -----
