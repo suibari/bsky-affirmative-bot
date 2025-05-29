@@ -119,5 +119,3 @@ const PROMPT_INTRO_BOT_FEATURE = (langStr: string) => {
   ]
   return getRandomItems(features, 1);
 }
-
-export const whimsicalPostGen = new WhimsicalPostGenerator();
