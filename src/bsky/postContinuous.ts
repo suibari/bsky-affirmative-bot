@@ -95,38 +95,47 @@ export async function postContinuous(
   }
 }
 
-function splitTextSmart(text: string, MAX_LENGTH: number) {
-  const parts = [];
-  let start = 0;
+function splitTextSmart(text: string, MAX_LENGTH: number): string[] {
+  const segmenter = new Intl.Segmenter('ja', { granularity: 'grapheme' });
+  const graphemes = Array.from(segmenter.segment(text), s => s.segment);
 
-  while (start < text.length) {
-    let end = Math.min(start + MAX_LENGTH, text.length);
-    let slice = text.slice(start, end);
+  const parts: string[] = [];
+  let buffer = '';
 
-    // 文字列の終端であればそのまま
-    if (end === text.length) {
-      parts.push(slice);
-      break;
+  for (let i = 0; i < graphemes.length; i++) {
+    const nextChar = graphemes[i];
+
+    // 追加してもMAX_LENGTH以内ならバッファに追加
+    if ((buffer + nextChar).length <= MAX_LENGTH) {
+      buffer += nextChar;
+      continue;
     }
 
-    // 直後が英単語/＠/#の途中なら、手前で切るよう調整
-    const rest = text.slice(end); // 残りの文字列
-    const match = rest.match(/^([a-zA-Z0-9_]+|@[^\s]+|#[^\s]+)/);
+    // MAX_LENGTHを超えるのでここで分割を検討
+    let safeEnd = buffer.length;
+
+    // 直前のバッファの末尾を確認して、「途中切り」のケースを避ける
+    const match = buffer.match(/([a-zA-Z0-9_]+|@[^\s]+|#[^\s]+)$/);
 
     if (match) {
-      const overlap = match[0].length;
+      const unsafeLen = match[0].length;
+      safeEnd -= unsafeLen;
 
-      // MAX_LENGTHで切ると途中になるため、安全な位置を探す
-      const lastSpace = slice.lastIndexOf(' ');
-      if (lastSpace > 0) {
-        slice = slice.slice(0, lastSpace);
-        end = start + lastSpace;
+      if (safeEnd <= 0) {
+        // 英単語 or @/＃が全部bufferにある場合は、無理に切らず、強制的に切る（次に送る）
+        parts.push(buffer);
+        buffer = '';
+      } else {
+        parts.push(buffer.slice(0, safeEnd));
+        buffer = buffer.slice(safeEnd) + nextChar;
       }
+    } else {
+      // 通常分割
+      parts.push(buffer);
+      buffer = nextChar;
     }
-
-    parts.push(slice);
-    start = end;
   }
 
+  if (buffer) parts.push(buffer);
   return parts;
 }
