@@ -13,6 +13,7 @@ import { getConcatPosts } from '../bsky/getConcatPosts.js';
 import { AtpAgent } from "@atproto/api";
 import { getPds } from '../bsky/getPds.js';
 import { SQLite3 } from '../db/index.js';
+import { getConcatAuthorFeed } from '../bsky/getConcatAuthorFeed.js';
 
 export async function handleAnalyze (event: CommitCreateEvent<"app.bsky.feed.post">, follower: ProfileView, db: SQLite3) {
   const record = event.commit.record as RecordPost;
@@ -37,15 +38,8 @@ async function getBlobWithAnalyze(userinfo: UserInfoGemini): Promise<GeminiRespo
   `${userinfo.follower.displayName}, I analyzed your personality from your posts! Check the image. You can only do personality analysis once a week, so try again after some time!`;
 
   // ポスト収集
-  const responsePost = await agent.getAuthorFeed({ 
-    actor: userinfo.follower.did,
-    limit: 100,
-    filter: "posts_with_replies",
-  });
-  const posts = responsePost.data.feed
-    .filter(post  => !post.reason) // リポスト除外
-    .map(post => (post.post.record as RecordPost).text);
-  userinfo.posts = posts;
+  const feeds = await getConcatAuthorFeed(userinfo.follower.did, 100);
+  userinfo.posts = feeds.map(feed => (feed.post.record as RecordPost).text);
 
   // いいね収集
   const agentPDS = new AtpAgent({service: await getPds(userinfo.follower.did)});
