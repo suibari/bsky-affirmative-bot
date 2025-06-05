@@ -5,10 +5,7 @@ export async function generateAnalyzeResult(userinfo: UserInfoGemini) {
   const prompt = PROMPT_ANALYZE(userinfo);
   const response = await generateSingleResponse(prompt, userinfo);
 
-  // AI出力のサニタイズ("-----"を含むときそれ以降の文字列を削除)
-  const result = response.text?.split("-----")[0];
-
-  return result ?? "";
+  return response.text ?? "";
 }
 
 const PROMPT_ANALYZE = (userinfo: UserInfoGemini) => {
@@ -31,7 +28,6 @@ const PROMPT_ANALYZE = (userinfo: UserInfoGemini) => {
 ` :
 `Please analyze the user's personality based on their own posts and the posts they have liked.
 The output should be in ${userinfo.langStr}.
-Please keep the output around 400 characters.
 Do not include any blank lines.
 Do not use emojis.
 
@@ -43,7 +39,7 @@ The personality analysis should be based on the following aspects, and should in
 
 Keep the tone fully positive and affirming. Do **not** include anything negative or critical.
 
------Below is the user's posts and likes-----  
+-----Below is the username, user's posts and likes-----  
 Username: ${userinfo.follower.displayName}  
 Posts: ${userinfo.posts || ""}  
 Liked posts by user: ${userinfo.likedByFollower || ""}
