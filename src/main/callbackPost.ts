@@ -79,16 +79,12 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
         // -----------
         if (isReplyOrMentionToMe(record)) {
           console.log(`[INFO][${did}] New post: reply/mention me by all users !!`);
-          user = follower;
-          if (!user) {
-            // フォロワーでなければSpam Filterチェック時のProfileを使う
-            user = data as ProfileView;
-          }
+          user = follower || (data as ProfileView);
+          const targetDb = follower ? db : dbNotFollowers;
 
           // -----------
-          // Mode Detect (All user)
+          // Mode Detect: Fortune, Analyze, DJ <for all users>
           // -----------
-          const targetDb = follower ? db : dbNotFollowers;
           if (await handleFortune(event, user, targetDb)) {
             botBiothythmManager.addFortune();
             return;
@@ -101,6 +97,25 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
             botBiothythmManager.addDJ();
             return;
           }
+
+          // -----------
+          // Mode Detect: Except of Fortune, Analyze, DJ
+          // -----------
+          if (follower) {
+            if (await handleU18Release(event, db)) return;
+            if (await handleU18Register(event, db)) return;
+            if (await handleFreq(event, follower, db)) return;
+            if (await handleCheer(event, follower, db)) {
+              botBiothythmManager.addCheer();
+              return;
+            }
+            if (await handleConversation(event, follower, db)) {
+              botBiothythmManager.addConversation();
+              return;
+            }
+          }
+
+          return;
         }
 
         // -----------
@@ -108,42 +123,27 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
         // -----------
         if (follower) {
           // -----------
-          // Mode Detect (only followers)
+          // Mode Detect: All mode
           // -----------
-          // 定型文モード解除
           if (await handleU18Release(event, db)) return;
-
-          // 定型文モード
           if (await handleU18Register(event, db)) return;
-
-          // リプ頻度調整モード
           if (await handleFreq(event, follower, db)) return;
-
-          // 占いモード
           if (await handleFortune(event, follower, db)) {
             botBiothythmManager.addFortune();
             return;
           }
-
-          // 分析モード
           if (await handleAnalyze(event, follower, db)) {
             botBiothythmManager.addAnalysis();
             return;
           }
-
-          // 応援モード
           if (await handleCheer(event, follower, db)) {
             botBiothythmManager.addCheer();
             return;
           }
-
-          // DJモード
           if (await handleDJ(event, follower, db)) {
             botBiothythmManager.addDJ();
             return;
           }
-
-          // 会話モード
           if (await handleConversation(event, follower, db)) {
             botBiothythmManager.addConversation();
             return;
