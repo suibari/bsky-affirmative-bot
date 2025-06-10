@@ -63,6 +63,22 @@ export const DJ_TRIGGER = [
   "dj please",
 ];
 
+export const DIARY_REGISTER_TRIGGER = [
+  "日記をつけて",
+  "日記つけて",
+  "日記を付けて",
+  "日記付けて",
+  "keep a diary",
+  "keep diary",
+];
+
+export const DIARY_RELEASE_TRIGGER = [
+  "日記をやめて",
+  "日記やめて",
+  "stop a diary",
+  "stop diary",
+];
+
 export const HNY_WORDS = ["明けましておめでとう", "あけましておめでとう", "あけおめ"];
 export const OHAYO_WORDS = ["おは"];
 export const OYASUMI_WORDS = ["おやす"];

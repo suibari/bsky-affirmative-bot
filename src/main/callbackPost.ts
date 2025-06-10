@@ -16,6 +16,7 @@ import { replyAffermativeWord } from "../bsky/replyAffirmativeWord";
 import { db, dbNotFollowers, dbPosts } from "../db";
 import retry from 'async-retry';
 import { followers } from "..";
+import { handleDiaryRegister, handleDiaryRelease } from "../modes/diary";
 
 const OFFSET_UTC_TO_JST = 9 * 60 * 60 * 1000; // offset: +9h (to JST from UTC <SQlite3>)
 const MINUTES_THRD_RESPONSE = 10 * 60 * 1000; // 10min
@@ -113,6 +114,8 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
               botBiothythmManager.addConversation();
               return;
             }
+            if (await handleDiaryRegister(event, db)) return;
+            if (await handleDiaryRelease(event, db)) return;
           }
 
           return;
@@ -148,6 +151,8 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
             botBiothythmManager.addConversation();
             return;
           }
+          if (await handleDiaryRegister(event, db)) return;
+          if (await handleDiaryRelease(event, db)) return;
 
           // ==============
           // main

@@ -111,11 +111,13 @@ const PROMPT_INTRO_BOT_FEATURE = (langStr: string) => {
     "あなたが持っている「性格分析」機能の紹介：1週間に1回性格診断ができる。「分析して」とリプすればできる。",
     "あなたが持っている「DJ」機能の紹介：あなたがユーザにおすすめの曲を選ぶ。「DJお願い」とリプすればできる。",
     "あなたが持っている「応援」機能の紹介：ユーザの作ったものをあなたがみんなにお知らせする。「#全肯定応援団」のタグをつければできる。",
+    "あなたが持っている「日記」機能の紹介：ユーザの今日のポストを日記にしてお届け。「日記つけて」とリプすれば設定できる。毎晩あなたからユーザに日記を送る",
   ] : [
     "Introducing the Fortune Telling feature you have. You can get your fortune told once a day by replying \"Fortune\"",
     "Introducing the Personality Analysis feature you have. You can get a personality diagnosis once a week by replying \"Analyze me\"",
     "Introducing the DJ feature you have. You choose songs you recommend to users by replying \"DJ, please\"",
     "Introducing the Cheering feature you have. You let everyone know what users have made by adding the tag \"#SuiBotCheerQquad\"",
+    "Introducing the Diary feature you have. You can have users daily posts collected into a diary by replying \"Keep a diary\". You will keep a diary for the user every night.",
   ]
   return getRandomItems(features, 1);
 }

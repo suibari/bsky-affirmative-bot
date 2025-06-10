@@ -57,6 +57,29 @@ export class SQLite3 {
       });
     });
   }
+  
+  selectAllDb(col_name: string, value: string | number): Promise<any[] | null> {
+    return new Promise((resolve, reject) => {
+      // 列名は直接埋め込み（SQLインジェクションに注意が必要）
+      const query = `SELECT did FROM ${this.tableName} WHERE ${col_name} = ?;`;
+      this.db.all(query, [value], (err, rows: Record<string, any>[]) => {
+        if (err) {
+          console.error('Error selecting data', err);
+          reject(err);
+        } else {
+          // 各rowのdidを取り出して配列に
+          const result = rows.map(row => {
+            try {
+              return JSON.parse(row["did"]);
+            } catch (e) {
+              return row["did"];
+            }
+          });
+          resolve(result);
+        }
+      });
+    });
+  }
 
   insertOrUpdateDb(id: string) {
     const query = `
