@@ -9,7 +9,8 @@ import { generateDiary } from '../gemini/generateDiary.js';
 import { ProfileView } from '@atproto/api/dist/client/types/app/bsky/actor/defs.js';
 import { getLangStr } from '../bsky/util.js';
 import { postContinuous } from '../bsky/postContinuous.js';
-import { createOrRefreshSession } from '../bsky/agent.js';
+import { agent, createOrRefreshSession } from '../bsky/agent.js';
+import { textToImageBufferWithBackground } from '../util/canvas.js';
 
 const TEXT_REGISTER_DIARY = "日記モードを設定しました! これから毎日、PM10時にあなたの今日のできごとを日記にしてまとめるね!";
 const TEXT_RELEASE_DIARY = "日記モードを解除しました! また使ってね!";
@@ -50,12 +51,15 @@ export async function handleDiary (db: SQLite3) {
         console.log(`[INFO][${profile.did}] No posts found for today.`);
         continue; // 今日のポストがない場合はスキップ
       }
-
       console.log(`[INFO][${profile.did}] processing diary mode...`);
       const posts = feed.map(item => (item.post.record as Record).text);
 
       // リプライのための最新ポストを取得
-      const latestPost = feed[0].post;
+      const latestPost = feed.find(item => !item.reply)?.post;
+      if (!latestPost) {
+        console.log(`[INFO][${profile.did}] All post are reply.`);
+        continue; // ポストがすべてリプライの場合もスキップ
+      }
       const langStr = getLangStr((latestPost.record as Record).langs); // 1つ目のポストから言語を取得
 
       // 日記生成
@@ -65,11 +69,21 @@ export async function handleDiary (db: SQLite3) {
         langStr,
       });
 
-      await postContinuous(text_bot, {
+      // 画像生成
+      const today = new Date();
+      const formattedDate = `${today.getFullYear()}/${today.getMonth() + 1}/${today.getDate()}`;
+      const buffer =  await textToImageBufferWithBackground(text_bot + `\n\n${formattedDate}`);
+      const {blob} = (await agent.uploadBlob(buffer, {encoding: "image/png"})).data;
+
+      // ポスト
+      const TEXT_DIARY = (langStr === "日本語") ?
+        `${profile.displayName}さんへ、今日の日記をまとめたよ! 画像を貼るので見てみてね。おやすみ～!` :
+        `${profile.displayName}, I summarized your diary for today! Check the image. Good night!`;
+      await postContinuous(TEXT_DIARY, {
         uri: latestPost.uri,
         cid: latestPost.cid,
-        record: latestPost.record as Record,
-      });
+        record: latestPost.record as Record
+      }, {blob, alt: `Dear ${profile.displayName}, From 全肯定botたん`});
     }
   }
 }
