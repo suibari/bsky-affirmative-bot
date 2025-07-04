@@ -7,7 +7,7 @@ import { AppBskyFeedGetAuthorFeed } from "@atproto/api";
  * @param {string} actor - 取得対象のアクター（DIDまたはhandle）
  * @returns {Promise<FeedViewPost[] | null>} - 24時間以内の投稿リスト。ブロックされていれば null。
  */
-export async function getTodaysAuthorFeed(actor: string): Promise<FeedViewPost[] | null> {
+export async function getTodaysAuthorFeed(actor: string): Promise<FeedViewPost[]> {
   const now = new Date();
   const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
   let cursor: string | undefined = undefined;

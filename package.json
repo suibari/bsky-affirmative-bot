@@ -13,6 +13,7 @@
     "open-graph-scraper": "^6.10.0",
     "rss-parser": "^3.13.0",
     "sqlite3": "^5.0.0",
+    "twemoji": "^14.0.2",
     "ws": "^8.18.0"
   },
   "name": "bsky_affirmative_bot",
