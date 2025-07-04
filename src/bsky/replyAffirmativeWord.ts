@@ -9,6 +9,7 @@ import { postContinuous } from "./postContinuous.js";
 import { RPD } from "../gemini/index.js";
 import { GeminiScore } from "../types.js";
 import { dbLikes } from "../db/index.js";
+import { getSubscribersFromSheet } from "../gsheet/index.js";
 
 export async function replyAffermativeWord(
   follower: ProfileView,
@@ -37,7 +38,9 @@ export async function replyAffermativeWord(
   }
 
   // AIを使うか判定
-  if (RPD.checkMod() && !isU18mode) {
+  // NOTE: 上位callbackPostでsubsucriber判定しているのでこの関数は廃止し、そっちに統合するのがベター
+  const subscribers = await  getSubscribersFromSheet();
+  if (subscribers.includes(follower.did)) {
     try {
       const likedPost = await dbLikes.selectDb(follower.did, "liked_post");
       if (likedPost) {

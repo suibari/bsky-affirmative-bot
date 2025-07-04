@@ -1,6 +1,6 @@
 import { GoogleGenAI } from "@google/genai";
 import { EXEC_PER_COUNTS } from '../config/index.js';
-const REQUEST_PER_DAY_GEMINI = 1500;
+const REQUEST_PER_DAY_GEMINI = 200;
 
 // Geminiのインスタンスを作成
 export const gemini = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });

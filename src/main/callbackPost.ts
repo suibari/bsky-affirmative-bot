@@ -17,6 +17,7 @@ import { db, dbPosts } from "../db";
 import retry from 'async-retry';
 import { followers } from "..";
 import { handleDiaryRegister, handleDiaryRelease } from "../modes/diary";
+import { getSubscribersFromSheet } from "../gsheet";
 
 const OFFSET_UTC_TO_JST = 9 * 60 * 60 * 1000; // offset: +9h (to JST from UTC <SQlite3>)
 const MINUTES_THRD_RESPONSE = 10 * 60 * 1000; // 10min
@@ -31,6 +32,8 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
   // ==============
   const follower = followers.find(follower => follower.did === did);
   if (!follower) return;
+
+  const subscribers = await getSubscribersFromSheet();
 
   try {
     retry(
@@ -85,6 +88,9 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
         if (await handleU18Release(event, db)) return;
         if (await handleU18Register(event, db)) return;
         if (await handleFreq(event, follower, db)) return;
+        if (await handleDiaryRegister(event, db)) return;
+        if (await handleDiaryRelease(event, db)) return;
+
         if (await handleFortune(event, follower, db)) {
           botBiothythmManager.addFortune();
           return;
@@ -93,20 +99,21 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
           botBiothythmManager.addAnalysis();
           return;
         }
-        if (await handleCheer(event, follower, db)) {
-          botBiothythmManager.addCheer();
-          return;
+
+        if (subscribers.includes(follower.did)) {
+          if (await handleDJ(event, follower, db)) {
+            botBiothythmManager.addDJ();
+            return;
+          }
+          if (await handleConversation(event, follower, db)) {
+            botBiothythmManager.addConversation();
+            return;
+          }
+          if (await handleCheer(event, follower, db)) {
+            botBiothythmManager.addCheer();
+            return;
+          }
         }
-        if (await handleDJ(event, follower, db)) {
-          botBiothythmManager.addDJ();
-          return;
-        }
-        if (await handleConversation(event, follower, db)) {
-          botBiothythmManager.addConversation();
-          return;
-        }
-        if (await handleDiaryRegister(event, db)) return;
-        if (await handleDiaryRelease(event, db)) return;
 
         // ==============
         // main
@@ -126,7 +133,7 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
           const user_freq = await db.selectDb(did, "reply_freq");
           const isValidFreq = isJudgeByFreq(user_freq !== null ? Number(user_freq) : 100); // フォロワーだがレコードにないユーザーであるため、通過させる
 
-          if (isPast && isValidFreq) {
+          if ((isPast || subscribers.includes(follower.did)) && isValidFreq) {
             try {
               // U18情報をDBから取得
               const is_u18 = Number(await db.selectDb(did, "is_u18"));
