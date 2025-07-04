@@ -13,7 +13,7 @@ import { handleConversation } from "../modes/conversation";
 import { handleFreq } from "../modes/frequency";
 import { handleU18Release, handleU18Register } from "../modes/u18";
 import { replyAffermativeWord } from "../bsky/replyAffirmativeWord";
-import { db, dbNotFollowers, dbPosts } from "../db";
+import { db, dbPosts } from "../db";
 import retry from 'async-retry';
 import { followers } from "..";
 import { handleDiaryRegister, handleDiaryRelease } from "../modes/diary";
@@ -26,7 +26,11 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
   const record = event.commit.record as Record;
   let user: ProfileView | undefined;
 
+  // ==============
+  // Follower Filter
+  // ==============
   const follower = followers.find(follower => follower.did === did);
+  if (!follower) return;
 
   try {
     retry(
@@ -76,136 +80,85 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
         }
 
         // -----------
-        // Reply/Mention Filter
+        // Mode Detect: All mode
         // -----------
-        if (isReplyOrMentionToMe(record)) {
-          console.log(`[INFO][${did}] New post: reply/mention me by all users !!`);
-          user = follower || (data as ProfileView);
-          const targetDb = follower ? db : dbNotFollowers;
-
-          // -----------
-          // Mode Detect: Fortune, Analyze, DJ <for all users>
-          // -----------
-          if (await handleFortune(event, user, targetDb)) {
-            botBiothythmManager.addFortune();
-            return;
-          }
-          if (await handleAnalyze(event, user, targetDb)) {
-            botBiothythmManager.addAnalysis();
-            return;
-          }
-          if (await handleDJ(event, user, targetDb)) {
-            botBiothythmManager.addDJ();
-            return;
-          }
-
-          // -----------
-          // Mode Detect: Except of Fortune, Analyze, DJ
-          // -----------
-          if (follower) {
-            if (await handleU18Release(event, db)) return;
-            if (await handleU18Register(event, db)) return;
-            if (await handleFreq(event, follower, db)) return;
-            if (await handleCheer(event, follower, db)) {
-              botBiothythmManager.addCheer();
-              return;
-            }
-            if (await handleConversation(event, follower, db)) {
-              botBiothythmManager.addConversation();
-              return;
-            }
-            if (await handleDiaryRegister(event, db)) return;
-            if (await handleDiaryRelease(event, db)) return;
-          }
-
+        if (await handleU18Release(event, db)) return;
+        if (await handleU18Register(event, db)) return;
+        if (await handleFreq(event, follower, db)) return;
+        if (await handleFortune(event, follower, db)) {
+          botBiothythmManager.addFortune();
           return;
         }
+        if (await handleAnalyze(event, follower, db)) {
+          botBiothythmManager.addAnalysis();
+          return;
+        }
+        if (await handleCheer(event, follower, db)) {
+          botBiothythmManager.addCheer();
+          return;
+        }
+        if (await handleDJ(event, follower, db)) {
+          botBiothythmManager.addDJ();
+          return;
+        }
+        if (await handleConversation(event, follower, db)) {
+          botBiothythmManager.addConversation();
+          return;
+        }
+        if (await handleDiaryRegister(event, db)) return;
+        if (await handleDiaryRelease(event, db)) return;
 
-        // -----------
-        // Follower Filter
-        // -----------
-        if (follower) {
-          // -----------
-          // Mode Detect: All mode
-          // -----------
-          if (await handleU18Release(event, db)) return;
-          if (await handleU18Register(event, db)) return;
-          if (await handleFreq(event, follower, db)) return;
-          if (await handleFortune(event, follower, db)) {
-            botBiothythmManager.addFortune();
-            return;
-          }
-          if (await handleAnalyze(event, follower, db)) {
-            botBiothythmManager.addAnalysis();
-            return;
-          }
-          if (await handleCheer(event, follower, db)) {
-            botBiothythmManager.addCheer();
-            return;
-          }
-          if (await handleDJ(event, follower, db)) {
-            botBiothythmManager.addDJ();
-            return;
-          }
-          if (await handleConversation(event, follower, db)) {
-            botBiothythmManager.addConversation();
-            return;
-          }
-          if (await handleDiaryRegister(event, db)) return;
-          if (await handleDiaryRelease(event, db)) return;
+        // ==============
+        // main
+        // ==============
+        // フィルタリング: リプライでない、かつメンションでない投稿を対象とする
+        if (!record.reply && !isMention(record)) {
 
-          // ==============
-          // main
-          // ==============
-          // フィルタリング: リプライでない、かつメンションでない投稿を対象とする
-          if (!record.reply && !isMention(record)) {
+          // 前回反応日時の取得
+          const postedAt = new Date(record.createdAt);
+          const updatedAt = new Date(String(await db.selectDb(did, "updated_at")));
+          const updatedAtJst = new Date(updatedAt.getTime() + OFFSET_UTC_TO_JST);
 
-            // 前回反応日時の取得
-            const postedAt = new Date(record.createdAt);
-            const updatedAt = new Date(String(await db.selectDb(did, "updated_at")));
-            const updatedAtJst = new Date(updatedAt.getTime() + OFFSET_UTC_TO_JST);
+          // 時間判定
+          const isPast = (postedAt.getTime() - updatedAtJst.getTime() > MINUTES_THRD_RESPONSE);
 
-            // 時間判定
-            const isPast = (postedAt.getTime() - updatedAtJst.getTime() > MINUTES_THRD_RESPONSE);
+          // 確立判定
+          const user_freq = await db.selectDb(did, "reply_freq");
+          const isValidFreq = isJudgeByFreq(user_freq !== null ? Number(user_freq) : 100); // フォロワーだがレコードにないユーザーであるため、通過させる
 
-            // 確立判定
-            const user_freq = await db.selectDb(did, "reply_freq");
-            const isValidFreq = isJudgeByFreq(user_freq !== null ? Number(user_freq) : 100); // フォロワーだがレコードにないユーザーであるため、通過させる
+          if (isPast && isValidFreq) {
+            try {
+              // U18情報をDBから取得
+              const is_u18 = Number(await db.selectDb(did, "is_u18"));
 
-            if (isPast && isValidFreq) {
-              try {
-                // U18情報をDBから取得
-                const is_u18 = Number(await db.selectDb(did, "is_u18"));
+              // 新しい投稿の検出とリプライ処理
+              console.log(`[INFO][${did}] New post: single post by follower !!`);
+              const result = await replyAffermativeWord(follower, event, is_u18 === 1);
 
-                // 新しい投稿の検出とリプライ処理
-                console.log(`[INFO][${did}] New post: single post by follower !!`);
-                const result = await replyAffermativeWord(follower, event, is_u18 === 1);
-
-                // ポストスコア記憶
-                dbPosts.insertDb(did);
-                const prevScore = Number(await dbPosts.selectDb(did, "score") || 0);
-                if (result.score && prevScore < result.score &&
-                  !follower.displayName?.toLowerCase().includes("bot") // botを除外
-                ) {
-                  // お気に入りポスト更新
-                  dbPosts.updateDb(did, "post", (event.commit.record as Record).text);
-                  dbPosts.updateDb(did, "score", result.score);
-                }
-
-                // 全肯定した人数加算
-                botBiothythmManager.addAffirmation(did);
-
-                // DB更新
-                db.insertOrUpdateDb(did);
-              } catch (replyError) {
-                console.error(`[ERROR][${did}] Failed to reply or update DB:`, replyError);
+              // ポストスコア記憶
+              dbPosts.insertDb(did);
+              const prevScore = Number(await dbPosts.selectDb(did, "score") || 0);
+              if (result.score && prevScore < result.score &&
+                !follower.displayName?.toLowerCase().includes("bot") // botを除外
+              ) {
+                // お気に入りポスト更新
+                dbPosts.updateDb(did, "post", (event.commit.record as Record).text);
+                dbPosts.updateDb(did, "score", result.score);
               }
-            } else {
-              console.log(`[INFO][${did}] Ignored post, past:${isPast}/freq:${isValidFreq}`);
+
+              // 全肯定した人数加算
+              botBiothythmManager.addAffirmation(did);
+
+              // DB更新
+              db.insertOrUpdateDb(did);
+            } catch (replyError) {
+              console.error(`[ERROR][${did}] Failed to reply or update DB:`, replyError);
             }
           } else {
-            console.log(`[INFO][${did}] Ignored post, follower but reply or mention`);
+            console.log(`[INFO][${did}] Ignored post, past:${isPast}/freq:${isValidFreq}`);
           }
+        } else {
+          console.log(`[INFO][${did}] Ignored post, follower but reply or mention`);
         }
       }, {
         retries: 3,

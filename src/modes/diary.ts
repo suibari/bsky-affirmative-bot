@@ -44,47 +44,51 @@ export async function handleDiary (db: SQLite3) {
     const profiles = await getConcatProfiles({actors: dids});
 
     // 各プロフィールに対して日記モードの処理を行う
-    for (const profile of profiles) {
-      // 1日のポスト取得
-      const feed = await getTodaysAuthorFeed(profile.did);
-      if (feed.length === 0) {
-        console.log(`[INFO][${profile.did}] No posts found for today.`);
-        continue; // 今日のポストがない場合はスキップ
+    for (const [index, profile] of profiles.entries()) {
+      try {
+        // 1日のポスト取得
+        const feed = await getTodaysAuthorFeed(profile.did);
+        if ( feed.length === 0) {
+          console.log(`[INFO][${profile.did}] No posts found for today.`);
+          continue; // 今日のポストがない場合はスキップ
+        }
+        console.log(`[INFO][${profile.did}] processing diary mode... ${index}/${dids.length}`);
+        const posts = feed.map(item => (item.post.record as Record).text);
+
+        // リプライのための最新ポストを取得
+        const latestPost = feed.find(item => !item.reply)?.post;
+        if (!latestPost) {
+          console.log(`[INFO][${profile.did}] All post are reply.`);
+          continue; // ポストがすべてリプライの場合もスキップ
+        }
+        const langStr = getLangStr((latestPost.record as Record).langs); // 1つ目のポストから言語を取得
+
+        // 日記生成
+        const text_bot = await generateDiary({
+          follower: profile as ProfileView,
+          posts,
+          langStr,
+        });
+
+        // 画像生成
+        const today = new Date();
+        const formattedDate = `${today.getFullYear()}/${today.getMonth() + 1}/${today.getDate()}`;
+        const buffer =  await textToImageBufferWithBackground(text_bot + `\n\n${formattedDate}`);
+        const {blob} = (await agent.uploadBlob(buffer, {encoding: "image/png"})).data;
+
+        // ポスト
+        const TEXT_DIARY = (langStr === "日本語") ?
+          `${profile.displayName}さんへ、今日の日記をまとめたよ! 画像を貼るので見てみてね。おやすみ～!` :
+          `${profile.displayName}, I summarized your diary for today! Check the image. Good night!`;
+        await postContinuous(TEXT_DIARY, {
+          uri: latestPost.uri,
+          cid: latestPost.cid,
+          record: latestPost.record as Record
+        }, {blob, alt: `Dear ${profile.displayName}, From 全肯定botたん`});
+      } catch (e: any) {
+        console.error(e)
       }
-      console.log(`[INFO][${profile.did}] processing diary mode...`);
-      const posts = feed.map(item => (item.post.record as Record).text);
-
-      // リプライのための最新ポストを取得
-      const latestPost = feed.find(item => !item.reply)?.post;
-      if (!latestPost) {
-        console.log(`[INFO][${profile.did}] All post are reply.`);
-        continue; // ポストがすべてリプライの場合もスキップ
-      }
-      const langStr = getLangStr((latestPost.record as Record).langs); // 1つ目のポストから言語を取得
-
-      // 日記生成
-      const text_bot = await generateDiary({
-        follower: profile as ProfileView,
-        posts,
-        langStr,
-      });
-
-      // 画像生成
-      const today = new Date();
-      const formattedDate = `${today.getFullYear()}/${today.getMonth() + 1}/${today.getDate()}`;
-      const buffer =  await textToImageBufferWithBackground(text_bot + `\n\n${formattedDate}`);
-      const {blob} = (await agent.uploadBlob(buffer, {encoding: "image/png"})).data;
-
-      // ポスト
-      const TEXT_DIARY = (langStr === "日本語") ?
-        `${profile.displayName}さんへ、今日の日記をまとめたよ! 画像を貼るので見てみてね。おやすみ～!` :
-        `${profile.displayName}, I summarized your diary for today! Check the image. Good night!`;
-      await postContinuous(TEXT_DIARY, {
-        uri: latestPost.uri,
-        cid: latestPost.cid,
-        record: latestPost.record as Record
-      }, {blob, alt: `Dear ${profile.displayName}, From 全肯定botたん`});
-    }
+    } // for loop
   }
 }
 
