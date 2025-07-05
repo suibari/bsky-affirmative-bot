@@ -41,10 +41,16 @@ async function repostAndGenerate(userinfo: UserInfoGemini, event: CommitCreateEv
     console.log(`[INFO] judge>>> ${judge.comment}`);
     return undefined;
   }
-  
-  await repost(uri, cid);
 
-  const text = await generateCheerResult(userinfo);
+  let text: string;
+  try {
+    text = await generateCheerResult(userinfo);
+  } catch (err) {
+    console.error(`[ERROR][${userinfo.follower.did}] Failed to generate cheer result:`, err);
+    return undefined;
+  }
+
+  await repost(uri, cid);
 
   return text;
 }
