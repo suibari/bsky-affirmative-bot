@@ -11,6 +11,7 @@ import { getLangStr } from '../bsky/util.js';
 import { postContinuous } from '../bsky/postContinuous.js';
 import { agent, createOrRefreshSession } from '../bsky/agent.js';
 import { textToImageBufferWithBackground } from '../util/canvas.js';
+import { getSubscribersFromSheet } from '../gsheet/index.js';
 
 const TEXT_REGISTER_DIARY = "日記モードを設定しました! これから毎日、PM10時にあなたの今日のできごとを日記にしてまとめるね!";
 const TEXT_RELEASE_DIARY = "日記モードを解除しました! また使ってね!";
@@ -37,11 +38,18 @@ export async function handleDiaryRelease (event: CommitCreateEvent<"app.bsky.fee
 
 export async function handleDiary (db: SQLite3) {
   // 日記モードのユーザを取得
-  const dids = await db.selectAllDb("is_diary", 1);
+  const dids = await db.selectAllDb("is_diary", 1) as string[] || null;
+  if (dids === null || dids.length === 0) return
 
-  if (dids) {
+  // didsに含まれるサブクスライバーを取得
+  const subscribers = await getSubscribersFromSheet();
+  const subscriberSet = new Set(subscribers);
+  const matchedDids = dids.filter(did => subscriberSet.has(did));
+
+  if (matchedDids) {
+
     // 取得したDIDからプロフィールをまとめて取得
-    const profiles = await getConcatProfiles({actors: dids});
+    const profiles = await getConcatProfiles({actors: matchedDids});
 
     // 各プロフィールに対して日記モードの処理を行う
     for (const [index, profile] of profiles.entries()) {
@@ -52,7 +60,7 @@ export async function handleDiary (db: SQLite3) {
           console.log(`[INFO][${profile.did}] No posts found for today.`);
           continue; // 今日のポストがない場合はスキップ
         }
-        console.log(`[INFO][${profile.did}] processing diary mode... ${index}/${dids.length}`);
+        console.log(`[INFO][${profile.did}] processing diary mode... ${index}/${matchedDids.length}`);
         const posts = feed.map(item => (item.post.record as Record).text);
 
         // リプライのための最新ポストを取得
