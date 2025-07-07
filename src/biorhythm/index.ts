@@ -7,7 +7,7 @@ import eventsEveningDayoff from "../json/event_evening_dayoff.json";
 import eventsNight from "../json/event_night.json";
 import eventsMidnight from "../json/event_midnight.json";
 import { MODEL_GEMINI, SYSTEM_INSTRUCTION } from '../config';
-import { gemini } from '../gemini';
+import { gemini, RPD } from '../gemini';
 import { doWhimsicalPost } from "../modes/whimsical";
 import EventEmitter from "events";
 import { startServer } from "../server";
@@ -151,6 +151,13 @@ export class BiorhythmManager extends EventEmitter {
     // 開発環境では常にenergyMAX
     if (process.env.NODE_ENV === "development") {
       this.energy = ENERGY_MAXIMUM;
+    }
+
+    // RPDチェック: 超過時は全処理スキップし、丸1日後に再実行
+    if (!(await RPD.checkRPD())) {
+      console.log(`[INFO][BIORHYTHM] RPD exceeded, skipping step.`);
+      setTimeout(() => this.step(), 24 * 60 * 60 * 1000); // 24時間後に再実行
+      return;
     }
 
     let isPost: boolean = false;

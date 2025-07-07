@@ -18,6 +18,7 @@ import retry from 'async-retry';
 import { followers } from "..";
 import { handleDiaryRegister, handleDiaryRelease } from "../modes/diary";
 import { getSubscribersFromSheet } from "../gsheet";
+import { RPD } from "../gemini";
 
 const OFFSET_UTC_TO_JST = 9 * 60 * 60 * 1000; // offset: +9h (to JST from UTC <SQlite3>)
 const MINUTES_THRD_RESPONSE = 10 * 60 * 1000; // 10min
@@ -91,25 +92,30 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
         if (await handleDiaryRegister(event, db)) return;
         if (await handleDiaryRelease(event, db)) return;
 
-        if (await handleFortune(event, follower, db)) {
+        if (await handleFortune(event, follower, db) && await RPD.checkRPD()) {
+          RPD.add();
           botBiothythmManager.addFortune();
           return;
         }
-        if (await handleAnalyze(event, follower, db)) {
+        if (await handleAnalyze(event, follower, db) && await RPD.checkRPD()) {
+          RPD.add();
           botBiothythmManager.addAnalysis();
           return;
         }
 
-        if (subscribers.includes(follower.did)) {
+        if (subscribers.includes(follower.did) && await RPD.checkRPD()) {
           if (await handleDJ(event, follower, db)) {
+            RPD.add();
             botBiothythmManager.addDJ();
             return;
           }
           if (await handleConversation(event, follower, db)) {
+            RPD.add();
             botBiothythmManager.addConversation();
             return;
           }
           if (await handleCheer(event, follower, db)) {
+            RPD.add();
             botBiothythmManager.addCheer();
             return;
           }

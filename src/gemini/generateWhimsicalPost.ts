@@ -80,26 +80,10 @@ const PROMPT_WHIMSICAL_WANT_PART = async (params: {topFollower?: ProfileView, to
     `
     1. 今日は何の日か紹介：${getRandomItems(getWhatDay(), 1)}
     2. 今日のポジティブニュースの紹介：${(await fetchNews("ja")).map(article => article.title)}
-    ${params.topFollower && params.topPost ?
-    `3. これまで見ていたポストの中で面白かった以下のポストの紹介。具体的に面白かったポイントを言ってください。
-      以下がユーザ名、ハンドル名、ポストです。ハンドル名は、( @handle )というようにスペースを前後に入れてアットマークをつけてください。
-      -----ユーザ名とポスト-----
-      ユーザ名: ${params.topFollower.displayName}
-      ハンドル名: ${params.topFollower.handle}
-      ポスト内容: ${params.topPost || ""}` : ""
-    }
     ` :
     `
     1. Introduce a piece of what day it is today in Japan: ${getRandomItems(getWhatDay(), 1)}
     2. Introduce a piece of positive news for today: ${(await fetchNews("en")).map(article => article.title)}
-    ${params.topFollower && params.topPost ?
-    `3. Introduce the following post that you found interesting among the ones you've seen. Be specific about what you found interesting.
-      Here is the username, handle and the post content. To enter a handle name, enter an @sign followed by a space ( @handle ):
-      ----- Username and Post -----
-      Username: ${params.topFollower.displayName}
-      handle: ${params.topFollower.handle}
-      Post content: ${params.topPost || ""}` : ""
-    }
     `;
   
   return prompt;

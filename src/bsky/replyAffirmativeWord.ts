@@ -40,7 +40,7 @@ export async function replyAffermativeWord(
   // AIを使うか判定
   // NOTE: 上位callbackPostでsubsucriber判定しているのでこの関数は廃止し、そっちに統合するのがベター
   const subscribers = await  getSubscribersFromSheet();
-  if (subscribers.includes(follower.did)) {
+  if (subscribers.includes(follower.did) && await RPD.checkRPD()) {
     try {
       const likedPost = await dbLikes.selectDb(follower.did, "liked_post");
       if (likedPost) {

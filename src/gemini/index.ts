@@ -1,6 +1,7 @@
 import { GoogleGenAI } from "@google/genai";
 import { EXEC_PER_COUNTS } from '../config/index.js';
-const REQUEST_PER_DAY_GEMINI = 200;
+import { getSubscribersFromSheet } from "../gsheet/index.js";
+const REQUEST_PER_DAY_GEMINI = 100;
 
 // Geminiのインスタンスを作成
 export const gemini = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
@@ -29,10 +30,15 @@ class RequestPerDayGemini {
     }
   }
 
-  checkMod() {
+  async checkRPD() {
     this.resetIfNeeded(); // 日付が変わっていれば初期化
-    const result = (this.count % EXEC_PER_COUNTS === 0) && (this.rpd < REQUEST_PER_DAY_GEMINI);
+    const subscribers = await getSubscribersFromSheet();
+    const result = (this.rpd < REQUEST_PER_DAY_GEMINI * subscribers.length); // RPDがサブスク数*100以下かチェック
     this.count++;
+
+    if (!result) {
+      console.warn(`[WARN] RPD exceeded: ${this.rpd} / ${REQUEST_PER_DAY_GEMINI * subscribers.length}`);
+    }
 
     return result;
   }
