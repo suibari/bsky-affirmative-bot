@@ -2,11 +2,15 @@ import { UserInfoGemini } from "../types.js";
 import { generateSingleResponse } from "./util.js";
 
 export async function generateDiary(userinfo: UserInfoGemini) {
+  const maxLength = userinfo.langStr === "日本語" ?
+    "出力する文字数は最大500文字までです。" :
+    "出力する文字数は最大1000文字までです。"
+
   const prompt =
 `ユーザの今日1日の日記をつけてあげてください。ユーザのポストを総括して、あなたの感想を述べてください。
 日記の目的はユーザのストレスを軽減し、自律神経を整えて、明日へのモチベーションを高めることです。
 ${userinfo.langStr}で出力してください。
-文字数は600文字程度としてください。
+${maxLength}
 絵文字は使わないでください。
 以下の要素を含めてください。
 * 今日失敗したこと

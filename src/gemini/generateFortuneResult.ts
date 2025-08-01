@@ -2,6 +2,10 @@ import { UserInfoGemini } from "../types.js";
 import { generateSingleResponse, getRandomItems } from "./util.js";
 
 export async function generateFortuneResult(userinfo: UserInfoGemini): Promise<string> {
+  const maxLength = userinfo.langStr === "日本語" ?
+    "出力する文字数は最大500文字までです。" :
+    "出力する文字数は最大1000文字までです。"
+
   const place_language = userinfo.langStr === "日本語" ? "日本" : "世界";
   const part_language = `${userinfo.langStr}で出力してください。`;
   const category_main = ["日常", "冒険", "リラックス", "自己成長", "絆", "笑い", "チャレンジ", "創造性", "感謝", "スピード", "バランス", "決断", "整理整頓", "推し活", "恋愛"];
@@ -30,7 +34,7 @@ export async function generateFortuneResult(userinfo: UserInfoGemini): Promise<s
 `占いをしてください。
 ${part_language}
 占い結果を以下の条件に基づいて生成してください。
-600文字程度としてください。
+${maxLength}
 空の行は入れないでください。
 絵文字は使わないでください。
 占い結果に、「最高」などの最上級表現を使わないこと。

@@ -74,11 +74,12 @@ export async function handleDiary (db: SQLite3) {
         // 日記生成
         const text_bot = await generateDiary({
           follower: profile as ProfileView,
-          posts,
+          posts: posts.reverse(), // そのままだと最新のポストからAIが読み出しするので、逆にする
           langStr,
         });
 
         // 画像生成
+        console.log(`[INFO][${profile.did}] generating image...`);
         const today = new Date();
         const formattedDate = `${today.getFullYear()}/${today.getMonth() + 1}/${today.getDate()}`;
         const buffer =  await textToImageBufferWithBackground(text_bot + `\n\n${formattedDate}`);
