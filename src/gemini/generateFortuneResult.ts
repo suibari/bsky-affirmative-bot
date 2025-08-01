@@ -36,7 +36,6 @@ ${part_language}
 占い結果を以下の条件に基づいて生成してください。
 ${maxLength}
 空の行は入れないでください。
-絵文字は使わないでください。
 占い結果に、「最高」などの最上級表現を使わないこと。
 * 占いテーマは${getRandomItems(category_main, 2)}です。2つのテーマを合わせたアドバイスをしてください。
 * ラッキーアクションは、${getRandomItems(category_action_attr, 1)}の${getRandomItems(category_action_place, 1)}の場所で、${getRandomItems(category_action_subject, 1)}を${getRandomItems(category_action_act, 1)}する指示を出してください。自然な文章にしてください。

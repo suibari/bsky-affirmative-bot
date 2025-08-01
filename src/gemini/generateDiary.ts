@@ -11,7 +11,6 @@ export async function generateDiary(userinfo: UserInfoGemini) {
 日記の目的はユーザのストレスを軽減し、自律神経を整えて、明日へのモチベーションを高めることです。
 ${userinfo.langStr}で出力してください。
 ${maxLength}
-絵文字は使わないでください。
 以下の要素を含めてください。
 * 今日失敗したこと
 * 今日一番よかったこと、心が動いたこと
