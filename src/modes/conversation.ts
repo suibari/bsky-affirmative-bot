@@ -3,27 +3,19 @@ import { ProfileView } from "@atproto/api/dist/client/types/app/bsky/actor/defs"
 import { Record } from "@atproto/api/dist/client/types/app/bsky/feed/post";
 import { CommitCreateEvent } from "@skyware/jetstream";
 import { agent } from "../bsky/agent.js";
-import { getImageUrl, getLangStr, splitUri, uniteDidNsidRkey } from "../bsky/util.js";
+import { getImageUrl, getLangStr, isReplyOrMentionToMe, splitUri, uniteDidNsidRkey } from "../bsky/util.js";
 import { conversation } from "../gemini/conversation.js";
 import { handleMode } from "./index.js";
-import { CONVMODE_TRIGGER } from '../config/index.js';
 import { GeminiResponseResult, UserInfoGemini } from "../types.js";
 import { SQLite3 } from "../db/index.js";
 import { Content } from "@google/genai";
+import { parseThread } from "../bsky/parseThread.js";
 
-const MINUTES_THRD_RESPONSE = 10 * 60 * 1000; // 10min
 const MAX_BOT_MEMORY = 100;
-
-const flagsWaiting = new Map();
 
 export async function handleConversation (event: CommitCreateEvent<"app.bsky.feed.post">, follower: ProfileView, db: SQLite3) {
   const did = event.did;
   const record = event.commit.record as Record;
-
-  // 同じユーザが処理中か確認、処理中なら無視
-  if (flagsWaiting.get(did)) {
-    return false;
-  }
 
   // 添付画像取得
   let image_url: string | undefined = undefined;
@@ -32,13 +24,44 @@ export async function handleConversation (event: CommitCreateEvent<"app.bsky.fee
     ({image_url, mimeType} = getImageUrl(follower.did, record.embed as AppBskyEmbedImages.Main));
   }
 
+  // 前回までの会話取得
+  const history = await db.selectDb(follower.did, "conv_history") as Content[];
+  const conv_root_cid = await db.selectDb(follower.did, "conv_root_cid") as String;
+
+  // ユーザからbotへのリプライ時、botの定期ポストでなければ、
+  // 1ユーザの元ポスト、2botのリプライ、3ユーザのさらなるリプライ となっているはず
+  // conv_root_cidがスレッドのrootと等しくないなら、historyに会話履歴を追加する必要あり
+  if (conv_root_cid === record.reply?.root.cid) {
+    const thread = await parseThread(record);
+    // 親の親ポスト
+    const gpContent: Content = {
+      role: "user",
+      parts: [
+        {
+          text: thread.grandParent?.text
+        },
+      ],
+    }
+    history.push(gpContent)
+    // 親ポスト
+    const parentContent: Content = {
+      role: "model",
+      parts: [
+        {
+          text:thread.parent?.text
+        }
+      ]
+    }
+    history.push(parentContent);
+  }
+
   return await handleMode(event, {
-    triggers: CONVMODE_TRIGGER,
+    triggers: [], // トリガーワードなし、botへのリプライであれば常に反応
     db,
     dbColumn: "last_conv_at",
     dbValue: new Date().toISOString(),
     generateText: waitAndGenReply,
-    checkConditionsOR: await isTalking(did, record, db), // 会話スレッドの判定
+    checkConditionsOR: isReplyOrMentionToMe(record),
   },
   {
     follower,
@@ -46,35 +69,12 @@ export async function handleConversation (event: CommitCreateEvent<"app.bsky.fee
     langStr: getLangStr(record.langs),
     image_url: image_url,
     image_mimeType: mimeType,
+    history,
   });
 }
 
-async function isTalking (did: string, record: Record, db: SQLite3) {
-  // 会話継続判定: eventにはuriは直接含まれずめんどくさいのでcidで比較する
-  const rootCidDb = String(await db.selectDb(did, "conv_root_cid"));
-  let rootCid =  record.reply?.root.cid;
-  const parentUri = record.reply?.parent.uri;
-  const {did: parantDid} = parentUri ? splitUri(parentUri) : {did: undefined};
-  const isValidRootCid = (rootCidDb === rootCid); // DBに存在=会話済み
-  const isValidParent = (process.env.BSKY_DID === parantDid); // ポストの親ポストがbotのポスト
-
-  return isValidRootCid && isValidParent;
-}
-
 async function waitAndGenReply (userinfo: UserInfoGemini, event: CommitCreateEvent<"app.bsky.feed.post">, db: SQLite3): Promise<GeminiResponseResult> {
-  const record = event.commit.record as Record;
-
-  flagsWaiting.set(userinfo.follower.did, true);
-
-  // 前回までの会話取得
-  const history = await db.selectDb(userinfo.follower.did, "conv_history") as Content[];
-  if (history) {
-    // 先頭要素がmodelの発話だとエラーになるので回避する
-    if (history[0].role === "model") {
-      history.shift();
-    };
-    userinfo.history = history;
-  }
+  const record = event.commit.record as Record;  
 
   // 応答生成
   const {text_bot, new_history} = await conversation(userinfo);
@@ -84,15 +84,12 @@ async function waitAndGenReply (userinfo: UserInfoGemini, event: CommitCreateEve
   const uri = uniteDidNsidRkey(event.did, event.commit.collection, event.commit.rkey);
   await agent.like(uri, event.commit.cid);
 
-  // MINUTES_THRD_RESPONSE 分待つ
-  if (process.env.NODE_ENV === "production") {
-    console.log(`[INFO][${userinfo.follower.did}] Waiting conversation...`);
-    await new Promise(resolve => setTimeout(resolve, MINUTES_THRD_RESPONSE));
-  }
-
   // historyのクリップ処理
   while (new_history.length > MAX_BOT_MEMORY) {
     new_history.shift(); // 先頭から削除
+    if (new_history[0].role === "model") {
+      new_history.shift();
+    }
   }
 
   // 初回の呼びかけまたは呼びかけし直しならreplyがないのでそのポストのcidを取得

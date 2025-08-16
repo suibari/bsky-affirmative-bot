@@ -110,11 +110,11 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
             botBiothythmManager.addDJ();
             return;
           }
-          if (await handleConversation(event, follower, db)) {
-            RPD.add();
-            botBiothythmManager.addConversation();
-            return;
-          }
+          // if (await handleConversation(event, follower, db)) {
+          //   RPD.add();
+          //   botBiothythmManager.addConversation();
+          //   return;
+          // }
           if (await handleCheer(event, follower, db)) {
             RPD.add();
             botBiothythmManager.addCheer();
@@ -126,7 +126,14 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
         // reply: conversation
         // --------------
         if (record.reply) {
-          // TODO: サブスクライバー限定で会話機能発動する
+          // サブスクライバー限定で会話機能発動する
+          if (subscribers.includes(follower.did)) {
+            if (await handleConversation(event, follower, db)) {
+              RPD.add();
+              botBiothythmManager.addConversation();
+              return;
+            }
+          }
 
         // ==============
         // main

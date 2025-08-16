@@ -1,6 +1,7 @@
 import { BlobRef } from "@atproto/api";
 import { ProfileView } from "@atproto/api/dist/client/types/app/bsky/actor/defs";
 import { Content, Type } from "@google/genai";
+import { Record } from "@atproto/api/dist/client/types/app/bsky/feed/post";
 
 export type WhatDayMap = {
   [month: string]: {
@@ -26,4 +27,10 @@ export type GeminiResponseResult = string | {
 export type GeminiScore = {
   comment: string;
   score: number;
+}
+
+export interface ThreadInfo {
+  parent?: Record
+  grandParent?: Record
+  root?: Record
 }
