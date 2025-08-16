@@ -9,6 +9,11 @@ import wordHny from "../json/affirmativeword_hny.json";
 import wordMorning from "../json/affirmativeword_morning.json";
 import wordNight from "../json/affirmativeword_night.json";
 import wordGj from "../json/affirmativeword_gj.json";
+import { ProfileView } from "@atproto/api/dist/client/types/app/bsky/actor/defs";
+import { CommitCreateEvent } from "@skyware/jetstream";
+import { Record } from "@atproto/api/dist/client/types/app/bsky/feed/post";
+import { getLangStr, uniteDidNsidRkey } from "../bsky/util";
+import { postContinuous } from "../bsky/postContinuous";
 
 const CONDITIONS = [
   { keywords: HNY_WORDS, word: wordHny },
@@ -17,11 +22,24 @@ const CONDITIONS = [
   { keywords: OTSUKARE_WORDS, word: wordGj },
 ];
 
-export async function getRandomWordByNegaposi(posttext: string, langStr: string) {
-  let path;
+export async function replyrandom (
+  follower: ProfileView,
+  event: CommitCreateEvent<"app.bsky.feed.post">,
+) {
   let sentiment = 0;
   let wordSpecial;
   let wordArray: string[] = [];
+
+  const record = event.commit.record as Record;
+  const uri = uniteDidNsidRkey(follower.did, event.commit.collection, event.commit.rkey);
+  const cid = event.commit.cid;
+  const posttext = record.text;
+  const langStr = getLangStr(record.langs);
+
+  if (process.env.NODE_ENV === "development") {
+    console.log("[DEBUG] user>>> " + posttext);
+    console.log("[DEBUG] lang: " + langStr);
+  }
 
   // 単語判定
   for (const condition of CONDITIONS) {
@@ -75,6 +93,10 @@ export async function getRandomWordByNegaposi(posttext: string, langStr: string)
   
   let rand = Math.random();
   rand = Math.floor(rand * wordArray.length);
-  const text = wordArray[rand];
-  return text;
+  const text_bot = wordArray[rand];
+
+  // ポスト
+  await postContinuous(text_bot, { uri, cid, record });
+
+  return null;
 }
