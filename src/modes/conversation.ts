@@ -28,6 +28,9 @@ export async function handleConversation (event: CommitCreateEvent<"app.bsky.fee
   const history = await db.selectDb(follower.did, "conv_history") as Content[];
   const conv_root_cid = await db.selectDb(follower.did, "conv_root_cid") as String;
 
+  // スレッドrootがポストしたユーザでないなら早期リターン
+  if (!record.reply?.root.uri.includes(follower.did)) return false;
+
   // ユーザからbotへのリプライ時、botの定期ポストでなければ、
   // 1ユーザの元ポスト、2botのリプライ、3ユーザのさらなるリプライ となっているはず
   // conv_root_cidがスレッドのrootと等しくないなら、historyに会話履歴を追加する必要あり
