@@ -94,9 +94,10 @@ export async function replyrandom (
   let rand = Math.random();
   rand = Math.floor(rand * wordArray.length);
   const text_bot = wordArray[rand];
+  const text_bot_replaced = text_bot.replace("${name}", follower.displayName ?? "");
 
   // ポスト
-  await postContinuous(text_bot, { uri, cid, record });
+  await postContinuous(text_bot_replaced, { uri, cid, record });
 
   return null;
 }
