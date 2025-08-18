@@ -34,28 +34,33 @@ export async function handleConversation (event: CommitCreateEvent<"app.bsky.fee
   // ユーザからbotへのリプライ時、botの定期ポストでなければ、
   // 1ユーザの元ポスト、2botのリプライ、3ユーザのさらなるリプライ となっているはず
   // conv_root_cidがスレッドのrootと等しくないなら、historyに会話履歴を追加する必要あり
-  if (conv_root_cid === record.reply?.root.cid) {
-    const thread = await parseThread(record);
-    // 親の親ポスト
-    const gpContent: Content = {
-      role: "user",
-      parts: [
-        {
-          text: thread.grandParent?.text
-        },
-      ],
+  try {
+    if (conv_root_cid === record.reply?.root.cid) {
+      const thread = await parseThread(record);
+      // 親の親ポスト
+      const gpContent: Content = {
+        role: "user",
+        parts: [
+          {
+            text: thread.grandParent?.text
+          },
+        ],
+      }
+      history.push(gpContent)
+      // 親ポスト
+      const parentContent: Content = {
+        role: "model",
+        parts: [
+          {
+            text:thread.parent?.text
+          }
+        ]
+      }
+      history.push(parentContent);
     }
-    history.push(gpContent)
-    // 親ポスト
-    const parentContent: Content = {
-      role: "model",
-      parts: [
-        {
-          text:thread.parent?.text
-        }
-      ]
-    }
-    history.push(parentContent);
+  } catch (error) {
+    console.error(`[ERROR][${did}] Failed to parse thread:`, error);
+    return false; // スレッド解析に失敗した場合は処理を中止
   }
 
   return await handleMode(event, {
