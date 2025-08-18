@@ -26,7 +26,16 @@ export async function conversation(userinfo: UserInfoGemini) {
       }
     });
   }
-  const response = await chat.sendMessage({message});
+  const response = await chat.sendMessage({
+    message,
+    config: {
+      tools: [
+        {
+          googleSearch: {},
+        }
+      ]
+    }
+  });
 
   const new_history = chat.getHistory();
   const text_bot = response.text;
