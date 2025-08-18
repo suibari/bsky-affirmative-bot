@@ -43,6 +43,11 @@ export async function generateSingleResponse (prompt: string, userinfo?: UserInf
     contents,
     config: {
       systemInstruction: SYSTEM_INSTRUCTION,
+      tools: [
+        {
+          googleSearch: {},
+        }
+      ]
     }
   });
 
@@ -89,6 +94,11 @@ export async function generateSingleResponseWithScore (prompt: string, userinfo?
       systemInstruction: SYSTEM_INSTRUCTION,
       responseMimeType: "application/json",
       responseSchema,
+      tools: [
+        {
+          googleSearch: {},
+        }
+      ]
     }
   });
   const result = JSON.parse(response.text || "") as GeminiScore[];
