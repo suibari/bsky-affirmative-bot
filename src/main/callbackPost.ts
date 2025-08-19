@@ -87,8 +87,8 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
         // -----------
         // Mode Detect: All mode
         // -----------
-        if (await handleU18Release(event, db)) return;
-        if (await handleU18Register(event, db)) return;
+        // if (await handleU18Release(event, db)) return;
+        // if (await handleU18Register(event, db)) return;
         if (await handleFreq(event, follower, db)) return;
         if (await handleDiaryRegister(event, db)) return;
         if (await handleDiaryRelease(event, db)) return;
@@ -110,11 +110,6 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
             botBiothythmManager.addDJ();
             return;
           }
-          // if (await handleConversation(event, follower, db)) {
-          //   RPD.add();
-          //   botBiothythmManager.addConversation();
-          //   return;
-          // }
           if (await handleCheer(event, follower, db)) {
             RPD.add();
             botBiothythmManager.addCheer();
@@ -140,6 +135,14 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
         // ==============
         } else if (!isMention(record)) {
           // リプライでない、かつメンションでない投稿を対象とする
+          // 確率判定
+          const user_freq = await db.selectDb(did, "reply_freq");
+          const isValidFreq = isJudgeByFreq(user_freq !== null ? Number(user_freq) : 100); // フォロワーだがレコードにないユーザーであるため、通過させる
+          if (!isValidFreq) {
+            console.log(`[INFO][${did}] Ignored post because freq (user_freq: ${user_freq})`);
+            return;
+          }
+
           if (subscribers.includes(follower.did)) {
             // サブスクメンバーは常に即時反応
             console.log(`[INFO][${did}] New post: single post by subscribed-follower !!`);
@@ -167,11 +170,7 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
             // 時間判定
             const isPast = (postedAt.getTime() - updatedAtJst.getTime() > MINUTES_THRD_RESPONSE);
 
-            // 確率判定
-            const user_freq = await db.selectDb(did, "reply_freq");
-            const isValidFreq = isJudgeByFreq(user_freq !== null ? Number(user_freq) : 100); // フォロワーだがレコードにないユーザーであるため、通過させる
-
-            if (isPast && isValidFreq) {
+            if (isPast) {
               console.log(`[INFO][${did}] New post: single post by not subbed-follower !!`);
               await replyrandom(follower, event);
             }
