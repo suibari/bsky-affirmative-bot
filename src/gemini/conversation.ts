@@ -31,6 +31,7 @@ export async function conversation(userinfo: UserInfoGemini) {
   const response = await chat.sendMessage({
     message,
     config: {
+      systemInstruction: SYSTEM_INSTRUCTION,
       tools: [
         {
           googleSearch: {},
