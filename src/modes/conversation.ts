@@ -6,7 +6,7 @@ import { agent } from "../bsky/agent.js";
 import { getImageUrl, getLangStr, isReplyOrMentionToMe, splitUri, uniteDidNsidRkey } from "../bsky/util.js";
 import { conversation } from "../gemini/conversation.js";
 import { handleMode } from "./index.js";
-import { GeminiResponseResult, UserInfoGemini } from "../types.js";
+import { GeminiResponseResult, ImageRef, UserInfoGemini } from "../types.js";
 import { SQLite3 } from "../db/index.js";
 import { Content } from "@google/genai";
 import { parseThread } from "../bsky/parseThread.js";
@@ -18,10 +18,9 @@ export async function handleConversation (event: CommitCreateEvent<"app.bsky.fee
   const record = event.commit.record as Record;
 
   // 添付画像取得
-  let image_url: string | undefined = undefined;
-  let mimeType: string | undefined = undefined;
+  let image: ImageRef[] | undefined = undefined;
   if (record.embed) {
-    ({image_url, mimeType} = getImageUrl(follower.did, record.embed as AppBskyEmbedImages.Main));
+    (image = getImageUrl(follower.did, record.embed as AppBskyEmbedImages.Main));
   }
 
   // 前回までの会話取得
@@ -75,8 +74,7 @@ export async function handleConversation (event: CommitCreateEvent<"app.bsky.fee
     follower,
     posts: [record.text],
     langStr: getLangStr(record.langs),
-    image_url: image_url,
-    image_mimeType: mimeType,
+    image,
     history,
   });
 }

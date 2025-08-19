@@ -3,7 +3,7 @@ import { Record } from '@atproto/api/dist/client/types/app/bsky/feed/post.js';
 import { getImageUrl, isReplyOrMentionToMe, uniteDidNsidRkey } from "../bsky/util.js";
 import { postContinuous } from "../bsky/postContinuous.js";
 import { SQLite3 } from "../db/index.js";
-import { GeminiResponseResult, UserInfoGemini } from "../types.js";
+import { GeminiResponseResult, ImageRef, UserInfoGemini } from "../types.js";
 import { NICKNAMES_BOT } from "../config/index.js";
 import { AppBskyEmbedImages } from "@atproto/api";
 
@@ -50,14 +50,12 @@ export const handleMode = async (
   options.db.insertDb(did);
 
   // 画像読み出し
-  let image_url: string | undefined = undefined;
-  let mimeType: string | undefined = undefined;
+  let image: ImageRef[] | undefined = undefined;
   if (record.embed) {
-    ({image_url, mimeType} = getImageUrl(did, record.embed as AppBskyEmbedImages.Main));
+    (image = getImageUrl(did, record.embed as AppBskyEmbedImages.Main));
   }
   if (userinfo) {
-    userinfo.image_url = image_url;
-    userinfo.image_mimeType = mimeType;
+    userinfo.image = image; // userinfoに画像情報をセット
   }
 
   // ポスト&DB更新

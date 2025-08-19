@@ -15,9 +15,13 @@ export type UserInfoGemini = {
   posts?: string[];
   likedByFollower?: string[];
   history?: Content[];
-  image_url?: string;
-  image_mimeType?: string;
+  image?: ImageRef[];
 };
+
+export interface ImageRef {
+  image_url: string;
+  mimeType: string;
+}
 
 export type GeminiResponseResult = string | {
   text: string;

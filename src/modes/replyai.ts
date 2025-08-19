@@ -6,7 +6,7 @@ import { generateAffirmativeWord } from "../gemini/generateAffirmativeWord.js";
 import { Record } from "@atproto/api/dist/client/types/app/bsky/feed/post";
 import { replyrandom } from "../modes/replyrandom.js";
 import { RPD } from "../gemini/index.js";
-import { GeminiScore } from "../types.js";
+import { GeminiScore, ImageRef } from "../types.js";
 import { dbLikes } from "../db/index.js";
 import { postContinuous } from "../bsky/postContinuous.js";
 
@@ -22,15 +22,15 @@ export async function replyai(
   let result: GeminiScore | undefined;
   const text_user = record.text;
 
-  let image_url: string | undefined = undefined;
+  let image: ImageRef[] | undefined = undefined;
   let mimeType: string | undefined = undefined;
   if (record.embed) {
-    ({ image_url, mimeType } = getImageUrl(follower.did, record.embed as AppBskyEmbedImages.Main));
+    (image = getImageUrl(follower.did, record.embed as AppBskyEmbedImages.Main));
   }
 
   if (process.env.NODE_ENV === "development") {
     console.log("[DEBUG] user>>> " + text_user);
-    console.log("[DEBUG] image: " + image_url);
+    console.log("[DEBUG] image: " + image?.map(img => img.image_url).join(", "));
     console.log("[DEBUG] lang: " + langStr);
   }
 
@@ -45,8 +45,7 @@ export async function replyai(
       langStr,
       posts: [record.text],
       likedByFollower: likedPost,
-      image_url,
-      image_mimeType: mimeType,
+      image,
     });
 
     const text_bot = result?.comment || "";

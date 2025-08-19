@@ -15,16 +15,18 @@ export async function conversation(userinfo: UserInfoGemini) {
  
   // message作成
   const message: PartListUnion = [prompt];
-  if (userinfo.image_url && userinfo.image_mimeType) {
-    const response = await fetch(userinfo.image_url);
-    const imageArrayBuffer = await response.arrayBuffer();
-    const base64ImageData = Buffer.from(imageArrayBuffer).toString("base64");
-    message.push({
-      inlineData: {
-        mimeType: userinfo.image_mimeType,
-        data: base64ImageData,
-      }
-    });
+  if (userinfo.image) {
+    for (const img of userinfo.image) {
+      const response = await fetch(img.image_url);
+      const imageArrayBuffer = await response.arrayBuffer();
+      const base64ImageData = Buffer.from(imageArrayBuffer).toString("base64");
+      message.push({
+        inlineData: {
+          mimeType: img.mimeType,
+          data: base64ImageData,
+        }
+      });
+    }
   }
   const response = await chat.sendMessage({
     message,

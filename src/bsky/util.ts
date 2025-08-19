@@ -1,4 +1,4 @@
-import { AppBskyEmbedExternal, AppBskyEmbedImages } from "@atproto/api";
+import { AppBskyEmbedExternal, AppBskyEmbedImages, AppBskyEmbedVideo } from "@atproto/api";
 import { PostView } from "@atproto/api/dist/client/types/app/bsky/feed/defs";
 import { Record } from "@atproto/api/dist/client/types/app/bsky/feed/post";
 
@@ -126,25 +126,34 @@ export function getLangStr(langs: string[] | undefined): string {
 
 /**
  * 画像URLを取得
- * 画像と外部リンクの画像に対応
+ * 画像、外部リンクOGP画像、動画サムネイルに対応
  */
-export function getImageUrl(did: string, embed: AppBskyEmbedImages.Main | AppBskyEmbedExternal.Main) {
-  let image_url = undefined;
-  let mimeType = undefined;
+export function getImageUrl(did: string, embed: AppBskyEmbedImages.Main | AppBskyEmbedExternal.Main | AppBskyEmbedVideo.Main) {
+  let result = [];
 
   if (embed.$type === "app.bsky.embed.images") {
-    const image = embed.images?.[0]?.image;
-    if (image) {
-      image_url = `https://cdn.bsky.app/img/feed_fullsize/plain/${did}/${(image.ref as any).$link}`; // 回避策
-      mimeType = image.mimeType;
-    }
+    embed.images.forEach(item => {
+      if (item.image) {
+        const image_url = `https://cdn.bsky.app/img/feed_fullsize/plain/${did}/${(item.image.ref as any).$link}`; // 回避策
+        const mimeType = item.image.mimeType;
+        result.push({ image_url, mimeType });
+      }
+    });
   } else if (embed.$type === "app.bsky.embed.external") {
     const thumb = embed.external.thumb;
     if (thumb) {
-      image_url = `https://cdn.bsky.app/img/feed_thumbnail/plain/${did}/${(thumb.ref as any).$link}`; // 回避策
-      mimeType = thumb.mimeType;
+      const image_url = `https://cdn.bsky.app/img/feed_thumbnail/plain/${did}/${(thumb.ref as any).$link}`; // 回避策
+      const mimeType = thumb.mimeType;
+      result.push({ image_url, mimeType });
+    }
+  } else if (embed.$type === "app.bsky.embed.video") {
+    const video = embed.video;
+    if (video) {
+      const image_url = `https://video.bsky.app/watch/${did}/${(video.ref as any).$link}/thumbnail.jpg`; // 回避策
+      const mimeType = "image/jpeg"; // 動画のサムネイルはJPEG
+      result.push({ image_url, mimeType });
     }
   }
   
-  return {image_url, mimeType};
+  return result;
 }

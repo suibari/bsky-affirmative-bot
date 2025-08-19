@@ -26,16 +26,18 @@ export function getRandomItems(array: string[], count: number) {
 export async function generateSingleResponse (prompt: string, userinfo?: UserInfoGemini) {
   const contents: PartListUnion = [prompt];
 
-  if (userinfo?.image_url && userinfo?.image_mimeType) {
-    const response = await fetch(userinfo.image_url);
-    const imageArrayBuffer = await response.arrayBuffer();
-    const base64ImageData = Buffer.from(imageArrayBuffer).toString("base64");
-    contents.push({
-      inlineData: {
-        mimeType: userinfo.image_mimeType,
-        data: base64ImageData,
-      }
-    });
+  if (userinfo?.image) {
+    for (const img of userinfo.image) {
+      const response = await fetch(img.image_url);
+      const imageArrayBuffer = await response.arrayBuffer();
+      const base64ImageData = Buffer.from(imageArrayBuffer).toString("base64");
+      contents.push({
+        inlineData: {
+          mimeType: img.mimeType,
+          data: base64ImageData,
+        }
+      });
+    }
   }
 
   const response = await gemini.models.generateContent({
@@ -75,16 +77,18 @@ export async function generateSingleResponseWithScore (prompt: string, userinfo?
     }
   }
 
-  if (userinfo?.image_url && userinfo?.image_mimeType) {
-    const response = await fetch(userinfo.image_url);
-    const imageArrayBuffer = await response.arrayBuffer();
-    const base64ImageData = Buffer.from(imageArrayBuffer).toString("base64");
-    contents.push({
-      inlineData: {
-        mimeType: userinfo.image_mimeType,
-        data: base64ImageData,
-      }
-    });
+  if (userinfo?.image) {
+    for (const img of userinfo.image) {
+      const response = await fetch(img.image_url);
+      const imageArrayBuffer = await response.arrayBuffer();
+      const base64ImageData = Buffer.from(imageArrayBuffer).toString("base64");
+      contents.push({
+        inlineData: {
+          mimeType: img.mimeType,
+          data: base64ImageData,
+        }
+      });
+    }
   }
 
   const response = await gemini.models.generateContent({
