@@ -29,7 +29,7 @@ Please refer [English README](./README_en.md) for not Japanese speakers.
 以下に通常フォロワー、サブスクフォロワーの使用できる機能をまとめます。
 
 サブスクの詳細は以下Pixiv Fanboxをご覧ください。
-https://suibari.fanbox.cc/manage/posts/10174305
+https://suibari.fanbox.cc/posts/10174305
 
 | サブスク可否       | 定型文リプライ | AI生成リプライ | 占い | リプ頻度調整 | 会話機能 | 分析機能 | 応援機能 | DJ機能 | 日記機能 | 
 | ------------------ | -------------- | -------------- | ---- | ------------ | -------- | -------- | -------- | ------ | -------- | 
