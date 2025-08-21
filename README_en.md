@@ -1,81 +1,86 @@
-# Zenkoutei Bot-tan
+# Zenkoutei Bot-tan (Full Affirmation Bot)
 
 ![bot header](https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:qcwhrvzx6wmi5hz775uyi6fh/bafkreicd74lb33ywyc54lzgqfyotfuzs55x2cnxztpob5ifg2nr4kiji2e@jpeg)
 
-[Zenkoutei Bot-tan (全肯定botたん, Affirmative bot)](https://bsky.app/profile/suibari-bot.bsky.social) is a Bluesky bot designed to send replies that completely affirm its followers. By leveraging sentiment analysis and generative AI, its goal is to encourage and uplift its followers.
+[Zenkoutei Bot-tan](https://bsky.app/profile/bot-tan.suibari.com) is a Bluesky bot designed to send replies that completely affirm its followers. By leveraging sentiment analysis and generative AI, its goal is to encourage and uplift its followers.
 
 ---
 
 ## Overview
 
-This repository contains the code and configuration files for Zenkoutei Bot-tan. The bot operates in two modes:
+This repository contains the code and configuration files for Affirmation Bot-tan.  
+The bot has the following features:
 
-1. **AI-Generated Replies**: Uses generative AI (Google Gemini) to reply based on follower content (text and images).
-2. **Predefined Replies**: Performs sentiment analysis on follower posts (text) using a Japanese polarity dictionary, then selects and sends a response from a predefined list.
-3. **Predefined mode (AI disabled)**: Users can opt to disable AI-generated replies and receive only template-based responses.
-4. **Fortune-telling mode**: The bot can perform a fortune-telling feature upon request.
-5. **Reply frequency adjustment**: Users can adjust the bot’s reply frequency from 0% to 100%.
-6. **Conversation mode**: Users can engage in continuous conversation with the bot.
-7. **Post-analysis mode**: Users can perform a personality analysis by the user's recent posts.
-8. **Cheer mode**: 
+1. **AI-generated replies**: Uses generative AI (Google Gemini) to reply to follower posts (text or images).
+2. **Template replies**: Uses a Japanese sentiment polarity dictionary to analyze follower posts (text) and reply with preset messages.
+3. **Fortune-telling**: Provides fortunes upon user request.
+4. **Reply frequency adjustment**: Users can adjust how often the bot replies (0–100%).
+5. **Conversation mode**: Allows continuous conversation with the bot.
+6. **Personality analysis**: Analyzes and replies with a personality report.
+7. **Cheering**: Reposts user content for promotion.
+8. **DJ mode**: Selects music for the user.
+9. **Diary mode**: Creates a diary based on the user’s posts.
+
+Additionally, this bot offers a subscription plan to cover operational costs.  
+
+Below is a comparison of available features for regular followers vs. subscribers. Details about subscription are available on [Patreon](https://www.patreon.com/posts/about-enhanced-133404007).
+
+| Subscription | Template Replies | AI Replies | Fortune | Frequency Control | Conversation | Analysis | Cheering | DJ | Diary |
+| ------------ | ---------------- | ---------- | ------- | ---------------- | ------------ | -------- | --------- | -- | ----- |
+| Regular      | ✓                |            | ✓       | ✓                |              | ✓        |           |    |       |
+| Subscriber   |                  | ✓          | ✓       | ✓                | ✓            | ✓        | ✓         | ✓  | ✓     |
 
 ---
 
 ## How to Use
+1. Follow the bot on Bluesky.  
+2. After some time, the bot will follow you back and start replying to your posts.  
 
-1. Follow this bot on Bluesky.
-2. The bot will follow you back and start responding to your posts automatically.
+Unfollowing or blocking the bot will stop all future replies.  
 
-To stop receiving replies from this bot, either unfollow it or block the user.
+The flowchart below illustrates how the bot responds to your posts:
 
-![bot process flow](https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:uixgxpiqf4i63p6rgpu7ytmx/bafkreihxgiteyk25cpv3e7lkdsggntpb3jj6ybha4btq5ykf2fzdyq7j6u@jpeg)
+![bot flow](https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:uixgxpiqf4i63p6rgpu7ytmx/bafkreihxgiteyk25cpv3e7lkdsggntpb3jj6ybha4btq5ykf2fzdyq7j6u@jpeg)
 
-### Predefined Reply Mode
+### Fortune-telling
+1. Mention or reply to the bot with **"fortune"**.  
+2. The bot will reply with your fortune result.  
 
-1. Wait to be followed back by the bot.
-2. Then mention or reply to the bot with "Predefined Reply Mode".
-3. The bot will reply to confirm the mode is enabled.
+(*You can only use this once every few hours.*)
 
-To disable this mode (for users 18+), mention or reply with "Disable Predefined Reply Mode".
-The bot will confirm it is disabled.
-
-### Fortune Mode
-
-1. Wait to be followed back by the bot.
-2. Then mention or reply with "Fortune".
-3. The bot will reply with your fortune.
-
-You can only use this once every few hours.
-
-### Reply Frequency
-
-1. Wait to be followed back by the bot.
-2. Then mention or reply with "freqN" (N = 0 to 100).
-3. The bot will confirm your new reply frequency setting.
+### Reply Frequency Control
+1. After being followed back by the bot, mention or reply with **"freqN"** (N = 0–100).  
+2. The bot will confirm your setting.  
 
 ### Conversation Mode
+1. After being followed back by the bot, start a thread where you are the main poster.  
+2. Reply to the bot in the thread.  
+3. The bot will like your post.  
+4. The bot will reply.  
+5. If you reply to that, the conversation continues (repeat from step 3).  
 
-1. Wait to be followed back by the bot.
-2. Then mention or reply with "Talk with me" or "Conversation".
-3. The bot will like your post.
-4. 10 minutes later, the bot will reply.
-5. If you reply to that, the conversation continues.
+### Personality Analysis
+1. Mention or reply to the bot with **"analyze me"**.  
+2. The bot will reply with an image containing your analysis result.  
 
-### Post Analysis Mode
+(*You can only use this once every few days.*)
 
-1. Wait to be followed back by the bot.
-2. Then mention or reply with "Analyze me".
-3. The bot will reply with an analysis image.
+### Promotion Support
+1. After being followed back by the bot, post with the hashtag **"#SuiBotCheerSquad"** and the content you want promoted (no need to reply directly to the bot).  
+2. The bot will repost your post to promote it to followers.  
 
-This can only be used once every few days.
+(*You can only use this once every few hours.*)
 
-### Cheer Mode
+### DJ Mode
+1. Mention or reply to the bot with **"DJ please"**.  
+2. The bot will recommend a song.  
 
-1. Wait to be followed back by the bot.
-2. Then post with the hashtag "#SuiBotCheerSquad" and include what you want support for (image optional).
-3. The bot will repost it to support you.
+(*You can only use this once every few minutes.*)
 
-This can only be used once every few hours.
+### Diary Mode
+1. After being followed back by the bot, mention or reply with **"keep diary"**.  
+2. The bot will reply with a daily diary every evening, based on your posts.  
+3. To disable, mention or reply with **"stop diary"**.  
 
 ---
 
@@ -93,18 +98,17 @@ This bot collects and processes the following types of information:
 The information collected is only used for generating replies. However, for AI-generated replies, data communication is conducted with Google LLC in compliance with Google Gemini API usage policies.
 
 ### Age Restriction
+AI-based features comply with Google Gemini’s Terms of Service and are only available to users **18 years and older**.  
+Template replies (non-AI) are available to all users.  
 
-The AI-generated reply functionality of this bot adheres to the Google Gemini API Terms of Service and is restricted to users aged 18 and older. **Users under 18 should either use the "Predefined Reply Mode" described below or refrain from using this bot.**
+### Regional Restriction
+AI-based features cannot be used in the following regions (per Google Gemini’s Terms of Service):
 
-### Regional Restrictions
+- United Kingdom (UK)  
+- Switzerland  
+- EU Member States  
 
-The AI-generated reply functionality of this bot adheres to Google Gemini API Terms of Service and is unavailable in the following regions:
-
-- United Kingdom (UK)
-- Switzerland
-- European Union (EU) member states
-
-**Users residing in these regions should use the "Predefined Reply Mode" described below or refrain from using this bot.**
+Template replies (non-AI) are available regardless of region.  
 
 ### Privacy Policy Updates
 
@@ -118,8 +122,13 @@ For inquiries about this bot or its privacy policy, please contact:
 ---
 
 ## License
+This project is OSS, released under the MIT License.  
+See [LICENSE](./LICENSE) for details.  
 
-This project is licensed under the MIT License. See the [LICENSE](./LICENSE) file for details.
+### References
+This bot uses:  
+- [Japanese Sentiment Polarity Dictionary](https://www.cl.ecei.tohoku.ac.jp/Open_Resources-Japanese_Sentiment_Polarity_Dictionary.html), Tohoku University (Inui/Okazaki Laboratory).  
+- [English Sentiment Polarity Dictionary](http://www.lr.pi.titech.ac.jp/~takamura/pndic_en.html), Tokyo Institute of Technology (Okumura/Takamura Laboratory).  
 
 ---
 
@@ -128,5 +137,3 @@ This project is licensed under the MIT License. See the [LICENSE](./LICENSE) fil
 This bot was developed, operated, and managed personally by Suibari for the purpose of improving technical skills and understanding the AT Protocol. As such, extensive support or updates like those offered by companies may not be possible.
 
 While every effort is made to ensure the bot functions correctly, please use it at your own risk. The developer assumes no responsibility for any errors, damages, or losses resulting from the use of this bot. Your understanding is appreciated.
-
----
