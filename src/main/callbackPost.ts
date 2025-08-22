@@ -20,9 +20,11 @@ import { getSubscribersFromSheet } from "../gsheet";
 import { RPD } from "../gemini";
 import { replyai } from "../modes/replyai";
 import { replyrandom } from "../modes/replyrandom";
+import { EXEC_PER_COUNTS } from "../config";
 
 const OFFSET_UTC_TO_JST = 9 * 60 * 60 * 1000; // offset: +9h (to JST from UTC <SQlite3>)
 const MINUTES_THRD_RESPONSE = 10 * 60 * 1000; // 10min
+let count_replyrandom = 0; // AI応答用カウント
 
 export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post">) {
   const did = String(event.did);
@@ -87,8 +89,8 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
         // -----------
         // Mode Detect: All mode
         // -----------
-        // if (await handleU18Release(event, db)) return;
-        // if (await handleU18Register(event, db)) return;
+        if (await handleU18Release(event, db)) return;
+        if (await handleU18Register(event, db)) return;
         if (await handleFreq(event, follower, db)) return;
         if (await handleDiaryRegister(event, db)) return;
         if (await handleDiaryRelease(event, db)) return;
@@ -134,18 +136,17 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
         // main
         // ==============
         } else if (!isMention(record)) {
-          // リプライでない、かつメンションでない投稿を対象とする
           // 確率判定
           const user_freq = await db.selectDb(did, "reply_freq");
           const isValidFreq = isJudgeByFreq(user_freq !== null ? Number(user_freq) : 100); // フォロワーだがレコードにないユーザーであるため、通過させる
           if (!isValidFreq) {
-            console.log(`[INFO][${did}] Ignored post because freq (user_freq: ${user_freq})`);
+            console.log(`[INFO][${did}] Ignored post, REASON: freq (user_freq: ${user_freq})`);
             return;
           }
 
           if (subscribers.includes(follower.did)) {
             // サブスクメンバーは常に即時反応
-            console.log(`[INFO][${did}] New post: single post by subscribed-follower !!`);
+            console.log(`[INFO][${did}] New post: single post by subbed-follower !!`);
             const result = await replyai(follower, event);
 
             // ポストスコア記憶
@@ -161,18 +162,27 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
               }
             }
           } else {
-            // 非サブスクメンバーは時間判定と定型文リプライを実施
-            // 前回反応日時の取得
+            // 非サブスクメンバーは時間判定後、AIor定型文リプライ
+            // 時間判定
             const postedAt = new Date(record.createdAt);
             const updatedAt = new Date(String(await db.selectDb(did, "updated_at")));
             const updatedAtJst = new Date(updatedAt.getTime() + OFFSET_UTC_TO_JST);
-
-            // 時間判定
             const isPast = (postedAt.getTime() - updatedAtJst.getTime() > MINUTES_THRD_RESPONSE);
-
-            if (isPast) {
-              console.log(`[INFO][${did}] New post: single post by not subbed-follower !!`);
+            if (!isPast) {    
+              console.log(`[INFO][${did}] Ignored post, REASON: past 10min`);
+              return;
+            }
+            
+            // EXEC_PER_COUNTSに1回AIリプライする(u18は除外)
+            console.log(`[INFO][${did}] New post: single post by NOT subbed-follower !!`);
+            const isU18 = await db.selectDb(did, "is_u18") ?? 0; // null, undefinedは0扱い
+            if (count_replyrandom >= EXEC_PER_COUNTS && isU18 === 0) {
+              replyai(follower, event);
+              count_replyrandom = 0; // カウントリセット
+            } else {
+              // それ以外は定型文リプライする
               await replyrandom(follower, event);
+              count_replyrandom++;
             }
           }
 
@@ -182,7 +192,7 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
           // DB更新
           db.insertOrUpdateDb(did);
         } else {
-          console.log(`[INFO][${did}] Ignored post, follower but it is mention`);
+          console.log(`[INFO][${did}] Ignored post, REASON: mention`);
         }
       }, {
         retries: 3,
