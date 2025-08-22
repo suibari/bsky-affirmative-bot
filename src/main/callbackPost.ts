@@ -1,6 +1,6 @@
 import { ProfileView } from "@atproto/api/dist/client/types/app/bsky/actor/defs";
 import { CommitCreateEvent } from "@skyware/jetstream";
-import { isMention, isReplyOrMentionToMe } from "../bsky/util";
+import { getImageUrl, isMention, isReplyOrMentionToMe } from "../bsky/util";
 import { Record } from "@atproto/api/dist/client/types/app/bsky/feed/post";
 import { agent } from "../bsky/agent";
 import { handleFortune } from "../modes/fortune";
@@ -21,6 +21,8 @@ import { RPD } from "../gemini";
 import { replyai } from "../modes/replyai";
 import { replyrandom } from "../modes/replyrandom";
 import { EXEC_PER_COUNTS } from "../config";
+import { judgeReplySubject } from "../gemini/judgeReplySubject";
+import { AppBskyEmbedImages } from "@atproto/api";
 
 const OFFSET_UTC_TO_JST = 9 * 60 * 60 * 1000; // offset: +9h (to JST from UTC <SQlite3>)
 const MINUTES_THRD_RESPONSE = 10 * 60 * 1000; // 10min
@@ -145,7 +147,9 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
           }
 
           if (subscribers.includes(follower.did)) {
-            // サブスクメンバーは常に即時反応
+            // --------------
+            // post: subbed-follower
+            // --------------
             console.log(`[INFO][${did}] New post: single post by subbed-follower !!`);
             const result = await replyai(follower, event);
 
@@ -173,14 +177,31 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
               return;
             }
             
-            // EXEC_PER_COUNTSに1回AIリプライする(u18は除外)
+            // --------------
+            // post: NOT subbed-follower
+            // --------------
             console.log(`[INFO][${did}] New post: single post by NOT subbed-follower !!`);
             const isU18 = await db.selectDb(did, "is_u18") ?? 0; // null, undefinedは0扱い
             if (count_replyrandom >= EXEC_PER_COUNTS && isU18 === 0) {
-              replyai(follower, event);
-              count_replyrandom = 0; // カウントリセット
+              // AIリプライすべきかをAI判定
+              const resultValidReplyai = await judgeReplySubject({
+                follower,
+                posts: [record.text],
+                image: record.embed ? getImageUrl(did, record.embed as AppBskyEmbedImages.Main) : undefined,
+              });
+              // console.log(`[DEBUG][${did}] judgeReplySubject: ${resultValidReplyai.comment}`);
+
+              if (!resultValidReplyai.result) {
+                // AIリプライNGなら定型文リプライ
+                await replyrandom(follower, event);
+                // カウントはしきい値以上なのでそのままとする
+              } else {
+                // AIリプライ
+                await replyai(follower, event);
+                count_replyrandom = 0; // カウントリセット
+              }
             } else {
-              // それ以外は定型文リプライする
+              // 定型文リプライ
               await replyrandom(follower, event);
               count_replyrandom++;
             }

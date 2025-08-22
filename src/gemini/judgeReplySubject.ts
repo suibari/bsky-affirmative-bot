@@ -8,7 +8,7 @@ type GeminiJudgeResult = {
   comment: string;
 }
 
-export async function judgeCheerSubject(userinfo: UserInfoGemini) {
+export async function judgeReplySubject(userinfo: UserInfoGemini) {
   const SCHEMA_CHECKCHEER = {
     type: Type.ARRAY,
     items: {
@@ -27,14 +27,15 @@ export async function judgeCheerSubject(userinfo: UserInfoGemini) {
 
   const prompt = 
 `
-以下のユーザのポストおよび画像を拡散してよいかどうか、ジャッジを行ってください。
-resultに、拡散してよいならtrue, 拡散NGならfalseを出力してください。
+以下のユーザのポストに全肯定リプライしてよいか、ジャッジを行ってください。
+resultに、リプライしてよいならtrue, リプライNGならfalseを出力してください。
 commentには、そう判断した理由を出力してください。
 ジャッジのポイントは以下です。
-* イラスト、音楽、ブログ、撮影した写真などが含まれており、「ユーザの創作物の拡散」という目的にあっているか
-* 上記内容のないポストはNG
-* イラストで、あまりに直接的なR-18はNG(微エロくらいはOK)
-* 政治宗教などの活動はNG
+* メンズエステなどの風俗店の宣伝ポストはNG
+* 寄付を募るポストはNG
+* botによる自動ポストはNG
+* 過激な性描写ポストはNG（下着姿くらいはOK）
+* これ以外のポストはOK
 -----この下がユーザのポストです-----
 ユーザ名: ${userinfo.follower.displayName}
 文章: ${userinfo.posts?.[0] || ""}`;
