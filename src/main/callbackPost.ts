@@ -193,17 +193,17 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
 
               if (!resultValidReplyai.result) {
                 // AIリプライNGなら定型文リプライ
-                await replyrandom(follower, event);
                 // カウントはしきい値以上なのでそのままとする
+                await replyrandom(follower, event);
               } else {
                 // AIリプライ
-                await replyai(follower, event);
                 count_replyrandom = 0; // カウントリセット
+                await replyai(follower, event);
               }
             } else {
               // 定型文リプライ
-              await replyrandom(follower, event);
               count_replyrandom++;
+              await replyrandom(follower, event);
             }
           }
 
