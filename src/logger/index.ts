@@ -78,7 +78,7 @@ class Logger {
         rpd: 0, // Default rpd
         topPost: "",
         botComment: "",
-        lastInitializedDate: undefined,
+        lastInitializedDate: new Date(),
       };
       const defaultBiorhythmState = { energy: 5000, mood: "" };
 
