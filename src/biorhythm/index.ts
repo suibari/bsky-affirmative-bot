@@ -11,6 +11,7 @@ import { gemini, RPD } from '../gemini';
 import { doWhimsicalPost } from "../modes/whimsical";
 import EventEmitter from "events";
 import { startServer } from "../server";
+import { dbPosts } from "../db";
 
 type Status = 'WakeUp' | 'Study' | 'FreeTime' | 'Relax' | 'Sleep';
 interface BotStat {
@@ -24,7 +25,8 @@ interface BotStat {
     cheer: number;
     analysis: number;
     dj: number;
-  }
+    topPost: string;
+  };
 }
 
 const ENERGY_MAXIMUM = 10000;
@@ -36,6 +38,7 @@ export class BiorhythmManager extends EventEmitter {
   private energyPrev: number = 5000;
   private timePrev: string = '';
   private moodPrev: string = '';
+  private topPostUri: string = '';
   private dailyStats = {
     followers: 0,
     likes: 0,
@@ -49,6 +52,8 @@ export class BiorhythmManager extends EventEmitter {
   constructor() {
     super();
     this.scheduleDailyReset();
+    this.updateTopPostUri();
+    setInterval(() => this.updateTopPostUri(), 10 * 60 * 1000); // 10分ごとに更新
   }
 
   // --------
@@ -107,6 +112,14 @@ export class BiorhythmManager extends EventEmitter {
   get getEnergy(): number { return this.energy / 100; }
   get getMood(): string { return this.moodPrev; }
 
+  async updateTopPostUri() {
+    const row = await dbPosts.getHighestScore();
+    if (row && row.uri !== this.topPostUri) {
+      this.topPostUri = row.uri;
+      this.emit('statsChange', this.getCurrentState());
+    }
+  }
+
   getCurrentState(): BotStat {
     return {
       energy: this.getEnergy,
@@ -119,6 +132,7 @@ export class BiorhythmManager extends EventEmitter {
         cheer: this.dailyStats.cheer,
         analysis: this.dailyStats.analysis,
         dj: this.dailyStats.dj,
+        topPost: this.topPostUri,
       },
     };
   }

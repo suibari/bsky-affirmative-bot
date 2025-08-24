@@ -23,6 +23,8 @@
   <p><strong>応援した回数:</strong> <span id="cheer">---</span></p>
   <p><strong>分析した回数:</strong> <span id="analysis">---</span></p>
   <p><strong>DJした回数:</strong> <span id="dj">---</span></p>
+  <p><strong>いちおしポスト:</strong> <span id="top-post">---</span></p>
+  <p></p>
   <p>※毎日AM3時にリセット</p>
 
   <script>
@@ -39,6 +41,7 @@
       document.getElementById('cheer').textContent = data.dailyStats.cheer;
       document.getElementById('analysis').textContent = data.dailyStats.analysis;
       document.getElementById('dj').textContent = data.dailyStats.dj;
+      document.getElementById('top-post').textContent = data.dailyStats.topPost || '---';
     };
 
     function updateJSTTime() {
