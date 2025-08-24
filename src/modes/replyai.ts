@@ -7,7 +7,7 @@ import { Record } from "@atproto/api/dist/client/types/app/bsky/feed/post";
 import { replyrandom } from "../modes/replyrandom.js";
 import { RPD } from "../gemini/index.js";
 import { GeminiScore, ImageRef } from "../types.js";
-import { dbLikes } from "../db/index.js";
+import { dbLikes, dbPosts } from "../db/index.js";
 import { postContinuous } from "../bsky/postContinuous.js";
 
 export async function replyai(
@@ -48,9 +48,20 @@ export async function replyai(
       image,
     });
 
+    // お気に入りポスト登録
+    dbPosts.insertDb(follower.did);
+    const prevScore = await dbPosts.selectDb(follower.did, "score") as number || 0;
+    if (result.score && prevScore < result.score) {
+      dbPosts.updateDb(follower.did, "post", record.text);
+      dbPosts.updateDb(follower.did, "score", result.score);
+      dbPosts.updateDb(follower.did, "uri", uri);
+    }
+
+    // ポスト
     const text_bot = result?.comment || "";
     await postContinuous(text_bot, { uri, cid, record });
 
+    // Geminiリクエスト数加算
     RPD.add();
 
     return result;

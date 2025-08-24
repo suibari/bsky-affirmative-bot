@@ -81,7 +81,8 @@ const PROMPT_WHIMSICAL_WANT_PART = async (params: {topFollower?: ProfileView, to
     `2. 今日のポジティブニュース(誰が見ても暗い気持ちにならない話題)の紹介：${(await fetchNews("ja")).map(article => article.title)}`
     // `${params.topFollower && params.topPost ?
     //   `3. これまで見ていたポストの中で面白かった以下のポストの紹介。具体的に面白かったポイントを言ってください。
-    //     以下がユーザ名、ハンドル名、ポストです。ハンドル名は、( @handle )というようにスペースを前後に入れてアットマークをつけてください。
+    //     * ハンドル名は、( @handle )というようにスペースを前後に入れて、アットマークをつけてください。
+    //     * 紹介されたユーザが嫌な気分にならないよう細心の注意を払うこと。
     //     -----ユーザ名とポスト-----
     //     ユーザ名: ${params.topFollower.displayName}
     //     ハンドル名: ${params.topFollower.handle}
