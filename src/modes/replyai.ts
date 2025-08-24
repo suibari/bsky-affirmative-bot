@@ -53,6 +53,7 @@ export async function replyai(
     const prevScore = await dbPosts.selectDb(follower.did, "score") as number || 0;
     if (result.score && prevScore < result.score) {
       dbPosts.updateDb(follower.did, "post", record.text);
+      dbPosts.updateDb(follower.did, "comment", result.comment);
       dbPosts.updateDb(follower.did, "score", result.score);
       dbPosts.updateDb(follower.did, "uri", uri);
     }

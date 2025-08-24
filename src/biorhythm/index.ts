@@ -26,6 +26,7 @@ interface BotStat {
     analysis: number;
     dj: number;
     topPost: string;
+    botComment: string;
   };
 }
 
@@ -38,7 +39,6 @@ export class BiorhythmManager extends EventEmitter {
   private energyPrev: number = 5000;
   private timePrev: string = '';
   private moodPrev: string = '';
-  private topPostUri: string = '';
   private dailyStats = {
     followers: 0,
     likes: 0,
@@ -47,6 +47,8 @@ export class BiorhythmManager extends EventEmitter {
     cheer: 0,
     analysis: 0,
     dj: 0,
+    topPost: "",
+    botComment: "",
   }
 
   constructor() {
@@ -114,8 +116,9 @@ export class BiorhythmManager extends EventEmitter {
 
   async updateTopPostUri() {
     const row = await dbPosts.getHighestScore();
-    if (row && row.uri !== this.topPostUri) {
-      this.topPostUri = row.uri;
+    if (row && row.uri !== this.dailyStats.topPost) {
+      this.dailyStats.topPost = row.uri;
+      this.dailyStats.botComment = row.comment;
       this.emit('statsChange', this.getCurrentState());
     }
   }
@@ -132,7 +135,8 @@ export class BiorhythmManager extends EventEmitter {
         cheer: this.dailyStats.cheer,
         analysis: this.dailyStats.analysis,
         dj: this.dailyStats.dj,
-        topPost: this.topPostUri,
+        topPost: this.dailyStats.topPost,
+        botComment: this.dailyStats.botComment,
       },
     };
   }
@@ -312,6 +316,8 @@ ${eventsMidnight}
       cheer: 0,
       analysis: 0,
       dj: 0,
+      topPost: "",
+      botComment: "",
     };
     this.emit('statsChange', this.getCurrentState());
     console.log('[INFO] Daily stats reset at 03:00');

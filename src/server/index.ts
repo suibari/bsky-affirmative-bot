@@ -1,24 +1,17 @@
-import express from 'express';
 import http from 'http';
-import path from 'path';
-import WebSocket, { WebSocketServer } from 'ws';
+import { WebSocketServer } from 'ws';
 import { BiorhythmManager, botBiothythmManager } from "../biorhythm";
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 export function startServer(bot: BiorhythmManager) {
-  const app = express();
-  const server = http.createServer(app);
-  const wss = new WebSocketServer({ server });
-
-  app.use('/public', express.static(path.join(__dirname, 'public')));
-
-  app.get('/', (_req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
+  const server = http.createServer((_req, res) => {
+    // HTTPリクエストは何も返さず切断
+    res.writeHead(204); // No Content
+    res.end();
   });
 
+  const wss = new WebSocketServer({ server });
+
+  // Biorhythm更新時に全クライアントに送信
   const broadcast = (data: any) => {
     const json = JSON.stringify(data);
     for (const client of wss.clients) {
@@ -30,23 +23,26 @@ export function startServer(bot: BiorhythmManager) {
 
   bot.on('statsChange', () => {
     const state = botBiothythmManager.getCurrentState();
-    broadcast(state); // ← WebSocket送信
+    broadcast(state);
   });
 
-  wss.on('connection', (ws) => {
-    console.log(`[INFO] Client connected`);
+  // WebSocket接続
+  wss.on('connection', (ws, req) => {
+    const origin = req.headers.origin;
+    if (origin !== 'https://suibari.com') {
+      console.log(`[WARN] Blocked WS connection from origin: ${origin}`);
+      ws.close();
+      return;
+    }
+
+    console.log(`[INFO] WS client connected from origin: ${origin}`);
     const state = botBiothythmManager.getCurrentState();
     ws.send(JSON.stringify(state));
+
+    // 受信処理不要のため on('message') はなし
   });
 
   server.listen(process.env.NODE_PORT, () => {
-    console.log(`🟢 listening server: http://localhost:${process.env.NODE_PORT}`);
+    console.log(`🟢 WS server listening on port ${process.env.NODE_PORT}`);
   });
-
-  // ---キャッシュ用---
-  let latestState = {
-    energy: bot.getEnergy.toFixed(1),
-    status: bot.getMood || 'No Status',
-  };
 }
-
