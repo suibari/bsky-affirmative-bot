@@ -5,7 +5,7 @@ import { getImageUrl, getLangStr, uniteDidNsidRkey } from "../bsky/util.js";
 import { generateAffirmativeWord } from "../gemini/generateAffirmativeWord.js";
 import { Record } from "@atproto/api/dist/client/types/app/bsky/feed/post";
 import { replyrandom } from "../modes/replyrandom.js";
-import { RPD } from "../gemini/index.js";
+import { logger } from "../logger/index.js";
 import { GeminiScore, ImageRef } from "../types.js";
 import { dbLikes, dbPosts } from "../db/index.js";
 import { postContinuous } from "../bsky/postContinuous.js";
@@ -63,7 +63,7 @@ export async function replyai(
     await postContinuous(text_bot, { uri, cid, record });
 
     // Geminiリクエスト数加算
-    RPD.add();
+    logger.addRPD();
 
     return result;
   } catch (e: any) {

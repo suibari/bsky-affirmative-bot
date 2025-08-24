@@ -7,7 +7,8 @@ import eventsEveningDayoff from "../json/event_evening_dayoff.json";
 import eventsNight from "../json/event_night.json";
 import eventsMidnight from "../json/event_midnight.json";
 import { MODEL_GEMINI, SYSTEM_INSTRUCTION } from '../config';
-import { gemini, RPD } from '../gemini';
+import { gemini } from '../gemini';
+import { DailyStats, logger } from '../logger';
 import { doWhimsicalPost } from "../modes/whimsical";
 import EventEmitter from "events";
 import { startServer } from "../server";
@@ -17,17 +18,7 @@ type Status = 'WakeUp' | 'Study' | 'FreeTime' | 'Relax' | 'Sleep';
 interface BotStat {
   energy: number;
   mood: string;
-  dailyStats: {
-    followers: number;
-    likes: number;
-    affirmations: number;
-    fortune: number;
-    cheer: number;
-    analysis: number;
-    dj: number;
-    topPost: string;
-    botComment: string;
-  };
+  dailyStats: DailyStats;
 }
 
 const ENERGY_MAXIMUM = 10000;
@@ -35,24 +26,16 @@ const ENERGY_MAXIMUM = 10000;
 export class BiorhythmManager extends EventEmitter {
   private status: Status = 'Sleep';
   private statusPrev: Status = 'Sleep';
-  private energy: number = 5000;
+  private energy: number;
   private energyPrev: number = 5000;
   private timePrev: string = '';
-  private moodPrev: string = '';
-  private dailyStats = {
-    followers: 0,
-    likes: 0,
-    affirmations: new Set<string>(),
-    fortune: 0,
-    cheer: 0,
-    analysis: 0,
-    dj: 0,
-    topPost: "",
-    botComment: "",
-  }
+  private moodPrev: string;
 
   constructor() {
     super();
+    const initialState = logger.getBiorhythmState();
+    this.energy = initialState.energy;
+    this.moodPrev = initialState.mood;
     this.scheduleDailyReset();
     this.updateTopPostUri();
     setInterval(() => this.updateTopPostUri(), 10 * 60 * 1000); // 10分ごとに更新
@@ -62,51 +45,48 @@ export class BiorhythmManager extends EventEmitter {
   // メソッド
   // --------
   addLike() {
-    this.dailyStats.likes++;
+    logger.addLike();
     this.changeEnergy(10);
     this.emit('statsChange', this.getCurrentState());
   }
 
   addAffirmation(did: string) {
-    const sizeBefore = this.dailyStats.affirmations.size;
-    this.dailyStats.affirmations.add(did);
-    if (this.dailyStats.affirmations.size !== sizeBefore) {
-      this.emit('statsChange', this.getCurrentState());
-    }
+    logger.addAffirmation(did);
+    this.emit('statsChange', this.getCurrentState());
   }
 
   addFortune() {
-    this.dailyStats.fortune++;
+    logger.addFortune();
     this.changeEnergy(100);
     this.emit('statsChange', this.getCurrentState());
   }
 
   addCheer() {
-    this.dailyStats.cheer++;
+    logger.addCheer();
     this.changeEnergy(100);
     this.emit('statsChange', this.getCurrentState());
   }
 
   addAnalysis() {
-    this.dailyStats.analysis++;
+    logger.addAnalysis();
     this.changeEnergy(200);
     this.emit('statsChange', this.getCurrentState());
   }
 
   addDJ() {
-    this.dailyStats.dj++;
+    logger.addDJ();
     this.changeEnergy(50);
     this.emit('statsChange', this.getCurrentState());
   }
 
   addConversation() {
-    this.dailyStats.dj++;
+    logger.addConversation();
     this.changeEnergy(50);
     this.emit('statsChange', this.getCurrentState());
   }
 
   addFollower() {
-    this.dailyStats.followers++;
+    logger.addFollower();
     this.changeEnergy(100);
     this.emit('statsChange', this.getCurrentState());
   }
@@ -116,9 +96,8 @@ export class BiorhythmManager extends EventEmitter {
 
   async updateTopPostUri() {
     const row = await dbPosts.getHighestScore();
-    if (row && row.uri !== this.dailyStats.topPost) {
-      this.dailyStats.topPost = row.uri;
-      this.dailyStats.botComment = row.comment;
+    if (row) {
+      logger.updateTopPost(row.uri, row.comment);
       this.emit('statsChange', this.getCurrentState());
     }
   }
@@ -127,17 +106,7 @@ export class BiorhythmManager extends EventEmitter {
     return {
       energy: this.getEnergy,
       mood: this.getMood,
-      dailyStats: {
-        followers: this.dailyStats.followers,
-        likes: this.dailyStats.likes,
-        affirmations: this.dailyStats.affirmations.size, // ← Set → 配列に変換
-        fortune: this.dailyStats.fortune,
-        cheer: this.dailyStats.cheer,
-        analysis: this.dailyStats.analysis,
-        dj: this.dailyStats.dj,
-        topPost: this.dailyStats.topPost,
-        botComment: this.dailyStats.botComment,
-      },
+      dailyStats: logger.getDailyStats(),
     };
   }
 
@@ -172,7 +141,7 @@ export class BiorhythmManager extends EventEmitter {
     }
 
     // RPDチェック: 超過時は全処理スキップし、丸1日後に再実行
-    if (!(await RPD.checkRPD())) {
+    if (!(await logger.checkRPD())) {
       console.log(`[INFO][BIORHYTHM] RPD exceeded, skipping step.`);
       setTimeout(() => this.step(), 24 * 60 * 60 * 1000); // 24時間後に再実行
       return;
@@ -236,7 +205,11 @@ export class BiorhythmManager extends EventEmitter {
     // }
 
     // 範囲を保証
-    this.energy = Math.max(0, Math.min(ENERGY_MAXIMUM, this.energy));
+    const newEnergy = Math.max(0, Math.min(ENERGY_MAXIMUM, this.energy));
+    if (newEnergy !== this.energy) {
+      this.energy = newEnergy;
+      logger.updateBiorhythmState(this.energy, this.moodPrev);
+    }
   }
 
   private buildPrompt(timeNow: string): string {
@@ -281,6 +254,7 @@ ${eventsMidnight}
     if (newEnergy !== this.energy) {
       this.energy = newEnergy;
       this.emit('statsChange', this.getCurrentState());
+      logger.updateBiorhythmState(this.energy, this.moodPrev);
     }
   }
 
@@ -288,6 +262,7 @@ ${eventsMidnight}
     if (newOutput !== this.moodPrev) {
       this.moodPrev = newOutput;
       this.emit('statsChange', this.getCurrentState());
+      logger.updateBiorhythmState(this.energy, this.moodPrev);
     }
   }
 
@@ -308,17 +283,7 @@ ${eventsMidnight}
   }
 
   private resetDailyStats() {
-    this.dailyStats = {
-      followers: 0,
-      likes: 0,
-      affirmations: new Set<string>(),
-      fortune: 0,
-      cheer: 0,
-      analysis: 0,
-      dj: 0,
-      topPost: "",
-      botComment: "",
-    };
+    logger.init();
     this.emit('statsChange', this.getCurrentState());
     console.log('[INFO] Daily stats reset at 03:00');
   }

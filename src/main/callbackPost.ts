@@ -17,7 +17,7 @@ import retry from 'async-retry';
 import { followers } from "..";
 import { handleDiaryRegister, handleDiaryRelease } from "../modes/diary";
 import { getSubscribersFromSheet } from "../gsheet";
-import { RPD } from "../gemini";
+import { logger } from "../logger";
 import { replyai } from "../modes/replyai";
 import { replyrandom } from "../modes/replyrandom";
 import { EXEC_PER_COUNTS } from "../config";
@@ -97,25 +97,25 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
         if (await handleDiaryRegister(event, db)) return;
         if (await handleDiaryRelease(event, db)) return;
 
-        if (await handleFortune(event, follower, db) && await RPD.checkRPD()) {
-          RPD.add();
+        if (await handleFortune(event, follower, db) && await logger.checkRPD()) {
+          logger.addRPD();
           botBiothythmManager.addFortune();
           return;
         }
-        if (await handleAnalyze(event, follower, db) && await RPD.checkRPD()) {
-          RPD.add();
+        if (await handleAnalyze(event, follower, db) && await logger.checkRPD()) {
+          logger.addRPD();
           botBiothythmManager.addAnalysis();
           return;
         }
 
-        if (subscribers.includes(follower.did) && await RPD.checkRPD()) {
+        if (subscribers.includes(follower.did) && await logger.checkRPD()) {
           if (await handleDJ(event, follower, db)) {
-            RPD.add();
+            logger.addRPD();
             botBiothythmManager.addDJ();
             return;
           }
           if (await handleCheer(event, follower, db)) {
-            RPD.add();
+            logger.addRPD();
             botBiothythmManager.addCheer();
             return;
           }
@@ -128,7 +128,7 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
           // サブスクライバー限定で会話機能発動する
           if (subscribers.includes(follower.did)) {
             if (await handleConversation(event, follower, db)) {
-              RPD.add();
+              logger.addRPD();
               botBiothythmManager.addConversation();
               return;
             }
