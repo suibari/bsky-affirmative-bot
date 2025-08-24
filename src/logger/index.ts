@@ -46,9 +46,10 @@ class Logger {
       cheer: 0,
       analysis: 0,
       dj: 0,
-      rpd: 0, // Initialized rpd here
+      rpd: 0,
       topPost: "",
       botComment: "",
+      lastInitializedDate: new Date(),
     };
     this.biorhythmState = {
       energy: 5000, // Initial value from BiorhythmManager
@@ -107,12 +108,22 @@ class Logger {
     try {
       const dataToSave = {
         dailyStats: {
-          ...this.dailyStats,
-          lastInitializedDate: this.dailyStats.lastInitializedDate?.toISOString(),
+          followers: this.dailyStats.followers,
+          likes: this.dailyStats.likes,
+          affirmationCount: this.dailyStats.affirmationCount,
+          uniqueAffirmationUserCount: this.uniqueAffirmations.length, // Use the private member
+          conversation: this.dailyStats.conversation,
+          fortune: this.dailyStats.fortune,
+          cheer: this.dailyStats.cheer,
+          analysis: this.dailyStats.analysis,
+          dj: this.dailyStats.dj,
+          topPost: this.dailyStats.topPost,
+          botComment: this.dailyStats.botComment,
+          rpd: this.dailyStats.rpd,
+          lastInitializedDate: this.dailyStats.lastInitializedDate,
         },
         biorhythmState: this.biorhythmState,
         uniqueAffirmations: this.uniqueAffirmations, // Add this line
-        lastResetDay: this.lastResetDay,
       };
       await fs.writeFile(LOG_FILE_PATH, JSON.stringify(dataToSave, null, 2));
       console.log("[INFO] Log data saved successfully.");
