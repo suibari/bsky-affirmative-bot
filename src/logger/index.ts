@@ -9,7 +9,7 @@ export interface DailyStats {
   followers: number;
   likes: number;
   affirmationCount: number; // 全肯定した回数
-  uniqueAffirmations: string[]; // 全肯定したユニークユーザー数
+  uniqueAffirmationUserCount: number; // 全肯定したユニークユーザー数
   conversation: number;
   fortune: number;
   cheer: number;
@@ -31,6 +31,7 @@ class Logger {
   private lastResetDay: number;
   private dailyStats: DailyStats;
   private biorhythmState: BiorhythmState;
+  private uniqueAffirmations: string[];
 
   constructor() {
     this.count = 0;
@@ -39,7 +40,7 @@ class Logger {
       followers: 0,
       likes: 0,
       affirmationCount: 0,
-      uniqueAffirmations: [],
+      uniqueAffirmationUserCount: 0,
       conversation: 0,
       fortune: 0,
       cheer: 0,
@@ -53,6 +54,7 @@ class Logger {
       energy: 5000, // Initial value from BiorhythmManager
       mood: "",
     };
+    this.uniqueAffirmations = []; // Initialize the private member
     this.loadLogFromFile();
   }
 
@@ -66,7 +68,7 @@ class Logger {
         followers: 0,
         likes: 0,
         affirmationCount: 0,
-        uniqueAffirmations: [],
+        uniqueAffirmationUserCount: 0,
         conversation: 0,
         fortune: 0,
         cheer: 0,
@@ -82,6 +84,8 @@ class Logger {
       // Load or use defaults for the main objects
       this.dailyStats = { ...defaultDailyStats, ...(parsedData.dailyStats || {}) };
       this.biorhythmState = { ...defaultBiorhythmState, ...(parsedData.biorhythmState || {}) };
+      // Load uniqueAffirmations if available, otherwise initialize as empty array
+      this.uniqueAffirmations = parsedData.uniqueAffirmations || [];
       this.lastResetDay = parsedData.lastResetDay || new Date().getDate();
 
       // Handle lastInitializedDate
@@ -107,6 +111,7 @@ class Logger {
           lastInitializedDate: this.dailyStats.lastInitializedDate?.toISOString(),
         },
         biorhythmState: this.biorhythmState,
+        uniqueAffirmations: this.uniqueAffirmations, // Add this line
         lastResetDay: this.lastResetDay,
       };
       await fs.writeFile(LOG_FILE_PATH, JSON.stringify(dataToSave, null, 2));
@@ -123,7 +128,7 @@ class Logger {
       followers: 0,
       likes: 0,
       affirmationCount: 0,
-      uniqueAffirmations: [],
+      uniqueAffirmationUserCount: 0,
       conversation: 0,
       fortune: 0,
       cheer: 0,
@@ -134,6 +139,7 @@ class Logger {
       botComment: "",
       lastInitializedDate: new Date(),
     };
+    this.uniqueAffirmations = []; // Initialize the private member
     this.saveLogToFile();
   }
 
@@ -172,8 +178,8 @@ class Logger {
 
   addAffirmation(did: string) {
     this.dailyStats.affirmationCount++; // Increment total count
-    if (!this.dailyStats.uniqueAffirmations.includes(did)) {
-      this.dailyStats.uniqueAffirmations.push(did);
+    if (!this.uniqueAffirmations.includes(did)) {
+      this.uniqueAffirmations.push(did);
     }
     this.saveLogToFile();
   }
@@ -214,11 +220,21 @@ class Logger {
     this.saveLogToFile();
   }
 
-  getDailyStats() {
+  getDailyStats(): DailyStats {
     return {
-      ...this.dailyStats,
-      affirmationCount: this.dailyStats.affirmationCount, // Total count
-      uniqueAffirmationUserCount: this.dailyStats.uniqueAffirmations.length, // Number of unique users
+      followers: this.dailyStats.followers,
+      likes: this.dailyStats.likes,
+      affirmationCount: this.dailyStats.affirmationCount,
+      uniqueAffirmationUserCount: this.uniqueAffirmations.length, // Use the private member
+      conversation: this.dailyStats.conversation,
+      fortune: this.dailyStats.fortune,
+      cheer: this.dailyStats.cheer,
+      analysis: this.dailyStats.analysis,
+      dj: this.dailyStats.dj,
+      topPost: this.dailyStats.topPost,
+      botComment: this.dailyStats.botComment,
+      rpd: this.dailyStats.rpd,
+      lastInitializedDate: this.dailyStats.lastInitializedDate,
     };
   }
 
