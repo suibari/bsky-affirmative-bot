@@ -63,7 +63,7 @@ ${PROMPT_INTRO_BOT_FEATURE("日本語")}
 `The current date and time is ${getFullDateAndTimeString()}.  
 You are going to write a whimsical social media post.
 The output should be in **English**.
-The output should be at most 600 characters.
+The output should be at most 1000 characters.
 ${lastPosts.length > 0 ? `Do not repeat or overlap with the following your past posts: ${lastPosts}` : ""}
 Please make sure your post includes the following:
 [MUST: includes all of the following]
@@ -77,14 +77,20 @@ ${PROMPT_INTRO_BOT_FEATURE("英語")}
 
 const PROMPT_WHIMSICAL_WANT_PART = async (params: {topFollower?: ProfileView, topPost?: string, langStr: string}) => {
   const prompt = params.langStr === "日本語" ?
-    `
-    1. 今日は何の日か紹介：${getRandomItems(getWhatDay(), 1)}
-    2. 今日のポジティブニュースの紹介：${(await fetchNews("ja")).map(article => article.title)}
-    ` :
-    `
-    1. Introduce a piece of what day it is today in Japan: ${getRandomItems(getWhatDay(), 1)}
-    2. Introduce a piece of positive news for today: ${(await fetchNews("en")).map(article => article.title)}
-    `;
+    `1. 今日は何の日か紹介：${getRandomItems(getWhatDay(), 1)}` +
+    `2. 今日のポジティブニュース(誰が見ても暗い気持ちにならない話題)の紹介：${(await fetchNews("ja")).map(article => article.title)}`
+    // `${params.topFollower && params.topPost ?
+    //   `3. これまで見ていたポストの中で面白かった以下のポストの紹介。具体的に面白かったポイントを言ってください。
+    //     以下がユーザ名、ハンドル名、ポストです。ハンドル名は、( @handle )というようにスペースを前後に入れてアットマークをつけてください。
+    //     -----ユーザ名とポスト-----
+    //     ユーザ名: ${params.topFollower.displayName}
+    //     ハンドル名: ${params.topFollower.handle}
+    //     ポスト内容: ${params.topPost || ""}` : ""
+    // }`
+    :
+    `1. Introduce a piece of what day it is today in Japan: ${getRandomItems(getWhatDay(), 1)}`
+    // `2. Introduce a piece of positive news (A topic that doesn't make anyone feel sad) for today: ${(await fetchNews("en")).map(article => article.title)}` // 英語のポジティブニュース検出が難しいのでいったん削除
+    ;
   
   return prompt;
 }
@@ -99,9 +105,9 @@ const PROMPT_INTRO_BOT_FEATURE = (langStr: string) => {
   ] : [
     "Introducing the Fortune Telling feature you have. You can get your fortune told once a day by replying \"Fortune\"",
     "Introducing the Personality Analysis feature you have. You can get a personality diagnosis once a week by replying \"Analyze me\"",
-    "Introducing the DJ feature you have. You choose songs you recommend to users by replying \"DJ, please\"",
-    "Introducing the Cheering feature you have. You let everyone know what users have made by adding the tag \"#SuiBotCheerQquad\"",
-    "Introducing the Diary feature you have. You can have users daily posts collected into a diary by replying \"Keep a diary\". You will keep a diary for the user every night.",
+    "Introducing the DJ feature you have. You choose songs you recommend to users by replying \"DJ, please\". However, this is limited to subscribed followers. Please see the bio for details on subscriptions.",
+    "Introducing the Cheering feature you have. You let everyone know what users have made by adding the tag \"#SuiBotCheerQquad\". However, this is limited to subscribed followers. Please see the bio for details on subscriptions.",
+    "Introducing the Diary feature you have. You can have users daily posts collected into a diary by replying \"Keep a diary\". You will keep a diary for the user every night. However, this is limited to subscribed followers. Please see the bio for details on subscriptions.",
   ]
   return getRandomItems(features, 1);
 }
