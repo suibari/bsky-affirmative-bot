@@ -1,3 +1,4 @@
+import { logger } from "../logger/index.js";
 import { UserInfoGemini } from "../types.js";
 import { generateSingleResponse } from "./util.js";
 
@@ -23,6 +24,9 @@ ${maxLength}
 `;
 
   const response = await generateSingleResponse(prompt, userinfo);
+
+  // Geminiリクエスト数加算
+  logger.addRPD();
 
   return response.text ?? "";
 }

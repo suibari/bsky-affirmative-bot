@@ -62,9 +62,6 @@ export async function replyai(
     const text_bot = result?.comment || "";
     await postContinuous(text_bot, { uri, cid, record });
 
-    // Geminiリクエスト数加算
-    logger.addRPD();
-
     return result;
   } catch (e: any) {
     // Geminiエラー時、ランダムワード返信する

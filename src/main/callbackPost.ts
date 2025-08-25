@@ -98,24 +98,20 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
         if (await handleDiaryRelease(event, db)) return;
 
         if (await handleFortune(event, follower, db) && await logger.checkRPD()) {
-          logger.addRPD();
           botBiothythmManager.addFortune();
           return;
         }
         if (await handleAnalyze(event, follower, db) && await logger.checkRPD()) {
-          logger.addRPD();
           botBiothythmManager.addAnalysis();
           return;
         }
 
         if (subscribers.includes(follower.did) && await logger.checkRPD()) {
           if (await handleDJ(event, follower, db)) {
-            logger.addRPD();
             botBiothythmManager.addDJ();
             return;
           }
           if (await handleCheer(event, follower, db)) {
-            logger.addRPD();
             botBiothythmManager.addCheer();
             return;
           }
@@ -128,7 +124,6 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
           // サブスクライバー限定で会話機能発動する
           if (subscribers.includes(follower.did)) {
             if (await handleConversation(event, follower, db)) {
-              logger.addRPD();
               botBiothythmManager.addConversation();
               return;
             }

@@ -155,13 +155,11 @@ class Logger {
   }
 
   addRPD() {
-    this.resetIfNeeded();
     this.dailyStats.rpd++;
     this.saveLogToFile();
   }
 
   async checkRPD() {
-    this.resetIfNeeded();
     const subscribers = await getSubscribersFromSheet();
     const result = this.dailyStats.rpd < REQUEST_PER_DAY_GEMINI * subscribers.length; // Changed from this.rpd
     this.count++;

@@ -1,3 +1,4 @@
+import { logger } from "../logger/index.js";
 import { UserInfoGemini } from "../types.js";
 import { generateSingleResponse } from "./util.js";
 
@@ -17,6 +18,9 @@ export async function generateCheerResult(userinfo: UserInfoGemini) {
 `;
 
   const response = await generateSingleResponse(prompt, userinfo);
+
+  // Geminiリクエスト数加算
+  logger.addRPD();
 
   // AI出力のサニタイズ("-----"を含むときそれ以降の文字列を削除)
   const result = response.text?.split("-----")[0];

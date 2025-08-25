@@ -2,6 +2,7 @@ import { PartListUnion, Type } from "@google/genai";
 import { MODEL_GEMINI_LITE } from "../config/index.js";
 import { UserInfoGemini } from "../types.js";
 import { gemini } from "./index.js";
+import { logger } from "../logger/index.js";
 
 type GeminiJudgeResult = {
   result: boolean;
@@ -63,6 +64,9 @@ commentには、そう判断した理由を出力してください。
     }
   });
   const result = JSON.parse(response.text || "") as GeminiJudgeResult[];
+
+  // Geminiリクエスト数加算
+  logger.addRPD();
 
   return result[0];
 }

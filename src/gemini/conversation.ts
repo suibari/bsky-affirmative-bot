@@ -2,6 +2,7 @@ import { PartListUnion } from "@google/genai";
 import { gemini } from "./index.js";
 import { MODEL_GEMINI, SYSTEM_INSTRUCTION } from "../config/index.js";
 import { UserInfoGemini } from "../types.js";
+import { logger } from "../logger/index.js";
 
 export async function conversation(userinfo: UserInfoGemini) {
   const prompt = PROMPT_CONVERSATION(userinfo);
@@ -42,6 +43,9 @@ export async function conversation(userinfo: UserInfoGemini) {
 
   const new_history = chat.getHistory();
   const text_bot = response.text;
+
+  // Geminiリクエスト数加算
+  logger.addRPD();
 
   return {text_bot, new_history};
 }

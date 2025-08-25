@@ -1,4 +1,5 @@
 import { fetchNews } from "../gnews/index.js";
+import { logger } from "../logger/index.js";
 import { UserInfoGemini } from "../types.js";
 import { generateSingleResponseWithScore, getWhatDay } from "./util.js";
 
@@ -9,6 +10,9 @@ export async function generateAffirmativeWord(userinfo: UserInfoGemini) {
   if (process.env.NODE_ENV === "development") {
     console.log(`[DEBUG][${userinfo.follower.did}] Score: ${result.score}`);
   }
+
+  // Geminiリクエスト数加算
+  logger.addRPD();
   
   return result;
 }

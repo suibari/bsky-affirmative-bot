@@ -1,6 +1,7 @@
 import { ProfileView } from "@atproto/api/dist/client/types/app/bsky/actor/defs.js";
 import { generateSingleResponse, getFullDateAndTimeString, getRandomItems, getWhatDay } from "./util.js";
 import { fetchNews } from "../gnews/index.js";
+import { logger } from "../logger/index.js";
 
 const lastPosts: string[] = [];
 
@@ -27,6 +28,10 @@ export class WhimsicalPostGenerator {
     const text = response.text || "";
 
     this.addPost(lang, text);
+
+    // Geminiリクエスト数加算
+    logger.addRPD();
+
     return text;
   }
 

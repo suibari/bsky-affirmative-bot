@@ -2,6 +2,7 @@ import { PartListUnion, Type } from "@google/genai";
 import { MODEL_GEMINI, SYSTEM_INSTRUCTION } from "../config/index.js";
 import { UserInfoGemini } from "../types.js";
 import { gemini } from "./index.js";
+import { logger } from "../logger/index.js";
 
 type GeminiRecommendation = [
   {
@@ -43,6 +44,9 @@ export async function generateRecommendedSong(userinfo: UserInfoGemini) {
     }
   });
   const result = JSON.parse(response.text || "") as GeminiRecommendation;
+
+  // Geminiリクエスト数加算
+  logger.addRPD();
 
   return result[0];
 }
