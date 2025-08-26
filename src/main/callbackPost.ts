@@ -141,65 +141,55 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
             return;
           }
 
+          let replyType: "ai" | "random" | null = null;
           if (subscribers.includes(follower.did)) {
             // --------------
             // post: subbed-follower
             // --------------
             console.log(`[INFO][${did}] New post: single post by subbed-follower !!`);
-            const result = await replyai(follower, event);
+            replyType = "ai";
 
-            // ポストスコア記憶
-            dbPosts.insertDb(did);
-            if (result !== null) {
-              const prevScore = Number(await dbPosts.selectDb(did, "score") || 0);
-              if (result.score && prevScore < result.score &&
-                !follower.displayName?.toLowerCase().includes("bot") // botを除外
-              ) {
-                // お気に入りポスト更新
-                dbPosts.updateDb(did, "post", (event.commit.record as Record).text);
-                dbPosts.updateDb(did, "score", result.score);
-              }
-            }
           } else {
-            // 非サブスクメンバーは時間判定後、AIor定型文リプライ
-            // 時間判定
-            const postedAt = new Date(record.createdAt);
-            const updatedAt = new Date(String(await db.selectDb(did, "updated_at")));
-            const updatedAtJst = new Date(updatedAt.getTime() + OFFSET_UTC_TO_JST);
-            const isPast = (postedAt.getTime() - updatedAtJst.getTime() > MINUTES_THRD_RESPONSE);
-            if (!isPast) {    
-              console.log(`[INFO][${did}] Ignored post, REASON: past 10min`);
-              return;
-            }
-            
             // --------------
             // post: NOT subbed-follower
             // --------------
+            const postedAt = new Date(record.createdAt);
+            const updatedAt = new Date(String(await db.selectDb(did, "updated_at")));
+            const updatedAtJst = new Date(updatedAt.getTime() + OFFSET_UTC_TO_JST);
+            const isPast = postedAt.getTime() - updatedAtJst.getTime() > MINUTES_THRD_RESPONSE;
+
+            if (!isPast) {
+              console.log(`[INFO][${did}] Ignored post, REASON: past 10min`);
+              return;
+            }
+
             console.log(`[INFO][${did}] New post: single post by NOT subbed-follower !!`);
-            const isU18 = await db.selectDb(did, "is_u18") ?? 0; // null, undefinedは0扱い
+            const isU18 = (await db.selectDb(did, "is_u18")) ?? 0;
+
             if (count_replyrandom >= EXEC_PER_COUNTS && isU18 === 0) {
-              // AIリプライすべきかをAI判定
+              count_replyrandom = 0; // 最初にリセットして、2連続でAI応答するのを避ける
               const resultValidReplyai = await judgeReplySubject({
                 follower,
                 posts: [record.text],
                 image: record.embed ? getImageUrl(did, record.embed as AppBskyEmbedImages.Main) : undefined,
               });
-              // console.log(`[DEBUG][${did}] judgeReplySubject: ${resultValidReplyai.comment}`);
 
-              if (!resultValidReplyai.result) {
-                // AIリプライNGなら定型文リプライ
-                // カウントはしきい値以上なのでそのままとする
-                await replyrandom(follower, event);
-              } else {
-                // AIリプライ
-                count_replyrandom = 0; // カウントリセット
-                await replyai(follower, event);
-              }
+              replyType = resultValidReplyai.result ? "ai" : "random";
             } else {
-              // 定型文リプライ
               count_replyrandom++;
-              await replyrandom(follower, event);
+              replyType = "random";
             }
+          }
+
+          // ----------------
+          // リプライ呼び出しを最後にまとめる
+          // ----------------
+          if (replyType === "ai") {
+            await replyai(follower, event);
+          } else if (replyType === "random") {
+            await replyrandom(follower, event);
+          } else {
+            return;
           }
 
           // 全肯定した人数加算

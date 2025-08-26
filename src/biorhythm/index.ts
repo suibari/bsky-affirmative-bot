@@ -136,9 +136,9 @@ export class BiorhythmManager extends EventEmitter {
     const prompt = this.buildPrompt(now.toISOString());
 
     // 開発環境では常にenergyMAX
-    if (process.env.NODE_ENV === "development") {
-      this.energy = ENERGY_MAXIMUM;
-    }
+    // if (process.env.NODE_ENV === "development") {
+    //   this.energy = ENERGY_MAXIMUM;
+    // }
 
     // RPDチェック: 超過時は全処理スキップし、丸1日後に再実行
     if (!(await logger.checkRPD())) {
@@ -149,7 +149,7 @@ export class BiorhythmManager extends EventEmitter {
 
     let isPost: boolean = false;
     try {
-      if (((this.getEnergy >= 60) && (newStatus !== "Sleep")) || (process.env.NODE_ENV === "development")) {
+      if (((this.getEnergy >= 60) && (newStatus !== "Sleep"))) {
         const probability = Math.random() * 100;
         if (probability < this.getEnergy) {
           console.log(`[INFO][BIORHYTHM] post and decrease energy!`)

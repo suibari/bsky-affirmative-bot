@@ -108,9 +108,9 @@ export async function scheduleHandleDiary() {
   await createOrRefreshSession();
 
   // 開発環境では即実行
-  if (process.env.NODE_ENV === 'development') {
-    await handleDiary(db);
-  }
+  // if (process.env.NODE_ENV === 'development') {
+  //   await handleDiary(db);
+  // }
 
   nextRun.setHours(22, 0, 0, 0); // 今日の22:00に設定
 

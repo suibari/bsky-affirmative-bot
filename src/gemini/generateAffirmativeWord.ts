@@ -3,6 +3,8 @@ import { logger } from "../logger/index.js";
 import { UserInfoGemini } from "../types.js";
 import { generateSingleResponseWithScore, getWhatDay } from "./util.js";
 
+const THRD_POST_LENGTH = 10; // 今回のポストがこの文字数以下なら文脈推測を使う
+
 export async function generateAffirmativeWord(userinfo: UserInfoGemini) {
   const prompt = await PROMPT_AFFIRMATIVE_WORD(userinfo);
   const result = await generateSingleResponseWithScore(prompt, userinfo);
@@ -24,8 +26,13 @@ const PROMPT_AFFIRMATIVE_WORD = async (userinfo: UserInfoGemini) => {
 * comment:
 ${userinfo.image ? 
   "ユーザの画像の内容について褒めてください。画像の内容について具体的に言及して褒めるようにしてください。" :
-  "ユーザの文章に対して褒めてください。ユーザが作品や人物などを好きと言っているなら、その作品・人物のどのポイントが好きか、グラウンディングを使い事実をベースとして具体的にあなたの考えを述べて共感してください。"}
-${userinfo.likedByFollower ? `ユーザがあなたの投稿をイイネしてくれました。その感謝も伝えてください。`: ``}
+  "ユーザの今回のポストを褒めてください。" +
+  "ユーザが作品や人物などを好きと言っているなら、その作品・人物のどのポイントが好きか、グラウンディングを使い事実をベースとして具体的にあなたの考えを述べて共感してください。"
+}
+${userinfo.likedByFollower !== undefined ?
+  `ユーザがあなたの投稿をイイネしてくれました。その感謝も伝えてください。` :
+  ``
+}
 絶対にscoreが分かる内容を入れないでください。
 
 * score:
@@ -39,14 +46,22 @@ commentにはこのscoreが出力されないようにしてください。
 
 -----この下がユーザからの投稿です-----
 ユーザ名: ${userinfo.follower.displayName}
-文章: ${userinfo.posts?.[0] || ""}
+今回のポスト: ${userinfo.posts?.[0] || ""}
+前回までのポスト(1つの話題のみ言及してよい): ${userinfo.posts?.[0] && userinfo.posts?.[0].length < THRD_POST_LENGTH ? userinfo.posts.slice(1) : "なし"}
 ` :
 `Please generate the following two outputs based on the user's post.
 The output should be in ${userinfo.langStr}.
 
 * comment:  
-${userinfo.image ? "Give a compliment about the user's image. Be specific and mention details about the content of the image." : "Give a specific compliment about the user's text post."}  
-${userinfo.likedByFollower ? `The user liked your post. Please express your gratitude.`: ``}
+${userinfo.image ?
+  "Give a compliment about the user's image. Be specific and mention details about the content of the image." : 
+  "Give a specific compliment about the user's text post." +
+  "If the user says they like a work or person, use grounding to state your specific thoughts based on facts about what they like about that work or person, and empathize with them. "
+}  
+${userinfo.likedByFollower !== undefined ?
+  `The user liked your post. Please express your gratitude.`:
+  ``
+}
 Do **not** include any information that reveals or implies the score.
 
 * score:  
@@ -64,5 +79,6 @@ However, if the topic is not appealing to you, do not add extra points.
 Do **not** mention the score in the comment section.
 ----- Below is the user's post -----  
 Username: ${userinfo.follower.displayName}  
-Post: ${userinfo.posts?.[0] || ""}`
-};
+This Post: ${userinfo.posts?.[0] || ""}
+Previous posts (only one topic may be mentioned): ${userinfo.posts?.[0] && userinfo.posts?.[0].length < THRD_POST_LENGTH ? userinfo.posts.slice(1) : "None"}
+`};

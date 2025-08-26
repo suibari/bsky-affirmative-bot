@@ -9,6 +9,10 @@ import { logger } from "../logger/index.js";
 import { GeminiScore, ImageRef } from "../types.js";
 import { dbLikes, dbPosts } from "../db/index.js";
 import { postContinuous } from "../bsky/postContinuous.js";
+import { agent } from "../bsky/agent.js";
+import { getConcatAuthorFeed } from "../bsky/getConcatAuthorFeed.js";
+
+const LATEST_POSTS_COUNT = 5; // 直近ポスト収集数
 
 export async function replyai(
   follower: ProfileView,
@@ -35,15 +39,22 @@ export async function replyai(
   }
 
   try {
-    const likedPost = await dbLikes.selectDb(follower.did, "liked_post");
+    // ユーザがいいねしてくれたポストを取得
+    const likedPost = await dbLikes.selectDb(follower.did, "liked_post") ?? undefined;
     if (likedPost) {
       dbLikes.deleteRow(follower.did);
     }
 
+    // ユーザの直近ポストを収集
+    const recentPosts = await getConcatAuthorFeed(follower.did, LATEST_POSTS_COUNT + 1);
+    recentPosts.shift(); // 最新ポストは今回のポストのはずなので除外
+    const postsText = [record.text, ...recentPosts.map(item => (item.post.record as Record).text)]; // 最新11件を配列化
+
+    // Gemini生成
     result = await generateAffirmativeWord({
       follower,
       langStr,
-      posts: [record.text],
+      posts: postsText,
       likedByFollower: likedPost,
       image,
     });
