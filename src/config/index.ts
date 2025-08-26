@@ -104,6 +104,7 @@ export const TOTAL_SCORE_FOR_AUTONOMOUS = process.env.NODE_ENV === "development"
 export const MODEL_GEMINI = "gemini-2.0-flash";
 export const MODEL_GEMINI_LITE = "gemini-2.0-flash-lite"; // 判定系のGemini利用のみ、LITEを使う
 export const MODEL_GEMINI_EMBEDDING = "gemini-embedding-001";
+export const MODEL_GEMINI_IMAGE = "gemini-2.0-flash-preview-image-generation";
 export const SYSTEM_INSTRUCTION =
 `-----ここからSystemInstructionで、あなた自身のキャラクター設定を記載します。ユーザの情報と混同しないこと-----
 
