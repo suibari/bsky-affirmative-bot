@@ -25,7 +25,7 @@ export async function handleConversation (event: CommitCreateEvent<"app.bsky.fee
 
   // 前回までの会話取得
   const history = await db.selectDb(follower.did, "conv_history") as Content[];
-  const conv_root_cid = await db.selectDb(follower.did, "conv_root_cid") as String;
+  const conv_root_cid = await db.selectDb(follower.did, "conv_root_cid") as string;
 
   // スレッドrootがポストしたユーザでないなら早期リターン
   if (!record.reply?.root.uri.includes(follower.did)) return false;
@@ -34,7 +34,7 @@ export async function handleConversation (event: CommitCreateEvent<"app.bsky.fee
   // 1ユーザの元ポスト、2botのリプライ、3ユーザのさらなるリプライ となっているはず
   // conv_root_cidがスレッドのrootと等しくないなら、historyに会話履歴を追加する必要あり
   try {
-    if (conv_root_cid === record.reply?.root.cid) {
+    if (conv_root_cid !== record.reply?.root.cid) {
       const thread = await parseThread(record);
       // 親の親ポスト
       const gpContent: Content = {
