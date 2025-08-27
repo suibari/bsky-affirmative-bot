@@ -1,6 +1,7 @@
 import { gemini } from ".";
 import cosineSimilarity from "compute-cosine-similarity";
 import { MODEL_GEMINI_EMBEDDING } from "../config";
+import { logger } from "../logger";
 
 const THRD_COSINE_SIMILARITY = 0.85;
 
@@ -11,6 +12,19 @@ const THRD_COSINE_SIMILARITY = 0.85;
  * @returns 類似性がしきい値以上のテキスト配列
  */
 export async function embeddingTexts(srcText: string, targetTexts: string[]) {
+  // Handle empty srcText to prevent Gemini API error
+  if (!srcText) {
+    console.warn("[WARN] srcText is empty in embeddingTexts. Returning empty array.");
+    return [];
+  }
+
+  // Filter out empty target texts to prevent API errors and unnecessary processing
+  const nonEmptyTargetTexts = targetTexts.filter(text => text.trim() !== "");
+  if (nonEmptyTargetTexts.length === 0) {
+    console.warn("[WARN] No non-empty target texts provided. Returning empty array.");
+    return [];
+  }
+
   const response = await gemini.models.embedContent({
     model: MODEL_GEMINI_EMBEDDING,
     contents: [srcText, ...targetTexts],
@@ -18,6 +32,7 @@ export async function embeddingTexts(srcText: string, targetTexts: string[]) {
       taskType: "SEMANTIC_SIMILARITY",
     }
   })
+  logger.addRPD();
 
   const rawEmbeddings = response.embeddings?.map(e => e.values);
   const validEmbeddings = rawEmbeddings?.filter(embedding => Array.isArray(embedding)) as number[][];
