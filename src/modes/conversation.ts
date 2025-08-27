@@ -102,6 +102,15 @@ async function waitAndGenReply (userinfo: UserInfoGemini, event: CommitCreateEve
   // 初回の呼びかけまたは呼びかけし直しならreplyがないのでそのポストのcidを取得
   const rootCid = record.reply?.root.cid || String(event.commit.cid);
 
+  // 会話記録にinlineDataが含まれると巨大すぎるので削除しておく
+  for (const content of new_history) {
+    if (content.parts) {
+      content.parts = content.parts.filter(
+        (part: any) => !("inlineData" in part)
+      );
+    }
+  }
+
   // DB登録
   db.updateDb(userinfo.follower.did, "conv_history", JSON.stringify(new_history));
   db.updateDb(userinfo.follower.did, "conv_root_cid", rootCid);
