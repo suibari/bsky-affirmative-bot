@@ -166,7 +166,7 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
             console.log(`[INFO][${did}] New post: single post by NOT subbed-follower !!`);
             const isU18 = (await db.selectDb(did, "is_u18")) ?? 0;
 
-            if (count_replyrandom === EXEC_PER_COUNTS && isU18 === 0) {
+            if (count_replyrandom >= EXEC_PER_COUNTS && isU18 === 0) {
               count_replyrandom = 0; // 最初にリセットして、2連続でAI応答するのを避ける
               // NOTE: ジャッジAIは費用負担が重く、OFFにする
               // const resultValidReplyai = await judgeReplySubject({
