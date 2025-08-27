@@ -9,7 +9,7 @@ import { handleMode } from "./index.js";
 import { GeminiResponseResult, ImageRef, UserInfoGemini } from "../types.js";
 import { SQLite3 } from "../db/index.js";
 import { Content } from "@google/genai";
-import { parseThread } from "../bsky/parseThread.js";
+import { parseThread, ParsedThreadResult } from "../bsky/parseThread.js";
 
 const MAX_BOT_MEMORY = 100;
 
@@ -25,7 +25,7 @@ export async function handleConversation (event: CommitCreateEvent<"app.bsky.fee
 
   // 前回までの会話取得
   const history = await db.selectDb(follower.did, "conv_history") as Content[];
-  const conv_root_cid = await db.selectDb(follower.did, "conv_root_cid") as string;
+  const conv_root_cid = await db.selectDb(follower.did, "conv_root_cid") as String;
 
   // スレッドrootがポストしたユーザでないなら早期リターン
   if (!record.reply?.root.uri.includes(follower.did)) return false;
@@ -34,14 +34,15 @@ export async function handleConversation (event: CommitCreateEvent<"app.bsky.fee
   // 1ユーザの元ポスト、2botのリプライ、3ユーザのさらなるリプライ となっているはず
   // conv_root_cidがスレッドのrootと等しくないなら、historyに会話履歴を追加する必要あり
   try {
+    // console.log(`[DEBUG] cid ref: ${conv_root_cid}, target: ${record.reply?.root.cid}`);
     if (conv_root_cid !== record.reply?.root.cid) {
-      const thread = await parseThread(record);
+      const thread: ParsedThreadResult = await parseThread(record);
       // 親の親ポスト
       const gpContent: Content = {
         role: "user",
         parts: [
           {
-            text: thread.grandParentText // Changed from thread.grandParent?.text
+            text: thread.userPostText
           },
         ],
       }
@@ -51,7 +52,7 @@ export async function handleConversation (event: CommitCreateEvent<"app.bsky.fee
         role: "model",
         parts: [
           {
-            text: thread.parentText // Changed from thread.parent?.text
+            text: thread.botPostText
           }
         ]
       }

@@ -1,23 +1,24 @@
 import { Record } from "@atproto/api/dist/client/types/app/bsky/feed/post";
 import { agent } from "./agent.js"; // agentをインポートし、設定を仮定
+import { splitUri } from "./util.js";
 
 // 新しい戻り値の型を定義
 export interface ParsedThreadResult {
-  parentText: string;
-  grandParentText: string; // grandParentの投稿のテキスト
+  botPostText: string;
+  userPostText: string;
 }
 
 /**
  * Blueskyのポストレコードから親・親の親・ルートをフェッチして返す
- * 親をたどっていき、最初のユーザポストをgrandParentと定義
- * その手前から直接の親までのポストのテキストを連結したものをparentTextとする
+ * 親をたどっていき、最初のユーザポストをuserPostTextと定義
+ * その手前から直接の親までのポストのテキストを連結したものをbotPostTextとする
  * @param record 元ポストのRecord
  */
 export async function parseThread(
   record: Record
 ): Promise<ParsedThreadResult> {
   if (!record.reply) {
-    return { parentText: "", grandParentText: "" }; // 返信でない場合は空の文字列を返す
+    return { botPostText: "", userPostText: "" }; // 返信でない場合は空の文字列を返す
   }
 
   // agent.getPostが{ uri, value: Record }を返すことを前提とした型定義
@@ -28,25 +29,16 @@ export async function parseThread(
 
   let directParentInfo: FetchedPostInfo | undefined;
   let grandParentInfo: FetchedPostInfo | undefined; // grandParentのレコードとそのuriを格納
-  let parentText = "";
-  let grandParentText = ""; // grandParentの投稿のテキストを格納
+  let botPostText = "";
+  let userPostText = ""; // grandParentの投稿のテキストを格納
 
   // URIで投稿を取得し、RecordとURIを返すヘルパー関数
   const fetchRecordAndUriByUri = async (uri: string | undefined): Promise<FetchedPostInfo | undefined> => {
     if (!uri) return undefined;
     try {
-      const parts = uri.split('/');
-      // 期待される形式: at://{repo}/app.bsky.feed.post/{rkey}
-      if (parts.length === 4 && parts[0] === 'at:' && parts[2] === 'app.bsky.feed.post') {
-        const repo = parts[1];
-        const rkey = parts[3];
-        // agent.getPostが{ uri, cid, value: Record }を返すことを前提
-        const response = await agent.getPost({ repo, rkey });
-        // レスポンスオブジェクト自体にURIが含まれている可能性があります。
-        // レスポンスが { uri: string, value: Record } を持つと仮定します
-        return { record: response?.value as Record, uri: response?.uri };
-      }
-      return undefined;
+      const {did, nsid, rkey} = splitUri(uri);
+      const response = await agent.getPost({ repo: did, rkey: rkey });
+      return { record: response?.value as Record, uri: response?.uri };
     } catch (error) {
       console.error(`URI ${uri}の投稿の取得に失敗しました:`, error);
       return undefined;
@@ -55,6 +47,7 @@ export async function parseThread(
 
   // 直接の親のRecordとURIを取得
   directParentInfo = await fetchRecordAndUriByUri(record.reply.parent?.uri);
+  // console.log(`[DEBUG] directParentInfo: ${directParentInfo}`);
 
   // grandParent（最初のユーザ投稿）を見つけ、親のテキストを収集
   let currentParentInfo: FetchedPostInfo | undefined = directParentInfo;
@@ -64,6 +57,7 @@ export async function parseThread(
   const botDid = process.env.BSKY_DID; // 環境変数へのアクセス
 
   while (currentParentInfo?.record) {
+    // console.log(`[DEBUG] currentParentInfo.uri: ${currentParentInfo?.uri}`);
     // 現在の投稿がボットのものではないかを確認
     // ボットの識別: URIにボットのDIDが含まれているかを確認
     const isBotPost = currentParentInfo.uri?.includes(botDid ?? ''); // botDidがundefinedの場合の安全対策として?? ''を使用
@@ -84,10 +78,11 @@ export async function parseThread(
   }
 
   // 親のテキストを正しい順序で連結
-  parentText = collectedParentTexts.join(); // No need to reverse anymore // 親のテキストを正しい順序で連結
+  botPostText = collectedParentTexts.join(); // No need to reverse anymore // 親のテキストを正しい順序で連結
 
   // grandParentの投稿のテキストを取得
-  grandParentText = grandParentInfo?.record?.text ?? ""; // テキストを取得、見つからない場合は空文字列をデフォルトとする
+  userPostText = grandParentInfo?.record?.text ?? ""; // テキストを取得、見つからない場合は空文字列をデフォルトとする
+  // console.log(`[DEBUG] userPostText: ${grandParentText}, botPostText: ${parentText}`);
 
-  return { parentText, grandParentText };
+  return { botPostText, userPostText };
 }
