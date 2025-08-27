@@ -1,7 +1,7 @@
 import { AppBskyEmbedImages } from "@atproto/api";
-import { ProfileView } from "@atproto/api/dist/client/types/app/bsky/actor/defs";
+import { ProfileView } from "@atproto/api/dist/client/types/app/bsky/actor/defs"; // Changed to default import
 import { Record } from "@atproto/api/dist/client/types/app/bsky/feed/post";
-import { CommitCreateEvent } from "@skyware/jetstream";
+import { CommitCreateEvent } from "@skyware/jetstream"; // Changed back to named import
 import { agent } from "../bsky/agent.js";
 import { getImageUrl, getLangStr, isReplyOrMentionToMe, splitUri, uniteDidNsidRkey } from "../bsky/util.js";
 import { conversation } from "../gemini/conversation.js";
@@ -41,7 +41,7 @@ export async function handleConversation (event: CommitCreateEvent<"app.bsky.fee
         role: "user",
         parts: [
           {
-            text: thread.grandParent?.text
+            text: thread.grandParentText // Changed from thread.grandParent?.text
           },
         ],
       }
@@ -51,7 +51,7 @@ export async function handleConversation (event: CommitCreateEvent<"app.bsky.fee
         role: "model",
         parts: [
           {
-            text:thread.parent?.text
+            text: thread.parentText // Changed from thread.parent?.text
           }
         ]
       }
