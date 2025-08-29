@@ -43,6 +43,7 @@ export async function handleAnniversaryRegister (event: CommitCreateEvent<"app.b
   if (!(await isPast(event, db, "last_anniv_registered_at", 6 * 24 * 60))) return false; // 6days経過前はリターン
 
   // 記念日登録
+  console.log(`[INFO][${follower.did}] registered anniversary. ${annivInfo.name}: ${annivInfo.date}`);
   db.updateDb(follower.did, "user_anniv_name", annivInfo.name);
   db.updateDb(follower.did, "user_anniv_at", annivInfo.date);
 
@@ -95,7 +96,6 @@ export async function handleAnniversaryExec(event: CommitCreateEvent<"app.bsky.f
   // タイムゾーンを考慮した記念日判定
   const todayAnniversary = await getTodayAnniversary(follower, lang, db);
   if (todayAnniversary.length === 0) return false;
-  console.log(`[INFO][${follower.did}] happy anniversary!! ${todayAnniversary.map(item => item.id).join(", ")}`);
 
   // 今日は記念日であるので、
   // その日の記念日リプライ記録がなければ通過させる
@@ -105,6 +105,7 @@ export async function handleAnniversaryExec(event: CommitCreateEvent<"app.bsky.f
   if (todayStr === lastStr) return false;
 
   // 記念日であり、まだその日実行もしていないなら、記念日リプライする
+  console.log(`[INFO][${follower.did}] happy anniversary! ${todayAnniversary.map(item => item.id).join(", ")}`);
   return await handleMode(event, {
     triggers: [], // トリガーワードなし、botへのリプライであれば常に反応
     db,
@@ -221,7 +222,7 @@ function getDateLastYearsSameMD() {
 }
 
 // コマンドパース
-function parseAnniversaryCommand(input: string): AnniversaryInfo {
+function parseAnniversaryCommand(input: string): AnniversaryInfo | null {
   // カンマ or 読点で分割
   const parts = input.split(/,|、/).map(p => p.trim()).filter(Boolean);
 
@@ -229,35 +230,32 @@ function parseAnniversaryCommand(input: string): AnniversaryInfo {
     const name = parts[1];
     const rawDate = parts[2];
 
-    const isoDate = toIsoDateFromString(rawDate);
-    if (isoDate) {
-      return { name, date: isoDate };
+    const md = toMonthDay(rawDate);
+    if (md) {
+      return { name, date: md }; // "MM-DD" 形式で返す
     }
   }
 
   return null;
 
-  // 日付パース関数
-  function toIsoDateFromString(input: string): string | null {
+  // 月日だけをパース
+  function toMonthDay(input: string): string | null {
     // 区切りを統一
-    let dateStr = input.replace(/[年月\/]/g, "-").replace(/日$/, "");
+    let dateStr = input.replace(/[月\/\-]/g, "-").replace(/日$/, "");
 
-    // YYYY-M-D 形式にマッチ
-    const match = dateStr.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+    // M-D または MM-DD にマッチ
+    const match = dateStr.match(/^(\d{1,2})-(\d{1,2})$/);
     if (!match) return null;
 
-    const [, year, month, day] = match;
-    const y = parseInt(year, 10);
+    const [, month, day] = match;
     const m = parseInt(month, 10);
     const d = parseInt(day, 10);
 
-    // バリデーション (簡易)
+    // バリデーション
     if (m < 1 || m > 12 || d < 1 || d > 31) return null;
 
-    // Date生成（UTCで揃える）
-    const date = new Date(Date.UTC(y, m - 1, d));
-
-    return date.toISOString(); // -> 2024-02-09T00:00:00.000Z
+    // "MM-DD" 形式で返す
+    return `${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
   }
 }
 

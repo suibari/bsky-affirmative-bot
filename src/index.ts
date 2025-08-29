@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import { createOrRefreshSession, initAgent } from './bsky/agent.js';
-import { db } from './db/index.js';
+import { db, initializeDatabases } from './db/index.js';
 import { startWebSocket } from './bsky/jetstream.js';
 import { pointRateLimit } from './util/logger.js';
 import { getConcatFollowers } from './bsky/getConcatFollowers.js';
@@ -15,6 +15,9 @@ export let followers: ProfileView[] = [];
 // 起動時処理
 (async () => {
   try {
+    console.log("[INFO] Initialize DB...");
+    await initializeDatabases();
+
     console.log("[INFO] Initialize AtpAgent...");
     await initAgent();
 
