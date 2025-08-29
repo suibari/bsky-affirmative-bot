@@ -247,11 +247,10 @@ function parseAnniversaryCommand(input: string): AnniversaryInfo | null {
 
   // 月日だけをパース
   function toMonthDay(input: string): string | null {
-    // 区切りを統一
-    let dateStr = input.replace(/[月\/\-]/g, "-").replace(/日$/, "");
+    let dateStr = input.replace(/[年月\/\-]/g, "-").replace(/日$/, "");
 
-    // M-D または MM-DD にマッチ
-    const match = dateStr.match(/^(\d{1,2})-(\d{1,2})$/);
+    // YYYY-M-D または M-D に対応
+    const match = dateStr.match(/^(?:\d{4}-)?(\d{1,2})-(\d{1,2})$/);
     if (!match) return null;
 
     const [, month, day] = match;
