@@ -20,7 +20,7 @@ const PROMPT_ANNIVERSARY_WORD = async (userinfo: UserInfoGemini) => {
   `* 1年前のユーザのポストがある場合、その内容をもとに、1年のがんばりをねぎらうこと` +
   `---以下、ユーザ情報---` +
   `* ユーザ名: ${userinfo.follower.displayName ?? ""}` +
-  `* 記念日: ${userinfo.anniversary?.join(", ")}` +
+  `* 記念日: ${userinfo.anniversary?.map(item => item.names.ja).join(", ")}` +
   `* 1年前のユーザのポスト: ${userinfo.posts?.[0] ?? "なし"}` :
   ``
   ;

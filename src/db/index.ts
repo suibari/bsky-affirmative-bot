@@ -29,7 +29,7 @@ const desiredSchemas: Record<string, TableSchema> = {
       { name: 'last_cheer_at', type: 'TIMESTAMP', default: null },
       { name: 'last_dj_at', type: 'TIMESTAMP', default: null },
       { name: 'user_anniv_name', type: 'TEXT', default: null },
-      { name: 'user_anniv_at', type: 'TIMESTAMP', default: null },
+      { name: 'user_anniv_date', type: 'TEXT', default: null },
       { name: 'last_anniv_execed_at', type: 'TIMESTAMP', default: null },
       { name: 'last_anniv_registered_at', type: 'TIMESTAMP', default: null },
     ]

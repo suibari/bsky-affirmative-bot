@@ -11,9 +11,29 @@ export function dateForHoliday(year: number, h: Holiday): Date {
   }
 }
 
-export function toIsoDateFromDate(date: Date): string {
-  // UTC基準の YYYY-MM-DD
-  return date.toISOString().slice(0, 10);
+/**
+ * Dateを--MM-DDに変換
+ * @param date 
+ * @returns 
+ */
+export function toMonthDayIso(date: Date): string {
+  const m = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const d = String(date.getUTCDate()).padStart(2, "0");
+  return `--${m}-${d}`;
+}
+
+/**
+ * --MM-DDをDateに変換(年はダミーで2025を入れる)
+ * @param md 
+ * @returns 
+ */
+export function parseMonthDay(md: string): Date | null {
+  // md = "--MM-DD"
+  const match = md.match(/^--(\d{2})-(\d{2})$/);
+  if (!match) return null;
+
+  const [, m, d] = match;
+  return new Date(Date.UTC(2025, parseInt(m) - 1, parseInt(d))); 
 }
 
 function nthWeekdayOfMonthUTC(year: number, month: number, week: number, weekday: number): Date {

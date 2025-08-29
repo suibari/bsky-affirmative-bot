@@ -44,9 +44,13 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
     retry(
       async () => {
         // ==============
-        // Reply/Mention or Follower or Myself Filter (IMPORTANT!!)
+        // Myself Filter
+        // ここまでのフィルターで残るのは、以下
+        // * フォロワーによるbotへのリプライ
+        // * フォロワーによるbotへのメンション
+        // * フォロワーによるリプライとメンションを除く通常ポスト
         // ==============
-        if (!isReplyOrMentionToMe(record) && !follower) return;
+        // if (!isReplyOrMentionToMe(record) && !follower) return; // truthy
         if ((did === process.env.BSKY_DID)) return;
 
         // ==============
@@ -134,9 +138,9 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
           }
 
         // ==============
-        // main
+        // main: 通常ポスト or botへのメンション
         // ==============
-        } else if (!isMention(record)) {
+        } else {
           // 確率判定
           const user_freq = await db.selectDb(did, "reply_freq");
           const isValidFreq = isJudgeByFreq(user_freq !== null ? Number(user_freq) : 100); // フォロワーだがレコードにないユーザーであるため、通過させる
@@ -202,8 +206,6 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
 
           // DB更新
           db.insertOrUpdateDb(did);
-        } else {
-          console.log(`[INFO][${did}] Ignored post, REASON: mention`);
         }
       }, {
         retries: 3,

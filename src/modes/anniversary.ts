@@ -4,11 +4,10 @@ import { CommitCreateEvent } from "@skyware/jetstream";
 import { handleMode, isPast } from ".";
 import { ANNIV_CONFIRM_TRIGGER, ANNIV_REGISTER_TRIGGER } from "../config";
 import { Record as PostRecord } from "@atproto/api/dist/client/types/app/bsky/feed/post";
-import { getLangStr, uniteDidNsidRkey } from "../bsky/util";
-import { postContinuous } from "../bsky/postContinuous";
+import { getLangStr, isReplyOrMentionToMe, uniteDidNsidRkey } from "../bsky/util";
 import { GeminiResponseResult, Holiday, UserInfoGemini } from "../types";
 import { agent } from "../bsky/agent";
-import { dateForHoliday, toIsoDateFromDate } from "../util/dateRules";
+import { dateForHoliday, parseMonthDay, toMonthDayIso } from "../util/dateRules";
 import { SQLite3 } from "../db";
 import { generateAnniversary } from "../gemini/generateAnniversary";
 
@@ -42,19 +41,21 @@ export async function handleAnniversaryRegister (event: CommitCreateEvent<"app.b
   // 経過判定
   if (!(await isPast(event, db, "last_anniv_registered_at", 6 * 24 * 60))) return false; // 6days経過前はリターン
 
-  // 記念日登録
-  console.log(`[INFO][${follower.did}] registered anniversary. ${annivInfo.name}: ${annivInfo.date}`);
-  db.updateDb(follower.did, "user_anniv_name", annivInfo.name);
-  db.updateDb(follower.did, "user_anniv_at", annivInfo.date);
-
   // 最終登録日更新とリプライ
-  return await handleMode(event, {
+  const result = await handleMode(event, {
     triggers: ANNIV_REGISTER_TRIGGER,
     db,
     dbColumn: "last_anniv_registered_at",
     dbValue: new Date().toISOString(),
     generateText: TEXT_REGISTER_ANNIV(follower.displayName ?? "", langStr, annivInfo?.name, annivInfo?.date),
-  })
+  });
+
+  // 記念日登録
+  console.log(`[INFO][${follower.did}] registered anniversary. ${annivInfo.name}: ${annivInfo.date}`);
+  db.updateDb(follower.did, "user_anniv_name", annivInfo.name);
+  db.updateDb(follower.did, "user_anniv_date", `--${annivInfo.date}`); // ISO年無し表記で保存(--MM-DD)
+
+  return result;
 }
 
 /**
@@ -71,7 +72,7 @@ export async function handleAnniversaryConfirm(event: CommitCreateEvent<"app.bsk
   // DB select
   const annivInfo: AnniversaryInfo = {
     name: await db.selectDb(follower.did, "user_anniv_name"),
-    date: await db.selectDb(follower.did, "user_anniv_at"),
+    date: await db.selectDb(follower.did, "user_anniv_date"),
   }
   if (!annivInfo.name || !annivInfo.date) return false; // 未登録ならリターン
 
@@ -107,11 +108,12 @@ export async function handleAnniversaryExec(event: CommitCreateEvent<"app.bsky.f
   // 記念日であり、まだその日実行もしていないなら、記念日リプライする
   console.log(`[INFO][${follower.did}] happy anniversary! ${todayAnniversary.map(item => item.id).join(", ")}`);
   return await handleMode(event, {
-    triggers: [], // トリガーワードなし、botへのリプライであれば常に反応
+    triggers: [], // トリガーワードなし、OR条件を満たせば常に反応
     db,
     dbColumn: "last_anniv_execed_at",
     dbValue: new Date().toISOString(),
     generateText: getAnnivEmbed,
+    checkConditionsOR: (!record.reply), // callbackPostより、通常ポストか、botへのメンションに対し反応する
   },
   {
     follower,
@@ -136,9 +138,14 @@ async function getAnnivEmbed(userinfo: UserInfoGemini, event: CommitCreateEvent<
     cid: response.data.posts[0].cid,
   } : undefined;
   userinfo.posts = response.data.posts.map(post => (post.record as PostRecord).text);
+  console.log(`[DEBUG][${event.did}] last year post: ${userinfo.posts[0]}`);
 
   // 2. Gemini
   const botText = await generateAnniversary(userinfo);
+
+  if (process.env.NODE_ENV === "development") {
+    console.log("[DEBUG] bot>>> " + botText);
+  }
 
   // embedToがなければキー省略
   return {
@@ -157,13 +164,13 @@ async function getTodayAnniversary(follower: ProfileView, lang: string | undefin
   let todayAnniversary: Holiday[] = [];
 
   const today = new Date();
-  const todayIso = formatYMD(new Date(), lang);
-  // const todayIso = toIsoDateFromDate(today); // "2025-08-29"
+  const todayIso = formatYMD(new Date(), lang); // 2025-08-29
+  const todayMD = "-" + todayIso.slice(4);      //    --08-29
 
   // プリセット記念日判定
   const todayHolidays = (holidays as Holiday[]).filter(h => {
     const d = dateForHoliday(today.getUTCFullYear(), h);
-    return toIsoDateFromDate(d) === todayIso;
+    return toMonthDayIso(d) === todayMD;
   });
   todayAnniversary = todayAnniversary.concat(todayHolidays);
 
@@ -171,7 +178,7 @@ async function getTodayAnniversary(follower: ProfileView, lang: string | undefin
   const createdAtBluesky = follower.createdAt
   if (createdAtBluesky) {
     const createdAtBskyDate = new Date(createdAtBluesky);
-    if (toIsoDateFromDate(createdAtBskyDate) === todayIso) {
+    if (toMonthDayIso(createdAtBskyDate) === todayMD) {
       todayAnniversary = todayAnniversary.concat({
         "id": "bluesky_registered_day",
         "names": { "ja": "Bluesky登録日", "en": "The Day You Registered With Bluesky" },
@@ -183,10 +190,10 @@ async function getTodayAnniversary(follower: ProfileView, lang: string | undefin
 
   // ユーザ記念日判定
   const anniv_name = await db.selectDb(follower.did, "user_anniv_name");
-  const anniv_date = await db.selectDb(follower.did, "user_anniv_at");
+  const anniv_date = await db.selectDb(follower.did, "user_anniv_date");
   if (anniv_name && anniv_date) {
-    const userAnnivDate = new Date(anniv_date);
-    if (toIsoDateFromDate(userAnnivDate) === todayIso) {
+    const userAnnivDate = parseMonthDay(anniv_date);
+    if (userAnnivDate && toMonthDayIso(userAnnivDate) === todayMD) {
       todayAnniversary = todayAnniversary.concat({
         "id": "user_anniversary",
         "names": { "ja": anniv_name, "en": anniv_name },
