@@ -1,10 +1,11 @@
 import { Record } from "@atproto/api/dist/client/types/app/bsky/feed/post";
-import { BlobRef } from "@atproto/api";
+import { $Typed, AppBskyEmbedRecord, BlobRef } from "@atproto/api";
 import { post } from "./post.js";
 import { Main } from "@atproto/api/dist/client/types/com/atproto/repo/strongRef.js";
 
 /**
  * 300文字以上のポストの場合、自動で分割投稿する
+ * @param embedTo 引用ポスト先のレコード。連続ポストの最初のポストで引用される
  */
 export async function postContinuous(
   text: string,
@@ -16,7 +17,11 @@ export async function postContinuous(
   image?: {
     blob: BlobRef,
     alt: string,
-  }
+  },
+  embedTo?: {
+    uri: string,
+    cid: string,
+  },
 ): Promise<void> {
   const MAX_LENGTH = 300;
   const parts = splitTextSmart(text, MAX_LENGTH);
@@ -72,6 +77,7 @@ export async function postContinuous(
       };
     }
 
+    // NOTE: RecordWithMediaを使えば画像と引用を同時ポストできるが、未対応
     // 初回投稿に画像を添付
     if (isFirst && image) {
       newRecord.embed = {
@@ -83,6 +89,18 @@ export async function postContinuous(
           }
         ]
       };
+    }
+
+    // 初回投稿に引用をセット
+    if (isFirst && embedTo) {
+      const embedRecord: $Typed<AppBskyEmbedRecord.Main> = {
+        $type: 'app.bsky.embed.record',
+        record: {
+          uri: embedTo.uri,
+          cid: embedTo.cid,
+        }
+      }
+      newRecord.embed = embedRecord;
     }
 
     const result = await post(newRecord);

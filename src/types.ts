@@ -16,6 +16,7 @@ export type UserInfoGemini = {
   likedByFollower?: string[];
   history?: Content[];
   image?: ImageRef[];
+  anniversary?: Holiday[];
 };
 
 export interface ImageRef {
@@ -26,6 +27,10 @@ export interface ImageRef {
 export type GeminiResponseResult = string | {
   text: string;
   imageBlob?: BlobRef;
+  embedTo?: {
+    uri: string;
+    cid: string;
+  }
 };
 
 export type GeminiScore = {
@@ -37,4 +42,14 @@ export interface ThreadInfo {
   parent?: Record
   grandParent?: Record
   root?: Record
+}
+
+export type Holiday = {
+  id: string;
+  names: { ja: string; en: string };
+  rule:
+    | { type: "fixed"; month: number; day: number }
+    | { type: "nth-weekday"; month: number; week: number; weekday: number } // weekday: 0=Sun..6=Sat
+    | { type: "easter"; calendar: "western" | "orthodox" };
+  regions?: string[];
 }

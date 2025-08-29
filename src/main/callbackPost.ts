@@ -21,8 +21,7 @@ import { logger } from "../logger";
 import { replyai } from "../modes/replyai";
 import { replyrandom } from "../modes/replyrandom";
 import { EXEC_PER_COUNTS } from "../config";
-import { judgeReplySubject } from "../gemini/judgeReplySubject";
-import { AppBskyEmbedImages } from "@atproto/api";
+import { handleAnniversaryConfirm, handleAnniversaryExec, handleAnniversaryRegister } from "../modes/anniversary";
 
 const OFFSET_UTC_TO_JST = 9 * 60 * 60 * 1000; // offset: +9h (to JST from UTC <SQlite3>)
 const MINUTES_THRD_RESPONSE = 10 * 60 * 1000; // 10min
@@ -91,11 +90,16 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
         // -----------
         // Mode Detect: All mode
         // -----------
+        // 記念日は最優先とする
+        if (await handleAnniversaryExec(event, follower, db)) return;
+
         if (await handleU18Release(event, db)) return;
         if (await handleU18Register(event, db)) return;
         if (await handleFreq(event, follower, db)) return;
         if (await handleDiaryRegister(event, db)) return;
         if (await handleDiaryRelease(event, db)) return;
+        if (await handleAnniversaryRegister(event, follower, db)) return;
+        if (await handleAnniversaryConfirm(event, follower, db)) return;
 
         if (await handleFortune(event, follower, db) && await logger.checkRPD()) {
           botBiothythmManager.addFortune();

@@ -10,8 +10,8 @@ import { AppBskyEmbedImages } from "@atproto/api";
 type TriggeredReplyHandlerOptions = {
   triggers: string[]; // 発火ワード一覧
   db: SQLite3; // 更新対象DB
-  dbColumn: string;   // 更新するDBのカラム名（例: "is_u18"）
-  dbValue: number | string; // 登録時にセットする値（例: 1）
+  dbColumn?: string;   // 更新するDBのカラム名（例: "is_u18"）
+  dbValue?: number | string; // 登録時にセットする値（例: 1）
   generateText: GeminiResponseResult | ((userinfo: UserInfoGemini, event: CommitCreateEvent<"app.bsky.feed.post">, db: SQLite3) => Promise<GeminiResponseResult | undefined>); // 返信するテキスト(コールバック対応)
   checkConditionsOR?: boolean; // 呼びかけ OR追加条件 (呼びかけ&&トリガーワード、または本条件を満たすと関数実行)
   checkConditionsAND?: boolean; // 呼びかけ AND追加条件（呼びかけ&&トリガーワード、かつ本条件を満たしてはじめて関数実行）
@@ -75,10 +75,18 @@ export const handleMode = async (
         await postContinuous(result, {uri, cid, record});
       }
     } else if (result.imageBlob) {
+      // generateTextで画像を作ったときは、画像付きリプライ
       await postContinuous(result.text, {uri, cid, record}, {blob: result.imageBlob, alt: `Dear ${userinfo?.follower.displayName}, From 全肯定botたん`});
-    };
+    } else if (result.embedTo) {
+      // generateTextで引用ポストを拾ったときは、引用付きリプライ
+      await postContinuous(result.text, {uri, cid, record}, undefined, result.embedTo);
+    }
   }
-  options.db.updateDb(did, options.dbColumn, options.dbValue);
+
+  // DB更新: 列、値が指定ある時だけ
+  if (options.dbColumn && options.dbValue) {
+    options.db.updateDb(did, options.dbColumn, options.dbValue);
+  }
 
   console.log(`[INFO][${did}] exec mode: ${options.dbColumn}`)
 

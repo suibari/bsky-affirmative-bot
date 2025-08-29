@@ -79,6 +79,16 @@ export const DIARY_RELEASE_TRIGGER = [
   "stop diary",
 ];
 
+export const ANNIV_REGISTER_TRIGGER = [
+  "記念日登録",
+  "remember anniversary",
+];
+
+export const ANNIV_CONFIRM_TRIGGER = [
+  "記念日確認",
+  "tell me anniversary",
+];
+
 export const HNY_WORDS = ["明けましておめでとう", "あけましておめでとう", "あけおめ"];
 export const OHAYO_WORDS = ["おは"];
 export const OYASUMI_WORDS = ["おやす"];

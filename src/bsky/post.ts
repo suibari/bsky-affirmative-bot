@@ -8,7 +8,7 @@ import ogs from 'open-graph-scraper'; // ← これを使ってOGP取得
  * 開発環境ではなにもしない
  * @param {*} record 
  */
-export async function post(record: Record): Promise<{
+export async function post(record: Record, embedRecord?: Record): Promise<{
   uri: string,
   cid: string,
 }> {
@@ -18,10 +18,13 @@ export async function post(record: Record): Promise<{
     await rt.detectFacets(agent);
     record.text = rt.text;
     record.facets = rt.facets;
-    
-    // リンクカード自動付与
+
     const urlMatch = record.text.match(/https?:\/\/[^\s]+/);
-    if (urlMatch) {
+    // embed: 引用ポスト付与
+    if (embedRecord) {
+      record.embed = embedRecord;
+    // embed: リンクカード付与
+    } else if (urlMatch) {
       const url = urlMatch[0];
 
       const { result } = await ogs({ url });

@@ -3,8 +3,6 @@ import { logger } from "../logger/index.js";
 import { UserInfoGemini } from "../types.js";
 import { generateSingleResponseWithScore, getWhatDay } from "./util.js";
 
-const THRD_POST_LENGTH = 10; // 今回のポストがこの文字数以下なら文脈推測を使う
-
 export async function generateAffirmativeWord(userinfo: UserInfoGemini) {
   const prompt = await PROMPT_AFFIRMATIVE_WORD(userinfo);
   const result = await generateSingleResponseWithScore(prompt, userinfo);
