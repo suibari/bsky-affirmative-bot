@@ -4,9 +4,9 @@ import { BiorhythmManager, botBiothythmManager } from "../biorhythm";
 
 export function startServer(bot: BiorhythmManager) {
   const server = http.createServer((req, res) => {
-    if (req.url === "/") {
+    if (req.url === "/.well-known/atproto-did") {
       res.writeHead(200, { "Content-Type": "text/plain" });
-      res.end("OK"); // 短い固定レスポンスで良い
+      res.end(process.env.BSKY_DID);
     } else {
       res.writeHead(404);
       res.end();
