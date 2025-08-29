@@ -45,7 +45,7 @@ commentにはこのscoreが出力されないようにしてください。
 -----この下がユーザからの投稿です-----
 ユーザ名: ${userinfo.follower.displayName}
 今回のポスト: ${userinfo.posts?.[0] || ""}
-前回までのポスト: ${userinfo.posts?.slice(1) ?? "なし"}
+前回までのポスト(**直接言及はしてはいけない**): ${userinfo.posts?.slice(1) ?? "なし"}
 ` :
 `Please generate the following two outputs based on the user's post.
 The output should be in ${userinfo.langStr}.
@@ -78,5 +78,5 @@ Do **not** mention the score in the comment section.
 ----- Below is the user's post -----  
 Username: ${userinfo.follower.displayName}  
 This Post: ${userinfo.posts?.[0] || ""}
-Previous posts: ${userinfo.posts?.slice(1) ?? "None"}
+Previous posts(Do not directly mention): ${userinfo.posts?.slice(1) ?? "None"}
 `};

@@ -3,13 +3,17 @@ import { WebSocketServer } from 'ws';
 import { BiorhythmManager, botBiothythmManager } from "../biorhythm";
 
 export function startServer(bot: BiorhythmManager) {
-  const server = http.createServer((_req, res) => {
-    // HTTPリクエストは何も返さず切断
-    res.writeHead(204); // No Content
-    res.end();
+  const server = http.createServer((req, res) => {
+    if (req.url === "/") {
+      res.writeHead(200, { "Content-Type": "text/plain" });
+      res.end("OK"); // 短い固定レスポンスで良い
+    } else {
+      res.writeHead(404);
+      res.end();
+    }
   });
 
-  const wss = new WebSocketServer({ server });
+  const wss = new WebSocketServer({ server, path: "/ws" });
 
   // Biorhythm更新時に全クライアントに送信
   const broadcast = (data: any) => {
