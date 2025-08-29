@@ -38,7 +38,7 @@ export async function callbackFollow (event: CommitCreateEvent<"app.bsky.graph.f
       {
         retries: 5,
         onRetry: (err, attempt) => {
-          console.warn(`[WARN] Retry attempt ${attempt} to refresh followers failed:`, err);
+          console.warn(`[WARN][${event.did}] Retry attempt ${attempt} to refresh followers failed:`, err);
         },
       }
     );

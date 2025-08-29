@@ -37,7 +37,7 @@ export async function callbackLike (event: CommitCreateEvent<"app.bsky.feed.like
       },{
         retries: 3,
         onRetry: (err, attempt) => {
-          console.warn(`[WARN] Retry attempt ${attempt} to saveLike:`, err);
+          console.warn(`[WARN][${event.did}] Retry attempt ${attempt} to saveLike:`, err);
         }
       }
     )

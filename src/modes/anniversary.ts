@@ -106,7 +106,7 @@ export async function handleAnniversaryExec(event: CommitCreateEvent<"app.bsky.f
   if (todayStr === lastStr) return false;
 
   // 記念日であり、まだその日実行もしていないなら、記念日リプライする
-  console.log(`[INFO][${follower.did}] happy anniversary! ${todayAnniversary.map(item => item.id).join(", ")}`);
+  console.log(`[INFO][${follower.did}] happy ANNIVERSARY!, id: ${todayAnniversary.map(item => item.id).join(", ")}`);
   return await handleMode(event, {
     triggers: [], // トリガーワードなし、OR条件を満たせば常に反応
     db,
@@ -138,7 +138,7 @@ async function getAnnivEmbed(userinfo: UserInfoGemini, event: CommitCreateEvent<
     cid: response.data.posts[0].cid,
   } : undefined;
   userinfo.posts = response.data.posts.map(post => (post.record as PostRecord).text);
-  console.log(`[DEBUG][${event.did}] last year post: ${userinfo.posts[0]}`);
+  // console.log(`[DEBUG][${event.did}] last year post: ${userinfo.posts[0]}`);
 
   // 2. Gemini
   const botText = await generateAnniversary(userinfo);

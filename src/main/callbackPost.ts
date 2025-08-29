@@ -210,7 +210,7 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
       }, {
         retries: 3,
         onRetry: (err, attempt) => {
-          console.warn(`[WARN] Retry attempt ${attempt} to doReply:`, err);
+          console.warn(`[WARN][${event.did}] Retry attempt ${attempt} to doReply:`, err);
         },
       }
     )

@@ -3,7 +3,7 @@ import cosineSimilarity from "compute-cosine-similarity";
 import { MODEL_GEMINI_EMBEDDING } from "../config";
 import { logger } from "../logger";
 
-const THRD_COSINE_SIMILARITY = 0.85;
+const THRD_COSINE_SIMILARITY = 0.80;
 
 /**
  * エンベディングとコサイン類似計算し、しきい値以上の類似性をもつtargetTextsを返す
