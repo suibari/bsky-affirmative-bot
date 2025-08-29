@@ -165,7 +165,7 @@ async function getTodayAnniversary(follower: ProfileView, lang: string | undefin
 
   const today = new Date();
   const todayIso = formatYMD(new Date(), lang); // 2025-08-29
-  const todayMD = "-" + todayIso.slice(4);      //    --08-29
+  const todayMD = "--" + todayIso.slice(5);     //    --08-29
 
   // プリセット記念日判定
   const todayHolidays = (holidays as Holiday[]).filter(h => {
@@ -178,7 +178,7 @@ async function getTodayAnniversary(follower: ProfileView, lang: string | undefin
   const createdAtBluesky = follower.createdAt
   if (createdAtBluesky) {
     const createdAtBskyDate = new Date(createdAtBluesky);
-    if (toMonthDayIso(createdAtBskyDate) === todayMD) {
+    if (!isNaN(createdAtBskyDate.getTime()) && toMonthDayIso(createdAtBskyDate) === todayMD) {
       todayAnniversary = todayAnniversary.concat({
         "id": "bluesky_registered_day",
         "names": { "ja": "Bluesky登録日", "en": "The Day You Registered With Bluesky" },
