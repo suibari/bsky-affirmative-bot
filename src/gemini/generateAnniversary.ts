@@ -22,6 +22,15 @@ const PROMPT_ANNIVERSARY_WORD = async (userinfo: UserInfoGemini) => {
   `* ユーザ名: ${userinfo.follower.displayName ?? ""}` +
   `* 記念日: ${userinfo.anniversary?.map(item => item.names.ja).join(", ")}` +
   `* 1年前のユーザのポスト: ${userinfo.posts?.[0] ?? "なし"}` :
-  ``
+  `Today is an anniversary. Celebrate the user to the fullest!` +
+  `Celebration Rules:` +
+  `* Call the user name.` +
+  `* If the anniversary is a common one (New Year's Day, New Year's Eve, etc.), briefly explain the origin of the anniversary.` +
+  `* If there are two or more anniversaries, mention each one.` +
+  `* If there are posts from the user from a year ago, use those posts to praise their efforts this year.` +
+  `---User Information Below---` +
+  `* User Name: ${userinfo.follower.displayName ?? ""}` +
+  `* Anniversary: ${userinfo.anniversary?.map(item => item.names.ja).join(", ")}` +
+  `* User Posts from a Year Ago: ${userinfo.posts?.[0] ?? "None"}`
   ;
 }

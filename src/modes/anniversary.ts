@@ -18,11 +18,11 @@ type AnniversaryInfo = {
 
 const TEXT_REGISTER_ANNIV = (displayName: string, langStr: string, anniv_name: string, anniv_date: string) => (langStr === "日本語") ? 
 `${displayName}さんの記念日「${anniv_name}」は、${anniv_date}って覚えたよ! ${anniv_name}になったらお祝いするから、楽しみに待っててね～` : 
-``;
+`I remembered that ${displayName}'s anniversary, "${anniv_name}," is ${anniv_date}! We'll celebrate on ${anniv_name}, so look forward to it!`;
 
 const TEXT_CONFIRM_ANNIV = (displayName: string, langStr: string, anniv_name: string, anniv_date: string) => (langStr === "日本語") ?
 `${displayName}さんの記念日「${anniv_name}」は、${anniv_date}って覚えてるよ! ${anniv_name}になったらお祝いするから、楽しみに待っててね～` :
-``;
+`I remember that ${displayName}'s anniversary, ${anniv_name}, is ${anniv_date}! I'll celebrate on ${anniv_name}, so look forward to it!`;
 
 /**
  * 記念日登録
