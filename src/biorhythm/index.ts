@@ -141,7 +141,7 @@ export class BiorhythmManager extends EventEmitter {
     // }
 
     // RPDチェック: 超過時は全処理スキップし、丸1日後に再実行
-    if (!(await logger.checkRPD())) {
+    if (!(logger.checkRPD())) {
       console.log(`[INFO][BIORHYTHM] RPD exceeded, skipping step.`);
       setTimeout(() => this.step(), 24 * 60 * 60 * 1000); // 24時間後に再実行
       return;

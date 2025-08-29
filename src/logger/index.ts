@@ -1,6 +1,7 @@
 import { getSubscribersFromSheet } from "../gsheet/index.js";
 import fs from "fs/promises";
 import path from "path";
+import { LIMIT_REQUEST_PER_DAY_GEMINI } from "../config/index.js";
 
 const REQUEST_PER_DAY_GEMINI = 100;
 const LOG_FILE_PATH = path.join(process.cwd(), "log.json");
@@ -159,14 +160,13 @@ class Logger {
     this.saveLogToFile();
   }
 
-  async checkRPD() {
-    const subscribers = await getSubscribersFromSheet();
-    const result = this.dailyStats.rpd < REQUEST_PER_DAY_GEMINI * subscribers.length; // Changed from this.rpd
+  checkRPD() {
+    const result = this.dailyStats.rpd < LIMIT_REQUEST_PER_DAY_GEMINI; // Changed from this.rpd
     this.count++;
 
     if (!result) {
       console.warn(
-        `[WARN] RPD exceeded: ${this.dailyStats.rpd} / ${REQUEST_PER_DAY_GEMINI * subscribers.length}`
+        `[WARN] RPD exceeded: ${this.dailyStats.rpd} / ${LIMIT_REQUEST_PER_DAY_GEMINI}`
       );
     }
 

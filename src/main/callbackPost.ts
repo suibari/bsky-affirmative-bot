@@ -105,21 +105,21 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
         if (await handleAnniversaryRegister(event, follower, db)) return;
         if (await handleAnniversaryConfirm(event, follower, db)) return;
 
-        if (await handleFortune(event, follower, db) && await logger.checkRPD()) {
+        if (await handleFortune(event, follower, db) && logger.checkRPD()) {
           botBiothythmManager.addFortune();
           return;
         }
-        if (await handleAnalyze(event, follower, db) && await logger.checkRPD()) {
+        if (await handleAnalyze(event, follower, db) && logger.checkRPD()) {
           botBiothythmManager.addAnalysis();
           return;
         }
 
-        if (subscribers.includes(follower.did) && await logger.checkRPD()) {
-          if (await handleDJ(event, follower, db)) {
+        if (subscribers.includes(follower.did)) {
+          if (await handleDJ(event, follower, db) && logger.checkRPD()) {
             botBiothythmManager.addDJ();
             return;
           }
-          if (await handleCheer(event, follower, db)) {
+          if (await handleCheer(event, follower, db) && logger.checkRPD()) {
             botBiothythmManager.addCheer();
             return;
           }
@@ -131,7 +131,7 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
         if (record.reply) {
           // サブスクライバー限定で会話機能発動する
           if (subscribers.includes(follower.did)) {
-            if (await handleConversation(event, follower, db)) {
+            if (await handleConversation(event, follower, db) && logger.checkRPD()) {
               botBiothythmManager.addConversation();
               return;
             }
@@ -193,7 +193,7 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
           // ----------------
           // リプライ呼び出しを最後にまとめる
           // ----------------
-          if (replyType === "ai") {
+          if (replyType === "ai" && logger.checkRPD()) {
             await replyai(follower, event);
           } else if (replyType === "random") {
             await replyrandom(follower, event);
