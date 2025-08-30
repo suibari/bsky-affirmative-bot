@@ -2,6 +2,7 @@ import { ProfileView } from "@atproto/api/dist/client/types/app/bsky/actor/defs.
 import { generateSingleResponse, getFullDateAndTimeString, getRandomItems, getWhatDay } from "./util.js";
 import { fetchNews } from "../gnews/index.js";
 import { logger } from "../logger/index.js";
+import { LanguageName } from "../types.js";
 
 const lastPosts: string[] = [];
 
@@ -13,7 +14,7 @@ export class WhimsicalPostGenerator {
   async generate(params: {
     topFollower?: ProfileView,
     topPost?: string,
-    langStr: string,
+    langStr: LanguageName,
     currentMood: string,
   }) {
     const lang = params.langStr;

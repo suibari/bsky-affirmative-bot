@@ -3,6 +3,44 @@ import { ProfileView } from "@atproto/api/dist/client/types/app/bsky/actor/defs"
 import { Content, Type } from "@google/genai";
 import { Record } from "@atproto/api/dist/client/types/app/bsky/feed/post";
 
+interface LanguageInfo {
+  code: string;
+  name: LanguageName;
+}
+
+export const languageData: LanguageInfo[] = [
+  { code: "en", name: "English" },
+  { code: "ja", name: "日本語" },
+  { code: "fr", name: "French" },
+  { code: "de", name: "German" },
+  { code: "es", name: "Spanish" },
+  { code: "zh", name: "Chinese" },
+  { code: "ko", name: "Korean" },
+  { code: "it", name: "Italian" },
+  { code: "ru", name: "Russian" },
+  { code: "ar", name: "Arabic" },
+  { code: "pt", name: "Portuguese" },
+];
+
+export type LanguageName =
+  | "English"
+  | "日本語"
+  | "French"
+  | "German"
+  | "Spanish"
+  | "Chinese"
+  | "Korean"
+  | "Italian"
+  | "Russian"
+  | "Arabic"
+  | "Portuguese";
+
+export type LangMap = {
+  [langCode: string]: {
+    name: LanguageName;
+  };
+};
+
 export type WhatDayMap = {
   [month: string]: {
     [date: string]: string[];
@@ -11,7 +49,7 @@ export type WhatDayMap = {
 
 export type UserInfoGemini = {
   follower: ProfileView;
-  langStr?: string;
+  langStr?: LanguageName;
   posts?: string[];
   likedByFollower?: string[];
   history?: Content[];

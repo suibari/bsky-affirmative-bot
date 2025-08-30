@@ -37,7 +37,7 @@ export async function doWhimsicalPost () {
   const text_bot_en = await whimsicalPostGenEn.generate({
     topFollower: topFollower ?? undefined,
     topPost: post,
-    langStr: "英語",
+    langStr: "English",
     currentMood: botBiothythmManager.getMood,
   });
   await postContinuous(text_bot_en);

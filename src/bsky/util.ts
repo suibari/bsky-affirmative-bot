@@ -2,19 +2,12 @@ import { AppBskyEmbedExternal, AppBskyEmbedImages, AppBskyEmbedVideo } from "@at
 import { PostView } from "@atproto/api/dist/client/types/app/bsky/feed/defs";
 import { Record } from "@atproto/api/dist/client/types/app/bsky/feed/post";
 
-const langMap = new Map([
-  ["en", "英語"],
-  ["ja", "日本語"],
-  ["fr", "フランス語"],
-  ["de", "ドイツ語"],
-  ["es", "スペイン語"],
-  ["zh", "中国語"],
-  ["ko", "韓国語"],
-  ["it", "イタリア語"],
-  ["ru", "ロシア語"],
-  ["ar", "アラビア語"],
-  ["pt", "ポルトガル語"],
-]);
+import { LangMap, languageData, LanguageName } from "../types";
+
+const langMap: LangMap = languageData.reduce((acc, lang) => {
+  acc[lang.code] = { name: lang.name };
+  return acc;
+}, {} as LangMap);
 
 /**
  * メンション判定しメンション先のDIDを返す
@@ -114,14 +107,14 @@ export function uniteDidNsidRkey(did: string, nsid: string, rkey:string) {
 }
 
 /**
- * 言語判定。返すのは言語日本語名（ex. "日本語"）
+ * 言語判定。返すのは言語名（ex. "日本語, English"）
  * langsが1つならその言語を返し、複数または非設定なら英語を返す
  * @param langs 
  * @returns 
  */
-export function getLangStr(langs: string[] | undefined): string {
+export function getLangStr(langs: string[] | undefined): LanguageName {
   const lang = (langs?.length === 1) ? langs[0] : "en" ;
-  return langMap.get(lang) ?? "英語";
+  return langMap[lang]?.name ?? langMap["en"];
 }
 
 /**
