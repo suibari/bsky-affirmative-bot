@@ -13,7 +13,7 @@ import { agent } from "../bsky/agent.js";
 import { getConcatAuthorFeed } from "../bsky/getConcatAuthorFeed.js";
 import { embeddingTexts } from "../gemini/embeddingTexts.js";
 
-const LATEST_POSTS_COUNT = 10; // 直近ポスト収集数
+const LATEST_POSTS_COUNT = 5; // 直近ポスト収集数
 
 export async function replyai(
   follower: ProfileView,

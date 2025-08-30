@@ -80,6 +80,8 @@ export const handleMode = async (
     } else if (result.embedTo) {
       // generateTextで引用ポストを拾ったときは、引用付きリプライ
       await postContinuous(result.text, {uri, cid, record}, undefined, result.embedTo);
+    } else {
+      await postContinuous(result.text, {uri, cid, record});
     }
   }
 
