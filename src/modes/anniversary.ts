@@ -5,7 +5,7 @@ import { handleMode, isPast } from ".";
 import { ANNIV_CONFIRM_TRIGGER, ANNIV_REGISTER_TRIGGER } from "../config";
 import { Record as PostRecord } from "@atproto/api/dist/client/types/app/bsky/feed/post";
 import { getLangStr, isReplyOrMentionToMe, uniteDidNsidRkey } from "../bsky/util";
-import { GeminiResponseResult, Holiday, UserInfoGemini } from "../types";
+import { GeminiResponseResult, Holiday, localeToTimezone, UserInfoGemini } from "../types";
 import { agent } from "../bsky/agent";
 import { dateForHoliday, parseMonthDay, toMonthDayIso } from "../util/dateRules";
 import { SQLite3 } from "../db";
@@ -283,20 +283,3 @@ function formatYMD(date: Date, lang?: string): string {
 
   return `${y}-${m}-${d}`;
 }
-
-const localeToTimezone: Record<string, string> = {
-  "ja": "Asia/Tokyo",             // 日本
-  "en-US": "America/New_York",    // アメリカ東部
-  "en-GB": "Europe/London",       // イギリス
-  "fr": "Europe/Paris",           // フランス
-  "de": "Europe/Berlin",          // ドイツ
-  "es": "Europe/Madrid",          // スペイン
-  "zh-CN": "Asia/Shanghai",       // 中国本土
-  "zh-TW": "Asia/Taipei",         // 台湾
-  "ko": "Asia/Seoul",             // 韓国
-  "it": "Europe/Rome",            // イタリア
-  "ru": "Europe/Moscow",          // ロシア
-  "ar": "Asia/Riyadh",            // サウジアラビア（アラビア語圏代表）
-  "pt-BR": "America/Sao_Paulo",   // ブラジル（ポルトガル語圏代表）
-  "pt-PT": "Europe/Lisbon",       // ポルトガル本国
-};

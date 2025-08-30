@@ -1,7 +1,7 @@
 import { BlobRef } from "@atproto/api";
 import { ProfileView } from "@atproto/api/dist/client/types/app/bsky/actor/defs";
 import { Content, Type } from "@google/genai";
-import { Record } from "@atproto/api/dist/client/types/app/bsky/feed/post";
+import { Record as PostRecord } from "@atproto/api/dist/client/types/app/bsky/feed/post";
 
 interface LanguageInfo {
   code: string;
@@ -34,6 +34,24 @@ export type LanguageName =
   | "Russian"
   | "Arabic"
   | "Portuguese";
+
+export const localeToTimezone: Record<string, string> = {
+  "ja": "Asia/Tokyo",
+  "en": "America/New_York",
+  "en-US": "America/New_York",
+  "en-GB": "Europe/London",
+  "fr": "Europe/Paris",
+  "de": "Europe/Berlin",
+  "es": "Europe/Madrid",
+  "zh-CN": "Asia/Shanghai",
+  "zh-TW": "Asia/Taipei",
+  "ko": "Asia/Seoul",
+  "it": "Europe/Rome",
+  "ru": "Europe/Moscow",
+  "ar": "Asia/Riyadh",
+  "pt-BR": "America/Sao_Paulo",
+  "pt-PT": "Europe/Lisbon",
+};
 
 export type LangMap = {
   [langCode: string]: {
@@ -77,9 +95,9 @@ export type GeminiScore = {
 }
 
 export interface ThreadInfo {
-  parent?: Record
-  grandParent?: Record
-  root?: Record
+  parent?: PostRecord
+  grandParent?: PostRecord
+  root?: PostRecord
 }
 
 export type Holiday = {

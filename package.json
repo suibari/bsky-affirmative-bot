@@ -10,6 +10,7 @@
     "dotenv": "^16.4.5",
     "express": "^5.1.0",
     "googleapis": "^150.0.1",
+    "luxon": "^3.7.1",
     "node-fetch": "^2.7.0",
     "open-graph-scraper": "^6.10.0",
     "rss-parser": "^3.13.0",
@@ -31,6 +32,7 @@
   "devDependencies": {
     "@types/async-retry": "^1.4.9",
     "@types/express": "^5.0.2",
+    "@types/luxon": "^3.7.1",
     "@types/node": "^22.15.12",
     "@types/sqlite3": "^3.1.11",
     "@types/ws": "^8.18.1",

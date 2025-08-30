@@ -1,8 +1,8 @@
 import { AppBskyEmbedExternal, AppBskyEmbedImages, AppBskyEmbedVideo } from "@atproto/api";
 import { PostView } from "@atproto/api/dist/client/types/app/bsky/feed/defs";
-import { Record } from "@atproto/api/dist/client/types/app/bsky/feed/post";
+import * as AppBskyFeedPost from "@atproto/api/dist/client/types/app/bsky/feed/post"; // Changed import to use namespace
 
-import { LangMap, languageData, LanguageName } from "../types";
+import { LangMap, languageData, LanguageName, localeToTimezone } from "../types";
 
 const langMap: LangMap = languageData.reduce((acc, lang) => {
   acc[lang.code] = { name: lang.name };
@@ -10,11 +10,21 @@ const langMap: LangMap = languageData.reduce((acc, lang) => {
 }, {} as LangMap);
 
 /**
+ * 言語コードからタイムゾーンを取得するヘルパー関数
+ * @param lang 言語コード (例: "ja", "en-US")
+ * @returns タイムゾーン文字列、または見つからない場合は null
+ */
+export function getTimezoneFromLang(lang: string | undefined): string {
+  if (!lang) return "UTC";
+  return localeToTimezone[lang] || "UTC";
+}
+
+/**
  * メンション判定しメンション先のDIDを返す
  * @param {*} record 
  * @returns did or null
  */
-export function isMention(record: Record) {
+export function isMention(record: AppBskyFeedPost.Record) { // Changed Record to AppBskyFeedPost.Record
   const facets = record.facets;
   if (!facets) {
     return null;
@@ -38,7 +48,7 @@ export function isMention(record: Record) {
  * @param record 
  * @returns 
  */
-export function isReplyOrMentionToMe(record: Record) {
+export function isReplyOrMentionToMe(record: AppBskyFeedPost.Record) { // Changed Record to AppBskyFeedPost.Record
   let did: string | null;
 
   did = isMention(record);

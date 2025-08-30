@@ -8,7 +8,7 @@ import { ProfileView } from '@atproto/api/dist/client/types/app/bsky/actor/defs.
 import { callbackPost } from './main/callbackPost.js';
 import { callbackLike } from './main/callbackLike.js';
 import { callbackFollow } from './main/callbackFollow.js';
-import { handleDiary, scheduleHandleDiary } from './modes/diary.js';
+import { scheduleAllUserDiaries } from './modes/diary.js';
 
 export let followers: ProfileView[] = [];
 
@@ -41,8 +41,8 @@ setInterval(async () => {
   pointRateLimit.initPoint();
 }, 60 * 60 * 1000); // 1 hour
 
-// 日記機能: PM22時にhandleDiaryを実行
-await scheduleHandleDiary();
+// 日記機能: スケジューリング実行
+await scheduleAllUserDiaries();
 
 // アプリケーションの終了時にデータベース接続を閉じる
 process.on('exit', async () => {
