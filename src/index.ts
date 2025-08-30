@@ -12,6 +12,9 @@ import { scheduleAllUserDiaries } from './modes/diary.js';
 
 export let followers: ProfileView[] = [];
 
+// 日記機能: スケジューリング実行, 非同期実行できるはず
+scheduleAllUserDiaries();
+
 // 起動時処理
 (async () => {
   try {
@@ -40,9 +43,6 @@ setInterval(async () => {
   console.log(`[INFO] rate limit point is ${currentPoint} on this hour.`);
   pointRateLimit.initPoint();
 }, 60 * 60 * 1000); // 1 hour
-
-// 日記機能: スケジューリング実行
-await scheduleAllUserDiaries();
 
 // アプリケーションの終了時にデータベース接続を閉じる
 process.on('exit', async () => {
