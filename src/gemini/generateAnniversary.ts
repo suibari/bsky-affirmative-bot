@@ -23,6 +23,7 @@ const PROMPT_ANNIVERSARY_WORD = async (userinfo: UserInfoGemini) => {
   `* 記念日: ${userinfo.anniversary?.map(item => item.names.ja).join(", ")}` +
   `* 1年前のユーザのポスト: ${userinfo.posts?.[0] ?? "なし"}` :
   `Today is an anniversary. Celebrate the user to the fullest!` +
+  `**Please output in ${userinfo.langStr}**` +
   `Celebration Rules:` +
   `* Call the user name.` +
   `* If the anniversary is a common one (New Year's Day, New Year's Eve, etc.), briefly explain the origin of the anniversary.` +

@@ -95,7 +95,10 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
         // Mode Detect: All mode
         // -----------
         // 記念日は最優先とする
-        if (await handleAnniversaryExec(event, follower, db)) return;
+        if (await handleAnniversaryExec(event, follower, db) && logger.checkRPD()) {
+          botBiothythmManager.addAnniversary();
+          return;
+        }
 
         if (await handleU18Release(event, db)) return;
         if (await handleU18Register(event, db)) return;

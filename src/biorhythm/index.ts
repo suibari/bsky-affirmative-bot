@@ -69,7 +69,7 @@ export class BiorhythmManager extends EventEmitter {
 
   addAnalysis() {
     logger.addAnalysis();
-    this.changeEnergy(200);
+    this.changeEnergy(100);
     this.emit('statsChange', this.getCurrentState());
   }
 
@@ -81,6 +81,12 @@ export class BiorhythmManager extends EventEmitter {
 
   addConversation() {
     logger.addConversation();
+    this.changeEnergy(50);
+    this.emit('statsChange', this.getCurrentState());
+  }
+
+  addAnniversary() {
+    logger.addAnniversary();
     this.changeEnergy(50);
     this.emit('statsChange', this.getCurrentState());
   }

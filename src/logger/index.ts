@@ -16,6 +16,7 @@ export interface DailyStats {
   cheer: number;
   analysis: number;
   dj: number;
+  anniversary: number;
   topPost: string;
   botComment: string;
   rpd: number;
@@ -47,6 +48,7 @@ class Logger {
       cheer: 0,
       analysis: 0,
       dj: 0,
+      anniversary: 0,
       rpd: 0,
       topPost: "",
       botComment: "",
@@ -76,6 +78,7 @@ class Logger {
         cheer: 0,
         analysis: 0,
         dj: 0,
+        anniversary: 0,
         rpd: 0, // Default rpd
         topPost: "",
         botComment: "",
@@ -118,6 +121,7 @@ class Logger {
           cheer: this.dailyStats.cheer,
           analysis: this.dailyStats.analysis,
           dj: this.dailyStats.dj,
+          anniversary: this.dailyStats.anniversary,
           topPost: this.dailyStats.topPost,
           botComment: this.dailyStats.botComment,
           rpd: this.dailyStats.rpd,
@@ -127,7 +131,7 @@ class Logger {
         uniqueAffirmations: this.uniqueAffirmations, // Add this line
       };
       await fs.writeFile(LOG_FILE_PATH, JSON.stringify(dataToSave, null, 2));
-      console.log("[INFO] Log data saved successfully.");
+      // console.log("[INFO] Log data saved successfully.");
     } catch (error) {
       console.error("[ERROR] Failed to save log data:", error);
     }
@@ -146,6 +150,7 @@ class Logger {
       cheer: 0,
       analysis: 0,
       dj: 0,
+      anniversary: 0,
       rpd: 0,
       topPost: "",
       botComment: "",
@@ -223,6 +228,11 @@ class Logger {
     this.saveLogToFile();
   }
 
+  addAnniversary() {
+    this.dailyStats.anniversary++;
+    this.saveLogToFile();
+  }
+
   updateTopPost(uri: string, comment: string) {
     this.dailyStats.topPost = uri;
     this.dailyStats.botComment = comment;
@@ -240,6 +250,7 @@ class Logger {
       cheer: this.dailyStats.cheer,
       analysis: this.dailyStats.analysis,
       dj: this.dailyStats.dj,
+      anniversary: this.dailyStats.anniversary,
       topPost: this.dailyStats.topPost,
       botComment: this.dailyStats.botComment,
       rpd: this.dailyStats.rpd,
