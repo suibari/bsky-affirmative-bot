@@ -120,6 +120,7 @@ function scheduleUserDiary(userDid: string, timezone: string, db: SQLite3) {
   if (scheduledTimers.has(userDid)) return; // すでにスケジュール済み
 
   const delay = calculateDelayUntilLocal22(timezone);
+  console.log(`[INFO][${userDid}] scheduling diary, tz: ${timezone}, next: ${delay}ms`);
   const timer = setTimeout(() => {
     processUserDiary(userDid, db)
     .catch(err => console.error(`[ERROR][${userDid}]`, err))
@@ -169,7 +170,7 @@ async function manageUserDiarySchedules(db: SQLite3) {
         continue;
       }
       const lang = (latestPost.record as Record).langs?.[0];
-      console.log(`[DEBUG][${userDid}] lang: ${lang}`);
+      // console.log(`[DEBUG][${userDid}] lang: ${lang}`);
       const timezone = getTimezoneFromLang(lang);
 
       // Schedule the user's diary processing if not already scheduled.
