@@ -18,6 +18,7 @@ type Status = 'WakeUp' | 'Study' | 'FreeTime' | 'Relax' | 'Sleep';
 interface BotStat {
   energy: number;
   mood: string;
+  status: string;
   dailyStats: DailyStats;
 }
 
@@ -40,6 +41,9 @@ export class BiorhythmManager extends EventEmitter {
       }
       if (state.mood !== "") {
         this.moodPrev = state.mood;
+      }
+      if (state.status !== "Sleep") {
+        this.status = state.status as Status;
       }
     });
     this.updateTopPostUri();
@@ -118,6 +122,7 @@ export class BiorhythmManager extends EventEmitter {
     return {
       energy: this.getEnergy,
       mood: this.getMood,
+      status: this.status,
       dailyStats: logger.getDailyStats(),
     };
   }
@@ -220,7 +225,7 @@ export class BiorhythmManager extends EventEmitter {
     const newEnergy = Math.max(0, Math.min(ENERGY_MAXIMUM, this.energy));
     if (newEnergy !== this.energy) {
       this.energy = newEnergy;
-      logger.updateBiorhythmState(this.energy, this.moodPrev);
+      logger.updateBiorhythmState(this.energy, this.moodPrev, this.status);
     }
   }
 
@@ -266,7 +271,7 @@ ${eventsMidnight}
     if (newEnergy !== this.energy) {
       this.energy = newEnergy;
       this.emit('statsChange', this.getCurrentState());
-      logger.updateBiorhythmState(this.energy, this.moodPrev);
+      logger.updateBiorhythmState(this.energy, this.moodPrev, this.status);
     }
   }
 
@@ -274,7 +279,7 @@ ${eventsMidnight}
     if (newOutput !== this.moodPrev) {
       this.moodPrev = newOutput;
       this.emit('statsChange', this.getCurrentState());
-      logger.updateBiorhythmState(this.energy, this.moodPrev);
+      logger.updateBiorhythmState(this.energy, this.moodPrev, this.status);
     }
   }
 

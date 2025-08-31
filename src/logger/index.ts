@@ -27,6 +27,7 @@ export interface DailyStats {
 interface BiorhythmState {
   energy: number;
   mood: string;
+  status: string;
 }
 
 class Logger {
@@ -59,6 +60,7 @@ class Logger {
     this.biorhythmState = {
       energy: 5000, // Initial value from BiorhythmManager
       mood: "",
+      status: "Sleep",
     };
     this.uniqueAffirmations = []; // Initialize the private member
     this.loadLogFromFile().then(() => {
@@ -89,7 +91,7 @@ class Logger {
         botComment: "",
         lastInitializedDate: new Date(),
       };
-      const defaultBiorhythmState = { energy: 5000, mood: "" };
+      const defaultBiorhythmState = { energy: 5000, mood: "", status: "Sleep" };
 
       // Load or use defaults for the main objects
       this.dailyStats = { ...defaultDailyStats, ...(parsedData.dailyStats || {}) };
@@ -273,9 +275,10 @@ class Logger {
     };
   }
 
-  updateBiorhythmState(energy: number, mood: string) {
+  updateBiorhythmState(energy: number, mood: string, status: string) {
     this.biorhythmState.energy = energy;
     this.biorhythmState.mood = mood;
+    this.biorhythmState.status = status;
     this.saveLogToFile();
   }
 
