@@ -1,11 +1,11 @@
 import { CommitCreateEvent } from "@skyware/jetstream";
-import { botBiothythmManager } from "../biorhythm";
 import { agent } from "../bsky/agent";
 import { splitUri } from "../bsky/util";
 import { dbLikes } from "../db";
 import { Record as RecordPost } from '@atproto/api/dist/client/types/app/bsky/feed/post.js';
 import { Record as RecordLike } from '@atproto/api/dist/client/types/app/bsky/feed/like.js';
 import retry from 'async-retry';
+import { logger, botBiothythmManager } from "..";
 
 export async function callbackLike (event: CommitCreateEvent<"app.bsky.feed.like">) {
   const did = String(event.did);
@@ -29,6 +29,7 @@ export async function callbackLike (event: CommitCreateEvent<"app.bsky.feed.like
         const text = (response.data.value as RecordPost).text;
 
         // BioRhythm操作
+        logger.addLike();
         botBiothythmManager.addLike();
 
         // DB格納

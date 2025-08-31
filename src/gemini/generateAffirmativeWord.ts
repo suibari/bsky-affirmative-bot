@@ -1,5 +1,5 @@
 import { fetchNews } from "../gnews/index.js";
-import { logger } from "../logger/index.js";
+import { logger } from "../index.js";
 import { UserInfoGemini } from "../types.js";
 import { generateSingleResponseWithScore, getWhatDay } from "./util.js";
 

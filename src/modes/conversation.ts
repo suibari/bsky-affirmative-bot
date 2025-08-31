@@ -10,7 +10,7 @@ import { GeminiResponseResult, ImageRef, UserInfoGemini } from "../types.js";
 import { SQLite3 } from "../db/index.js";
 import { Content } from "@google/genai";
 import { parseThread, ParsedThreadResult } from "../bsky/parseThread.js";
-import { logger } from "../logger/index.js";
+import { logger } from "../index.js";
 
 const MAX_BOT_MEMORY = 100;
 

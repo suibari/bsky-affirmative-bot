@@ -1,9 +1,9 @@
 import { ProfileView } from "@atproto/api/dist/client/types/app/bsky/actor/defs";
-import { botBiothythmManager } from "../biorhythm";
 import { agent } from "../bsky/agent";
 import { postContinuous } from "../bsky/postContinuous";
 import { dbPosts } from "../db";
 import { WhimsicalPostGenerator } from "../gemini/generateWhimsicalPost";
+import { botBiothythmManager } from "..";
 
 const whimsicalPostGen = new WhimsicalPostGenerator();
 const whimsicalPostGenEn = new WhimsicalPostGenerator();

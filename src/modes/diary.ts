@@ -203,7 +203,7 @@ async function manageUserDiarySchedules(db: SQLite3) {
 export async function scheduleAllUserDiaries() {
   console.log("[INFO][DIARY] scheduling all user diary");
 
-  await createOrRefreshSession();
+  // await createOrRefreshSession();
 
   // Periodically check and update user schedules (e.g., every hour)
   setInterval(async () => {

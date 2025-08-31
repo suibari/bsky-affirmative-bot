@@ -1,6 +1,7 @@
 import { getSubscribersFromSheet } from "../gsheet/index.js";
 import fs from "fs/promises";
 import path from "path";
+import EventEmitter from "events";
 import { LIMIT_REQUEST_PER_DAY_GEMINI } from "../config/index.js";
 
 const REQUEST_PER_DAY_GEMINI = 100;
@@ -30,7 +31,7 @@ interface BiorhythmState {
   status: string;
 }
 
-class Logger {
+export class Logger extends EventEmitter {
   private count: number;
   private lastResetDay: number;
   private dailyStats: DailyStats;
@@ -38,6 +39,7 @@ class Logger {
   private uniqueAffirmations: string[];
 
   constructor() {
+    super();
     this.count = 0;
     this.lastResetDay = new Date().getDate();
     this.dailyStats = {
@@ -63,9 +65,8 @@ class Logger {
       status: "Sleep",
     };
     this.uniqueAffirmations = []; // Initialize the private member
-    this.loadLogFromFile().then(() => {
-      console.log("[INFO] loadLogFromFile completed");
-    });
+    this.loadLogFromFile();
+    this.scheduleDailyReset();
   }
 
   async loadLogFromFile() {
@@ -169,6 +170,7 @@ class Logger {
     };
     this.uniqueAffirmations = []; // Initialize the private member
     this.saveLogToFile();
+    this.emit("statsChange");
   }
 
   addBskyRate() {
@@ -204,6 +206,7 @@ class Logger {
   addLike() {
     this.dailyStats.likes++;
     this.saveLogToFile();
+    this.emit("statsChange");
   }
 
   addAffirmation(did: string) {
@@ -212,41 +215,49 @@ class Logger {
       this.uniqueAffirmations.push(did);
     }
     this.saveLogToFile();
+    this.emit("statsChange");
   }
 
   addFortune() {
     this.dailyStats.fortune++;
     this.saveLogToFile();
+    this.emit("statsChange");
   }
 
   addCheer() {
     this.dailyStats.cheer++;
     this.saveLogToFile();
+    this.emit("statsChange");
   }
 
   addAnalysis() {
     this.dailyStats.analysis++;
     this.saveLogToFile();
+    this.emit("statsChange");
   }
 
   addDJ() {
     this.dailyStats.dj++;
     this.saveLogToFile();
+    this.emit("statsChange");
   }
 
   addConversation() {
     this.dailyStats.conversation++;
     this.saveLogToFile();
+    this.emit("statsChange");
   }
 
   addFollower() {
     this.dailyStats.followers++;
     this.saveLogToFile();
+    this.emit("statsChange");
   }
 
   addAnniversary() {
     this.dailyStats.anniversary++;
     this.saveLogToFile();
+    this.emit("statsChange");
   }
 
   updateTopPost(uri: string, comment: string) {
@@ -285,6 +296,20 @@ class Logger {
   getBiorhythmState(): BiorhythmState {
     return this.biorhythmState;
   }
-}
 
-export const logger = new Logger();
+  private scheduleDailyReset() {
+    const now = new Date();
+    const nextReset = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate() + (now.getHours() >= 3 ? 1 : 0),
+      3, 0, 0, 0
+    );
+    const delay = nextReset.getTime() - now.getTime();
+
+    setTimeout(() => {
+      this.init();
+      setInterval(() => this.init(), 24 * 60 * 60 * 1000);
+    }, delay);
+  }
+}

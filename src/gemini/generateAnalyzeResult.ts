@@ -1,4 +1,4 @@
-import { logger } from "../logger/index.js";
+import { logger } from "../index.js";
 import { UserInfoGemini } from "../types.js";
 import { generateSingleResponse } from "./util.js";
 

@@ -1,23 +1,20 @@
 import { ProfileView } from "@atproto/api/dist/client/types/app/bsky/actor/defs";
 import { CommitCreateEvent } from "@skyware/jetstream";
-import { getImageUrl, isMention, isReplyOrMentionToMe } from "../bsky/util";
 import { Record } from "@atproto/api/dist/client/types/app/bsky/feed/post";
 import { agent } from "../bsky/agent";
 import { handleFortune } from "../modes/fortune";
 import { handleAnalyze } from "../modes/analyze";
 import { handleDJ } from "../modes/dj";
 import { parseEmbedPost } from "../bsky/parseEmbedPost";
-import { botBiothythmManager } from "../biorhythm";
 import { handleCheer } from "../modes/cheer";
 import { handleConversation } from "../modes/conversation";
 import { handleFreq } from "../modes/frequency";
 import { handleU18Release, handleU18Register } from "../modes/u18";
 import { db, dbPosts } from "../db";
 import retry from 'async-retry';
-import { followers } from "..";
+import { botBiothythmManager, followers, logger } from "..";
 import { handleDiaryRegister, handleDiaryRelease } from "../modes/diary";
 import { getSubscribersFromSheet } from "../gsheet";
-import { logger } from "../logger";
 import { replyai } from "../modes/replyai";
 import { replyrandom } from "../modes/replyrandom";
 import { EXEC_PER_COUNTS } from "../config";
@@ -96,6 +93,7 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
         // -----------
         // 記念日は最優先とする
         if (await handleAnniversaryExec(event, follower, db) && logger.checkRPD()) {
+          logger.addAnniversary();
           botBiothythmManager.addAnniversary();
           return;
         }
@@ -111,20 +109,24 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
         if (await handleAnniversaryConfirm(event, follower, db)) return;
 
         if (await handleFortune(event, follower, db) && logger.checkRPD()) {
+          logger.addFortune();
           botBiothythmManager.addFortune();
           return;
         }
         if (await handleAnalyze(event, follower, db) && logger.checkRPD()) {
+          logger.addAnalysis();
           botBiothythmManager.addAnalysis();
           return;
         }
 
         if (subscribers.includes(follower.did)) {
           if (await handleDJ(event, follower, db) && logger.checkRPD()) {
+            logger.addDJ();
             botBiothythmManager.addDJ();
             return;
           }
           if (await handleCheer(event, follower, db) && logger.checkRPD()) {
+            logger.addCheer();
             botBiothythmManager.addCheer();
             return;
           }
@@ -137,6 +139,7 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
           // サブスクライバー限定で会話機能発動する
           if (subscribers.includes(follower.did)) {
             if (await handleConversation(event, follower, db) && logger.checkRPD()) {
+              logger.addConversation();
               botBiothythmManager.addConversation();
               return;
             }
@@ -207,6 +210,7 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
           }
 
           // 全肯定した人数加算
+          logger.addAffirmation(did);
           botBiothythmManager.addAffirmation(did);
 
           // DB更新

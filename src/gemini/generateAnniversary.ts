@@ -1,4 +1,4 @@
-import { logger } from "../logger";
+import { logger } from "..";
 import { UserInfoGemini } from "../types";
 import { generateSingleResponse } from "./util";
 

@@ -2,7 +2,7 @@ import { PartListUnion, Type } from "@google/genai";
 import { MODEL_GEMINI, SYSTEM_INSTRUCTION } from "../config/index.js";
 import { UserInfoGemini } from "../types.js";
 import { gemini } from "./index.js";
-import { logger } from "../logger/index.js";
+import { logger } from "../index.js";
 
 type GeminiRecommendation = [
   {

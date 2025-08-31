@@ -1,6 +1,5 @@
 import { CommitCreateEvent } from "@skyware/jetstream";
-import { followers } from "..";
-import { botBiothythmManager } from "../biorhythm";
+import { botBiothythmManager, followers, logger } from "..";
 import { agent } from "../bsky/agent";
 import { follow } from "../bsky/follow";
 import { getConcatFollowers } from "../bsky/getConcatFollowers";
@@ -10,7 +9,6 @@ import { db } from "../db";
 import retry from 'async-retry';
 import { Record as RecordFollow } from '@atproto/api/dist/client/types/app/bsky/graph/follow.js';
 import { Record as RecordPost } from '@atproto/api/dist/client/types/app/bsky/feed/post.js';
-import { logger } from "../logger";
 
 export async function callbackFollow (event: CommitCreateEvent<"app.bsky.graph.follow">) {
   const did = String(event.did);
@@ -24,6 +22,7 @@ export async function callbackFollow (event: CommitCreateEvent<"app.bsky.graph.f
   if (isExist) return;
 
   console.log(`[INFO] detect new follower: ${did} !!`);
+  logger.addFollower();
   botBiothythmManager.addFollower();
 
   // 1. followers更新をawaitで確実に待つ

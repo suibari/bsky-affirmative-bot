@@ -1,8 +1,10 @@
 import http from 'http';
 import { WebSocketServer } from 'ws';
-import { BiorhythmManager, botBiothythmManager } from "../biorhythm";
+import { BiorhythmManager } from "../biorhythm";
+import { Logger } from "../logger"
+import { botBiothythmManager } from '..';
 
-export function startServer(bot: BiorhythmManager) {
+export function startServer(bot: BiorhythmManager, logger: Logger) {
   const server = http.createServer((req, res) => {
     if (req.url === "/.well-known/atproto-did") {
       res.writeHead(200, { "Content-Type": "text/plain" });
@@ -25,10 +27,13 @@ export function startServer(bot: BiorhythmManager) {
     }
   };
 
-  bot.on('statsChange', () => {
+  const updateHandler = () => {
     const state = botBiothythmManager.getCurrentState();
     broadcast(state);
-  });
+  };
+
+  bot.on('statsChange', updateHandler);
+  logger.on('statsChange', updateHandler);
 
   // WebSocket接続
   wss.on('connection', (ws, req) => {

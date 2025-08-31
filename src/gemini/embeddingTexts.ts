@@ -1,7 +1,7 @@
 import { gemini } from ".";
 import cosineSimilarity from "compute-cosine-similarity";
 import { MODEL_GEMINI_EMBEDDING } from "../config";
-import { logger } from "../logger";
+import { logger } from "..";
 
 const THRD_COSINE_SIMILARITY = 0.80;
 

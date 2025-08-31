@@ -1,8 +1,8 @@
 import { ProfileView } from "@atproto/api/dist/client/types/app/bsky/actor/defs.js";
 import { generateSingleResponse, getFullDateAndTimeString, getRandomItems, getWhatDay } from "./util.js";
 import { fetchNews } from "../gnews/index.js";
-import { logger } from "../logger/index.js";
 import { LanguageName } from "../types.js";
+import { logger } from "../index.js";
 
 const lastPosts: string[] = [];
 

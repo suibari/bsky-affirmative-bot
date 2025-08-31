@@ -8,11 +8,12 @@ import eventsNight from "../json/event_night.json";
 import eventsMidnight from "../json/event_midnight.json";
 import { MODEL_GEMINI, SYSTEM_INSTRUCTION } from '../config';
 import { gemini } from '../gemini';
-import { DailyStats, logger } from '../logger';
+import { DailyStats } from '../logger';
 import { doWhimsicalPost } from "../modes/whimsical";
 import EventEmitter from "events";
 import { startServer } from "../server";
 import { dbPosts } from "../db";
+import { logger } from "..";
 
 type Status = 'WakeUp' | 'Study' | 'FreeTime' | 'Relax' | 'Sleep';
 interface BotStat {
@@ -34,6 +35,9 @@ export class BiorhythmManager extends EventEmitter {
 
   constructor() {
     super();
+    logger.on("statsChange", () => {
+      this.emit("statsChange", this.getCurrentState());
+    });
     logger.loadLogFromFile().then(() => {
       const state = logger.getBiorhythmState();
       if (state.energy !== 5000) {
@@ -48,63 +52,45 @@ export class BiorhythmManager extends EventEmitter {
     });
     this.updateTopPostUri();
     setInterval(() => this.updateTopPostUri(), 10 * 60 * 1000);
-    this.scheduleDailyReset();
   }
 
   // --------
   // メソッド
   // --------
   addLike() {
-    logger.addLike();
     this.changeEnergy(10);
-    this.emit('statsChange', this.getCurrentState());
   }
 
   addAffirmation(did: string) {
-    logger.addAffirmation(did);
     this.emit('statsChange', this.getCurrentState());
   }
 
   addFortune() {
-    logger.addFortune();
     this.changeEnergy(100);
-    this.emit('statsChange', this.getCurrentState());
   }
 
   addCheer() {
-    logger.addCheer();
     this.changeEnergy(100);
-    this.emit('statsChange', this.getCurrentState());
   }
 
   addAnalysis() {
-    logger.addAnalysis();
     this.changeEnergy(100);
-    this.emit('statsChange', this.getCurrentState());
   }
 
   addDJ() {
-    logger.addDJ();
     this.changeEnergy(50);
-    this.emit('statsChange', this.getCurrentState());
   }
 
   addConversation() {
-    logger.addConversation();
     this.changeEnergy(50);
-    this.emit('statsChange', this.getCurrentState());
   }
 
   addAnniversary() {
-    logger.addAnniversary();
     this.changeEnergy(50);
-    this.emit('statsChange', this.getCurrentState());
   }
 
   addFollower() {
-    logger.addFollower();
     this.changeEnergy(100);
-    this.emit('statsChange', this.getCurrentState());
   }
 
   get getEnergy(): number { return this.energy / 100; }
@@ -283,29 +269,4 @@ ${eventsMidnight}
     }
   }
 
-  private scheduleDailyReset() {
-    const now = new Date();
-    const nextReset = new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      now.getDate() + (now.getHours() >= 3 ? 1 : 0),
-      3, 0, 0, 0
-    );
-    const delay = nextReset.getTime() - now.getTime();
-
-    setTimeout(() => {
-      this.resetDailyStats();
-      setInterval(() => this.resetDailyStats(), 24 * 60 * 60 * 1000);
-    }, delay);
-  }
-
-  private resetDailyStats() {
-    logger.init();
-    this.emit('statsChange', this.getCurrentState());
-    console.log('[INFO] Daily stats reset at 03:00');
-  }
 }
-
-export const botBiothythmManager = new BiorhythmManager();
-botBiothythmManager.step();
-startServer(botBiothythmManager);
