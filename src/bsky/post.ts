@@ -2,6 +2,7 @@ import { Record } from "@atproto/api/dist/client/types/app/bsky/feed/post";
 import { agent } from './agent.js';
 import { BlobRef, RichText } from "@atproto/api";
 import ogs from 'open-graph-scraper'; // ← これを使ってOGP取得
+import { logger } from "../logger/index.js";
 
 /**
  * postのオーバーライド
@@ -59,6 +60,9 @@ export async function post(record: Record, embedRecord?: Record): Promise<{
         };
       }
     }
+
+    // RateLimit加算
+    logger.addBskyRate();
 
     // 投稿
     const response = await agent.post(record);

@@ -103,8 +103,10 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
         if (await handleU18Release(event, db)) return;
         if (await handleU18Register(event, db)) return;
         if (await handleFreq(event, follower, db)) return;
-        if (await handleDiaryRegister(event, db)) return;
-        if (await handleDiaryRelease(event, db)) return;
+        if (subscribers.includes(follower.did)) {
+          if (await handleDiaryRegister(event, db)) return;
+          if (await handleDiaryRelease(event, db)) return;
+        }
         if (await handleAnniversaryRegister(event, follower, db)) return;
         if (await handleAnniversaryConfirm(event, follower, db)) return;
 

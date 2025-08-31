@@ -19,6 +19,7 @@ export interface DailyStats {
   anniversary: number;
   topPost: string;
   botComment: string;
+  bskyrate: number;
   rpd: number;
   lastInitializedDate?: Date;
 }
@@ -49,6 +50,7 @@ class Logger {
       analysis: 0,
       dj: 0,
       anniversary: 0,
+      bskyrate: 0,
       rpd: 0,
       topPost: "",
       botComment: "",
@@ -59,10 +61,12 @@ class Logger {
       mood: "",
     };
     this.uniqueAffirmations = []; // Initialize the private member
-    this.loadLogFromFile();
+    this.loadLogFromFile().then(() => {
+      console.log("[INFO] loadLogFromFile completed");
+    });
   }
 
-  private async loadLogFromFile() {
+  async loadLogFromFile() {
     try {
       const data = await fs.readFile(LOG_FILE_PATH, "utf-8");
       const parsedData = JSON.parse(data);
@@ -79,7 +83,8 @@ class Logger {
         analysis: 0,
         dj: 0,
         anniversary: 0,
-        rpd: 0, // Default rpd
+        bskyrate: 0,
+        rpd: 0,
         topPost: "",
         botComment: "",
         lastInitializedDate: new Date(),
@@ -102,6 +107,8 @@ class Logger {
     } catch (error: any) {
       if (error.code === "ENOENT") {
         console.log("[INFO] Log file not found. Initializing with default values.");
+      } else if (error instanceof SyntaxError) {
+        console.error("[ERROR] Failed to parse log data: Invalid JSON format.");
       } else {
         console.error("[ERROR] Failed to load log data:", error);
       }
@@ -124,6 +131,7 @@ class Logger {
           anniversary: this.dailyStats.anniversary,
           topPost: this.dailyStats.topPost,
           botComment: this.dailyStats.botComment,
+          bskyrate: this.dailyStats.bskyrate,
           rpd: this.dailyStats.rpd,
           lastInitializedDate: this.dailyStats.lastInitializedDate,
         },
@@ -151,12 +159,18 @@ class Logger {
       analysis: 0,
       dj: 0,
       anniversary: 0,
+      bskyrate: 0,
       rpd: 0,
       topPost: "",
       botComment: "",
       lastInitializedDate: new Date(),
     };
     this.uniqueAffirmations = []; // Initialize the private member
+    this.saveLogToFile();
+  }
+
+  addBskyRate() {
+    this.dailyStats.bskyrate += 3;
     this.saveLogToFile();
   }
 
@@ -253,6 +267,7 @@ class Logger {
       anniversary: this.dailyStats.anniversary,
       topPost: this.dailyStats.topPost,
       botComment: this.dailyStats.botComment,
+      bskyrate: this.dailyStats.bskyrate,
       rpd: this.dailyStats.rpd,
       lastInitializedDate: this.dailyStats.lastInitializedDate,
     };
@@ -264,7 +279,7 @@ class Logger {
     this.saveLogToFile();
   }
 
-  getBiorhythmState() {
+  getBiorhythmState(): BiorhythmState {
     return this.biorhythmState;
   }
 }

@@ -7,10 +7,10 @@ import { getConcatFollowers } from "../bsky/getConcatFollowers";
 import { replyGreets } from "../bsky/replyGreets";
 import { isMention, isSpam, getLangStr } from "../bsky/util";
 import { db } from "../db";
-import { pointRateLimit } from "../util/logger";
 import retry from 'async-retry';
 import { Record as RecordFollow } from '@atproto/api/dist/client/types/app/bsky/graph/follow.js';
 import { Record as RecordPost } from '@atproto/api/dist/client/types/app/bsky/feed/post.js';
+import { logger } from "../logger";
 
 export async function callbackFollow (event: CommitCreateEvent<"app.bsky.graph.follow">) {
   const did = String(event.did);
@@ -51,7 +51,7 @@ export async function callbackFollow (event: CommitCreateEvent<"app.bsky.graph.f
   // 2. フォローと挨拶
   try {
     await follow(did);
-    pointRateLimit.addCreate();
+    logger.addBskyRate();
 
     const response = await agent.getAuthorFeed({ actor: did, filter: 'posts_no_replies' });
     for (const feed of response.data.feed) {
@@ -63,7 +63,6 @@ export async function callbackFollow (event: CommitCreateEvent<"app.bsky.graph.f
         const langStr = getLangStr((feed.post.record as RecordPost).langs);
         await replyGreets(feed.post, langStr);
         console.log(`[INFO] replied greet: ${did}`);
-        pointRateLimit.addCreate();
         break;
       }
     }

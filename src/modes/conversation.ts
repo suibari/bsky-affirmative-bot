@@ -10,6 +10,7 @@ import { GeminiResponseResult, ImageRef, UserInfoGemini } from "../types.js";
 import { SQLite3 } from "../db/index.js";
 import { Content } from "@google/genai";
 import { parseThread, ParsedThreadResult } from "../bsky/parseThread.js";
+import { logger } from "../logger/index.js";
 
 const MAX_BOT_MEMORY = 100;
 
@@ -90,6 +91,7 @@ async function waitAndGenReply (userinfo: UserInfoGemini, event: CommitCreateEve
   // イイネ応答
   const uri = uniteDidNsidRkey(event.did, event.commit.collection, event.commit.rkey);
   await agent.like(uri, event.commit.cid);
+  logger.addBskyRate(); // RateLimit加算
 
   // historyのクリップ処理
   while (new_history.length > MAX_BOT_MEMORY) {

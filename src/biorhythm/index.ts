@@ -26,19 +26,25 @@ const ENERGY_MAXIMUM = 10000;
 export class BiorhythmManager extends EventEmitter {
   private status: Status = 'Sleep';
   private statusPrev: Status = 'Sleep';
-  private energy: number;
+  private energy: number = 5000;
   private energyPrev: number = 5000;
   private timePrev: string = '';
-  private moodPrev: string;
+  private moodPrev: string = "";
 
   constructor() {
     super();
-    const initialState = logger.getBiorhythmState();
-    this.energy = initialState.energy;
-    this.moodPrev = initialState.mood;
-    this.scheduleDailyReset();
+    logger.loadLogFromFile().then(() => {
+      const state = logger.getBiorhythmState();
+      if (state.energy !== 5000) {
+        this.energy = state.energy;
+      }
+      if (state.mood !== "") {
+        this.moodPrev = state.mood;
+      }
+    });
     this.updateTopPostUri();
-    setInterval(() => this.updateTopPostUri(), 10 * 60 * 1000); // 10分ごとに更新
+    setInterval(() => this.updateTopPostUri(), 10 * 60 * 1000);
+    this.scheduleDailyReset();
   }
 
   // --------
