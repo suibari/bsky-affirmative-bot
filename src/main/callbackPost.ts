@@ -19,6 +19,7 @@ import { replyai } from "../modes/replyai";
 import { replyrandom } from "../modes/replyrandom";
 import { EXEC_PER_COUNTS } from "../config";
 import { handleAnniversaryConfirm, handleAnniversaryExec, handleAnniversaryRegister } from "../modes/anniversary";
+import { isMention, isReplyOrMentionToMe } from "../bsky/util";
 
 const OFFSET_UTC_TO_JST = 9 * 60 * 60 * 1000; // offset: +9h (to JST from UTC <SQlite3>)
 const MINUTES_THRD_RESPONSE = 10 * 60 * 1000; // 10min
@@ -148,7 +149,7 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
         // ==============
         // main: 通常ポスト or botへのメンション
         // ==============
-        } else {
+        } else if (!isMention(record) || isReplyOrMentionToMe(record)) {
           // 確率判定
           const user_freq = await db.selectDb(did, "reply_freq");
           const isValidFreq = isJudgeByFreq(user_freq !== null ? Number(user_freq) : 100); // フォロワーだがレコードにないユーザーであるため、通過させる
