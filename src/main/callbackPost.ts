@@ -20,10 +20,13 @@ import { replyrandom } from "../modes/replyrandom";
 import { EXEC_PER_COUNTS } from "../config";
 import { handleAnniversaryConfirm, handleAnniversaryExec, handleAnniversaryRegister } from "../modes/anniversary";
 import { isMention, isReplyOrMentionToMe } from "../bsky/util";
+import { getConcatAuthorFeed } from "../bsky/getConcatAuthorFeed";
+import { embeddingTexts } from "../gemini/embeddingTexts";
 
 const OFFSET_UTC_TO_JST = 9 * 60 * 60 * 1000; // offset: +9h (to JST from UTC <SQlite3>)
 const MINUTES_THRD_RESPONSE = 10 * 60 * 1000; // 10min
 let count_replyrandom = 0; // AI応答用カウント
+const LATEST_POSTS_COUNT = 5; // 直近ポスト収集数
 
 export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post">) {
   const did = String(event.did);
@@ -150,6 +153,8 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
         // main: 通常ポスト or botへのメンション
         // ==============
         } else if (!isMention(record) || isReplyOrMentionToMe(record)) {
+          let relatedPosts: string[] = []; // 類似ポスト格納用
+
           // 確率判定
           const user_freq = await db.selectDb(did, "reply_freq");
           const isValidFreq = isJudgeByFreq(user_freq !== null ? Number(user_freq) : 100); // フォロワーだがレコードにないユーザーであるため、通過させる
@@ -192,6 +197,18 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
               //   image: record.embed ? getImageUrl(did, record.embed as AppBskyEmbedImages.Main) : undefined,
               // });
 
+              // --------------
+              // ユーザの直近ポストをエンベディング解析
+              // --------------
+              const recentPosts = await getConcatAuthorFeed(follower.did, LATEST_POSTS_COUNT + 1);
+              recentPosts.shift(); // 最新ポストは今回のポストのはずなので除外
+              relatedPosts = await embeddingTexts(record.text, recentPosts.map(item => (item.post.record as Record).text));
+              // 全ポスト同じならbotとみなしスルー
+              if (relatedPosts.length == LATEST_POSTS_COUNT) {
+                console.log(`[INFO][${did}] Ignored post, REASON: repeated similar posts`);
+                return;
+              }
+
               replyType = "ai";
             } else {
               count_replyrandom++;
@@ -203,7 +220,7 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
           // リプライ呼び出しを最後にまとめる
           // ----------------
           if (replyType === "ai" && logger.checkRPD()) {
-            await replyai(follower, event);
+            await replyai(follower, event, relatedPosts);
           } else if (replyType === "random") {
             await replyrandom(follower, event);
           } else {

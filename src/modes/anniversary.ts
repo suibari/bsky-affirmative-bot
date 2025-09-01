@@ -16,6 +16,9 @@ type AnniversaryInfo = {
   date: string; // ISO形式
 } | null;
 
+// Map to track users currently being processed for anniversaries
+const processingUsers = new Map<string, boolean>();
+
 const TEXT_REGISTER_ANNIV = (displayName: string, langStr: string, anniv_name: string, anniv_date: string) => (langStr === "日本語") ? 
 `${displayName}さんの記念日「${anniv_name}」は、${anniv_date}って覚えたよ! ${anniv_name}になったらお祝いするから、楽しみに待っててね～` : 
 `I remembered that ${displayName}'s anniversary, "${anniv_name}," is ${anniv_date}! We'll celebrate on ${anniv_name}, so look forward to it!`;
@@ -94,32 +97,46 @@ export async function handleAnniversaryExec(event: CommitCreateEvent<"app.bsky.f
   const record = event.commit.record as PostRecord;
   const lang = record.langs?.[0];
 
-  // タイムゾーンを考慮した記念日判定
-  const todayAnniversary = await getTodayAnniversary(follower, lang, db);
-  if (todayAnniversary.length === 0) return false;
+  // Check if user is already being processed
+  if (processingUsers.has(follower.did)) {
+    console.log(`[INFO][${follower.did}] Already processing anniversary, skipping.`);
+    return false;
+  }
 
-  // 今日は記念日であるので、
-  // その日の記念日リプライ記録がなければ通過させる
-  const todayStr = formatYMD(new Date(), lang);
-  const lastAnnivExeced = await db.selectDb(follower.did, "last_anniv_execed_at") as Date;
-  const lastStr = formatYMD(new Date(lastAnnivExeced), lang);
-  if (todayStr === lastStr) return false;
+  // Mark user as processing
+  processingUsers.set(follower.did, true);
 
-  // 記念日であり、まだその日実行もしていないなら、記念日リプライする
-  console.log(`[INFO][${follower.did}] happy ANNIVERSARY!, id: ${todayAnniversary.map(item => item.id).join(", ")}`);
-  return await handleMode(event, {
-    triggers: [], // トリガーワードなし、OR条件を満たせば常に反応
-    db,
-    dbColumn: "last_anniv_execed_at",
-    dbValue: new Date().toISOString(),
-    generateText: getAnnivEmbed,
-    checkConditionsOR: (!record.reply), // callbackPostより、通常ポストか、botへのメンションに対し反応する
-  },
-  {
-    follower,
-    langStr: getLangStr(record.langs),
-    anniversary: todayAnniversary,
-  });
+  try {
+    // タイムゾーンを考慮した記念日判定
+    const todayAnniversary = await getTodayAnniversary(follower, lang, db);
+    if (todayAnniversary.length === 0) return false;
+
+    // 今日は記念日であるので、
+    // その日の記念日リプライ記録がなければ通過させる
+    const todayStr = formatYMD(new Date(), lang);
+    const lastAnnivExeced = await db.selectDb(follower.did, "last_anniv_execed_at") as Date;
+    const lastStr = formatYMD(new Date(lastAnnivExeced), lang);
+    if (todayStr === lastStr) return false;
+
+    // 記念日であり、まだその日実行もしていないなら、記念日リプライする
+    console.log(`[INFO][${follower.did}] happy ANNIVERSARY!, id: ${todayAnniversary.map(item => item.id).join(", ")}`);
+    return await handleMode(event, {
+      triggers: [], // トリガーワードなし、OR条件を満たせば常に反応
+      db,
+      dbColumn: "last_anniv_execed_at",
+      dbValue: new Date().toISOString(),
+      generateText: getAnnivEmbed,
+      checkConditionsOR: (!record.reply), // callbackPostより、通常ポストか、botへのメンションに対し反応する
+    },
+    {
+      follower,
+      langStr: getLangStr(record.langs),
+      anniversary: todayAnniversary,
+    });
+  } finally {
+    // Remove user from processing map after operation is complete
+    processingUsers.delete(follower.did);
+  }
 }
 
 // ---------

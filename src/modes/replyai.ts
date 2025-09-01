@@ -5,7 +5,6 @@ import { getImageUrl, getLangStr, uniteDidNsidRkey } from "../bsky/util.js";
 import { generateAffirmativeWord } from "../gemini/generateAffirmativeWord.js";
 import { Record } from "@atproto/api/dist/client/types/app/bsky/feed/post";
 import { replyrandom } from "../modes/replyrandom.js";
-import { logger } from "../logger/index.js";
 import { GeminiScore, ImageRef } from "../types.js";
 import { dbLikes, dbPosts } from "../db/index.js";
 import { postContinuous } from "../bsky/postContinuous.js";
@@ -13,11 +12,10 @@ import { agent } from "../bsky/agent.js";
 import { getConcatAuthorFeed } from "../bsky/getConcatAuthorFeed.js";
 import { embeddingTexts } from "../gemini/embeddingTexts.js";
 
-const LATEST_POSTS_COUNT = 5; // 直近ポスト収集数
-
 export async function replyai(
   follower: ProfileView,
   event: CommitCreateEvent<"app.bsky.feed.post">,
+  relatedPosts: string[],
 ) {
   const record = event.commit.record as Record;
   const uri = uniteDidNsidRkey(follower.did, event.commit.collection, event.commit.rkey);
@@ -45,11 +43,6 @@ export async function replyai(
     if (likedPost) {
       dbLikes.deleteRow(follower.did);
     }
-
-    // ユーザの直近ポストをエンベディング解析
-    const recentPosts = await getConcatAuthorFeed(follower.did, LATEST_POSTS_COUNT + 1);
-    recentPosts.shift(); // 最新ポストは今回のポストのはずなので除外
-    const relatedPosts = await embeddingTexts(record.text, recentPosts.map(item => (item.post.record as Record).text));
 
     // Gemini生成
     result = await generateAffirmativeWord({
