@@ -92,7 +92,7 @@ export const ANNIV_CONFIRM_TRIGGER = [
 export const HNY_WORDS = ["明けましておめでとう", "あけましておめでとう", "あけおめ"];
 export const OHAYO_WORDS = ["おは"];
 export const OYASUMI_WORDS = ["おやす"];
-export const OTSUKARE_WORDS = ["お疲れ", "おつ"];
+export const OTSUKARE_WORDS = ["お疲れ", "おつ", "しごおわ"];
 
 export const EXEC_PER_COUNTS = 20; // 何回に1回AI応答するか
 export const LIMIT_REQUEST_PER_DAY_GEMINI = 1500;

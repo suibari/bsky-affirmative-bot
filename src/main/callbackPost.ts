@@ -31,7 +31,6 @@ const LATEST_POSTS_COUNT = 5; // 直近ポスト収集数
 export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post">) {
   const did = String(event.did);
   const record = event.commit.record as Record;
-  let user: ProfileView | undefined;
 
   // ==============
   // Follower Filter
@@ -58,7 +57,7 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
         // Spam Filter
         // ==============
         const text = record.text;
-        const donate_word = ["donate", "donation", "donating", "gofund.me", "paypal.me"];
+        const donate_word = ["donate", "donation", "donating", "gofund.me", "paypal.me", "【AUTO】"];
         // check text
         const isIncludedDonate = donate_word.some(elem => 
           text.toLowerCase().includes(elem.toLowerCase())
