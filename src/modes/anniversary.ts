@@ -195,7 +195,9 @@ async function getTodayAnniversary(follower: ProfileView, lang: string | undefin
   const createdAtBluesky = follower.createdAt
   if (createdAtBluesky) {
     const createdAtBskyDate = new Date(createdAtBluesky);
-    if (!isNaN(createdAtBskyDate.getTime()) && toMonthDayIso(createdAtBskyDate) === todayMD) {
+    const createdAtBskyYMD = formatYMD(createdAtBskyDate, lang);
+    // 今日登録した場合は除外
+    if (createdAtBskyYMD !== todayIso && !isNaN(createdAtBskyDate.getTime()) && toMonthDayIso(createdAtBskyDate) === todayMD) {
       todayAnniversary = todayAnniversary.concat({
         "id": "bluesky_registered_day",
         "names": { "ja": "Bluesky登録日", "en": "The Day You Registered With Bluesky" },
