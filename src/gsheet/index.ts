@@ -1,5 +1,6 @@
 import { google } from 'googleapis';
 import { readFileSync } from 'fs';
+import retry from 'async-retry';
 
 let cachedDids: string[] = [];
 let lastFetchedAt: number = 0; // UNIXミリ秒で保存
@@ -22,12 +23,21 @@ export async function getSubscribersFromSheet(): Promise<string[]> {
   const sheets = google.sheets({ version: 'v4', auth });
 
   try {
-    const res = await sheets.spreadsheets.values.get({
-      spreadsheetId: process.env.SPREADSHEET_ID,
-      range: 'subscribers!A2:A', // A列の2行目以降
-    });
-
-    const values = res.data.values?.flat() || [];
+    const values = await retry(
+      async () => {
+        const res = await sheets.spreadsheets.values.get({
+          spreadsheetId: process.env.SPREADSHEET_ID,
+          range: 'subscribers!A2:A', // A列の2行目以降
+        });
+        return res.data.values?.flat() || [];
+      },
+      {
+        retries: 3,
+        onRetry: (err, attempt) => {
+          console.warn(`[WARN] Failed to fetch subscribers from sheet. Retrying... (attempt: ${attempt})`, err);
+        },
+      }
+    );
 
     // キャッシュ更新
     cachedDids = values;
@@ -35,7 +45,7 @@ export async function getSubscribersFromSheet(): Promise<string[]> {
 
     return cachedDids;
   } catch (err) {
-    console.error("[ERROR] Failed to fetch subscribers from sheet:", err);
-    return cachedDids; // フェッチに失敗しても古いキャッシュを返す
+    console.error("[ERROR] Failed to fetch subscribers from sheet after retries:", err);
+    return cachedDids; // リトライしても失敗した場合は古いキャッシュを返す
   }
 }
