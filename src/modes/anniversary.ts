@@ -53,6 +53,9 @@ export async function handleAnniversaryRegister (event: CommitCreateEvent<"app.b
     generateText: TEXT_REGISTER_ANNIV(follower.displayName ?? "", langStr, annivInfo?.name, annivInfo?.date),
   });
 
+  // handleModeに失敗したときはreturnしておく
+  if (!result) return false;
+
   // 記念日登録
   console.log(`[INFO][${follower.did}] registered anniversary. ${annivInfo.name}: ${annivInfo.date}`);
   db.updateDb(follower.did, "user_anniv_name", annivInfo.name);
