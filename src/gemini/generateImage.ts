@@ -2,8 +2,9 @@ import { Modality, PartListUnion } from "@google/genai";
 import { gemini } from ".";
 import * as fs from "node:fs";
 import { MODEL_GEMINI_IMAGE, SYSTEM_INSTRUCTION } from "../config";
+import { logger } from "..";
 
-export async function generateImage(mood: string) {
+export async function generateImage(mood: string): Promise<Buffer | null> {
   const prompt = 
   `Please create your illustration using the attached character design as a reference.
   The character's name is "Fully-Affirmative Bot-tan."
@@ -14,10 +15,13 @@ export async function generateImage(mood: string) {
   * Morpho
     - a Samoyed dog
   * Latte-chan
-    - pink hair, long princess hair
+    - pink hair, long princess hair, red ribbon
+    - nekomimi
     - green eyes
     - maid clothes
-  Rules: **Be careful not to lose balance between the body and face.**
+    - a red hairpin with the kanji character "ten (heaven)"
+  Rules: 
+  * **Be careful not to lose balance between the body and face.**
   Scene: ${mood}`;
 
   const imagePath = "./img/bot-tan-concept.png";
@@ -42,17 +46,21 @@ export async function generateImage(mood: string) {
     // }
   });
 
+  logger.addRPD();
+
   for (const part of response.candidates?.[0].content?.parts || []) {
     if (part.text) {
-      console.log("[INFO] Generated image prompt:", part.text);
+      console.log("[INFO][IMGGEN] Generated image prompt:", part.text);
     } else if (part.inlineData) {
-      console.log("[INFO] Generated image received.");
+      console.log("[INFO][IMGGEN] Generated image received.");
       const imageData = part.inlineData.data;
       if (imageData) {
         const buffer = Buffer.from(imageData, 'base64');
         fs.writeFileSync("./img/output.png", buffer);
-        console.log("[INFO] Image saved to ./img/output.png");
+        console.log("[INFO][IMGGEN] Image saved to ./img/output.png");
+        return buffer; // Return the buffer
       }
     }
   }
+  return null; // Return null if no image data was found
 }

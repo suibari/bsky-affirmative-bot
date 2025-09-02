@@ -14,6 +14,7 @@ import EventEmitter from "events";
 import { startServer } from "../server";
 import { dbPosts } from "../db";
 import { logger } from "..";
+import { generateImage } from '../gemini/generateImage';
 
 type Status = 'WakeUp' | 'Study' | 'FreeTime' | 'Relax' | 'Sleep';
 interface BotStat {
@@ -32,6 +33,7 @@ export class BiorhythmManager extends EventEmitter {
   private energyPrev: number = 5000;
   private timePrev: string = '';
   private moodPrev: string = "";
+  private _generatedImage: Buffer | null = null;
 
   constructor() {
     super();
@@ -95,6 +97,10 @@ export class BiorhythmManager extends EventEmitter {
 
   get getEnergy(): number { return this.energy / 100; }
   get getMood(): string { return this.moodPrev; }
+
+  get generatedImage(): Buffer | null {
+    return this._generatedImage;
+  }
 
   async updateTopPostUri() {
     const row = await dbPosts.getHighestScore();
@@ -261,11 +267,20 @@ ${eventsMidnight}
     }
   }
 
-  private setOutput(newOutput: string) {
+  private async setOutput(newOutput: string) {
     if (newOutput !== this.moodPrev) {
       this.moodPrev = newOutput;
       this.emit('statsChange', this.getCurrentState());
       logger.updateBiorhythmState(this.energy, this.moodPrev, this.status);
+
+      // Generate image and store it
+      try {
+        // Assuming generateImage takes a string and returns a Buffer
+        this._generatedImage = await generateImage(newOutput);
+      } catch (error) {
+        console.error("Error generating image:", error);
+        this._generatedImage = null; // Clear image on error
+      }
     }
   }
 

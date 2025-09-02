@@ -9,6 +9,15 @@ export function startServer(bot: BiorhythmManager, logger: Logger) {
     if (req.url === "/.well-known/atproto-did") {
       res.writeHead(200, { "Content-Type": "text/plain" });
       res.end(process.env.BSKY_DID);
+    } else if (req.url === "/image.png") {
+      const imageBuffer = bot.generatedImage; // Access the generated image
+      if (imageBuffer) {
+        res.writeHead(200, { "Content-Type": "image/png" });
+        res.end(imageBuffer);
+      } else {
+        res.writeHead(404);
+        res.end("Image not found");
+      }
     } else {
       res.writeHead(404);
       res.end();
