@@ -6,7 +6,9 @@ import { WhimsicalPostGenerator } from "../gemini/generateWhimsicalPost";
 import { botBiothythmManager } from "..";
 
 const whimsicalPostGen = new WhimsicalPostGenerator();
-const whimsicalPostGenEn = new WhimsicalPostGenerator();
+
+// 投稿言語を管理する変数
+let isJapanesePost = true;
 
 export async function doWhimsicalPost () {
   // スコアTOPのfollowerを取得
@@ -26,21 +28,19 @@ export async function doWhimsicalPost () {
     console.error(`[INFO] whimsical post error: ${e}`);
   }
   
+  const langStr = isJapanesePost ? "日本語" : "English";
+
   // ポスト
   const text_bot = await whimsicalPostGen.generate({
     topFollower: topFollower ?? undefined,
     topPost: post,
-    langStr: "日本語",
+    langStr: langStr,
     currentMood: botBiothythmManager.getMood,
   });
   await postContinuous(text_bot);
-  const text_bot_en = await whimsicalPostGenEn.generate({
-    topFollower: topFollower ?? undefined,
-    topPost: post,
-    langStr: "English",
-    currentMood: botBiothythmManager.getMood,
-  });
-  await postContinuous(text_bot_en);
+
+  // 言語を切り替え
+  isJapanesePost = !isJapanesePost;
 
   // テーブルクリア
   dbPosts.clearAllRows();
