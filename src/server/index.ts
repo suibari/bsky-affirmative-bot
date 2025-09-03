@@ -6,7 +6,6 @@ import { botBiothythmManager } from '..';
 
 export function startServer(bot: BiorhythmManager, logger: Logger) {
   const server = http.createServer((req, res) => {
-    console.log(`[INFO][SERVER] Received request for: ${req.url}`);
     if (req.url === "/.well-known/atproto-did") {
       res.writeHead(200, { "Content-Type": "text/plain" });
       res.end(process.env.BSKY_DID);
