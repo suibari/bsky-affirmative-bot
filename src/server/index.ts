@@ -12,7 +12,12 @@ export function startServer(bot: BiorhythmManager, logger: Logger) {
     } else if (req.url === "/image.png") {
       const imageBuffer = bot.generatedImage; // Access the generated image
       if (imageBuffer) {
-        res.writeHead(200, { "Content-Type": "image/png" });
+        res.writeHead(200, {
+          "Content-Type": "image/png",
+          "Cache-Control": "no-cache, no-store, must-revalidate",
+          "Pragma": "no-cache",
+          "Expires": "0",
+        });
         res.end(imageBuffer);
       } else {
         res.writeHead(404);
