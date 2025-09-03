@@ -31,7 +31,7 @@ const PROMPT_ANNIVERSARY_WORD = async (userinfo: UserInfoGemini) => {
   `* If there are posts from the user from a year ago, use those posts to praise their efforts this year.` +
   `---User Information Below---` +
   `* User Name: ${userinfo.follower.displayName ?? ""}` +
-  `* Anniversary: ${userinfo.anniversary?.map(item => item.names.ja).join(", ")}` +
+  `* Anniversary: ${userinfo.anniversary?.map(item => item.names.en).join(", ")}` +
   `* User Posts from a Year Ago: ${userinfo.posts?.[0] ?? "None"}`
   ;
 }
