@@ -1,3 +1,4 @@
+import retry from 'async-retry';
 import { AppBskyEmbedImages } from "@atproto/api";
 import { ProfileView } from "@atproto/api/dist/client/types/app/bsky/actor/defs"; // Changed to default import
 import { Record } from "@atproto/api/dist/client/types/app/bsky/feed/post";
@@ -10,7 +11,7 @@ import { GeminiResponseResult, ImageRef, UserInfoGemini } from "../types.js";
 import { SQLite3 } from "../db/index.js";
 import { Content } from "@google/genai";
 import { parseThread, ParsedThreadResult } from "../bsky/parseThread.js";
-import { logger } from "../index.js";
+import { logger } from "../index.js"; // Assuming logger is still needed for other purposes
 
 const MAX_BOT_MEMORY = 100;
 
@@ -84,9 +85,31 @@ export async function handleConversation (event: CommitCreateEvent<"app.bsky.fee
 async function waitAndGenReply (userinfo: UserInfoGemini, event: CommitCreateEvent<"app.bsky.feed.post">, db: SQLite3): Promise<GeminiResponseResult> {
   const record = event.commit.record as Record;  
 
-  // 応答生成
-  const {text_bot, new_history} = await conversation(userinfo);
-  if (!text_bot) throw new Error("Failed to generate response text.");
+  let text_bot: string | undefined = undefined;
+  let new_history: Content[] = [];
+
+  try {
+    await retry(async (bail, attempt) => {
+      const result = await conversation(userinfo);
+      text_bot = result.text_bot;
+      new_history = result.new_history;
+
+      if (!text_bot) {
+        console.warn(`[WARN][${userinfo.follower.did}] Attempt ${attempt}: Failed to generate response text. Retrying...`);
+        throw new Error("Response text is empty, retrying."); // Throw to trigger retry
+      }
+    }, {
+      retries: 3, // Number of retries
+      onRetry: (error: any, attempt) => {
+        console.warn(`[WARN][${userinfo.follower.did}] Retry attempt ${attempt} failed: ${error.message}`);
+      }
+    });
+  } catch (error: any) {
+    console.error(`[ERROR][${userinfo.follower.did}] Failed to generate response text after multiple retries: ${error.message}`);
+    return "";
+  }
+
+  const final_text_bot = text_bot || "";
 
   // イイネ応答
   const uri = uniteDidNsidRkey(event.did, event.commit.collection, event.commit.rkey);
@@ -118,5 +141,5 @@ async function waitAndGenReply (userinfo: UserInfoGemini, event: CommitCreateEve
   db.updateDb(userinfo.follower.did, "conv_root_cid", rootCid);
   console.log(`[INFO][${userinfo.follower.did}] send coversation-result`);
 
-  return text_bot;
+  return final_text_bot;
 }
