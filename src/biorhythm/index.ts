@@ -42,19 +42,21 @@ export class BiorhythmManager extends EventEmitter {
     logger.on("statsChange", () => {
       this.emit("statsChange", this.getCurrentState());
     });
-    logger.loadLogFromFile().then(() => {
-      const state = logger.getBiorhythmState();
-      if (state.energy !== 5000) {
-        this.energy = state.energy;
-      }
-      if (state.mood !== "") {
-        this.moodPrev = state.mood;
-      }
-      if (state.status !== "Sleep") {
-        this.status = state.status as Status;
-      }
-    });
-    this.updateTopPostUri();
+  }
+
+  async init() {
+    await logger.loadLogFromFile();
+    const state = logger.getBiorhythmState();
+    if (state.energy !== 5000) {
+      this.energy = state.energy;
+    }
+    if (state.mood !== "") {
+      this.moodPrev = state.mood;
+    }
+    if (state.status !== "Sleep") {
+      this.status = state.status as Status;
+    }
+    await this.updateTopPostUri();
     setInterval(() => this.updateTopPostUri(), 10 * 60 * 1000);
   }
 

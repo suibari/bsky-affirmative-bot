@@ -16,9 +16,6 @@ export let followers: ProfileView[] = [];
 export let botBiothythmManager: BiorhythmManager;
 export let logger: Logger;
 
-// 日記機能: スケジューリング実行, 非同期実行できるはず
-
-
 // フォロワー収集
 (async () => {
   try {
@@ -54,8 +51,14 @@ export let logger: Logger;
 (async () => {
   logger = new Logger();
   botBiothythmManager = new BiorhythmManager();
-  botBiothythmManager.step();
+  await botBiothythmManager.init(); // 非同期初期化を待つ
+  console.log("[INFO] Initialized biorhythm manager...");
+
+  await botBiothythmManager.step();
+  console.log("[INFO] update biorhythm...");
+
   startServer(botBiothythmManager, logger);
+  console.log("[INFO] starting server!");
 })();
 
 // アプリケーションの終了時にデータベース接続を閉じる
