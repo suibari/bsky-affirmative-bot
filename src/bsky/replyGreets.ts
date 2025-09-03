@@ -16,12 +16,11 @@ export async function replyGreets(parentPost: PostView, langStr: string) {
 サブスクすると使える機能もいろいろあるので、詳細はbio欄を見てね。`:
 // 日本語以外の場合
 `Hello!
-I'm the Affirmative Bot! Call me Suibari-Bot!
+I'm the Fully Affirmative Bot! Call me Bot-tan!
 I'll reply to ${parentPost.author.displayName}'s post with full positivity!
 Feel free to reach out!
 
-You can change reply frequency by saying "freq50". And for those under 18, reply "Predefined Reply Mode".
-There are many features you can use when you subscribe, so please see the bio for details.`;
+You can change reply frequency by saying "freq50". And for those under 18, reply "Predefined Reply Mode".`;
 
   await postContinuous(text, {uri: parentPost.uri, cid: parentPost.cid, record});
   return;
