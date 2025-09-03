@@ -25,6 +25,8 @@ interface BotStat {
 }
 
 const ENERGY_MAXIMUM = 10000;
+const SCHEDULE_STEP_MIN = 30;
+const SCHEDULE_STEP_MAX = 120;
 
 export class BiorhythmManager extends EventEmitter {
   private status: Status = 'Sleep';
@@ -156,26 +158,19 @@ export class BiorhythmManager extends EventEmitter {
       return;
     }
 
-    let isPost: boolean = false;
     try {
+      const newOutput = await this.generateStatus(prompt); // LLM出力取得
+      await this.setOutput(newOutput);
+
       if (((this.getEnergy >= 60) && (newStatus !== "Sleep"))) {
         const probability = Math.random() * 100;
         if (probability < this.getEnergy) {
           console.log(`[INFO][BIORHYTHM] post and decrease energy!`)
-          const newOutput = await this.generateStatus(prompt); // LLM出力取得
-          this.setOutput(newOutput);
-
+          
           // ポスト処理をここに追加（Geminiなど）
           await doWhimsicalPost();
           this.energy -= 6000;
-          isPost = true;
         }
-      }
-
-      // ポスト条件を満たさなかった or ポストしなかった場合は、通常通り LLM 呼び出し（例：状態更新用）
-      if (!isPost) {
-        const newOutput = await this.generateStatus(prompt); // LLM出力取得
-        this.setOutput(newOutput);
       }
     } catch (e) {
       // エラー時はスキップする
@@ -186,7 +181,9 @@ export class BiorhythmManager extends EventEmitter {
     console.log(`[INFO][BIORHYTHM] status: ${this.status}, energy: ${this.getEnergy}, action: ${this.getMood}`);
     
     // 次回スケジュール（5〜60分、開発環境では1分ごと）
-    const nextInterval = process.env.NODE_ENV === "development" ? 60 * 1000 : Math.floor(Math.random() * (60 - 5 + 1) + 5) * 60 * 1000;
+    const nextInterval = process.env.NODE_ENV === "development" ? 
+      60 * 1000 :
+      Math.floor(Math.random() * (SCHEDULE_STEP_MAX - SCHEDULE_STEP_MIN + 1) + SCHEDULE_STEP_MIN) * 60 * 1000 ;
     setTimeout(() => this.step(), nextInterval);
   }
 
