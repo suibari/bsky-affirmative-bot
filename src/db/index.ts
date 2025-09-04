@@ -32,6 +32,7 @@ const desiredSchemas: Record<string, TableSchema> = {
       { name: 'user_anniv_date', type: 'TEXT', default: null },
       { name: 'last_anniv_execed_at', type: 'TIMESTAMP', default: null },
       { name: 'last_anniv_registered_at', type: 'TIMESTAMP', default: null },
+      { name: 'last_status_at', type: 'TIMESTAMP', default: null },
     ]
   },
   posts: {
@@ -219,6 +220,12 @@ export class SQLite3 {
     });
   }
 
+  /**
+   * col_name = value であるすべてのdidを取得
+   * @param col_name 
+   * @param value 
+   * @returns 
+   */
   selectAllDb(col_name: string, value: string | number): Promise<any[] | null> {
     return new Promise((resolve, reject) => {
       const query = `SELECT did FROM ${this.tableName} WHERE ${col_name} = ?;`;
@@ -308,6 +315,26 @@ export class SQLite3 {
           }
         });
       }
+    });
+  }
+
+  /**
+   * 指定didの全row取得
+   * @param id 
+   * @returns 
+   */
+  async getRowById(id: string): Promise<Record<string, any> | null> {
+    await this.initialize(); // Ensure the database is initialized
+    const query = `SELECT * FROM ${this.tableName} WHERE did = ?;`;
+    return new Promise((resolve, reject) => {
+      this.db!.get(query, [id], (err, row: Record<string, any>) => {
+        if (err) {
+          console.error(`Error fetching row with did=${id} from ${this.tableName}:`, err);
+          reject(err);
+        } else {
+          resolve(row || null);
+        }
+      });
     });
   }
 }

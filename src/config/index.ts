@@ -89,6 +89,15 @@ export const ANNIV_CONFIRM_TRIGGER = [
   "tell me anniversary",
 ];
 
+export const STATUS_CONFIRM_TRIGGER = [
+  "教えてステータス",
+  "おしえてステータス",
+  "ステータス教えて",
+  "ステータスおしえて",
+  "tell me status",
+  "tell me your status",
+];
+
 export const HNY_WORDS = ["明けましておめでとう", "あけましておめでとう", "あけおめ"];
 export const OHAYO_WORDS = ["おは"];
 export const OYASUMI_WORDS = ["おやす"];
