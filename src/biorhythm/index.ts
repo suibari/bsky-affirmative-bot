@@ -1,5 +1,5 @@
 import eventsMorningWorkday from "../json/event_evening_workday.json";
-import eventsMorningDayoff from "../json/event_evening_dayoff.json";
+import eventsMorningDayoff from "../json/event_morning_dayoff.json";
 import eventsNoonWorkday from "../json/event_noon_workday.json";
 import eventsNoonDayoff from "../json/event_noon_dayoff.json";
 import eventsEveningWorkday from "../json/event_evening_workday.json";
@@ -36,6 +36,7 @@ export class BiorhythmManager extends EventEmitter {
   private timePrev: string = '';
   private moodPrev: string = "";
   private _generatedImage: Buffer | null = null;
+  private firstStepDone = false;
 
   constructor() {
     super();
@@ -146,7 +147,7 @@ export class BiorhythmManager extends EventEmitter {
     this.handleEnergyByStatus();
 
     // LLMプロンプトを生成
-    const prompt = this.buildPrompt(now.toISOString());
+    const prompt = this.buildPrompt(now.toISOString(), isWeekend);
 
     // 開発環境では常にenergyMAX
     // if (process.env.NODE_ENV === "development") {
@@ -165,10 +166,13 @@ export class BiorhythmManager extends EventEmitter {
       await this.setOutput(newOutput);
 
       // おやすみポスト
-      if (this.status !== this.statusPrev && this.status === "Sleep") {
-        console.log(`[INFO][BIORHYTHM] post goodnight!`);
-        await doGoodNightPost(this.getMood);
+      if (this.firstStepDone) {
+        if (this.status !== this.statusPrev && this.status === "Sleep") {
+          console.log(`[INFO][BIORHYTHM] post goodnight!`);
+          await doGoodNightPost(this.getMood);
+        }
       }
+      this.firstStepDone = true;
 
       // 定期つぶやきポスト
       if (((this.getEnergy >= 60) && (newStatus !== "Sleep"))) {
@@ -225,18 +229,18 @@ export class BiorhythmManager extends EventEmitter {
     }
   }
 
-  private buildPrompt(timeNow: string): string {
+  private buildPrompt(timeNow: string, isWeekend: Boolean): string {
     return `
 以下のキャラクターの行動を描写してほしいです。
 ${SYSTEM_INSTRUCTION}
 このキャラクターが現在どんな気分でなにをしているか、前回の行動ももとにして、具体的に考えてください。
 結果は「全肯定たんは～しています」という、AIに入力する平易なプロンプト文で出力してください。
 'WakeUp'のステータスの時、このキャラクターの起床時間です。以下を参考に、朝の支度から外出までの出来事を設定してください。
-${eventsMorningWorkday}${eventsMorningDayoff}
+${isWeekend ? `${eventsMorningDayoff}` : `${eventsMorningWorkday}`}
 'Study'のステータスの時、このキャラクターは学校で勉強しています。以下を参考に、学校での出来事を設定してください。
-${eventsNoonWorkday}${eventsEveningWorkday}
+${isWeekend ? `${eventsNoonDayoff}` : `${eventsNoonWorkday}`}
 'FreeTime'のステータスの時、このキャラクターは余暇を楽しんでいます。以下を参考に、街中や家での遊びを設定してください。
-${eventsNoonDayoff}${eventsEveningDayoff}
+${isWeekend ? `${eventsEveningDayoff}` : `${eventsEveningWorkday}`}
 'Relax'のステータスの時、このキャラクターはくつろいでいます。以下を参考に、テレビや読書などのリラックスできる出来事を設定してください。
 ${eventsNight}
 'Sleep'のステータスの時、このキャラクターは就寝中です。行動はしなくてよいです。以下を参考に、夢を見ているならその内容を設定してください。
