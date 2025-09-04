@@ -195,7 +195,18 @@ export class BiorhythmManager extends EventEmitter {
     const nextInterval = process.env.NODE_ENV === "development" ? 
       60 * 1000 :
       Math.floor(Math.random() * (SCHEDULE_STEP_MAX - SCHEDULE_STEP_MIN + 1) + SCHEDULE_STEP_MIN) * 60 * 1000 ;
-    setTimeout(() => this.step(), nextInterval);
+
+    if (!this.firstStepDone) {
+      // 起動時にサーバスタートが画像生成より先だと404が返るため、
+      // 初回実行時のみPromiseを返し、step完了を待てるようにする
+      return new Promise(resolve => {
+        setTimeout(() => {
+          this.step().then(resolve);
+        }, nextInterval);
+      });
+    } else {
+      setTimeout(() => this.step(), nextInterval);
+    }
   }
 
   private getNextStatus(hour: number, isWeekend: boolean): Status {
