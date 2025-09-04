@@ -1,9 +1,15 @@
-import { ProfileView } from "@atproto/api/dist/client/types/app/bsky/actor/defs";
-import { agent } from "../bsky/agent";
 import { postContinuous } from "../bsky/postContinuous";
-import { dbPosts } from "../db";
 import { WhimsicalPostGenerator } from "../gemini/generateWhimsicalPost";
 import { botBiothythmManager } from "..";
+import { dbPosts } from "../db";
+import { AtpAgent } from "@atproto/api";
+import { ProfileView } from "@atproto/api/dist/client/types/app/bsky/actor/defs";
+import { agent } from "../bsky/agent";
+import { getPds } from "../bsky/getPds";
+import { post } from "../bsky/post";
+import { repost } from "../bsky/repost";
+import { splitUri } from "../bsky/util";
+import { generateGoodNight } from "../gemini/generateGoodNight";
 
 const whimsicalPostGen = new WhimsicalPostGenerator();
 
@@ -11,29 +17,10 @@ const whimsicalPostGen = new WhimsicalPostGenerator();
 let isJapanesePost = true;
 
 export async function doWhimsicalPost () {
-  // スコアTOPのfollowerを取得
-  const row = await dbPosts.getHighestScore();
-
-  let did: string;
-  let post: string | undefined;
-  let topFollower: ProfileView | undefined;
-  try {
-    if (row) {
-      did = row.did;
-      post = row.post;
-      topFollower = (await agent.getProfile({actor: did})).data as ProfileView;
-    }
-  } catch(e) {
-    // TOPが無効アカウントなどの理由で取得できない場合
-    console.error(`[INFO] whimsical post error: ${e}`);
-  }
-  
   const langStr = isJapanesePost ? "日本語" : "English";
 
   // ポスト
   const text_bot = await whimsicalPostGen.generate({
-    topFollower: topFollower ?? undefined,
-    topPost: post,
     langStr: langStr,
     currentMood: botBiothythmManager.getMood,
   });
@@ -41,7 +28,49 @@ export async function doWhimsicalPost () {
 
   // 言語を切り替え
   isJapanesePost = !isJapanesePost;
+}
 
-  // テーブルクリア
-  dbPosts.clearAllRows();
+export async function doGoodNightPost (mood: string) {
+  // スコアTOPのfollowerを取得
+  const row = await dbPosts.getHighestScore();
+
+  try {
+    if (row) {
+      // DBパース
+      const uri: string = row.uri;
+      const {did, nsid, rkey} = splitUri(uri);
+      const topPost: string = row.post;
+      const topFollower = (await agent.getProfile({actor: did})).data as ProfileView;
+
+      // cid取得: NOTE, 格納時に取得した方がいいのかな？
+      const agentPDS = new AtpAgent({service: await getPds(did!)});
+      const response = await agentPDS.com.atproto.repo.getRecord({
+        repo: did,
+        collection: nsid,
+        rkey,
+      });
+      const cid = response.data.cid;
+
+      // topPostがなければお休みあいさつしない
+      if (topPost && cid) {
+        // リポスト
+        await repost(uri, cid);
+
+        // Gemini生成
+        const text_bot = await generateGoodNight({
+          topFollower: topFollower ?? undefined,
+          topPost,
+          currentMood: mood,
+        });
+
+        // ポスト
+        await postContinuous(text_bot);
+
+        // 1日のテーブルクリア
+        dbPosts.clearAllRows();
+      } 
+    }
+  } catch(e) {
+    console.error(`[INFO] good night post error: ${e}`);
+  }
 }

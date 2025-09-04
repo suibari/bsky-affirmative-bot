@@ -9,7 +9,7 @@ import eventsMidnight from "../json/event_midnight.json";
 import { MODEL_GEMINI, SYSTEM_INSTRUCTION } from '../config';
 import { gemini } from '../gemini';
 import { DailyStats } from '../logger';
-import { doWhimsicalPost } from "../modes/whimsical";
+import { doGoodNightPost, doWhimsicalPost } from "../modes/whimsical";
 import EventEmitter from "events";
 import { startServer } from "../server";
 import { dbPosts } from "../db";
@@ -26,7 +26,7 @@ interface BotStat {
 
 const ENERGY_MAXIMUM = 10000;
 const SCHEDULE_STEP_MIN = 30;
-const SCHEDULE_STEP_MAX = 120;
+const SCHEDULE_STEP_MAX = 60;
 
 export class BiorhythmManager extends EventEmitter {
   private status: Status = 'Sleep';
@@ -164,12 +164,17 @@ export class BiorhythmManager extends EventEmitter {
       const newOutput = await this.generateStatus(prompt); // LLM出力取得
       await this.setOutput(newOutput);
 
+      // おやすみポスト
+      if (this.status !== this.statusPrev && this.status === "Sleep") {
+        console.log(`[INFO][BIORHYTHM] post goodnight!`);
+        await doGoodNightPost(this.getMood);
+      }
+
+      // 定期つぶやきポスト
       if (((this.getEnergy >= 60) && (newStatus !== "Sleep"))) {
         const probability = Math.random() * 100;
         if (probability < this.getEnergy) {
-          console.log(`[INFO][BIORHYTHM] post and decrease energy!`)
-          
-          // ポスト処理をここに追加（Geminiなど）
+          console.log(`[INFO][BIORHYTHM] post and decrease energy!`);
           await doWhimsicalPost();
           this.energy -= 6000;
         }
