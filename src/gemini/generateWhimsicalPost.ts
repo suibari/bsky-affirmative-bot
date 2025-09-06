@@ -109,12 +109,16 @@ const PROMPT_INTRO_BOT_FEATURE = (langStr: string) => {
     "あなたが持っている「DJ」機能の紹介：あなたがユーザにおすすめの曲を選ぶ。「DJお願い」とリプすればできる。ただしサブスクメンバー限定。サブスクについてはbio欄参照。",
     "あなたが持っている「応援」機能の紹介：ユーザの作ったものをあなたがみんなにお知らせする。「#全肯定応援団」のタグをつければできる。ただしサブスクメンバー限定。サブスクについてはbio欄参照。",
     "あなたが持っている「日記」機能の紹介：ユーザの今日のポストを日記にしてお届け。「日記つけて」とリプすれば設定できる。毎晩あなたからユーザに日記を送る。ただしサブスクメンバー限定。サブスクについてはbio欄参照。",
+    "あなたが持っている「記念日」機能の紹介：ユーザの記念日をお祝い。「記念日登録、記念日名、MM/DD」とリプすれば設定できる。設定した記念日の当日にユーザをお祝いする。",
+    "あなたが持っている「ステータス」機能の紹介：あなたとユーザのステータスを確認。「教えてステータス」とリプすればできる。",
   ] : [
     "Introducing the Fortune Telling feature you have. You can get your fortune told once a day by replying \"Fortune\"",
     "Introducing the Personality Analysis feature you have. You can get a personality diagnosis once a week by replying \"Analyze me\"",
     "Introducing the DJ feature you have. You choose songs you recommend to users by replying \"DJ, please\". However, this is limited to subscribed followers. Please see the bio for details on subscriptions.",
     "Introducing the Cheering feature you have. You let everyone know what users have made by adding the tag \"#SuiBotCheerQquad\". However, this is limited to subscribed followers. Please see the bio for details on subscriptions.",
     "Introducing the Diary feature you have. You can have users daily posts collected into a diary by replying \"Keep a diary\". You will keep a diary for the user every night. However, this is limited to subscribed followers. Please see the bio for details on subscriptions.",
+    "Introducing the Anniversary feature you have. Users can register their anniversary by replying \"register anniversary, [your anniversary name], MM/DD\". You will celebrate the user on the registered date.",
+    "Introducing the Status feature you have. You can check the status of each function with you and the user by replying \"tell me status\"."
   ]
   return getRandomItems(features, 1);
 }
