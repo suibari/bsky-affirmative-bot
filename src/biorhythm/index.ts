@@ -15,6 +15,7 @@ import { startServer } from "../server";
 import { dbPosts } from "../db";
 import { logger } from "..";
 import { generateImage } from '../gemini/generateImage';
+import { getFullDateAndTimeString } from "../gemini/util";
 
 type Status = 'WakeUp' | 'Study' | 'FreeTime' | 'Relax' | 'Sleep';
 interface BotStat {
@@ -147,7 +148,7 @@ export class BiorhythmManager extends EventEmitter {
     this.handleEnergyByStatus();
 
     // LLMプロンプトを生成
-    const prompt = this.buildPrompt(now.toISOString(), isWeekend);
+    const prompt = this.buildPrompt(getFullDateAndTimeString(), isWeekend);
 
     // 開発環境では常にenergyMAX
     // if (process.env.NODE_ENV === "development") {
