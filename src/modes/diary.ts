@@ -81,11 +81,31 @@ async function processUserDiary(userDid: string, db: SQLite3) {
     const langStr = getLangStr((latestPost.record as Record).langs);
 
     console.log(`[INFO][${userDid}] generating diary...`);
-    const text_bot = await generateDiary({
-      follower: profile as ProfileView,
-      posts: posts.reverse(),
-      langStr,
-    });
+
+    // 日記が空文字のことがあるので、リトライ処理を入れてみる
+    let text_bot = "";
+    const maxRetries = 3;
+    let retries = 0;
+    while (retries < maxRetries) {
+      text_bot = await generateDiary({
+        follower: profile as ProfileView,
+        posts: posts.reverse(),
+        langStr,
+      });
+
+      if (text_bot !== "") {
+        break;
+      }
+
+      retries++;
+      console.log(`[WARN][${userDid}][DIARY] generateDiary returned empty, retrying (${retries}/${maxRetries})...`);
+      await new Promise(resolve => setTimeout(resolve, 1000 * retries));
+    }
+
+    if (text_bot === "") {
+      console.error(`[ERROR][${userDid}][DIARY] Failed to generate diary after ${maxRetries} retries.`);
+      return; // Exit if still empty after retries
+    }
 
     console.log(`[INFO][${userDid}] generating image...`);
     const imageGenerationDate = new Date(); // Use a new Date object for image generation context
