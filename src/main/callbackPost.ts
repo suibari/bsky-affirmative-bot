@@ -191,24 +191,19 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
 
             if (count_replyrandom >= EXEC_PER_COUNTS && isU18 === 0) {
               count_replyrandom = 0; // 最初にリセットして、2連続でAI応答するのを避ける
-              // NOTE: ジャッジAIは費用負担が重く、OFFにする
-              // const resultValidReplyai = await judgeReplySubject({
-              //   follower,
-              //   posts: [record.text],
-              //   image: record.embed ? getImageUrl(did, record.embed as AppBskyEmbedImages.Main) : undefined,
-              // });
 
               // --------------
               // ユーザの直近ポストをエンベディング解析
+              // NOTE: エンベディングコストが大きいので、形態素解析ベースにするのがよい
               // --------------
-              const recentPosts = await getConcatAuthorFeed(follower.did, LATEST_POSTS_COUNT + 1);
-              recentPosts.shift(); // 最新ポストは今回のポストのはずなので除外
-              relatedPosts = await embeddingTexts(record.text, recentPosts.map(item => (item.post.record as Record).text));
-              // 全ポスト同じならbotとみなしスルー
-              if (relatedPosts.length == LATEST_POSTS_COUNT) {
-                console.log(`[INFO][${did}] Ignored post, REASON: repeated similar posts`);
-                return;
-              }
+              // const recentPosts = await getConcatAuthorFeed(follower.did, LATEST_POSTS_COUNT + 1);
+              // recentPosts.shift(); // 最新ポストは今回のポストのはずなので除外
+              // relatedPosts = await embeddingTexts(record.text, recentPosts.map(item => (item.post.record as Record).text));
+              // // 全ポスト同じならbotとみなしスルー
+              // if (relatedPosts.length == LATEST_POSTS_COUNT) {
+              //   console.log(`[INFO][${did}] Ignored post, REASON: repeated similar posts`);
+              //   return;
+              // }
 
               replyType = "ai";
             } else {
