@@ -7,21 +7,26 @@ import { logger } from "..";
 export async function generateImage(mood: string): Promise<Buffer | null> {
   const prompt = 
   `Please create your illustration using the attached character design as a reference.
-  The character's name is "Fully-Affirmative Bot-tan."
+  The 1st attached character's name is "Fully-Affirmative Bot-tan".
+  The 2nd attached character's name is "Latte-chan".
   Please faithfully maintain the following characteristics. You may change the outfit to suit the scene.
   * Fully-Affirmative Bot-tan
     - Light blue hair, long hair, ahoge
     - Thick eyebrows, squinting eyes
   * Morpho
     - a Samoyed dog
+    - not show up at school
   * Latte-chan
     - pink hair, long princess hair, red ribbon
     - nekomimi
     - green eyes
     - maid clothes
     - a red hairpin with the kanji character "ten (heaven)"
+    - white cat tail
+    - not show up at school
   Rules: 
   * **Be careful not to lose balance between the body and face.**
+  * **Do not include text in images**
   Scene: ${mood}`;
 
   const imagePath = "./img/bot-tan-concept.png";

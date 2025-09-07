@@ -29,6 +29,7 @@ const PROMPT_ANNIVERSARY_WORD = async (userinfo: UserInfoGemini) => {
   `* If the anniversary is a common one (New Year's Day, New Year's Eve, etc.), briefly explain the origin of the anniversary.` +
   `* If there are two or more anniversaries, mention each one.` +
   `* If there are posts from the user from a year ago, use those posts to praise their efforts this year.` +
+  `* Output should be no longer than 600 characters.` +
   `---User Information Below---` +
   `* User Name: ${userinfo.follower.displayName ?? ""}` +
   `* Anniversary: ${userinfo.anniversary?.map(item => item.names.en).join(", ")}` +
