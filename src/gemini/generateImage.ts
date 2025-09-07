@@ -29,17 +29,26 @@ export async function generateImage(mood: string): Promise<Buffer | null> {
   * **Do not include text in images**
   Scene: ${mood}`;
 
-  const imagePath = "./img/bot-tan-concept.png";
-  const imageData = fs.readFileSync(imagePath);
-  const base64Image = imageData.toString("base64");
+  const imagePath_bottan = "./img/bot-tan-concept.png";
+  const imageData_bottan = fs.readFileSync(imagePath_bottan);
+  const base64Image_bottan = imageData_bottan.toString("base64");
+  const imagePath_latte = "./img/latte-chan-concept.png";
+  const imageData_latte = fs.readFileSync(imagePath_latte);
+  const base64Image_latte = imageData_latte.toString("base64");
   const contents: PartListUnion = [
     { text: prompt },
     {
       inlineData: {
         mimeType: "image/png",
-        data: base64Image,
-      }
-    }
+        data: base64Image_bottan,
+      },
+    },
+    {
+      inlineData: {
+        mimeType: "image/png",
+        data: base64Image_latte,
+      },
+    },
   ];
 
   const response = await gemini.models.generateContent({
