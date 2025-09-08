@@ -44,21 +44,21 @@ async function buildStatusText(userinfo: UserInfoGemini,  event: CommitCreateEve
       `つきあい: ${result.daysFollow} days\n` +
       `AIリプライ: ${result.enableAI}\n` +
       `リプ頻度: ${result.replyFreq} %\n` +
-      `占い: ${result.hoursFortune && result.hoursFortune >= 8 ? "enable" : "disable"}\n` +
-      `分析: ${result.daysAnalyze && result.daysAnalyze >= 1 ? "enable" : "disable"}\n` +
-      `応援: ${result.hoursCheer && result.hoursCheer >= 8 ? "enable" : "disable"}\n` +
+      `占い: ${result.hoursFortune === null || result.hoursFortune >= 8 ? "enable" : "disable (クールタイム中)"}\n` +
+      `分析: ${result.daysAnalyze === null || result.daysAnalyze >= 1 ? "enable" : "disable (クールタイム中)"}\n` +
+      `応援: ${result.hoursCheer === null || result.hoursCheer >= 8 ? "enable" : "disable (クールタイム中)"}\n` +
       `会話: ${result.convHistory} /100回\n` +
-      `ユーザ記念日: ${result.userAnnivName} on ${result.userAnnivDate}\n` :
+      `ユーザ記念日: ${result.userAnnivName && result.userAnnivDate ? `${result.userAnnivName} on ${result.userAnnivDate}` : ""}\n` :
       `This is the status with ${userinfo.follower.displayName} and me!\n` +
       `\n` +
       `Companionship: ${result.daysFollow} days\n` +
       `AI Reply: ${result.enableAI}\n` +
       `Reply Freq: ${result.replyFreq} %\n` +
-      `Fortune: ${result.hoursFortune && result.hoursFortune >= 8 ? "enable" : "disable"}\n` +
-      `Analyze: ${result.daysAnalyze && result.daysAnalyze >= 1 ? "enable" : "disable"}\n` +
-      `Cheer: ${result.hoursCheer && result.hoursCheer >= 8 ? "enable" : "disable"}\n` +
+      `Fortune: ${result.hoursFortune === null || result.hoursFortune >= 8 ? "enable" : "disable (on cooldown)"}\n` +
+      `Analyze: ${result.daysAnalyze === null || result.daysAnalyze >= 1 ? "enable" : "disable (on cooldown)"}\n` +
+      `Cheer: ${result.hoursCheer === null || result.hoursCheer >= 8 ? "enable" : "disable (on cooldown)"}\n` +
       `Conversation: ${result.convHistory} /100times\n` +
-      `User Anniversary: ${result.userAnnivName} on ${result.userAnnivDate}\n`;
+      `User Anniversary: ${result.userAnnivName && result.userAnnivDate ? `${result.userAnnivName} on ${result.userAnnivDate}` : ""}\n`;
   }
   return undefined
 }
