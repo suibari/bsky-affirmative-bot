@@ -73,6 +73,10 @@ export type UserInfoGemini = {
   history?: Content[];
   image?: ImageRef[];
   anniversary?: Holiday[];
+  followersFriend?: {
+    profile: ProfileView;
+    post: string;
+  }
 };
 
 export interface ImageRef {
@@ -109,3 +113,14 @@ export type Holiday = {
     | { type: "easter"; calendar: "western" | "orthodox" };
   regions?: string[];
 }
+
+export type NegaposiApiResponse = {
+  wakati: string[][];
+  average_sentiments: number[];
+  nouns: string[][];
+  nouns_counts: {
+    noun: string;
+    count: number;
+    sentiment_sum: number;
+  }[];
+};

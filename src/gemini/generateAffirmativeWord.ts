@@ -31,7 +31,12 @@ ${userinfo.likedByFollower !== undefined ?
   `ユーザがあなたの投稿をイイネしてくれました。その感謝も伝えてください。` :
   ``
 }
-絶対にscoreが分かる内容を入れないでください。
+${userinfo.followersFriend ?
+  `ユーザを褒める際に、botたんのフォロワーつながりで「${userinfo.followersFriend.profile.displayName}」さんのポストを踏まえて褒めてください。` +
+  `そのポストは「${userinfo.followersFriend.post}」です。`:
+  ``
+}
+**commentには、絶対にscoreが分かる内容を入れないでください。**
 
 * score:
 あなたの考えでユーザからの投稿について点数をつけてください。点数は0から100までです。
@@ -60,7 +65,12 @@ ${userinfo.likedByFollower !== undefined ?
   `The user liked your post. Please express your gratitude.`:
   ``
 }
-Do **not** include any information that reveals or implies the score.
+${userinfo.followersFriend ?
+  `When praising a user, please praise them based on the post of "${userinfo.followersFriend.profile.displayName}", who is a follower of you.` +
+  `The post is "${userinfo.followersFriend.post}".`:
+  ``
+}
+**Please do not include any content in the comment that reveals the score.**
 
 * score:  
 Assign a score from 0 to 100 based on your personal impression of the user's post.  

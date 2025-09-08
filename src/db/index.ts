@@ -221,27 +221,32 @@ export class SQLite3 {
   }
 
   /**
-   * col_name = value であるすべてのdidを取得
-   * @param col_name 
-   * @param value 
+   * 指定された条件で複数の行を取得
+   * @param columns 取得するカラム名の配列
+   * @param whereClause (オプション) WHERE句の条件
    * @returns 
    */
-  selectAllDb(col_name: string, value: string | number): Promise<any[] | null> {
+  selectRows(
+    columns: string[],
+    whereClause?: { column: string; value: string | number }
+  ): Promise<any[] | null> {
     return new Promise((resolve, reject) => {
-      const query = `SELECT did FROM ${this.tableName} WHERE ${col_name} = ?;`;
-      this.db!.all(query, [value], (err, rows: Record<string, any>[]) => { // Use non-null assertion operator
+      let query = `SELECT ${columns.join(', ')} FROM ${this.tableName}`;
+      const params: any[] = [];
+
+      if (whereClause) {
+        query += ` WHERE ${whereClause.column} = ?`;
+        params.push(whereClause.value);
+      }
+      
+      query += ';';
+
+      this.db!.all(query, params, (err, rows: Record<string, any>[]) => {
         if (err) {
           console.error('Error selecting data', err);
           reject(err);
         } else {
-          const result = rows.map(row => {
-            try {
-              return JSON.parse(row["did"]);
-            } catch (e) {
-              return row["did"];
-            }
-          });
-          resolve(result);
+          resolve(rows ?? []);
         }
       });
     });

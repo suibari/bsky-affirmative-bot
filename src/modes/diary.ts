@@ -159,7 +159,7 @@ function scheduleUserDiary(userDid: string, timezone: string, db: SQLite3) {
  * @param db SQLite3 instance.
  */
 async function manageUserDiarySchedules(db: SQLite3) {
-  const usersWithDiaryMode = await db.selectAllDb("is_diary", 1) as string[] | null;
+  const usersWithDiaryMode = await db.selectRows(["did"], { column: "is_diary", value: 1 }) as { did: string }[] | null;
 
   if (!usersWithDiaryMode || usersWithDiaryMode.length === 0) {
     console.log("[INFO][DIARY] no user for diary mode");
@@ -172,10 +172,11 @@ async function manageUserDiarySchedules(db: SQLite3) {
   const subscriberSet = new Set(subscribers);
   
   // Filter users to include only those who are subscribers
-  const eligibleUsers = usersWithDiaryMode.filter(user => subscriberSet.has(user));
+  const eligibleUsers = usersWithDiaryMode.filter(user => subscriberSet.has(user.did));
   console.log(`[INFO][DIARY] subbed-follower && is_diary: ${eligibleUsers.length}`);
 
-  for (const userDid of eligibleUsers) { // Iterate over eligibleUsers instead of usersWithDiaryMode
+  for (const user of eligibleUsers) { // Iterate over eligibleUsers instead of usersWithDiaryMode
+    const userDid = user.did; // Extract did from the user object
     try {
       // 削除されたユーザなどがいるので、まずgetProfileして確認
       await agent.getProfile({ actor: userDid });

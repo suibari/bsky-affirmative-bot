@@ -14,6 +14,7 @@ import { CommitCreateEvent } from "@skyware/jetstream";
 import { Record } from "@atproto/api/dist/client/types/app/bsky/feed/post";
 import { getLangStr, uniteDidNsidRkey } from "../bsky/util";
 import { postContinuous } from "../bsky/postContinuous";
+import { fetchSentiment } from "../util/negaposi";
 
 const CONDITIONS = [
   { keywords: HNY_WORDS, word: wordHny },
@@ -55,21 +56,8 @@ export async function replyrandom (
     wordArray = wordSpecial;
   } else {
     // ネガポジフェッチ
-    const response = await fetch(process.env.NEGAPOSI_URL!, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({texts: [posttext]})
-    });
-  
-    // レスポンスが正常であればsentimentを取得
-    if (response.ok) {
-      const json = await response.json();
-      sentiment = json.average_sentiments;
-    } else {
-      throw new Error('Failed to fetch sentiment from NEGPOSI_URL');
-    }
+    const negaposiData = await fetchSentiment([posttext]);
+    sentiment = negaposiData.average_sentiments[0];
 
     // 感情分析
     if (langStr == "日本語") {

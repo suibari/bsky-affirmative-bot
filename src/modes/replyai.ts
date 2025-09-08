@@ -9,8 +9,10 @@ import { GeminiScore, ImageRef } from "../types.js";
 import { dbLikes, dbPosts } from "../db/index.js";
 import { postContinuous } from "../bsky/postContinuous.js";
 import { agent } from "../bsky/agent.js";
+import { fetchSentiment } from "../util/negaposi.js";
 import { getConcatAuthorFeed } from "../bsky/getConcatAuthorFeed.js";
 import { embeddingTexts } from "../gemini/embeddingTexts.js";
+import { getConcatProfiles } from "../bsky/getConcatProfiles.js";
 
 export async function replyai(
   follower: ProfileView,
@@ -44,13 +46,48 @@ export async function replyai(
       dbLikes.deleteRow(follower.did);
     }
 
+    // 名詞の一覧を取得
+    const userPostNouns = (await fetchSentiment([text_user])).nouns[0];
+
+    // dbPostsから全ポストを取得し、名詞の一覧を取得
+    const allPosts = await dbPosts.selectRows(['did', 'post']) ?? [];
+    const allNouns = (await fetchSentiment(allPosts.map(p => p.post))).nouns;
+    const allPostNouns = allPosts.map((p, index) => ({
+      did: p.did,
+      nouns: allNouns[index],
+    }));
+
+    // 名詞が一致したらdbPostsの対応するdidとpostを取得
+    const matchingPosts = allPostNouns
+      .filter(postData => postData.nouns.some(noun => userPostNouns.includes(noun)))
+      .map(postData => {
+        const matchingPost = allPosts.find(p => p.did === postData.did);
+        // 自分の投稿は除外する
+        if (postData.did === follower.did) {
+          return null; // 除外する
+        }
+        return { did: postData.did, post: matchingPost ? matchingPost.post : "" };
+      })
+      .filter(Boolean) as { did: string; post: string }[]; // nullを除外して型を保証
+    
+    // 一致したdidのプロフィールを取得
+    const matchingPostDids = matchingPosts.map(mp => mp.did);
+    const friendsProfiles = await getConcatProfiles({actors: matchingPostDids});
+
+    // followersFriend作成
+    const followersFriend = friendsProfiles && friendsProfiles.length > 0 ? {
+      profile: friendsProfiles[0] as ProfileView,
+      post: matchingPosts.find(mp => mp.did === friendsProfiles[0].did)?.post || ""
+    } : undefined;
+
     // Gemini生成
     result = await generateAffirmativeWord({
       follower,
       langStr,
-      posts: [record.text, ...relatedPosts], // 関連ポストを含める
+      posts: [record.text, ...relatedPosts, ...matchingPosts.map(mp => mp.post)], // 関連ポストと一致したpostを含める
       likedByFollower: likedPost,
       image,
+      followersFriend,
     });
 
     // お気に入りポスト登録
