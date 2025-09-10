@@ -1,7 +1,7 @@
 import { ProfileView } from "@atproto/api/dist/client/types/app/bsky/actor/defs";
 import { CommitCreateEvent } from "@skyware/jetstream";
 import { AppBskyEmbedImages } from "@atproto/api";
-import { getImageUrl, getLangStr, uniteDidNsidRkey } from "../bsky/util.js";
+import { getImageUrl, getLangStr, splitUri, uniteDidNsidRkey } from "../bsky/util.js";
 import { generateAffirmativeWord } from "../gemini/generateAffirmativeWord.js";
 import { Record } from "@atproto/api/dist/client/types/app/bsky/feed/post";
 import { replyrandom } from "../modes/replyrandom.js";
@@ -13,6 +13,10 @@ import { fetchSentiment } from "../util/negaposi.js";
 import { getConcatAuthorFeed } from "../bsky/getConcatAuthorFeed.js";
 import { embeddingTexts } from "../gemini/embeddingTexts.js";
 import { getConcatProfiles } from "../bsky/getConcatProfiles.js";
+import { AtpAgent } from "@atproto/api";
+import { getPds } from "../bsky/getPds.js";
+
+const NOUN_MATCH_NUM = 2; // フォロワーの友人を探す際の名詞一致数の閾値
 
 export async function replyai(
   follower: ProfileView,
@@ -46,45 +50,33 @@ export async function replyai(
       dbLikes.deleteRow(follower.did);
     }
 
-    // 名詞の一覧を取得
-    const userPostNouns = (await fetchSentiment([text_user])).nouns[0];
-
-    // dbPostsから全ポストを取得し、名詞の一覧を取得
-    const allPosts = await dbPosts.selectRows(['did', 'post']) ?? [];
-    const allNouns = (await fetchSentiment(allPosts.map(p => p.post))).nouns;
-    const allPostNouns = allPosts.map((p, index) => ({
-      did: p.did,
-      nouns: allNouns[index],
-    }));
-
-    // 名詞が一致したらdbPostsの対応するdidとpostを取得
-    const matchingPosts = allPostNouns
-      .filter(postData => postData.nouns.some(noun => userPostNouns.includes(noun)))
-      .map(postData => {
-        const matchingPost = allPosts.find(p => p.did === postData.did);
-        // 自分の投稿は除外する
-        if (postData.did === follower.did) {
-          return null; // 除外する
-        }
-        return { did: postData.did, post: matchingPost ? matchingPost.post : "" };
-      })
-      .filter(Boolean) as { did: string; post: string }[]; // nullを除外して型を保証
+    // 共通の趣味を持つフォロワーのポストを取得
+    const followersFriend = await getFollowersFriend(text_user, follower, NOUN_MATCH_NUM);
     
-    // 一致したdidのプロフィールを取得
-    const matchingPostDids = matchingPosts.map(mp => mp.did);
-    const friendsProfiles = await getConcatProfiles({actors: matchingPostDids});
+    // cid取得: NOTE, 格納時に取得した方がいいのかな？
+    let embed = undefined;
+    if (followersFriend) {
+      console.log(`[INFO] Found followersFriend for ${follower.did}: - ${followersFriend.post}`);
+      const {did, nsid, rkey} = splitUri(followersFriend.uri);
+      const agentPDS = new AtpAgent({service: await getPds(did!)});
+      const response = await agentPDS.com.atproto.repo.getRecord({
+        repo: did,
+        collection: nsid,
+        rkey,
+      });
+      const cid = response.data.cid!;
 
-    // followersFriend作成
-    const followersFriend = friendsProfiles && friendsProfiles.length > 0 ? {
-      profile: friendsProfiles[0] as ProfileView,
-      post: matchingPosts.find(mp => mp.did === friendsProfiles[0].did)?.post || ""
-    } : undefined;
+      embed = {
+        uri: followersFriend.uri,
+        cid,
+      }
+    }
 
     // Gemini生成
     result = await generateAffirmativeWord({
       follower,
       langStr,
-      posts: [record.text, ...relatedPosts, ...matchingPosts.map(mp => mp.post)], // 関連ポストと一致したpostを含める
+      posts: [record.text, ...relatedPosts],
       likedByFollower: likedPost,
       image,
       followersFriend,
@@ -102,7 +94,7 @@ export async function replyai(
 
     // ポスト
     const text_bot = result?.comment || "";
-    await postContinuous(text_bot, { uri, cid, record });
+    await postContinuous(text_bot, { uri, cid, record }, undefined, embed);
 
     return result;
   } catch (e: any) {
@@ -117,4 +109,53 @@ export async function replyai(
     
     return null
   }
+}
+
+async function getFollowersFriend(text_user: string, follower: ProfileView, NOUN_MATCH_NUM: number = 1) {
+  // 名詞の一覧を取得
+  const userPostNouns = (await fetchSentiment([text_user])).nouns[0];
+
+  // dbPostsから全ポストを取得し、名詞の一覧を取得
+  const allPosts = await dbPosts.selectRows(['did', 'post', 'uri']) ?? [];
+  const allNouns = (await fetchSentiment(allPosts.map(p => p.post))).nouns;
+  const allPostNouns = allPosts.map((p, index) => ({
+    did: p.did,
+    uri: p.uri,
+    nouns: allNouns[index],
+  }));
+  // console.log(`[DEBUG] Follower ${follower.did} nouns: ${userPostNouns.join(", ")}`);
+  // console.log(`[DEBUG] All posts nouns: ${allPostNouns.map(item => item.nouns).join(", ")}`);
+
+  // 名詞が一致したらdbPostsの対応するdidとpostを取得
+  const matchingPosts = allPostNouns
+    .filter(postData => {
+      const matchingNounsCount = postData.nouns.filter(noun => userPostNouns.includes(noun)).length;
+      return matchingNounsCount >= NOUN_MATCH_NUM;
+    })
+    .map(postData => {
+      const matchingPost = allPosts.find(p => p.did === postData.did);
+      // 自分の投稿は除外する
+      if (postData.did === follower.did) {
+        return null; // 除外する
+      }
+      // console.log(`[DEBUG] Found matching post for follower ${follower.did}: ${matchingPost?.post}`);
+      // Ensure matchingPost exists and has a uri before returning
+      if (matchingPost && matchingPost.uri) {
+        return { did: postData.did, post: matchingPost.post, uri: matchingPost.uri };
+      }
+      return null; // Return null if uri is missing or matchingPost is not found
+    })
+    .filter(Boolean) as { did: string; post: string; uri: string }[]; // nullを除外して型を保証
+  
+  // 一致したdidのプロフィールを取得
+  const matchingPostDids = matchingPosts.map(mp => mp.did);
+  const friendsProfiles = await getConcatProfiles({actors: matchingPostDids});
+
+  // followersFriend作成: 一人目
+  const matchingPost = matchingPosts.find(mp => mp.did === friendsProfiles[0].did);
+  return friendsProfiles && friendsProfiles.length > 0 && matchingPost ? {
+    profile: friendsProfiles[0] as ProfileView,
+    post: matchingPost.post || "",
+    uri: matchingPost.uri // Add the URI here
+  } : undefined;
 }

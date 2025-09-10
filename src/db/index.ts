@@ -238,7 +238,8 @@ export class SQLite3 {
         query += ` WHERE ${whereClause.column} = ?`;
         params.push(whereClause.value);
       }
-      
+
+      query += ' ORDER BY RANDOM()'; // ランダム順に並べる
       query += ';';
 
       this.db!.all(query, params, (err, rows: Record<string, any>[]) => {

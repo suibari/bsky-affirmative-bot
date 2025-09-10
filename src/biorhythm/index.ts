@@ -192,10 +192,8 @@ export class BiorhythmManager extends EventEmitter {
     // ログ出力
     console.log(`[INFO][BIORHYTHM] status: ${this.status}, energy: ${this.getEnergy}, action: ${this.getMood}`);
     
-    // 次回スケジュール（5〜60分、開発環境では1分ごと）
-    const nextInterval = process.env.NODE_ENV === "development" ? 
-      60 * 1000 :
-      Math.floor(Math.random() * (SCHEDULE_STEP_MAX - SCHEDULE_STEP_MIN + 1) + SCHEDULE_STEP_MIN) * 60 * 1000 ;
+    // 次回スケジュール（5〜60分）
+    const nextInterval = Math.floor(Math.random() * (SCHEDULE_STEP_MAX - SCHEDULE_STEP_MIN + 1) + SCHEDULE_STEP_MIN) * 60 * 1000 ;
 
     if (!this.firstStepDone) {
       // 起動時にサーバスタートが画像生成より先だと404が返るため、

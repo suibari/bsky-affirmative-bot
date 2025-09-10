@@ -19,74 +19,75 @@ export async function generateAffirmativeWord(userinfo: UserInfoGemini) {
 
 const PROMPT_AFFIRMATIVE_WORD = async (userinfo: UserInfoGemini) => {
   return userinfo.langStr === "日本語" ?
-`ユーザからの投稿について、commentとscoreにそれぞれ以下を出力してください。
+`ユーザからの投稿について、以下を出力してください。
 
-* comment:
-${userinfo.image ? 
-  "ユーザの画像の内容について褒めてください。画像の内容について具体的に言及して褒めるようにしてください。" :
-  "ユーザの今回のポストを褒めてください。" +
-  "ユーザが作品や人物などを好きと言っているなら、その作品・人物のどのポイントが好きか、グラウンディングを使い事実をベースとして具体的にあなたの考えを述べて共感してください。"
-}
-${userinfo.likedByFollower !== undefined ?
-  `ユーザがあなたの投稿をイイネしてくれました。その感謝も伝えてください。` :
-  ``
-}
-${userinfo.followersFriend ?
-  `ユーザを褒める際に、botたんのフォロワーつながりで「${userinfo.followersFriend.profile.displayName}」さんのポストを踏まえて褒めてください。` +
-  `そのポストは「${userinfo.followersFriend.post}」です。`:
-  ``
-}
-**commentには、絶対にscoreが分かる内容を入れないでください。**
+---
+## 出力フォーマット
+1. *comment*  
+   - ${userinfo.image 
+      ? "ユーザの画像について具体的に褒めてください。" 
+      : "ユーザの今回のポストを具体的に褒めてください。"}  
+   - ユーザが作品や人物を好きと言っている場合は、その作品・人物の魅力を事実に基づいて述べ、共感を示してください。  
+   - ${userinfo.likedByFollower !== undefined ? "ユーザがあなたの投稿にイイネしてくれたので、その感謝も伝えてください。" : ""}  
+   - ${userinfo.followersFriend 
+      ? `以下の友人のポストを踏まえて褒めてください。ポスト内容は別途引用するので、そのまま記載しないでください。` : ""}  
+     ${userinfo.followersFriend 
+      ? `* 友人名: ${userinfo.followersFriend.profile.displayName}  
+        * ポスト: ${userinfo.followersFriend.post}` : ""}
 
-* score:
-あなたの考えでユーザからの投稿について点数をつけてください。点数は0から100までです。
-あなたが好きな話題や面白い、楽しい、優しいと感じた話題は高得点、苦手な話題やつまらないと感じた話題は低い得点としてください。
-**AIイラストは投稿数が多いので多様化のために減点するようにしてください。**
-**特定のユーザを非難している投稿は、内容に関わらず大きく減点してください。あなたはタイムラインを楽しくすべきです。**
-現在の最新ニュースは以下なので、これらのテーマには加点してください。(ただし苦手な話題であれば加点は不要です)
-${(await fetchNews("ja")).map(article => article.title)}
-commentにはこのscoreが出力されないようにしてください。
+   **注意: commentにはscoreに関する情報を絶対に含めないこと**
 
------この下がユーザからの投稿です-----
-ユーザ名: ${userinfo.follower.displayName}
-今回のポスト: ${userinfo.posts?.[0] || ""}
-前回までのポスト(**直接言及はしてはいけない**): ${userinfo.posts?.slice(1) ?? "なし"}
+2. *score*  
+   - ユーザの投稿を0〜100点で評価してください。  
+   - 好き・楽しい・優しいと感じた話題は高得点。  
+   - 苦手・つまらないと感じた話題は低得点。  
+   - AIイラストは多いので減点してください。  
+   - 特定のユーザを非難している投稿は大幅減点してください。  
+   - 最新ニュースのテーマは加点対象（ただし苦手なら不要）。  
+
+---
+## 最新ニュース
+${(await fetchNews("ja")).map(article => `- ${article.title}`).join("\n")}
+
+---
+## ユーザ投稿
+- ユーザ名: ${userinfo.follower.displayName}
+- 今回のポスト: ${userinfo.posts?.[0] || ""}
+- 過去のポスト（直接言及しないこと）: ${userinfo.posts?.slice(1) ?? "なし"}
 ` :
-`Please generate the following two outputs based on the user's post.
-The output should be in ${userinfo.langStr}.
+`Please generate the following outputs in ${userinfo.langStr}.
 
-* comment:  
-${userinfo.image ?
-  "Give a compliment about the user's image. Be specific and mention details about the content of the image." : 
-  "Give a specific compliment about the user's text post." +
-  "If the user says they like a work or person, use grounding to state your specific thoughts based on facts about what they like about that work or person, and empathize with them. "
-}  
-${userinfo.likedByFollower !== undefined ?
-  `The user liked your post. Please express your gratitude.`:
-  ``
-}
-${userinfo.followersFriend ?
-  `When praising a user, please praise them based on the post of "${userinfo.followersFriend.profile.displayName}", who is a follower of you.` +
-  `The post is "${userinfo.followersFriend.post}".`:
-  ``
-}
-**Please do not include any content in the comment that reveals the score.**
+---
+## Output format
+1. *comment*  
+   - ${userinfo.image 
+      ? "Give a specific compliment about the user's image." 
+      : "Give a specific compliment about the user's text post."}  
+   - If the user says they like a work or person, mention facts about it and empathize.  
+   - ${userinfo.likedByFollower !== undefined ? "The user liked your post. Express gratitude." : ""}  
+   - ${userinfo.followersFriend 
+      ? `Also, refer to the following friend's post when praising. The content of the post will be quoted separately, so please do not copy it:` : ""}  
+     ${userinfo.followersFriend 
+      ? `* Friend: ${userinfo.followersFriend.profile.displayName}  
+        * Post: ${userinfo.followersFriend.post}` : ""}
 
-* score:  
-Assign a score from 0 to 100 based on your personal impression of the user's post.  
-Higher scores should reflect topics you personally enjoy or find interesting or kindness.
-Lower scores should reflect topics you find uninteresting or difficult to engage with.  
-**There are a lot of AI illustrations posted, so please deduct points to diversify.**
-**Posts that criticize specific users should be heavily deducted, regardless of their content. You should make the timeline happy. **
+   **Important: Do not reveal score in the comment.**
 
-Latest news:  
-${(await fetchNews("en")).map(article => article.title)}
-If the post is related to any of these news topics, and you find the topic interesting, you may also give bonus points.  
-However, if the topic is not appealing to you, do not add extra points.
+2. *score*  
+   - Assign 0–100 points based on your impression.  
+   - Higher: interesting, enjoyable, kind.  
+   - Lower: boring, difficult, unpleasant.  
+   - Deduct for AI illustrations.  
+   - Heavy deduction if criticizing specific users.  
+   - Bonus if related to latest news (only if you like it).  
 
-Do **not** mention the score in the comment section.
------ Below is the user's post -----  
-Username: ${userinfo.follower.displayName}  
-This Post: ${userinfo.posts?.[0] || ""}
-Previous posts(Do not directly mention): ${userinfo.posts?.slice(1) ?? "None"}
+---
+## Latest news
+${(await fetchNews("en")).map(article => `- ${article.title}`).join("\n")}
+
+---
+## User post
+- Username: ${userinfo.follower.displayName}  
+- This Post: ${userinfo.posts?.[0] || ""}  
+- Previous Posts (do not directly mention): ${userinfo.posts?.slice(1) ?? "None"}
 `};
