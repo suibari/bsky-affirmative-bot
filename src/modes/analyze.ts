@@ -1,3 +1,4 @@
+import retry from 'async-retry';
 import { Record as RecordPost } from '@atproto/api/dist/client/types/app/bsky/feed/post';
 import { Record as RecordList } from '@atproto/api/dist/client/types/com/atproto/repo/listRecords';
 import { ProfileView } from "@atproto/api/dist/client/types/app/bsky/actor/defs";
@@ -54,7 +55,22 @@ async function getBlobWithAnalyze(userinfo: UserInfoGemini): Promise<GeminiRespo
     .map(like => (like.record as RecordPost).text);
   userinfo.likedByFollower = likes;
 
-  const result = await generateAnalyzeResult(userinfo);
+  const result = await retry(async () => {
+    const res = await generateAnalyzeResult(userinfo);
+    if (!res) {
+      throw new Error("API result is empty, retrying...");
+    }
+    return res;
+  }, {
+    retries: 3,
+    onRetry: (e: unknown, attempt) => {
+      if (e instanceof Error) {
+        console.log(`[${new Date().toISOString()}] Attempt ${attempt} failed: ${e.message}`);
+      } else {
+        console.log(`[${new Date().toISOString()}] Attempt ${attempt} failed with an unknown error.`);
+      }
+    }
+  });
 
   if (process.env.NODE_ENV === "development") {
     console.log("[DEBUG] bot>>> " + result);
