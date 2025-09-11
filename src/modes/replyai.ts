@@ -16,7 +16,7 @@ import { getConcatProfiles } from "../bsky/getConcatProfiles.js";
 import { AtpAgent } from "@atproto/api";
 import { getPds } from "../bsky/getPds.js";
 
-const NOUN_MATCH_NUM = 4; // フォロワーの友人を探す際の名詞一致数の閾値
+const NOUN_MATCH_NUM = 3; // フォロワーの友人を探す際の名詞一致数の閾値
 
 export async function replyai(
   follower: ProfileView,
@@ -51,24 +51,27 @@ export async function replyai(
     }
 
     // 共通の趣味を持つフォロワーのポストを取得
-    const followersFriend = await getFollowersFriend(text_user, follower, NOUN_MATCH_NUM);
-    
-    // cid取得: NOTE, 格納時に取得した方がいいのかな？
-    let embed = undefined;
-    if (followersFriend) {
-      console.log(`[INFO] Found followersFriend for ${follower.did}: - ${followersFriend.post}`);
-      const {did, nsid, rkey} = splitUri(followersFriend.uri);
-      const agentPDS = new AtpAgent({service: await getPds(did!)});
-      const response = await agentPDS.com.atproto.repo.getRecord({
-        repo: did,
-        collection: nsid,
-        rkey,
-      });
-      const cid = response.data.cid!;
+    let followersFriend: { profile: ProfileView; post: string; uri: string } | undefined = undefined;
+    let embed: {uri: string, cid: string} | undefined = undefined;
+    if (langStr === "日本語") {
+      const followersFriend = await getFollowersFriend(text_user, follower, NOUN_MATCH_NUM);
 
-      embed = {
-        uri: followersFriend.uri,
-        cid,
+      // cid取得: NOTE, 格納時に取得した方がいいのかな？
+      if (followersFriend) {
+        console.log(`[INFO] Found followersFriend for ${follower.did}: - ${followersFriend.post}`);
+        const {did, nsid, rkey} = splitUri(followersFriend.uri);
+        const agentPDS = new AtpAgent({service: await getPds(did!)});
+        const response = await agentPDS.com.atproto.repo.getRecord({
+          repo: did,
+          collection: nsid,
+          rkey,
+        });
+        const cid = response.data.cid!;
+
+        embed = {
+          uri: followersFriend.uri,
+          cid,
+        }
       }
     }
 
