@@ -53,7 +53,7 @@ export async function replyai(
     // 共通の趣味を持つフォロワーのポストを取得
     let followersFriend: { profile: ProfileView; post: string; uri: string } | undefined = undefined;
     let embed: {uri: string, cid: string} | undefined = undefined;
-    if (langStr === "日本語") {
+    if (false) {
       const followersFriend = await getFollowersFriend(text_user, follower, NOUN_MATCH_NUM);
 
       // cid取得: NOTE, 格納時に取得した方がいいのかな？
