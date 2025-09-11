@@ -16,7 +16,7 @@ import { getConcatProfiles } from "../bsky/getConcatProfiles.js";
 import { AtpAgent } from "@atproto/api";
 import { getPds } from "../bsky/getPds.js";
 
-const NOUN_MATCH_NUM = 2; // フォロワーの友人を探す際の名詞一致数の閾値
+const NOUN_MATCH_NUM = 4; // フォロワーの友人を探す際の名詞一致数の閾値
 
 export async function replyai(
   follower: ProfileView,
