@@ -215,7 +215,7 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
           // ----------------
           // リプライ呼び出しを最後にまとめる
           // ----------------
-          if (replyType === "ai" && logger.checkRPD()) {
+          if (replyType === "ai" && logger.checkRPD() || process.env.NODE_ENV === "development") {
             await replyai(follower, event, relatedPosts);
           } else if (replyType === "random") {
             await replyrandom(follower, event);

@@ -16,7 +16,7 @@ import { getConcatProfiles } from "../bsky/getConcatProfiles.js";
 import { AtpAgent } from "@atproto/api";
 import { getPds } from "../bsky/getPds.js";
 
-const NOUN_MATCH_NUM = 3; // フォロワーの友人を探す際の名詞一致数の閾値
+const NOUN_MATCH_NUM = 5; // フォロワーの友人を探す際の名詞一致数の閾値
 
 export async function replyai(
   follower: ProfileView,
@@ -52,34 +52,33 @@ export async function replyai(
 
     // 共通の趣味を持つフォロワーのポストを取得
     let followersFriend: { profile: ProfileView; post: string; uri: string } | undefined = undefined;
+    followersFriend = await getFollowersFriend(text_user, follower.did, NOUN_MATCH_NUM);
+
+    // cid取得: NOTE, 格納時に取得した方がいいのかな？
     let embed: {uri: string, cid: string} | undefined = undefined;
-    if (false) {
-      const followersFriend = await getFollowersFriend(text_user, follower, NOUN_MATCH_NUM);
+    if (followersFriend) {
+      console.log(`[INFO][BATON] Found followersFriend for ${follower.did}: - ${followersFriend.post}`);
+      const {did, nsid, rkey} = splitUri(followersFriend.uri);
+      const agentPDS = new AtpAgent({service: await getPds(did!)});
+      const response = await agentPDS.com.atproto.repo.getRecord({
+        repo: did,
+        collection: nsid,
+        rkey,
+      });
+      const cid = response.data.cid!;
 
-      // cid取得: NOTE, 格納時に取得した方がいいのかな？
-      if (followersFriend) {
-        console.log(`[INFO] Found followersFriend for ${follower.did}: - ${followersFriend.post}`);
-        const {did, nsid, rkey} = splitUri(followersFriend.uri);
-        const agentPDS = new AtpAgent({service: await getPds(did!)});
-        const response = await agentPDS.com.atproto.repo.getRecord({
-          repo: did,
-          collection: nsid,
-          rkey,
-        });
-        const cid = response.data.cid!;
-
-        embed = {
-          uri: followersFriend.uri,
-          cid,
-        }
-      }
+      // NOTE: 引用はいったんひかえる
+      // embed = {
+      //   uri: followersFriend.uri,
+      //   cid,
+      // }
     }
 
     // Gemini生成
     result = await generateAffirmativeWord({
       follower,
       langStr,
-      posts: [record.text, ...relatedPosts],
+      posts: [text_user, ...relatedPosts],
       likedByFollower: likedPost,
       image,
       followersFriend,
@@ -88,7 +87,7 @@ export async function replyai(
     // お気に入りポスト登録
     dbPosts.insertDb(follower.did);
     const prevScore = await dbPosts.selectDb(follower.did, "score") as number || 0;
-    if (result.score && prevScore < result.score) {
+    if (result.score && prevScore < result.score && text_user.length > 0) { // 空ポスト除外
       dbPosts.updateDb(follower.did, "post", record.text);
       dbPosts.updateDb(follower.did, "comment", result.comment);
       dbPosts.updateDb(follower.did, "score", result.score);
@@ -114,51 +113,58 @@ export async function replyai(
   }
 }
 
-async function getFollowersFriend(text_user: string, follower: ProfileView, NOUN_MATCH_NUM: number = 1) {
-  // 名詞の一覧を取得
+async function getFollowersFriend(
+  text_user: string,
+  userDid: string,
+  NOUN_MATCH_NUM: number = 1
+) {
+  // 1. 入力テキストから名詞を抽出
   const userPostNouns = (await fetchSentiment([text_user])).nouns[0];
 
-  // dbPostsから全ポストを取得し、名詞の一覧を取得
-  const allPosts = await dbPosts.selectRows(['did', 'post', 'uri']) ?? [];
+  // 2. DBから全ポスト取得 & 名詞抽出
+  const allPosts = (await dbPosts.selectRows(['did', 'post', 'uri'])) ?? [];
   const allNouns = (await fetchSentiment(allPosts.map(p => p.post))).nouns;
-  const allPostNouns = allPosts.map((p, index) => ({
+
+  // 3. ポストごとに {did, uri, post, nouns} をまとめる
+  const allPostNouns = allPosts.map((p, i) => ({
     did: p.did,
     uri: p.uri,
-    nouns: allNouns[index],
+    post: p.post,
+    nouns: allNouns[i],
   }));
-  // console.log(`[DEBUG] Follower ${follower.did} nouns: ${userPostNouns.join(", ")}`);
-  // console.log(`[DEBUG] All posts nouns: ${allPostNouns.map(item => item.nouns).join(", ")}`);
 
-  // 名詞が一致したらdbPostsの対応するdidとpostを取得
-  const matchingPosts = allPostNouns
-    .filter(postData => {
-      const matchingNounsCount = postData.nouns.filter(noun => userPostNouns.includes(noun)).length;
-      return matchingNounsCount >= NOUN_MATCH_NUM;
-    })
-    .map(postData => {
-      const matchingPost = allPosts.find(p => p.did === postData.did);
-      // 自分の投稿は除外する
-      if (postData.did === follower.did) {
-        return null; // 除外する
-      }
-      // console.log(`[DEBUG] Found matching post for follower ${follower.did}: ${matchingPost?.post}`);
-      // Ensure matchingPost exists and has a uri before returning
-      if (matchingPost && matchingPost.uri) {
-        return { did: postData.did, post: matchingPost.post, uri: matchingPost.uri };
-      }
-      return null; // Return null if uri is missing or matchingPost is not found
-    })
-    .filter(Boolean) as { did: string; post: string; uri: string }[]; // nullを除外して型を保証
-  
-  // 一致したdidのプロフィールを取得
-  const matchingPostDids = matchingPosts.map(mp => mp.did);
-  const friendsProfiles = await getConcatProfiles({actors: matchingPostDids});
+  // 4. フォロワーのポストと名詞一致するものを抽出
+  const matchingPosts = allPostNouns.filter(postData => {
+    const commonNouns = postData.nouns.filter(noun => userPostNouns.includes(noun));
+    if (commonNouns.length >= NOUN_MATCH_NUM && postData.did !== userDid && !!postData.uri) {
+      // デバッグ出力
+      console.log("[DEBUG] ==== Noun Mathing Candidates ====");
+      console.log("[DEBUG] user post:", text_user);
+      console.log("[DEBUG] candidate post:", postData.post);
+      console.log("[DEBUG] matched nouns:", commonNouns);
+      console.log("[DEBUG] match num", commonNouns.length);
+      return true;
+    }
+    return false;
+  });
 
-  // followersFriend作成: 一人目
-  const matchingPost = matchingPosts.find(mp => mp.did === friendsProfiles[0].did);
-  return friendsProfiles && friendsProfiles.length > 0 && matchingPost ? {
-    profile: friendsProfiles[0] as ProfileView,
-    post: matchingPost.post || "",
-    uri: matchingPost.uri // Add the URI here
-  } : undefined;
+  if (matchingPosts.length === 0) return undefined;
+
+  // 5. 一致したdidのプロフィールを取得
+  const friendsProfiles = await getConcatProfiles({
+    actors: matchingPosts.map(mp => mp.did),
+  });
+  if (!friendsProfiles || friendsProfiles.length === 0) return undefined;
+
+  // 6. 最初の一致したプロフィール＋ポストを返す
+  const firstProfile = friendsProfiles[0] as ProfileView;
+  const firstPost = matchingPosts.find(mp => mp.did === firstProfile.did);
+
+  return firstProfile && firstPost
+    ? {
+        profile: firstProfile,
+        post: firstPost.post,
+        uri: firstPost.uri,
+      }
+    : undefined;
 }

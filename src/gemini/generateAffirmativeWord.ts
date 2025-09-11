@@ -30,9 +30,9 @@ const PROMPT_AFFIRMATIVE_WORD = async (userinfo: UserInfoGemini) => {
    - ユーザが作品や人物を好きと言っている場合は、その作品・人物の魅力を事実に基づいて述べ、共感を示してください。  
    - ${userinfo.likedByFollower !== undefined ? "ユーザがあなたの投稿にイイネしてくれたので、その感謝も伝えてください。" : ""}  
    - ${userinfo.followersFriend 
-      ? `以下の友人のポストを踏まえて褒めてください。ポスト内容は別途引用するので、そのまま記載しないでください。` : ""}  
+      ? `以下は別のbotたんフォロワーのポストです。ユーザを褒める際、このポストとの共通点を踏まえて褒めてください。ポスト内容はそのまま記載しないでください。` : ""}  
      ${userinfo.followersFriend 
-      ? `* 友人名: ${userinfo.followersFriend.profile.displayName}  
+      ? `* フォロワー名: ${userinfo.followersFriend.profile.displayName}  
         * ポスト: ${userinfo.followersFriend.post}` : ""}
 
    **注意: commentにはscoreに関する情報を絶対に含めないこと**
@@ -66,10 +66,10 @@ ${(await fetchNews("ja")).map(article => `- ${article.title}`).join("\n")}
    - If the user says they like a work or person, mention facts about it and empathize.  
    - ${userinfo.likedByFollower !== undefined ? "The user liked your post. Express gratitude." : ""}  
    - ${userinfo.followersFriend 
-      ? `Also, refer to the following friend's post when praising. The content of the post will be quoted separately, so please do not copy it:` : ""}  
+      ? `Below is a post from another Bottan follower. When praising a user, consider the similarities between this post and the user's. Do not copy the exact content of the post.` : ""}  
      ${userinfo.followersFriend 
-      ? `* Friend: ${userinfo.followersFriend.profile.displayName}  
-        * Post: ${userinfo.followersFriend.post}` : ""}
+      ? `* Follower Name: ${userinfo.followersFriend.profile.displayName}  
+        * Follower's Post: ${userinfo.followersFriend.post}` : ""}
 
    **Important: Do not reveal score in the comment.**
 
