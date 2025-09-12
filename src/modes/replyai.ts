@@ -10,6 +10,7 @@ import { dbLikes, dbPosts } from "../db/index.js";
 import { postContinuous } from "../bsky/postContinuous.js";
 import { agent } from "../bsky/agent.js";
 import { fetchSentiment } from "../util/negaposi.js";
+import retry from 'async-retry';
 import { getConcatAuthorFeed } from "../bsky/getConcatAuthorFeed.js";
 import { embeddingTexts } from "../gemini/embeddingTexts.js";
 import { getConcatProfiles } from "../bsky/getConcatProfiles.js";
@@ -118,12 +119,21 @@ async function getFollowersFriend(
   userDid: string,
   NOUN_MATCH_NUM: number = 1
 ) {
+  const retryOptions = {
+    retries: 3,
+    factor: 2,
+    minTimeout: 1000,
+    onRetry: (error: Error, attempt: number) => {
+      console.warn(`Attempt ${attempt} failed. Retrying... Error: ${error.message}`);
+    }
+  };
+
   // 1. 入力テキストから名詞を抽出
-  const userPostNouns = (await fetchSentiment([text_user])).nouns[0];
+  const userPostNouns = (await retry(() => fetchSentiment([text_user]), retryOptions)).nouns[0];
 
   // 2. DBから全ポスト取得 & 名詞抽出
   const allPosts = (await dbPosts.selectRows(['did', 'post', 'uri'])) ?? [];
-  const allNouns = (await fetchSentiment(allPosts.map(p => p.post))).nouns;
+  const allNouns = (await retry(() => fetchSentiment(allPosts.map(p => p.post)), retryOptions)).nouns;
 
   // 3. ポストごとに {did, uri, post, nouns} をまとめる
   const allPostNouns = allPosts.map((p, i) => ({
