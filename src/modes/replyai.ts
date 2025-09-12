@@ -133,10 +133,14 @@ async function getFollowersFriend(
 
   // 2. DBから全ポスト取得 & 名詞抽出
   const allPosts = (await dbPosts.selectRows(['did', 'post', 'uri'])) ?? [];
-  const allNouns = (await retry(() => fetchSentiment(allPosts.map(p => p.post)), retryOptions)).nouns;
+  const validPosts = allPosts.filter(p => p.post && p.post.trim() !== '');
+  if (validPosts.length === 0) {
+    return undefined;
+  }
+  const allNouns = (await retry(() => fetchSentiment(validPosts.map(p => p.post)), retryOptions)).nouns;
 
   // 3. ポストごとに {did, uri, post, nouns} をまとめる
-  const allPostNouns = allPosts.map((p, i) => ({
+  const allPostNouns = validPosts.map((p, i) => ({
     did: p.did,
     uri: p.uri,
     post: p.post,
