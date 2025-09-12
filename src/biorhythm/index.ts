@@ -176,7 +176,7 @@ export class BiorhythmManager extends EventEmitter {
       this.firstStepDone = true;
 
       // 定期つぶやきポスト
-      if (((this.getEnergy >= 60) && (this.status !== "Sleep"))) {
+      if ((this.getEnergy >= 60) && (this.status !== "Sleep")) {
         const probability = Math.random() * 100;
         if (probability < this.getEnergy) {
           console.log(`[INFO][BIORHYTHM] post and decrease energy!`);

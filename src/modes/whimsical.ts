@@ -10,6 +10,8 @@ import { post } from "../bsky/post";
 import { repost } from "../bsky/repost";
 import { splitUri } from "../bsky/util";
 import { generateGoodNight } from "../gemini/generateGoodNight";
+import { generateMyMoodSong } from "../gemini/generateMyMoodSong";
+import { searchYoutubeLink } from "../youtube";
 
 const whimsicalPostGen = new WhimsicalPostGenerator();
 
@@ -20,10 +22,17 @@ export async function doWhimsicalPost () {
   const langStr = isJapanesePost ? "日本語" : "English";
 
   // ポスト
-  const text_bot = await whimsicalPostGen.generate({
+  const currentMood = botBiothythmManager.getMood;
+  let text_bot = await whimsicalPostGen.generate({
     langStr: langStr,
-    currentMood: botBiothythmManager.getMood,
+    currentMood,
   });
+
+  // ムードソング
+  const result = await generateMyMoodSong(currentMood, langStr);
+  const resultYoutube = await searchYoutubeLink(`"${result.title}" "${result.artist}"`);
+  text_bot += `\n\n${resultYoutube}`;
+
   await postContinuous(text_bot);
 
   // 言語を切り替え
