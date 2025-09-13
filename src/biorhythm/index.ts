@@ -245,6 +245,7 @@ export class BiorhythmManager extends EventEmitter {
 ${SYSTEM_INSTRUCTION}
 このキャラクターが現在どんな気分でなにをしているか、前回の行動ももとにして、具体的に考えてください。
 結果は「全肯定たんは～しています」という、AIに入力する平易なプロンプト文で出力してください。
+結果は200文字以内に収めてください。
 'WakeUp'のステータスの時、このキャラクターの起床時間です。以下を参考に、朝の支度から外出までの出来事を設定してください。
 ${isWeekend ? `${eventsMorningDayoff}` : `${eventsMorningWorkday}`}
 'Study'のステータスの時、このキャラクターは学校で勉強しています。以下を参考に、学校での出来事を設定してください。
