@@ -41,6 +41,11 @@ export async function generateRecommendedSong(userinfo: UserInfoGemini) {
       systemInstruction: SYSTEM_INSTRUCTION,
       responseMimeType: "application/json",
       responseSchema: SCHEMA_DJBOT,
+      tools: [
+        {
+          googleSearch: {},
+        }
+      ]
     }
   });
   const result = JSON.parse(response.text || "") as GeminiRecommendation;

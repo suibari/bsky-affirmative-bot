@@ -42,6 +42,11 @@ export async function generateMyMoodSong(currentMood: string, langStr: LanguageN
       systemInstruction: SYSTEM_INSTRUCTION,
       responseMimeType: "application/json",
       responseSchema: SCHEMA_DJBOT,
+      tools: [
+        {
+          googleSearch: {},
+        }
+      ]
     }
   });
   const result = JSON.parse(response.text || "") as GeminiRecommendation;
@@ -57,6 +62,8 @@ return `あなたの今の気分と現在の時間にあった曲を選曲して
 # ルール
 * 実在しない曲は挙げてはいけません。
 * ${langStr}の曲を挙げてください。
+* 必ず、商業的にリリースされ、Youtubeで確認できる曲を挙げてください。
+* 曲名・アーティスト名を正確に出力してください。
 -----
 現在の時間: ${getFullDateAndTimeString()}
 今の気分: ${currentMood}

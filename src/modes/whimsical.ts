@@ -31,7 +31,8 @@ export async function doWhimsicalPost () {
   // ムードソング
   const result = await generateMyMoodSong(currentMood, langStr);
   const resultYoutube = await searchYoutubeLink(`"${result.title}" "${result.artist}"`);
-  text_bot += `\n\n${resultYoutube}`;
+  const songInfo = `\n\nMyMoodSong:\n${result.title} - ${result.artist}\n${resultYoutube}`;
+  text_bot += songInfo;
 
   await postContinuous(text_bot);
 
