@@ -26,8 +26,8 @@ interface BotStat {
 }
 
 const ENERGY_MAXIMUM = 10000;
-const SCHEDULE_STEP_MIN = 30;
-const SCHEDULE_STEP_MAX = 60;
+const SCHEDULE_STEP_MIN = 60;
+const SCHEDULE_STEP_MAX = 90;
 
 export class BiorhythmManager extends EventEmitter {
   private status: Status = 'Sleep';
