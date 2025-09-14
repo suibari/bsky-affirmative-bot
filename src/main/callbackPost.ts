@@ -139,7 +139,7 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
         }
 
         // --------------
-        // reply: conversation
+        // Reply: Conversation or Answer
         // --------------
         if (record.reply && isReplyOrMentionToMe(record)) {
           // 質問コーナー回答: 会話機能より優先
@@ -159,7 +159,7 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
         // ==============
         // main: 通常ポスト or botへのメンション
         // ==============
-        } else if (!isMention(record) || isReplyOrMentionToMe(record)) {
+        } else if (!record.reply || isReplyOrMentionToMe(record)) {
           let relatedPosts: string[] = []; // 類似ポスト格納用
 
           // 確率判定
