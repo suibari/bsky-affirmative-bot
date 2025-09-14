@@ -22,12 +22,13 @@ export async function postContinuous(
     uri: string,
     cid: string,
   },
-): Promise<void> {
+): Promise<{ uri: string; cid: string; }> {
   const MAX_LENGTH = 300;
   const parts = splitTextSmart(text, MAX_LENGTH);
 
   let root: Main | undefined = undefined;
   let parentPost: Main | undefined = undefined;
+  let firstPostResult: { uri: string; cid: string; } | undefined = undefined;
 
   // replyToの内容によってroot/parentPostを決定
   if (replyTo) {
@@ -104,6 +105,9 @@ export async function postContinuous(
     }
 
     const result = await post(newRecord);
+    if (isFirst) {
+      firstPostResult = result;
+    }
     parentPost = result;
 
     // 1. 最初の投稿がrootになるケース
@@ -111,6 +115,8 @@ export async function postContinuous(
       root = result;
     }
   }
+
+  return firstPostResult!;
 }
 
 function splitTextSmart(text: string, MAX_LENGTH: number): string[] {

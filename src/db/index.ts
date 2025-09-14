@@ -33,6 +33,8 @@ const desiredSchemas: Record<string, TableSchema> = {
       { name: 'last_anniv_execed_at', type: 'TIMESTAMP', default: null },
       { name: 'last_anniv_registered_at', type: 'TIMESTAMP', default: null },
       { name: 'last_status_at', type: 'TIMESTAMP', default: null },
+      { name: 'question_root_uri', type: 'TIMESTAMP', default: null },
+      { name: 'last_answered_at', type: 'TIMESTAMP', default: null },
     ]
   },
   posts: {

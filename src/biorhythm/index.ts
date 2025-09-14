@@ -16,6 +16,7 @@ import { dbPosts } from "../db";
 import { logger } from "..";
 import { generateImage } from '../gemini/generateImage';
 import { getFullDateAndTimeString } from "../gemini/util";
+import { question } from "../modes/question";
 
 type Status = 'WakeUp' | 'Study' | 'FreeTime' | 'Relax' | 'Sleep';
 interface BotStat {
@@ -150,11 +151,6 @@ export class BiorhythmManager extends EventEmitter {
     // LLMプロンプトを生成
     const prompt = this.buildPrompt(getFullDateAndTimeString(), isWeekend);
 
-    // 開発環境では常にenergyMAX
-    // if (process.env.NODE_ENV === "development") {
-    //   this.energy = ENERGY_MAXIMUM;
-    // }
-
     // RPDチェック: 超過時は全処理スキップし、丸1日後に再実行
     if (!(logger.checkRPD())) {
       console.log(`[INFO][BIORHYTHM] RPD exceeded, skipping step.`);
@@ -171,6 +167,14 @@ export class BiorhythmManager extends EventEmitter {
         if (this.status !== this.statusPrev && this.status === "Sleep") {
           console.log(`[INFO][BIORHYTHM] post goodnight!`);
           await doGoodNightPost(this.getMood);
+        }
+      }
+      
+      // おはようポスト
+      if (this.firstStepDone) {
+        if (this.status !== this.statusPrev && this.status === "WakeUp") {
+          console.log(`[INFO][BIORHYTHM] post goodmorning!`);
+          await question.postQuestion();
         }
       }
       this.firstStepDone = true;

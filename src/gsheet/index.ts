@@ -1,5 +1,4 @@
 import { google } from 'googleapis';
-import { readFileSync } from 'fs';
 import retry from 'async-retry';
 
 let cachedDids: string[] = [];

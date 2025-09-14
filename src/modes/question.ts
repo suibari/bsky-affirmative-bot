@@ -1,0 +1,75 @@
+import { readFileSync } from "fs";
+import { generateQuestion } from "../gemini/generateQuestion";
+import { postContinuous } from "../bsky/postContinuous";
+import { logger } from "..";
+import { db } from "../db";
+import { ProfileView } from "@atproto/api/dist/client/types/app/bsky/actor/defs";
+import { getSubscribersFromSheet } from "../gsheet";
+import { generateQuestionsAnswer } from "../gemini/generateQuestionsAnswer";
+import { CommitCreateEvent } from "@skyware/jetstream";
+import { Record } from "@atproto/api/dist/client/types/app/bsky/feed/post";
+import { uniteDidNsidRkey } from "../bsky/util";
+
+class QuestionMode {
+  private uriQuestionRoot: string | undefined;
+  private themeQuestion: string | undefined;
+
+  constructor() {
+    const {uriQuestionRoot, themeQuestion} = logger.getQuestionState();
+    if (uriQuestionRoot && themeQuestion) {
+      this.uriQuestionRoot = uriQuestionRoot;
+      this.themeQuestion = themeQuestion;
+    } else {
+      console.log("[INFO] No question_root_uri found in log.json");
+    }
+  }
+
+  async postQuestion() {
+    // 質問生成
+    const {text, theme} = await generateQuestion();
+
+    // 投稿
+    const {uri, cid} = await postContinuous(text);
+
+    // 質問記憶更新
+    this.uriQuestionRoot = uri;
+    logger.setQuestionState(uri, theme);
+    console.log(`[INFO][QUESTION] Posted question: ${uri} / theme: ${theme}`);
+  }
+
+  async postReplyOfAnswer(event: CommitCreateEvent<"app.bsky.feed.post">, follower: ProfileView) {
+    const record = event.commit.record as Record;
+    const uri = uniteDidNsidRkey(follower.did, event.commit.collection, event.commit.rkey);
+
+    // 回答制限のチェック
+    const rows = await db.selectRows(["did", "question_root_uri", "last_answered_at"]);
+    const todaysAnswered = rows?.filter(row => {row.question_root_uri === this.uriQuestionRoot});
+    // * 回答済みなら早期リターン
+    if (todaysAnswered?.some(row => {row.did === follower.did})) {
+      return false;
+    }
+    // * 10件以上回答済みなら非サブスクは早期リターン
+    const subscribers = await getSubscribersFromSheet();
+    if (todaysAnswered && todaysAnswered.length >= 10 && subscribers.includes(follower.did) === false) {
+      return false;
+    }
+
+    // 質問への回答
+    const text = await generateQuestionsAnswer({
+      follower,
+      posts: [record.text],
+    }, this.themeQuestion ?? "");
+    await postContinuous(text, {
+      uri,
+      cid: String(event.commit.cid),
+      record,
+    });
+
+    // DB更新
+    db.updateDb(follower.did, "question_root_uri", this.uriQuestionRoot);
+    db.updateDb(follower.did, "last_answered_at", new Date().toISOString());
+    console.log(`[INFO][QUESTION] Replied to answer from ${follower.did}: ${uri}`);
+  }
+}
+
+export const question = new QuestionMode();

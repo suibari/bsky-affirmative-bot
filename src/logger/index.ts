@@ -37,6 +37,8 @@ export class Logger extends EventEmitter {
   private dailyStats: DailyStats;
   private biorhythmState: BiorhythmState;
   private uniqueAffirmations: string[];
+  private uriQuestionRoot?: string;
+  private themeQuestion?: string;
 
   constructor() {
     super();
@@ -139,7 +141,9 @@ export class Logger extends EventEmitter {
           lastInitializedDate: this.dailyStats.lastInitializedDate,
         },
         biorhythmState: this.biorhythmState,
-        uniqueAffirmations: this.uniqueAffirmations, // Add this line
+        uniqueAffirmations: this.uniqueAffirmations,
+        uriQuestionRoot: this.uriQuestionRoot,
+        themeQuestion: this.themeQuestion,
       };
       await fs.writeFile(LOG_FILE_PATH, JSON.stringify(dataToSave, null, 2));
       // console.log("[INFO] Log data saved successfully.");
@@ -311,5 +315,18 @@ export class Logger extends EventEmitter {
       this.init();
       setInterval(() => this.init(), 24 * 60 * 60 * 1000);
     }, delay);
+  }
+
+  setQuestionState(uriRoot: string, theme: string) {
+    this.uriQuestionRoot = uriRoot;
+    this.themeQuestion = theme;
+    this.saveLogToFile();
+  }
+
+  getQuestionState() {
+    return {
+      uriQuestionRoot: this.uriQuestionRoot,
+      themeQuestion: this.themeQuestion,
+    };
   }
 }

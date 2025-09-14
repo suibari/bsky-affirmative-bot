@@ -23,6 +23,7 @@ import { isMention, isReplyOrMentionToMe } from "../bsky/util";
 import { getConcatAuthorFeed } from "../bsky/getConcatAuthorFeed";
 import { embeddingTexts } from "../gemini/embeddingTexts";
 import { execConfirmStatus } from "../modes/status";
+import { question } from "../modes/question";
 
 const OFFSET_UTC_TO_JST = 9 * 60 * 60 * 1000; // offset: +9h (to JST from UTC <SQlite3>)
 const MINUTES_THRD_RESPONSE = 10 * 60 * 1000; // 10min
@@ -135,6 +136,10 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
             botBiothythmManager.addCheer();
             return;
           }
+        }
+
+        if (await question.postReplyOfAnswer(event, follower)) {
+          return;
         }
 
         // --------------
