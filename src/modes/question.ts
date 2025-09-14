@@ -43,9 +43,9 @@ class QuestionMode {
 
     // 回答制限のチェック
     const rows = await db.selectRows(["did", "question_root_uri", "last_answered_at"]);
-    const todaysAnswered = rows?.filter(row => {row.question_root_uri === this.uriQuestionRoot});
+    const todaysAnswered = rows?.filter(row => row.question_root_uri === this.uriQuestionRoot);
     // * 回答済みなら早期リターン
-    if (todaysAnswered?.some(row => {row.did === follower.did})) {
+    if (todaysAnswered?.some(row => row.did === follower.did)) {
       return false;
     }
     // * 10件以上回答済みなら非サブスクは早期リターン
