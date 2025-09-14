@@ -19,5 +19,5 @@ const PROMPT_QUESTIONSANSWER = (userinfo: UserInfoGemini, questionTheme: string)
   `今回の質問のテーマ: ${questionTheme}\n` +
   `---ユーザーの回答---\n` +
   `ユーザー名: ${userinfo.follower.displayName}\n` +
-  `ユーザー回答: ${userinfo.posts || ""}`
+  `ユーザー回答: ${userinfo.posts?.[0] || ""}`
 }

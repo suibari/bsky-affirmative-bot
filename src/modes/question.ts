@@ -8,22 +8,9 @@ import { getSubscribersFromSheet } from "../gsheet";
 import { generateQuestionsAnswer } from "../gemini/generateQuestionsAnswer";
 import { CommitCreateEvent } from "@skyware/jetstream";
 import { Record } from "@atproto/api/dist/client/types/app/bsky/feed/post";
-import { uniteDidNsidRkey } from "../bsky/util";
+import { getLangStr, uniteDidNsidRkey } from "../bsky/util";
 
 class QuestionMode {
-  private uriQuestionRoot: string | undefined;
-  private themeQuestion: string | undefined;
-
-  constructor() {
-    const {uriQuestionRoot, themeQuestion} = logger.getQuestionState();
-    if (uriQuestionRoot && themeQuestion) {
-      this.uriQuestionRoot = uriQuestionRoot;
-      this.themeQuestion = themeQuestion;
-    } else {
-      console.log("[INFO] No question_root_uri found in log.json");
-    }
-  }
-
   async postQuestion() {
     // 質問生成
     const {text, theme} = await generateQuestion();
@@ -32,18 +19,27 @@ class QuestionMode {
     const {uri, cid} = await postContinuous(text);
 
     // 質問記憶更新
-    this.uriQuestionRoot = uri;
     logger.setQuestionState(uri, theme);
     console.log(`[INFO][QUESTION] Posted question: ${uri} / theme: ${theme}`);
+
+    return true;
   }
 
   async postReplyOfAnswer(event: CommitCreateEvent<"app.bsky.feed.post">, follower: ProfileView) {
     const record = event.commit.record as Record;
+    const langStr = getLangStr(record.langs);
     const uri = uniteDidNsidRkey(follower.did, event.commit.collection, event.commit.rkey);
+
+    // 質問情報取得
+    const {uriQuestionRoot, themeQuestion} = logger.getQuestionState();
+    if (!uriQuestionRoot || !themeQuestion) {
+      console.log(`[INFO][${follower.did}] No question_root_uri or themeQuestion found. Skipping reply.`);
+      return false;
+    }
 
     // 回答制限のチェック
     const rows = await db.selectRows(["did", "question_root_uri", "last_answered_at"]);
-    const todaysAnswered = rows?.filter(row => row.question_root_uri === this.uriQuestionRoot);
+    const todaysAnswered = rows?.filter(row => row.question_root_uri === uriQuestionRoot);
     // * 回答済みなら早期リターン
     if (todaysAnswered?.some(row => row.did === follower.did)) {
       return false;
@@ -58,7 +54,8 @@ class QuestionMode {
     const text = await generateQuestionsAnswer({
       follower,
       posts: [record.text],
-    }, this.themeQuestion ?? "");
+      langStr,
+    }, themeQuestion);
     await postContinuous(text, {
       uri,
       cid: String(event.commit.cid),
@@ -66,9 +63,11 @@ class QuestionMode {
     });
 
     // DB更新
-    db.updateDb(follower.did, "question_root_uri", this.uriQuestionRoot);
+    db.updateDb(follower.did, "question_root_uri", uriQuestionRoot);
     db.updateDb(follower.did, "last_answered_at", new Date().toISOString());
     console.log(`[INFO][QUESTION] Replied to answer from ${follower.did}: ${uri}`);
+
+    return true;
   }
 }
 

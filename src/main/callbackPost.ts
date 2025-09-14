@@ -138,14 +138,15 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
           }
         }
 
-        if (await question.postReplyOfAnswer(event, follower)) {
-          return;
-        }
-
         // --------------
         // reply: conversation
         // --------------
-        if (record.reply) {
+        if (record.reply && isReplyOrMentionToMe(record)) {
+          // 質問コーナー回答: 会話機能より優先
+          if (await question.postReplyOfAnswer(event, follower)) {
+            return;
+          }
+
           // サブスクライバー限定で会話機能発動する
           if (subscribers.includes(follower.did)) {
             if (await handleConversation(event, follower, db) && logger.checkRPD()) {
