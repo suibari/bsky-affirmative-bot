@@ -144,6 +144,8 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
         if (record.reply && isReplyOrMentionToMe(record)) {
           // 質問コーナー回答: 会話機能より優先
           if (await question.postReplyOfAnswer(event, follower)) {
+            logger.addAnswer();
+            botBiothythmManager.addAnswer();
             return;
           }
 

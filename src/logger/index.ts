@@ -18,6 +18,7 @@ export interface DailyStats {
   analysis: number;
   dj: number;
   anniversary: number;
+  answer: number;
   topPost: string;
   botComment: string;
   bskyrate: number;
@@ -55,6 +56,7 @@ export class Logger extends EventEmitter {
       analysis: 0,
       dj: 0,
       anniversary: 0,
+      answer: 0,
       bskyrate: 0,
       rpd: 0,
       topPost: "",
@@ -88,6 +90,7 @@ export class Logger extends EventEmitter {
         analysis: 0,
         dj: 0,
         anniversary: 0,
+        answer: 0,
         bskyrate: 0,
         rpd: 0,
         topPost: "",
@@ -166,6 +169,7 @@ export class Logger extends EventEmitter {
       analysis: 0,
       dj: 0,
       anniversary: 0,
+      answer: 0,
       bskyrate: 0,
       rpd: 0,
       topPost: "",
@@ -264,6 +268,12 @@ export class Logger extends EventEmitter {
     this.emit("statsChange");
   }
 
+  addAnswer() {
+    this.dailyStats.answer++;
+    this.saveLogToFile();
+    this.emit("statsChange");
+  }
+
   updateTopPost(uri: string, comment: string) {
     this.dailyStats.topPost = uri;
     this.dailyStats.botComment = comment;
@@ -282,6 +292,7 @@ export class Logger extends EventEmitter {
       analysis: this.dailyStats.analysis,
       dj: this.dailyStats.dj,
       anniversary: this.dailyStats.anniversary,
+      answer: this.dailyStats.answer,
       topPost: this.dailyStats.topPost,
       botComment: this.dailyStats.botComment,
       bskyrate: this.dailyStats.bskyrate,

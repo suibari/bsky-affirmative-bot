@@ -95,6 +95,10 @@ export class BiorhythmManager extends EventEmitter {
   }
 
   addAnniversary() {
+    this.changeEnergy(10);
+  }
+
+  addAnswer() {
     this.changeEnergy(50);
   }
 
