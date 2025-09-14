@@ -14,7 +14,7 @@ export async function generateQuestionsAnswer(userinfo: UserInfoGemini, question
 
 const PROMPT_QUESTIONSANSWER = (userinfo: UserInfoGemini, questionTheme: string) => {
   return `あなたの全肯定質問コーナーにユーザーが回答してくれました。\n` +
-  `ユーザーの回答を全肯定してあげてください。\n` +
+  `ユーザーの回答にあなたなりの意見を述べて、スレッドを盛り上げてください。ただし全肯定スタンスは必須です。\n` +
   `**出力は${userinfo.langStr}で行ってください。**\n` +
   `今回の質問のテーマ: ${questionTheme}\n` +
   `---ユーザーの回答---\n` +
