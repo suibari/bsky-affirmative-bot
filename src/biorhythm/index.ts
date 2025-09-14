@@ -145,9 +145,6 @@ export class BiorhythmManager extends EventEmitter {
       this.status = newStatus;
     }
 
-    // エネルギー変動処理
-    this.handleEnergyByStatus();
-
     // LLMプロンプトを生成
     const prompt = this.buildPrompt(getFullDateAndTimeString(), isWeekend);
 
@@ -175,6 +172,7 @@ export class BiorhythmManager extends EventEmitter {
         if (this.status !== this.statusPrev && this.status === "WakeUp") {
           console.log(`[INFO][BIORHYTHM] post goodmorning!`);
           await question.postQuestion();
+          this.energy -= 6000;
         }
       }
       this.firstStepDone = true;
@@ -192,6 +190,9 @@ export class BiorhythmManager extends EventEmitter {
       // エラー時はスキップする
       console.error(e);
     }
+
+    // エネルギー変動処理
+    this.handleEnergyByStatus();
 
     // ログ出力
     console.log(`[INFO][BIORHYTHM] status: ${this.status}, energy: ${this.getEnergy}, action: ${this.getMood}`);
@@ -218,29 +219,6 @@ export class BiorhythmManager extends EventEmitter {
     if (hour >= 17 && hour < 19) return 'FreeTime';
     if (hour >= 19 && hour < 22) return 'Relax';
     return 'Sleep';
-  }
-
-  private handleEnergyByStatus() {
-    if (this.status !== this.statusPrev) {
-      // 遷移した場合だけ処理
-      if (this.status === 'Sleep') {
-        this.energy = Math.max(this.energy - 2000, 0);
-      }
-    }
-
-    // 状態にかかわらず、現在の行動によるランダム変動（継続状態でも発生）
-    // if (this.status === 'Study') {
-    //   this.energy += Math.floor(Math.random() * 1100) - 500; // -500 ~ +500
-    // } else if (this.status === 'FreeTime') {
-    //   this.energy += Math.floor(Math.random() * 900) + 200; // +200 ~ +1000
-    // }
-
-    // 範囲を保証
-    const newEnergy = Math.max(0, Math.min(ENERGY_MAXIMUM, this.energy));
-    if (newEnergy !== this.energy) {
-      this.energy = newEnergy;
-      logger.updateBiorhythmState(this.energy, this.moodPrev, this.status);
-    }
   }
 
   private buildPrompt(timeNow: string, isWeekend: Boolean): string {
@@ -307,4 +285,26 @@ ${eventsMidnight}
     }
   }
 
+  private handleEnergyByStatus() {
+    if (this.status !== this.statusPrev) {
+      // 遷移した場合だけ処理
+      if (this.status === 'Sleep') {
+        this.energy = Math.max(this.energy - 2000, 0);
+      }
+    }
+
+    // 状態にかかわらず、現在の行動によるランダム変動（継続状態でも発生）
+    // if (this.status === 'Study') {
+    //   this.energy += Math.floor(Math.random() * 1100) - 500; // -500 ~ +500
+    // } else if (this.status === 'FreeTime') {
+    //   this.energy += Math.floor(Math.random() * 900) + 200; // +200 ~ +1000
+    // }
+
+    // 範囲を保証
+    const newEnergy = Math.max(0, Math.min(ENERGY_MAXIMUM, this.energy));
+    if (newEnergy !== this.energy) {
+      this.energy = newEnergy;
+      logger.updateBiorhythmState(this.energy, this.moodPrev, this.status);
+    }
+  }
 }
