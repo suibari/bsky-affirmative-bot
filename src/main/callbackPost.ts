@@ -246,7 +246,7 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
       }
     )
   } catch (e) {
-    
+    console.error(`[ERROR][${did}] callbackPost failed unexpectedly:`, e);
   }
 }
 

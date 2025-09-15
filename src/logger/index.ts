@@ -137,6 +137,7 @@ export class Logger extends EventEmitter {
           analysis: this.dailyStats.analysis,
           dj: this.dailyStats.dj,
           anniversary: this.dailyStats.anniversary,
+          answer: this.dailyStats.answer, // Add answer here
           topPost: this.dailyStats.topPost,
           botComment: this.dailyStats.botComment,
           bskyrate: this.dailyStats.bskyrate,
