@@ -279,13 +279,13 @@ ${eventsMidnight}
       logger.updateBiorhythmState(this.energy, this.moodPrev, this.status);
 
       // Generate image and store it
-      try {
-        // Assuming generateImage takes a string and returns a Buffer
-        this._generatedImage = await generateImage(newOutput);
-      } catch (error) {
-        console.error("Error generating image:", error);
-        this._generatedImage = null; // Clear image on error
-      }
+      // try {
+      //   // Assuming generateImage takes a string and returns a Buffer
+      //   this._generatedImage = await generateImage(newOutput);
+      // } catch (error) {
+      //   console.error("Error generating image:", error);
+      //   this._generatedImage = null; // Clear image on error
+      // }
     }
   }
 

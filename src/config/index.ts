@@ -103,8 +103,8 @@ export const OHAYO_WORDS = ["おは"];
 export const OYASUMI_WORDS = ["おやす"];
 export const OTSUKARE_WORDS = ["お疲れ", "おつ", "しごおわ"];
 
-export const EXEC_PER_COUNTS = 40; // 何回に1回AI応答するか
-export const LIMIT_REQUEST_PER_DAY_GEMINI = 1500;
+export const EXEC_PER_COUNTS = 20; // 何回に1回AI応答するか
+export const LIMIT_REQUEST_PER_DAY_GEMINI = 1000;
 export const TOTAL_SCORE_FOR_AUTONOMOUS = process.env.NODE_ENV === "development" ? 100 : (30000 / EXEC_PER_COUNTS); // このスコアがたまったらbotが自律ポスト
 
 // -------------------
