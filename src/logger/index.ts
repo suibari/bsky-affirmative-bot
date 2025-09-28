@@ -3,6 +3,7 @@ import fs from "fs/promises";
 import path from "path";
 import EventEmitter from "events";
 import { LIMIT_REQUEST_PER_DAY_GEMINI } from "../config/index.js";
+import { LanguageName } from "../types.js";
 
 const REQUEST_PER_DAY_GEMINI = 100;
 const LOG_FILE_PATH = path.join(process.cwd(), "log.json");
@@ -19,6 +20,7 @@ export interface DailyStats {
   dj: number;
   anniversary: number;
   answer: number;
+  lang: Map<LanguageName, number>;
   topPost: string;
   botComment: string;
   bskyrate: number;
@@ -59,6 +61,7 @@ export class Logger extends EventEmitter {
       answer: 0,
       bskyrate: 0,
       rpd: 0,
+      lang: new Map<LanguageName, number>(),
       topPost: "",
       botComment: "",
       lastInitializedDate: new Date(),
@@ -93,6 +96,7 @@ export class Logger extends EventEmitter {
         answer: 0,
         bskyrate: 0,
         rpd: 0,
+        lang: new Map<LanguageName, number>(),
         topPost: "",
         botComment: "",
         lastInitializedDate: new Date(),
@@ -101,6 +105,10 @@ export class Logger extends EventEmitter {
 
       // Load or use defaults for the main objects
       this.dailyStats = { ...defaultDailyStats, ...(parsedData.dailyStats || {}) };
+      // Handle lang property separately as it's a Map
+      if (parsedData.dailyStats?.lang) {
+        this.dailyStats.lang = new Map<LanguageName, number>(parsedData.dailyStats.lang);
+      }
       this.biorhythmState = { ...defaultBiorhythmState, ...(parsedData.biorhythmState || {}) };
       // Load uniqueAffirmations if available, otherwise initialize as empty array
       this.uniqueAffirmations = parsedData.uniqueAffirmations || [];
@@ -142,6 +150,7 @@ export class Logger extends EventEmitter {
           botComment: this.dailyStats.botComment,
           bskyrate: this.dailyStats.bskyrate,
           rpd: this.dailyStats.rpd,
+          lang: Array.from(this.dailyStats.lang.entries()), // Convert Map to array for JSON serialization
           lastInitializedDate: this.dailyStats.lastInitializedDate,
         },
         biorhythmState: this.biorhythmState,
@@ -173,6 +182,7 @@ export class Logger extends EventEmitter {
       answer: 0,
       bskyrate: 0,
       rpd: 0,
+      lang: new Map<LanguageName, number>(),
       topPost: "",
       botComment: "",
       lastInitializedDate: new Date(),
@@ -295,6 +305,7 @@ export class Logger extends EventEmitter {
       anniversary: this.dailyStats.anniversary,
       answer: this.dailyStats.answer,
       topPost: this.dailyStats.topPost,
+      lang: this.dailyStats.lang,
       botComment: this.dailyStats.botComment,
       bskyrate: this.dailyStats.bskyrate,
       rpd: this.dailyStats.rpd,
@@ -340,5 +351,11 @@ export class Logger extends EventEmitter {
       uriQuestionRoot: this.uriQuestionRoot,
       themeQuestion: this.themeQuestion,
     };
+  }
+
+  addLang(lang: LanguageName) {
+    this.dailyStats.lang.set(lang, (this.dailyStats.lang.get(lang) ?? 0) + 1);
+    this.saveLogToFile();
+    this.emit("statsChange");
   }
 }

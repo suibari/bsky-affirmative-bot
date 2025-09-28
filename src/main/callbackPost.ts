@@ -19,7 +19,7 @@ import { replyai } from "../modes/replyai";
 import { replyrandom } from "../modes/replyrandom";
 import { EXEC_PER_COUNTS } from "../config";
 import { handleAnniversaryConfirm, handleAnniversaryExec, handleAnniversaryRegister } from "../modes/anniversary";
-import { isMention, isReplyOrMentionToMe } from "../bsky/util";
+import { getLangStr, isMention, isReplyOrMentionToMe } from "../bsky/util";
 import { getConcatAuthorFeed } from "../bsky/getConcatAuthorFeed";
 import { embeddingTexts } from "../gemini/embeddingTexts";
 import { execConfirmStatus } from "../modes/status";
@@ -233,6 +233,7 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
 
           // 全肯定した人数加算
           logger.addAffirmation(did);
+          logger.addLang(getLangStr(record.langs));
           botBiothythmManager.addAffirmation(did);
 
           // DB更新

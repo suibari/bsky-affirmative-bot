@@ -124,7 +124,7 @@ export function uniteDidNsidRkey(did: string, nsid: string, rkey:string) {
  */
 export function getLangStr(langs: string[] | undefined): LanguageName {
   const lang = (langs?.length === 1) ? langs[0] : "en" ;
-  return langMap[lang]?.name ?? langMap["en"];
+  return langMap[lang]?.name ?? langMap["en"].name;
 }
 
 /**
