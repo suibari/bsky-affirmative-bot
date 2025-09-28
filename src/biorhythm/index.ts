@@ -17,13 +17,20 @@ import { logger } from "..";
 import { generateImage } from '../gemini/generateImage';
 import { getFullDateAndTimeString } from "../gemini/util";
 import { question } from "../modes/question";
+import { LanguageName } from "../types"; // LanguageNameをインポート
 
 type Status = 'WakeUp' | 'Study' | 'FreeTime' | 'Relax' | 'Sleep';
+
+// WebSocket用にlangプロパティを配列に変換したDailyStatsの型を定義
+interface DailyStatsForWebSocket extends Omit<DailyStats, 'lang'> {
+  lang: [LanguageName, number][];
+}
+
 interface BotStat {
   energy: number;
   mood: string;
   status: string;
-  dailyStats: DailyStats;
+  dailyStats: DailyStatsForWebSocket; // 型をDailyStatsForWebSocketに変更
 }
 
 const ENERGY_MAXIMUM = 10000;
