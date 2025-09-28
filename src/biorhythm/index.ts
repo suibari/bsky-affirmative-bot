@@ -122,11 +122,15 @@ export class BiorhythmManager extends EventEmitter {
   }
 
   getCurrentState(): BotStat {
+    const dailyStats = logger.getDailyStats();
     return {
       energy: this.getEnergy,
       mood: this.getMood,
       status: this.status,
-      dailyStats: logger.getDailyStats(),
+      dailyStats: {
+        ...dailyStats,
+        lang: Array.from(dailyStats.lang.entries()), // Convert Map to array for WebSocket
+      },
     };
   }
 
