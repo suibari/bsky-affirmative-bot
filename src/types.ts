@@ -9,48 +9,125 @@ interface LanguageInfo {
 }
 
 export const languageData: LanguageInfo[] = [
+  { code: "ar", name: "Arabic" },
+  { code: "bn", name: "Bengali" },
+  { code: "bg", name: "Bulgarian" },
+  { code: "zh", name: "Chinese" },
+  { code: "hr", name: "Croatian" },
+  { code: "cs", name: "Czech" },
+  { code: "da", name: "Danish" },
+  { code: "nl", name: "Dutch" },
   { code: "en", name: "English" },
-  { code: "ja", name: "日本語" },
+  { code: "et", name: "Estonian" },
+  { code: "fi", name: "Finnish" },
   { code: "fr", name: "French" },
   { code: "de", name: "German" },
-  { code: "es", name: "Spanish" },
-  { code: "zh", name: "Chinese" },
-  { code: "ko", name: "Korean" },
+  { code: "el", name: "Greek" },
+  { code: "he", name: "Hebrew" },
+  { code: "hi", name: "Hindi" },
+  { code: "hu", name: "Hungarian" },
+  { code: "id", name: "Indonesian" },
   { code: "it", name: "Italian" },
-  { code: "ru", name: "Russian" },
-  { code: "ar", name: "Arabic" },
+  { code: "ja", name: "日本語" },
+  { code: "ko", name: "Korean" },
+  { code: "lv", name: "Latvian" },
+  { code: "lt", name: "Lithuanian" },
+  { code: "no", name: "Norwegian" },
+  { code: "pl", name: "Polish" },
   { code: "pt", name: "Portuguese" },
+  { code: "ro", name: "Romanian" },
+  { code: "ru", name: "Russian" },
+  { code: "sr", name: "Serbian" },
+  { code: "sk", name: "Slovak" },
+  { code: "sl", name: "Slovenian" },
+  { code: "es", name: "Spanish" },
+  { code: "sw", name: "Swahili" },
+  { code: "sv", name: "Swedish" },
+  { code: "th", name: "Thai" },
+  { code: "tr", name: "Turkish" },
+  { code: "uk", name: "Ukrainian" },
+  { code: "vi", name: "Vietnamese" },
 ];
 
 export type LanguageName =
+  | "Arabic"
+  | "Bengali"
+  | "Bulgarian"
+  | "Chinese"
+  | "Croatian"
+  | "Czech"
+  | "Danish"
+  | "Dutch"
   | "English"
-  | "日本語"
+  | "Estonian"
+  | "Finnish"
   | "French"
   | "German"
-  | "Spanish"
-  | "Chinese"
-  | "Korean"
+  | "Greek"
+  | "Hebrew"
+  | "Hindi"
+  | "Hungarian"
+  | "Indonesian"
   | "Italian"
+  | "日本語"
+  | "Korean"
+  | "Latvian"
+  | "Lithuanian"
+  | "Norwegian"
+  | "Polish"
+  | "Portuguese"
+  | "Romanian"
   | "Russian"
-  | "Arabic"
-  | "Portuguese";
+  | "Serbian"
+  | "Slovak"
+  | "Slovenian"
+  | "Spanish"
+  | "Swahili"
+  | "Swedish"
+  | "Thai"
+  | "Turkish"
+  | "Ukrainian"
+  | "Vietnamese";
 
 export const localeToTimezone: Record<string, string> = {
-  "ja": "Asia/Tokyo",
-  "en": "America/New_York",
-  "en-US": "America/New_York",
-  "en-GB": "Europe/London",
+  "ar": "Asia/Riyadh",
+  "bn": "Asia/Dhaka",
+  "bg": "Europe/Sofia",
+  "zh": "Asia/Shanghai",   // 中国語は単一扱い
+  "hr": "Europe/Zagreb",
+  "cs": "Europe/Prague",
+  "da": "Europe/Copenhagen",
+  "nl": "Europe/Amsterdam",
+  "en": "America/New_York", // 英語は単一扱い
+  "et": "Europe/Tallinn",
+  "fi": "Europe/Helsinki",
   "fr": "Europe/Paris",
   "de": "Europe/Berlin",
-  "es": "Europe/Madrid",
-  "zh-CN": "Asia/Shanghai",
-  "zh-TW": "Asia/Taipei",
-  "ko": "Asia/Seoul",
+  "el": "Europe/Athens",
+  "he": "Asia/Jerusalem",
+  "hi": "Asia/Kolkata",
+  "hu": "Europe/Budapest",
+  "id": "Asia/Jakarta",
   "it": "Europe/Rome",
+  "ja": "Asia/Tokyo",
+  "ko": "Asia/Seoul",
+  "lv": "Europe/Riga",
+  "lt": "Europe/Vilnius",
+  "no": "Europe/Oslo",
+  "pl": "Europe/Warsaw",
+  "pt": "Europe/Lisbon",   // ポルトガル語は単一扱い
+  "ro": "Europe/Bucharest",
   "ru": "Europe/Moscow",
-  "ar": "Asia/Riyadh",
-  "pt-BR": "America/Sao_Paulo",
-  "pt-PT": "Europe/Lisbon",
+  "sr": "Europe/Belgrade",
+  "sk": "Europe/Bratislava",
+  "sl": "Europe/Ljubljana",
+  "es": "Europe/Madrid",
+  "sw": "Africa/Nairobi",
+  "sv": "Europe/Stockholm",
+  "th": "Asia/Bangkok",
+  "tr": "Europe/Istanbul",
+  "uk": "Europe/Kyiv",
+  "vi": "Asia/Ho_Chi_Minh",
 };
 
 export type LangMap = {
