@@ -1,5 +1,5 @@
 import { BlobRef } from "@atproto/api";
-import { ProfileView } from "@atproto/api/dist/client/types/app/bsky/actor/defs";
+import { ProfileView, ProfileViewDetailed } from "@atproto/api/dist/client/types/app/bsky/actor/defs";
 import { Content, Type } from "@google/genai";
 import { Record as PostRecord } from "@atproto/api/dist/client/types/app/bsky/feed/post";
 
@@ -154,7 +154,15 @@ export type UserInfoGemini = {
     profile: ProfileView;
     post: string;
   }
+  embed?: Embed;
 };
+
+export interface Embed {
+  profile_embed?: ProfileViewDetailed;
+  text_embed?: string;
+  uri_embed?: string;
+  image_embed?: ImageRef[];
+}
 
 export interface ImageRef {
   image_url: string;

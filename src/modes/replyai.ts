@@ -11,7 +11,7 @@ import { getImageUrl, getLangStr, splitUri, uniteDidNsidRkey } from "../bsky/uti
 import { generateAffirmativeWord } from "../gemini/generateAffirmativeWord.js";
 import { Record } from "@atproto/api/dist/client/types/app/bsky/feed/post";
 import { replyrandom } from "../modes/replyrandom.js";
-import { GeminiScore, ImageRef } from "../types.js";
+import { Embed, GeminiScore, ImageRef } from "../types.js";
 import { dbLikes, dbPosts } from "../db/index.js";
 import { postContinuous } from "../bsky/postContinuous.js";
 import { agent } from "../bsky/agent.js";
@@ -22,8 +22,10 @@ import { embeddingTexts } from "../gemini/embeddingTexts.js";
 import { getConcatProfiles } from "../bsky/getConcatProfiles.js";
 import { AtpAgent } from "@atproto/api";
 import { getPds } from "../bsky/getPds.js";
+import { parseEmbedPost } from "../bsky/parseEmbedPost.js";
+import { followers } from "../index.js";
 
-const NOUN_MATCH_NUM = 5; // フォロワーの友人を探す際の名詞一致数の閾値
+const NOUN_MATCH_NUM = 4; // フォロワーの友人を探す際の名詞一致数の閾値
 
 export async function replyai(
   follower: ProfileView,
@@ -38,11 +40,28 @@ export async function replyai(
   let result: GeminiScore | undefined;
   const text_user = record.text;
   const image = getImageUrl(follower.did, record.embed);
-  
+
+  // 引用ポスト解析
+  let embed: Embed | undefined = undefined;
+  const embed_tmp = await parseEmbedPost(record);
+  if (embed_tmp && embed_tmp.profile_embed &&
+    (
+      followers.find(follower => follower.did === embed_tmp.profile_embed?.did) ||
+      process.env.BSKY_DID === embed_tmp.profile_embed?.did // botの投稿を引用でも反応する
+    )
+  ){
+    // フォロワーに引用先が含まれるならセット
+    embed = embed_tmp;
+    if (embed.image_embed) {
+      image.push(...embed.image_embed);
+    }
+  }
+
   if (process.env.NODE_ENV === "development") {
     console.log("[DEBUG] user>>> " + text_user);
     console.log("[DEBUG] image: " + image?.map(img => img.image_url).join(", "));
     console.log("[DEBUG] lang: " + langStr);
+    console.log(`[DEBUG] embed: ${embed?.text_embed}`)
   }
 
   try {
@@ -56,26 +75,6 @@ export async function replyai(
     let followersFriend: { profile: ProfileView; post: string; uri: string } | undefined = undefined;
     followersFriend = await getFollowersFriend(text_user, follower.did, NOUN_MATCH_NUM);
 
-    // cid取得: NOTE, 格納時に取得した方がいいのかな？
-    let embed: {uri: string, cid: string} | undefined = undefined;
-    if (followersFriend) {
-      console.log(`[INFO][BATON] Found followersFriend for ${follower.did}: - ${followersFriend.post}`);
-      const {did, nsid, rkey} = splitUri(followersFriend.uri);
-      const agentPDS = new AtpAgent({service: await getPds(did!)});
-      const response = await agentPDS.com.atproto.repo.getRecord({
-        repo: did,
-        collection: nsid,
-        rkey,
-      });
-      const cid = response.data.cid!;
-
-      // NOTE: 引用はいったんひかえる
-      // embed = {
-      //   uri: followersFriend.uri,
-      //   cid,
-      // }
-    }
-
     // Gemini生成
     result = await generateAffirmativeWord({
       follower,
@@ -84,6 +83,7 @@ export async function replyai(
       likedByFollower: likedPost,
       image,
       followersFriend,
+      embed,
     });
 
     // お気に入りポスト登録
@@ -98,7 +98,7 @@ export async function replyai(
 
     // ポスト
     const text_bot = result?.comment || "";
-    await postContinuous(text_bot, { uri, cid, record }, undefined, embed);
+    await postContinuous(text_bot, { uri, cid, record }, undefined);
 
     return result;
   } catch (e: any) {

@@ -7,11 +7,12 @@ import { agent } from "../bsky/agent.js";
 import { getImageUrl, getLangStr, isReplyOrMentionToMe, splitUri, uniteDidNsidRkey } from "../bsky/util.js";
 import { conversation } from "../gemini/conversation.js";
 import { handleMode } from "./index.js";
-import { GeminiResponseResult, ImageRef, UserInfoGemini } from "../types.js";
+import { Embed, GeminiResponseResult, ImageRef, UserInfoGemini } from "../types.js";
 import { SQLite3 } from "../db/index.js";
 import { Content } from "@google/genai";
 import { parseThread, ParsedThreadResult } from "../bsky/parseThread.js";
-import { logger } from "../index.js"; // Assuming logger is still needed for other purposes
+import { followers, logger } from "../index.js"; // Assuming logger is still needed for other purposes
+import { parseEmbedPost } from '../bsky/parseEmbedPost.js';
 
 const MAX_BOT_MEMORY = 100;
 
@@ -21,6 +22,22 @@ export async function handleConversation (event: CommitCreateEvent<"app.bsky.fee
 
   // 添付画像取得
   const image = getImageUrl(follower.did, record.embed);
+
+  // 引用
+  let embed: Embed | undefined = undefined;
+  const embed_tmp = await parseEmbedPost(record);
+  if (embed_tmp && embed_tmp.profile_embed &&
+    (
+      followers.find(follower => follower.did === embed_tmp.profile_embed?.did) ||
+      process.env.BSKY_DID === embed_tmp.profile_embed?.did // botの投稿を引用でも反応する
+    )
+  ){
+    // フォロワーに引用先が含まれるならセット
+    embed = embed_tmp;
+    if (embed.image_embed) {
+      image.push(...embed.image_embed);
+    }
+  }
   
   // 前回までの会話取得
   let history = (await db.selectDb(follower.did, "conv_history")) as Content[] | undefined;
@@ -76,6 +93,7 @@ export async function handleConversation (event: CommitCreateEvent<"app.bsky.fee
     langStr: getLangStr(record.langs),
     image,
     history,
+    embed,
   });
 }
 

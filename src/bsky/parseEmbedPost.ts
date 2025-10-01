@@ -1,52 +1,59 @@
-import { AppBskyEmbedExternal, AppBskyEmbedImages,AppBskyEmbedRecord, BlobRef } from "@atproto/api";
+import { AppBskyEmbedExternal, AppBskyEmbedImages,AppBskyEmbedRecord, AppBskyEmbedRecordWithMedia, BlobRef } from "@atproto/api";
 import { Record } from "@atproto/api/dist/client/types/app/bsky/feed/post";
 import { agent } from "./agent.js"
-import { logger } from "../index.js";
+import { ProfileViewDetailed } from "@atproto/api/dist/client/types/app/bsky/actor/defs.js";
+import { getImageUrl, splitUri } from "./util.js";
+import { Embed, ImageRef } from "../types.js";
 
 /**
  * 引用ポストの解析
  * @param record 
  * @returns 
  */
-export async function parseEmbedPost(record: Record) {
-  const embed = record.embed as AppBskyEmbedRecord.Main | AppBskyEmbedExternal.Main;
+export async function parseEmbedPost(record: Record): Promise<Embed | undefined> {
+  const embed = record.embed;
 
-  let text_embed: string | null = null;
-  let uri_embed: string | null = null;
-  let image_embed: string | null = null;
+  if (embed && (AppBskyEmbedRecord.isMain(embed) || AppBskyEmbedRecordWithMedia.isMain(embed))) {
+    let uri: string | undefined;
+    if (AppBskyEmbedRecord.isMain(embed)) {
+      uri = (embed as AppBskyEmbedRecord.Main).record.uri;
+    } else if (AppBskyEmbedRecordWithMedia.isMain(embed)) {
+      uri = (embed as AppBskyEmbedRecordWithMedia.Main).record.record.uri;
+    } else {
+      uri = undefined;
+    }
 
-  if (embed.$type === 'app.bsky.embed.record') {
-    const did_embed = embed.record.uri.split('/')[2];
-    const nsid_embed = embed.record.uri.split('/')[3];
-    const rkey_embed = embed.record.uri.split('/')[4];
+    if (!uri) return undefined;
+    const {did, nsid, rkey} = splitUri(uri)
+
     try {
       const response =  await agent.com.atproto.repo.getRecord({
-        repo: did_embed,
-        collection: nsid_embed,
-        rkey: rkey_embed
+        repo: did,
+        collection: nsid,
+        rkey: rkey,
       });
       
+      // embed user
+      const response_prof = await agent.app.bsky.actor.getProfile({actor: did});
+      const profile_embed = response_prof.data; 
+
       // embed text
       const value_embed = response.data.value as Record;
-      text_embed = value_embed.text ?? "";
+      const text_embed = value_embed.text ?? "";
   
       // embed image
-      let image_embed_blob: BlobRef | undefined;
-      if (
-        value_embed.embed &&
-        (value_embed.embed as AppBskyEmbedImages.Main).images &&
-        Array.isArray((value_embed.embed as AppBskyEmbedImages.Main).images)
-      ) {
-        image_embed_blob = (value_embed.embed as AppBskyEmbedImages.Main).images[0]?.image;
-      }
-      image_embed = image_embed_blob ? `https://cdn.bsky.app/img/feed_thumbnail/plain/${did_embed}/${(image_embed_blob.ref as any).$link}` : null;
+      const image_embed = getImageUrl(did, embed)
+
+      return {profile_embed, text_embed, image_embed};
     } catch (error) {
-      console.warn(`Could not fetch embed record: ${embed.record.uri}`);
+      console.warn(`Could not fetch embed record: ${embed.record}`);
       console.warn(error);
     }
-  } else if (embed.$type === 'app.bsky.embed.external') {
-    uri_embed = embed.external.uri;
+  } else if (AppBskyEmbedExternal.isMain(embed)) {
+    const uri_embed = embed.external.uri;
+
+    return {uri_embed};
   }
 
-  return {text_embed, uri_embed, image_embed};
+  return undefined;
 }

@@ -34,6 +34,7 @@ const PROMPT_AFFIRMATIVE_WORD = async (userinfo: UserInfoGemini) => {
      ${userinfo.followersFriend 
       ? `* フォロワー名: ${userinfo.followersFriend.profile.displayName}  
         * ポスト: ${userinfo.followersFriend.post}` : ""}
+   - ${userinfo.embed ? "ユーザはポストを引用しているので、そのポストの内容を踏まえて今回のポストを褒めてください。" : ""}
 
    **注意: commentにはscoreに関する情報を絶対に含めないこと**
 
@@ -53,6 +54,7 @@ ${(await fetchNews("ja")).map(article => `- ${article.title}`).join("\n")}
 ## ユーザ投稿
 - ユーザ名: ${userinfo.follower.displayName}
 - 今回のポスト: ${userinfo.posts?.[0] || ""}
+- ユーザが引用したポスト: ${userinfo.embed ? userinfo.embed.text_embed + " by " + userinfo.embed.profile_embed?.displayName : "なし"}
 - 過去のポスト（直接言及しないこと）: ${userinfo.posts?.slice(1) ?? "なし"}
 ` :
 `Please generate the following outputs in ${userinfo.langStr}.
@@ -70,6 +72,7 @@ ${(await fetchNews("ja")).map(article => `- ${article.title}`).join("\n")}
      ${userinfo.followersFriend 
       ? `* Follower Name: ${userinfo.followersFriend.profile.displayName}  
         * Follower's Post: ${userinfo.followersFriend.post}` : ""}
+   - ${userinfo.embed ? "The user is quoting a post, so please use that post's content to praise this post." : ""}
 
    **Important: Do not reveal score in the comment.**
 
@@ -88,6 +91,7 @@ ${(await fetchNews("en")).map(article => `- ${article.title}`).join("\n")}
 ---
 ## User post
 - Username: ${userinfo.follower.displayName}  
-- This Post: ${userinfo.posts?.[0] || ""}  
+- This Post: ${userinfo.posts?.[0] || ""}
+- Posts quoted by this user: ${userinfo.embed ? userinfo.embed.text_embed + " by " + userinfo.embed.profile_embed?.displayName : "None"}
 - Previous Posts (do not directly mention): ${userinfo.posts?.slice(1) ?? "None"}
 `};

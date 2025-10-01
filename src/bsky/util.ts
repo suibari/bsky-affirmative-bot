@@ -1,4 +1,4 @@
-import { $Typed, AppBskyEmbedDefs, AppBskyEmbedExternal, AppBskyEmbedImages, AppBskyEmbedNS, AppBskyEmbedRecordWithMedia, AppBskyEmbedVideo } from "@atproto/api";
+import { $Typed, AppBskyEmbedDefs, AppBskyEmbedExternal, AppBskyEmbedImages, AppBskyEmbedNS, AppBskyEmbedRecord, AppBskyEmbedRecordWithMedia, AppBskyEmbedVideo } from "@atproto/api";
 import { PostView } from "@atproto/api/dist/client/types/app/bsky/feed/defs";
 import * as AppBskyFeedPost from "@atproto/api/dist/client/types/app/bsky/feed/post"; // Changed import to use namespace
 

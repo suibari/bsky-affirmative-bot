@@ -69,14 +69,14 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
         }
         // parse embed
         if (record.embed) {
-          const {text_embed, uri_embed, image_embed} = await parseEmbedPost(record);
+          const embed = await parseEmbedPost(record);
           // check embed text
           const isIncludedDonateQuote = 
             donate_word.some(elem => 
-              text_embed?.toLowerCase().includes(elem.toLowerCase())
+              embed?.text_embed?.toLowerCase().includes(elem.toLowerCase())
             ) || 
             donate_word.some(elem =>
-              uri_embed?.toLowerCase().includes(elem.toLowerCase())
+              embed?.uri_embed?.toLowerCase().includes(elem.toLowerCase())
             );
           if (isIncludedDonateQuote) {
             return;
