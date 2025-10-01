@@ -112,6 +112,8 @@ export class Logger extends EventEmitter {
       this.biorhythmState = { ...defaultBiorhythmState, ...(parsedData.biorhythmState || {}) };
       // Load uniqueAffirmations if available, otherwise initialize as empty array
       this.uniqueAffirmations = parsedData.uniqueAffirmations || [];
+      this.uriQuestionRoot = parsedData.uriQuestionRoot || "";
+      this.themeQuestion = parsedData.themeQuestion || "";
       this.lastResetDay = parsedData.lastResetDay || new Date().getDate();
 
       // Handle lastInitializedDate
