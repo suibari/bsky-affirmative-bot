@@ -50,10 +50,7 @@ export const handleMode = async (
   options.db.insertDb(did);
 
   // 画像読み出し
-  let image: ImageRef[] | undefined = undefined;
-  if (record.embed) {
-    (image = getImageUrl(did, record.embed as AppBskyEmbedImages.Main));
-  }
+  const image = getImageUrl(did, record.embed);
   if (userinfo) {
     userinfo.image = image; // userinfoに画像情報をセット
   }

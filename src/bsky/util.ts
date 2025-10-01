@@ -1,8 +1,9 @@
-import { AppBskyEmbedExternal, AppBskyEmbedImages, AppBskyEmbedVideo } from "@atproto/api";
+import { $Typed, AppBskyEmbedDefs, AppBskyEmbedExternal, AppBskyEmbedImages, AppBskyEmbedNS, AppBskyEmbedRecordWithMedia, AppBskyEmbedVideo } from "@atproto/api";
 import { PostView } from "@atproto/api/dist/client/types/app/bsky/feed/defs";
 import * as AppBskyFeedPost from "@atproto/api/dist/client/types/app/bsky/feed/post"; // Changed import to use namespace
 
-import { LangMap, languageData, LanguageName, localeToTimezone } from "../types";
+import { ImageRef, LangMap, languageData, LanguageName, localeToTimezone } from "../types";
+import e from "express";
 
 const langMap: LangMap = languageData.reduce((acc, lang) => {
   acc[lang.code] = { name: lang.name };
@@ -131,30 +132,35 @@ export function getLangStr(langs: string[] | undefined): LanguageName {
  * 画像URLを取得
  * 画像、外部リンクOGP画像、動画サムネイルに対応
  */
-export function getImageUrl(did: string, embed: AppBskyEmbedImages.Main | AppBskyEmbedExternal.Main | AppBskyEmbedVideo.Main) {
-  let result = [];
+export function getImageUrl(did: string, embed: any) {
+  let result: ImageRef[] = [];
 
-  if (embed.$type === "app.bsky.embed.images") {
-    embed.images.forEach(item => {
+  if (AppBskyEmbedImages.isMain(embed)) {
+    (embed as AppBskyEmbedImages.Main).images.forEach(item => {
       if (item.image) {
         const image_url = `https://cdn.bsky.app/img/feed_fullsize/plain/${did}/${(item.image.ref as any).$link}`; // 回避策
         const mimeType = item.image.mimeType;
         result.push({ image_url, mimeType });
       }
     });
-  } else if (embed.$type === "app.bsky.embed.external") {
-    const thumb = embed.external.thumb;
+  } else if (AppBskyEmbedExternal.isMain(embed)) {
+    const thumb = (embed as AppBskyEmbedExternal.Main).external.thumb;
     if (thumb) {
       const image_url = `https://cdn.bsky.app/img/feed_thumbnail/plain/${did}/${(thumb.ref as any).$link}`; // 回避策
       const mimeType = thumb.mimeType;
       result.push({ image_url, mimeType });
     }
-  } else if (embed.$type === "app.bsky.embed.video") {
-    const video = embed.video;
+  } else if (AppBskyEmbedVideo.isMain(embed)) {
+    const video = (embed as AppBskyEmbedVideo.Main).video;
     if (video) {
       const image_url = `https://video.bsky.app/watch/${did}/${(video.ref as any).$link}/thumbnail.jpg`; // 回避策
       const mimeType = "image/jpeg"; // 動画のサムネイルはJPEG
       result.push({ image_url, mimeType });
+    }
+  } else if (AppBskyEmbedRecordWithMedia.isMain(embed)) {
+    const media = (embed as AppBskyEmbedRecordWithMedia.Main).media;
+    if (AppBskyEmbedImages.isMain(media) || AppBskyEmbedExternal.isMain(media)) {
+      result.push(...getImageUrl(did, media));
     }
   }
   

@@ -1,6 +1,12 @@
 import { ProfileView } from "@atproto/api/dist/client/types/app/bsky/actor/defs";
 import { CommitCreateEvent } from "@skyware/jetstream";
-import { AppBskyEmbedImages } from "@atproto/api";
+import {
+  AppBskyEmbedImages,
+  AppBskyEmbedExternal,
+  AppBskyEmbedRecord,
+  AppBskyEmbedRecordWithMedia,
+  AppBskyEmbedVideo,
+} from "@atproto/api";
 import { getImageUrl, getLangStr, splitUri, uniteDidNsidRkey } from "../bsky/util.js";
 import { generateAffirmativeWord } from "../gemini/generateAffirmativeWord.js";
 import { Record } from "@atproto/api/dist/client/types/app/bsky/feed/post";
@@ -31,13 +37,8 @@ export async function replyai(
 
   let result: GeminiScore | undefined;
   const text_user = record.text;
-
-  let image: ImageRef[] | undefined = undefined;
-  let mimeType: string | undefined = undefined;
-  if (record.embed) {
-    (image = getImageUrl(follower.did, record.embed as AppBskyEmbedImages.Main));
-  }
-
+  const image = getImageUrl(follower.did, record.embed);
+  
   if (process.env.NODE_ENV === "development") {
     console.log("[DEBUG] user>>> " + text_user);
     console.log("[DEBUG] image: " + image?.map(img => img.image_url).join(", "));

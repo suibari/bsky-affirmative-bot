@@ -4,7 +4,7 @@ import { generateSingleResponse, getRandomItems } from "./util";
 
 export async function generateQuestionsAnswer(userinfo: UserInfoGemini, questionTheme: string) {
   const prompt = PROMPT_QUESTIONSANSWER(userinfo, questionTheme);
-  const response = await generateSingleResponse(prompt);
+  const response = await generateSingleResponse(prompt, userinfo);
 
   // Geminiリクエスト数加算
   logger.addRPD();

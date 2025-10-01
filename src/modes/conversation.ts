@@ -20,11 +20,8 @@ export async function handleConversation (event: CommitCreateEvent<"app.bsky.fee
   const record = event.commit.record as Record;
 
   // 添付画像取得
-  let image: ImageRef[] | undefined = undefined;
-  if (record.embed) {
-    (image = getImageUrl(follower.did, record.embed as AppBskyEmbedImages.Main));
-  }
-
+  const image = getImageUrl(follower.did, record.embed);
+  
   // 前回までの会話取得
   let history = (await db.selectDb(follower.did, "conv_history")) as Content[] | undefined;
   if (!history) history = [];  // undefinedなら空配列で初期化

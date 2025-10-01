@@ -8,7 +8,9 @@ import { getSubscribersFromSheet } from "../gsheet";
 import { generateQuestionsAnswer } from "../gemini/generateQuestionsAnswer";
 import { CommitCreateEvent } from "@skyware/jetstream";
 import { Record } from "@atproto/api/dist/client/types/app/bsky/feed/post";
-import { getLangStr, uniteDidNsidRkey } from "../bsky/util";
+import { getImageUrl, getLangStr, uniteDidNsidRkey } from "../bsky/util";
+import { AppBskyEmbedImages } from "@atproto/api";
+import { ImageRef } from "../types";
 
 class QuestionMode {
   async postQuestion() {
@@ -57,11 +59,15 @@ class QuestionMode {
       return false;
     }
 
+    // 画像読み取り
+    const image = getImageUrl(follower.did, record.embed);
+
     // 質問への回答
     const text = await generateQuestionsAnswer({
       follower,
       posts: [record.text],
       langStr,
+      image,
     }, themeQuestion);
     await postContinuous(text, {
       uri,
