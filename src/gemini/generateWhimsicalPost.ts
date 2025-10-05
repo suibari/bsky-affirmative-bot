@@ -83,7 +83,7 @@ ${PROMPT_INTRO_BOT_FEATURE("英語")}
 
 const PROMPT_WHIMSICAL_WANT_PART = async (params: {topFollower?: ProfileView, topPost?: string, langStr: string}) => {
   const prompt = params.langStr === "日本語" ?
-    `1. 今日は何の日か紹介：${getRandomItems(getWhatDay(), 1)}` +
+    `1. 今日は何の日か紹介：${getRandomItems(getWhatDay(), 1)[0]}` +
     `2. 今日のポジティブニュース(誰が見ても暗い気持ちにならない話題)の紹介：${(await fetchNews("ja")).map(article => article.title)}`
     // `${params.topFollower && params.topPost ?
     //   `3. これまで見ていたポストの中で面白かった以下のポストの紹介。具体的に面白かったポイントを言ってください。
@@ -95,7 +95,7 @@ const PROMPT_WHIMSICAL_WANT_PART = async (params: {topFollower?: ProfileView, to
     //     ポスト内容: ${params.topPost || ""}` : ""
     // }`
     :
-    `1. Introduce a piece of what day it is today in Japan: ${getRandomItems(getWhatDay(), 1)}`
+    `1. Explain what day it is today (explain so that non-Japanese speakers can understand): ${getRandomItems(getWhatDay(), 1)[0]}`
     // `2. Introduce a piece of positive news (A topic that doesn't make anyone feel sad) for today: ${(await fetchNews("en")).map(article => article.title)}` // 英語のポジティブニュース検出が難しいのでいったん削除
     ;
   
