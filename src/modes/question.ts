@@ -54,10 +54,10 @@ class QuestionMode {
       return false;
     }
     // * 10件以上回答済みなら非サブスクは早期リターン
-    const subscribers = await getSubscribersFromSheet();
-    if (todaysAnswered && todaysAnswered.length >= 10 && subscribers.includes(follower.did) === false) {
-      return false;
-    }
+    // const subscribers = await getSubscribersFromSheet();
+    // if (todaysAnswered && todaysAnswered.length >= 10 && subscribers.includes(follower.did) === false) {
+    //   return false;
+    // }
 
     // 画像読み取り
     const image = getImageUrl(follower.did, record.embed);
