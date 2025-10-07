@@ -139,7 +139,7 @@ function splitTextSmart(text: string, MAX_LENGTH: number): string[] {
     let safeEnd = buffer.length;
 
     // 直前のバッファの末尾を確認して、「途中切り」のケースを避ける
-    const match = buffer.match(/([a-zA-Z0-9_]+|@[^\s]+|#[^\s]+)$/);
+    const match = buffer.match(/(https?:\/\/[^\s]+|[a-zA-Z0-9_]+|@[^\s]+|#[^\s]+)$/);
 
     if (match) {
       const unsafeLen = match[0].length;
