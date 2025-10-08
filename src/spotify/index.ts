@@ -71,7 +71,23 @@ export async function addTrackToPlaylist(trackUri: string): Promise<void> {
       },
     }
   );
-  console.log(`✅ Added to playlist: ${trackUri}`);
+  console.log(`[INFO][SPOTIFY] Added to playlist: ${trackUri}`);
+}
+
+/**
+ * 🔍 プレイリストに曲が存在するかチェック
+ * @param trackUri 
+ * @returns 
+ */
+async function isTrackInPlaylist(trackUri: string): Promise<boolean> {
+  const accessToken = await getAccessToken();
+
+  const res = await axios.get(`https://api.spotify.com/v1/playlists/${PLAYLIST_ID}/tracks`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    params: { fields: "items(track(uri))", limit: 100 },
+  });
+
+  return res.data.items.some((item: any) => item.track.uri === trackUri);
 }
 
 /**
@@ -85,17 +101,22 @@ export async function searchSpotifyUrlAndAddPlaylist(query: string): Promise<str
     const result = await searchSpotifyTrack(query);
 
     if (!result) {
-      console.warn(`No track found for query: ${query}`);
+      console.warn(`[WARN][SPOTIFY] No track found for query: ${query}`);
       return null;
     }
 
     // プレイリストに追加
-    await addTrackToPlaylist(result.uri);
+    const exists = await isTrackInPlaylist(result.uri, );
+    if (!exists) {
+      await addTrackToPlaylist(result.uri);
+      console.log(`[INFO][SPOTIFY] Added to playlist: ${result.url}`);
+    } else {
+      console.log(`[INFO][SPOTIFY] Track already in playlist: ${result.url}`);
+    }
 
-    console.log(`✅ Added to playlist: ${result.url}`);
     return result.url;
   } catch (err) {
-    console.error("❌ Spotify operation failed:", err);
+    console.error("[INFO][SPOTIFY] Spotify operation failed:", err);
     return null;
   }
 }
