@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import { UserInfoGemini } from "../types";
 import { generateRecommendedSong } from '../gemini/generateRecommendedSong';
-import { searchYoutubeLink } from '../youtube';
+import { searchSpotifyUrlAndAddPlaylist } from '../spotify';
 
 const userinfo: UserInfoGemini = {
   follower: {
@@ -17,8 +17,8 @@ try {
   const resultGemini = await generateRecommendedSong(userinfo);
   console.log("bot>>> ", resultGemini);
   
-  const resultYoutube = await searchYoutubeLink(`"${resultGemini.title}" "${resultGemini.artist}"`);
-  console.log("bot>>> ", resultYoutube);
+  const result = await searchSpotifyUrlAndAddPlaylist(`"${resultGemini.title}" "${resultGemini.artist}"`);
+  console.log("bot>>> ", result);
 } catch (err) {
   console.error("エラー:", err);
 }

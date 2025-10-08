@@ -6,9 +6,9 @@ import { getLangStr } from "../bsky/util.js";
 import { DJ_TRIGGER } from '../config/index.js';
 import { generateRecommendedSong } from "../gemini/generateRecommendedSong.js";
 import { GeminiResponseResult, UserInfoGemini } from "../types.js";
-import { searchYoutubeLink } from "../youtube/index.js";
 import { agent } from "../bsky/agent.js";
 import { SQLite3 } from "../db/index.js";
+import { searchSpotifyUrlAndAddPlaylist } from "../spotify/index.js";
 
 export async function handleDJ (event: CommitCreateEvent<"app.bsky.feed.post">, follower: ProfileView, db: SQLite3) {
   const record = event.commit.record as Record;
@@ -43,14 +43,14 @@ export async function handleDJ (event: CommitCreateEvent<"app.bsky.feed.post">, 
 
 async function getSongLink(userinfo: UserInfoGemini): Promise<GeminiResponseResult> {
   const resultGemini = await generateRecommendedSong(userinfo);
-  const resultYoutube = await searchYoutubeLink(`"${resultGemini.title}" "${resultGemini.artist}"`);
+  const resultSpotify = await searchSpotifyUrlAndAddPlaylist(`"${resultGemini.title}" "${resultGemini.artist}"`);
 
   const result = 
 `${resultGemini.comment}
 title: ${resultGemini.title}
 artist: ${resultGemini.artist}
 
-${resultYoutube}`;
+${resultSpotify}`;
 
   return result;
 }

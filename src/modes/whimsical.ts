@@ -11,7 +11,7 @@ import { repost } from "../bsky/repost";
 import { splitUri } from "../bsky/util";
 import { generateGoodNight } from "../gemini/generateGoodNight";
 import { generateMyMoodSong } from "../gemini/generateMyMoodSong";
-import { searchYoutubeLink } from "../youtube";
+import { searchSpotifyUrlAndAddPlaylist } from "../spotify";
 
 const whimsicalPostGen = new WhimsicalPostGenerator();
 
@@ -30,8 +30,8 @@ export async function doWhimsicalPost () {
 
   // ムードソング
   const result = await generateMyMoodSong(currentMood, langStr);
-  const resultYoutube = await searchYoutubeLink(`"${result.title}" "${result.artist}"`);
-  const songInfo = `\n\nMyMoodSong:\n${result.title} - ${result.artist}\n${resultYoutube}`;
+  const resultSpotify = await searchSpotifyUrlAndAddPlaylist(`"${result.title}" "${result.artist}"`);
+  const songInfo = `\n\nMyMoodSong:\n${result.title} - ${result.artist}\n${resultSpotify}`;
   text_bot += songInfo;
 
   await postContinuous(text_bot);
