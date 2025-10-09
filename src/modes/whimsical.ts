@@ -30,7 +30,7 @@ export async function doWhimsicalPost () {
 
   // ムードソング
   const result = await generateMyMoodSong(currentMood, langStr);
-  const resultSpotify = await searchSpotifyUrlAndAddPlaylist(result.artist, result.title);
+  const resultSpotify = await searchSpotifyUrlAndAddPlaylist({artist: result.artist, track: result.title});
   const songInfo = `\n\nMyMoodSong:\n${result.title} - ${result.artist}\n${resultSpotify}`;
   text_bot += songInfo;
 

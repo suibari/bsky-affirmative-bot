@@ -8,7 +8,7 @@ import { generateRecommendedSong } from "../gemini/generateRecommendedSong.js";
 import { GeminiResponseResult, UserInfoGemini } from "../types.js";
 import { agent } from "../bsky/agent.js";
 import { SQLite3 } from "../db/index.js";
-import { searchSpotifyTrack, searchSpotifyUrlAndAddPlaylist } from "../spotify/index.js";
+import { searchSpotifyTrack } from "../spotify/index.js";
 
 export async function handleDJ (event: CommitCreateEvent<"app.bsky.feed.post">, follower: ProfileView, db: SQLite3) {
   const record = event.commit.record as Record;
@@ -43,7 +43,7 @@ export async function handleDJ (event: CommitCreateEvent<"app.bsky.feed.post">, 
 
 async function getSongLink(userinfo: UserInfoGemini): Promise<GeminiResponseResult> {
   const resultGemini = await generateRecommendedSong(userinfo);
-  const resultSpotify = await searchSpotifyTrack(resultGemini.artist, resultGemini.title);
+  const resultSpotify = await searchSpotifyTrack({artist: resultGemini.artist, track: resultGemini.title});
 
   const result = 
 `${resultGemini.comment}

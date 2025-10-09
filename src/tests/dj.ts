@@ -17,7 +17,7 @@ try {
   const resultGemini = await generateRecommendedSong(userinfo);
   console.log("bot>>> ", resultGemini);
   
-  const result = await searchSpotifyUrlAndAddPlaylist(`"${resultGemini.title}" "${resultGemini.artist}"`);
+  const result = await searchSpotifyUrlAndAddPlaylist({track: resultGemini.title, artist: resultGemini.artist});
   console.log("bot>>> ", result);
 } catch (err) {
   console.error("エラー:", err);
