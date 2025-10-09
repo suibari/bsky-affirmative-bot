@@ -34,7 +34,7 @@ const PROMPT_AFFIRMATIVE_WORD = async (userinfo: UserInfoGemini) => {
      ${userinfo.followersFriend 
       ? `* フォロワー名: ${userinfo.followersFriend.profile.displayName}  
         * ポスト: ${userinfo.followersFriend.post}` : ""}
-   - ${userinfo.embed ? "ユーザはポストを引用しているので、そのポストの内容を踏まえて今回のポストを褒めてください。" : ""}
+   - ${userinfo.embed ? "ユーザが引用しているポストとの共通点を踏まえて今回のポストを褒めてください。ポスト内容はそのまま記載しないでください。引用元が「全肯定botたん」の場合、あなたのポストを引用したということなので、その感謝も伝えてください。" : ""}
 
    **注意: commentにはscoreに関する情報を絶対に含めないこと**
 
