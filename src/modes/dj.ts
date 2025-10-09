@@ -43,7 +43,7 @@ export async function handleDJ (event: CommitCreateEvent<"app.bsky.feed.post">, 
 
 async function getSongLink(userinfo: UserInfoGemini): Promise<GeminiResponseResult> {
   const resultGemini = await generateRecommendedSong(userinfo);
-  const resultSpotify = await searchSpotifyTrack(`"${resultGemini.title}" "${resultGemini.artist}"`);
+  const resultSpotify = await searchSpotifyTrack(resultGemini.artist, resultGemini.title);
 
   const result = 
 `${resultGemini.comment}
