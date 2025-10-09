@@ -20,7 +20,8 @@ export async function post(record: Record, embedRecord?: Record): Promise<{
     record.text = rt.text;
     record.facets = rt.facets;
 
-    const urlMatch = record.text.match(/https?:\/\/[^\s]+/);
+    const urls = record.text.match(/https?:\/\/[^\s]+/);
+    const urlMatch = urls?.find(url => !url.includes(process.env.SPOTIFY_PLAYLIST_ID!)) ?? null; // Spotifyプレイリストのみは除外(なぜか404が返る)
     // embed: 引用ポスト付与
     if (embedRecord) {
       record.embed = embedRecord;

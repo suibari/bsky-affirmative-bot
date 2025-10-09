@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import { generateAffirmativeWord } from '../gemini/generateAffirmativeWord';
+import { LanguageName } from '../types';
 
 // Define types locally since they are not exported or defined correctly from ../types
 interface ProfileView {
@@ -16,7 +17,7 @@ interface ImageRef {
 }
 
 interface UserInfoGemini {
-  langStr: string;
+  langStr: LanguageName;
   follower: ProfileView;
   image: ImageRef[]; // Must be an array of ImageRef
   likedByFollower: string[]; // Corrected based on the error message: type 'boolean' is not assignable to type 'string[]'
