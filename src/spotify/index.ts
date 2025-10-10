@@ -31,16 +31,18 @@ async function getAccessToken(): Promise<string> {
 /**
  * 🎵 キーワードからSpotify楽曲を検索してURLを返す
  */
-export async function searchSpotifyTrack(param: {artist: string, track: string}): Promise<{
+export async function searchSpotifyTrack(param: {artist?: string, track: string}): Promise<{
   url: string;
   uri: string;
 } | null> {
   const accessToken = await getAccessToken();
 
+  const qParam = param.artist ? `artist:${param.artist} track:${param.track}` : `track:${param.track}`;
+
   const res = await axios.get('https://api.spotify.com/v1/search', {
     headers: { Authorization: `Bearer ${accessToken}` },
     params: {
-      q: `artist:${param.artist} track:${param.track}`,
+      q: qParam,
       type: 'track',
       limit: 1,
     },
@@ -71,7 +73,6 @@ export async function addTrackToPlaylist(trackUri: string): Promise<void> {
       },
     }
   );
-  console.log(`[INFO][SPOTIFY] Added to playlist: ${trackUri}`);
 }
 
 /**
@@ -95,13 +96,14 @@ async function isTrackInPlaylist(trackUri: string): Promise<boolean> {
  * @param query 曲名・アーティストなど
  * @returns 追加した曲のSpotify URL or null
  */
-export async function searchSpotifyUrlAndAddPlaylist(param: {artist: string, track: string}): Promise<string | null> {
+export async function searchSpotifyUrlAndAddPlaylist(param: {artist?: string, track: string}): Promise<string | null> {
   try {
     // 曲検索
     const result = await searchSpotifyTrack(param);
 
     if (!result) {
-      console.warn(`[WARN][SPOTIFY] No track found for query: artist:${param.artist} track:${param.track}`);
+      const queryStr = param.artist ? `artist:${param.artist} track:${param.track}` : `track:${param.track}`;
+      console.warn(`[WARN][SPOTIFY] No track found for query: ${queryStr}`);
       return null;
     }
 

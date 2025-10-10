@@ -12,6 +12,7 @@ import { splitUri } from "../bsky/util";
 import { generateGoodNight } from "../gemini/generateGoodNight";
 import { generateMyMoodSong } from "../gemini/generateMyMoodSong";
 import { searchSpotifyUrlAndAddPlaylist } from "../spotify";
+import retry from "async-retry";
 
 const whimsicalPostGen = new WhimsicalPostGenerator();
 
@@ -29,9 +30,51 @@ export async function doWhimsicalPost () {
   });
 
   // ムードソング
-  const result = await generateMyMoodSong(currentMood, langStr);
-  const resultSpotify = await searchSpotifyUrlAndAddPlaylist({artist: result.artist, track: result.title});
-  const songInfo = `\n\nMyMoodSong:\n${result.title} - ${result.artist}\n${resultSpotify}`;
+  let songInfo = "";
+  let currentGeneratedSong = await generateMyMoodSong(currentMood, langStr); // 初回AI生成
+
+  try {
+    const resultSpotify = await retry(
+      async (bail, attempt) => {
+        let spotifySearchTerm: { artist?: string; track: string };
+
+        // attemptは1から始まる
+        if (attempt === 1) {
+          // 初回: AI生成後、曲名と歌手名で検索
+          spotifySearchTerm = { artist: currentGeneratedSong.artist, track: currentGeneratedSong.title };
+          console.log(`[INFO] Spotify search attempt ${attempt}: Searching for ${currentGeneratedSong.title} - ${currentGeneratedSong.artist}`);
+        } else if (attempt % 2 === 0) {
+          // 奇数回目のリトライ (2, 4, 6回目): 曲名のみで検索
+          spotifySearchTerm = { track: currentGeneratedSong.title };
+          console.log(`[INFO] Spotify search attempt ${attempt}: Retrying with track only: ${currentGeneratedSong.title}`);
+        } else {
+          // 偶数回目のリトライ (3, 5回目): 再度AI生成して曲名+歌手名で検索
+          currentGeneratedSong = await generateMyMoodSong(currentMood, langStr);
+          spotifySearchTerm = { artist: currentGeneratedSong.artist, track: currentGeneratedSong.title };
+          console.log(`[INFO] Spotify search attempt ${attempt}: Retrying with AI generated song: ${currentGeneratedSong.title} - ${currentGeneratedSong.artist}`);
+        }
+
+        console.log(`attempt: ${attempt}, searching for:`, spotifySearchTerm);
+        const url = await searchSpotifyUrlAndAddPlaylist(spotifySearchTerm);
+        if (!url) {
+          throw new Error("Spotify URL not found, retrying...");
+        }
+        return url;
+      },
+      {
+        retries: 5, // 初回試行 + 5回のリトライ = 合計6回
+        onRetry: (error: any, attempt) => {
+          console.warn(`[WARN] Spotify search failed on attempt ${attempt}: ${error.message}`);
+        },
+      }
+    );
+    songInfo = `\n\nMyMoodSong:\n${currentGeneratedSong.title} - ${currentGeneratedSong.artist}\n${resultSpotify}`;
+  } catch (e: unknown) {
+    const errorMessage = e instanceof Error ? e.message : String(e);
+    console.error(`[ERROR] Failed to find Spotify song after multiple retries: ${errorMessage}`);
+    songInfo = `\n\nMyMoodSong:\n${currentGeneratedSong.title} - ${currentGeneratedSong.artist}\n(Spotify URL not found...)`;
+  }
+  
   text_bot += songInfo;
 
   await postContinuous(text_bot);
