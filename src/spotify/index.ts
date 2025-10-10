@@ -99,12 +99,18 @@ async function isTrackInPlaylist(trackUri: string): Promise<boolean> {
 export async function searchSpotifyUrlAndAddPlaylist(param: {artist?: string, track: string}): Promise<string | null> {
   try {
     // 曲検索
-    const result = await searchSpotifyTrack(param);
+    let result = await searchSpotifyTrack(param);
 
     if (!result) {
       const queryStr = param.artist ? `artist:${param.artist} track:${param.track}` : `track:${param.track}`;
       console.warn(`[WARN][SPOTIFY] No track found for query: ${queryStr}`);
-      return null;
+      result = await searchSpotifyTrack({ track: param.track }); // 曲名のみで再検索
+
+      // それでも見つからなければエラーを返す(上位関数でリトライを期待)
+      if (!result) {
+        console.warn(`[WARN][SPOTIFY] No track found for query: track:${param.track}`);
+        return null;
+      }
     }
 
     // プレイリストに追加
