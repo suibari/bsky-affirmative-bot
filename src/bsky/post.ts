@@ -27,7 +27,7 @@ export async function post(record: Record, embedRecord?: Record): Promise<{
       record.embed = embedRecord;
     // embed: リンクカード付与
     } else if (urlMatch) {
-      const url = urlMatch[0];
+      const url = urlMatch;
 
       const { result } = await ogs({ url });
       if (result.success) {
