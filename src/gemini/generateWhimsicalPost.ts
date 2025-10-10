@@ -57,7 +57,7 @@ const PROMPT_WHIMSICAL_POST = async (params: {
 あなたの気まぐれでSNSに投稿する文章をこれから生成します。
 文章は最大500文字以内とします。
 ${lastPosts.length > 0 ? `あなたが過去ポストした次の内容と重複しないようにしてください: ${lastPosts}` : ""}
-文章には以下を含めてください。
+文章には以下を含めてください。(**"[MUST]"や"[WANT]"を示す注釈は含めてはならない**)
 [MUST: 必ず含める]
 * フォロワーへの挨拶
 * あなたが次の気分・状態であることを、一言で説明。文章をそのまま出力せず、要約してください：${params.currentMood}
@@ -71,7 +71,7 @@ You are going to write a whimsical social media post.
 The output should be in **English**.
 The output should be at most 1000 characters.
 ${lastPosts.length > 0 ? `Do not repeat or overlap with the following your past posts: ${lastPosts}` : ""}
-Please make sure your post includes the following:
+Please make sure your post includes the following (**Do not include annotations indicating "[MUST]" or "[WANT]"**):
 [MUST: includes all of the following]
 * A friendly greeting to your followers
 * Explain your current mood/state in a single phrase. Do not repeat the input text directly—summarize it: ${params.currentMood}
