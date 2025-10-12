@@ -295,14 +295,14 @@ export class SQLite3 {
               SELECT * FROM ${this.tableName}
               WHERE score IS NOT NULL
               ORDER BY score DESC
-              LIMIT 1;
+              LIMIT 5;
             `;
-      this.db!.get(query, [], (err, row) => { // Use non-null assertion operator
+      this.db!.all(query, [], (err, rows) => { // Use non-null assertion operator
         if (err) {
           console.error('Error fetching highest score', err);
           reject(err);
         } else {
-          resolve(row);
+          resolve(rows);
         }
       });
     });

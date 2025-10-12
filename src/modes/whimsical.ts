@@ -72,18 +72,20 @@ export async function doWhimsicalPost () {
 }
 
 export async function doGoodNightPost (mood: string) {
-  // スコアTOPのfollowerを取得
-  const row = await dbPosts.getHighestScore();
+  // スコアTOPのfollowerを取得 (上位5人)
+  const rows = await dbPosts.getHighestScore();
 
-  try {
-    if (row) {
+  let topPostData: { uri: string; did: string; nsid: string; rkey: string; post: string; cid: string; topFollower: ProfileView } | null = null;
+
+  for (const row of rows) {
+    try {
       // DBパース
       const uri: string = row.uri;
       const {did, nsid, rkey} = splitUri(uri);
-      const topPost: string = row.post;
+      const postContent: string = row.post;
       const topFollower = (await agent.getProfile({actor: did})).data as ProfileView;
 
-      // cid取得: NOTE, 格納時に取得した方がいいのかな？
+      // cid取得
       const agentPDS = new AtpAgent({service: await getPds(did!)});
       const response = await agentPDS.com.atproto.repo.getRecord({
         repo: did,
@@ -92,26 +94,37 @@ export async function doGoodNightPost (mood: string) {
       });
       const cid = response.data.cid;
 
-      // topPostがなければお休みあいさつしない
-      if (topPost && cid) {
-        // リポスト
-        await repost(uri, cid);
+      if (postContent && cid) {
+        topPostData = { uri, did, nsid, rkey, post: postContent, cid, topFollower };
+        break; // 成功した最初の投稿を使用
+      }
+    } catch(e) {
+      console.error(`[INFO] Failed to get record for ${row.uri}, trying next: ${e}`);
+      // 次のレコードを試すため、ループを続行
+    }
+  }
 
-        // Gemini生成
-        const text_bot = await generateGoodNight({
-          topFollower: topFollower ?? undefined,
-          topPost,
-          currentMood: mood,
-        });
+  try {
+    if (topPostData) {
+      // リポスト
+      await repost(topPostData.uri, topPostData.cid);
 
-        // ポスト
-        await postContinuous(text_bot);
+      // Gemini生成
+      const text_bot = await generateGoodNight({
+        topFollower: topPostData.topFollower ?? undefined,
+        topPost: topPostData.post,
+        currentMood: mood,
+      });
 
-        // 1日のテーブルクリア
-        dbPosts.clearAllRows();
-      } 
+      // ポスト
+      await postContinuous(text_bot);
+    } else {
+      console.log("[INFO] No valid top post found after trying all highest score entries.");
     }
   } catch(e) {
     console.error(`[INFO] good night post error: ${e}`);
+  } finally {
+    // 1日のテーブルクリア
+    dbPosts.clearAllRows();
   }
 }
