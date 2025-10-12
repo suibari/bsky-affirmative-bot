@@ -106,11 +106,11 @@ export class BiorhythmManager extends EventEmitter {
   }
 
   addAnswer() {
-    this.changeEnergy(50);
+    this.changeEnergy(100);
   }
 
   addFollower() {
-    this.changeEnergy(100);
+    this.changeEnergy(200);
   }
 
   get getEnergy(): number { return this.energy / 100; }
