@@ -9,7 +9,7 @@ import { parseEmbedPost } from "../bsky/parseEmbedPost";
 import { handleCheer } from "../modes/cheer";
 import { handleConversation } from "../modes/conversation";
 import { handleFreq } from "../modes/frequency";
-import { handleU18Release, handleU18Register } from "../modes/u18";
+import { handleU18Release, handleU18Register, handleAIonlyRegister, handleAIonlyRelease } from "../modes/limited";
 import { db, dbPosts } from "../db";
 import retry from 'async-retry';
 import { botBiothythmManager, followers, logger } from "..";
@@ -106,6 +106,8 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
         if (await execConfirmStatus(event, follower, db)) return;
         if (await handleU18Release(event, db)) return;
         if (await handleU18Register(event, db)) return;
+        if (await handleAIonlyRegister(event, db)) return;
+        if (await handleAIonlyRelease(event, db)) return;
         if (await handleFreq(event, follower, db)) return;
         if (subscribers.includes(follower.did)) {
           if (await handleDiaryRegister(event, db)) return;
@@ -196,38 +198,30 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
 
             console.log(`[INFO][${did}] New post: single post by NOT subbed-follower !!`);
             const isU18 = (await db.selectDb(did, "is_u18")) ?? 0;
+            const isAIOnly = (await db.selectDb(did, "is_ai_only")) ?? 0;
 
             if (count_replyrandom >= EXEC_PER_COUNTS && isU18 === 0) {
-              count_replyrandom = 0; // 最初にリセットして、2連続でAI応答するのを避ける
-
-              // --------------
-              // ユーザの直近ポストをエンベディング解析
-              // NOTE: エンベディングコストが大きいので、形態素解析ベースにするのがよい
-              // --------------
-              // const recentPosts = await getConcatAuthorFeed(follower.did, LATEST_POSTS_COUNT + 1);
-              // recentPosts.shift(); // 最新ポストは今回のポストのはずなので除外
-              // relatedPosts = await embeddingTexts(record.text, recentPosts.map(item => (item.post.record as Record).text));
-              // // 全ポスト同じならbotとみなしスルー
-              // if (relatedPosts.length == LATEST_POSTS_COUNT) {
-              //   console.log(`[INFO][${did}] Ignored post, REASON: repeated similar posts`);
-              //   return;
-              // }
-
+              count_replyrandom = 0;
               replyType = "ai";
-            } else {
+            } else if (isAIOnly === 0) {
+              // AI限定モードでなければ、ランダムリプライを試みる
               count_replyrandom++;
               replyType = "random";
+            } else {
+              // 定型文リプライ実施時かつAI限定モードならばスルー
+              replyType = null;
             }
           }
 
           // ----------------
           // リプライ呼び出しを最後にまとめる
           // ----------------
-          if (replyType === "ai" && logger.checkRPD() || process.env.NODE_ENV === "development") {
+          if (replyType === "ai" && logger.checkRPD()) {
             await replyai(follower, event, relatedPosts);
           } else if (replyType === "random") {
             await replyrandom(follower, event);
           } else {
+            console.log(`[INFO][${did}] Ignored post, REASON: AI-Only-mode or rpd over`);
             return;
           }
 

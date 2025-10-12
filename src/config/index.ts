@@ -36,6 +36,16 @@ export const PREDEFINEDMODE_RELEASE_TRIGGER = [
   "disable predefined reply mode",
 ];
 
+export const AIONLYMODE_TRIGGER = [
+  "ai限定モード",
+  "ai only mode",
+];
+
+export const AIONLYMODE_RELEASE_TRIGGER = [
+  "ai限定モード解除",
+  "disable ai only mode",
+];
+
 export const FORTUNE_TRIGGER = [
   "占い",
   "うらない",

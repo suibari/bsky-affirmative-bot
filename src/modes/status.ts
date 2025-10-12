@@ -30,6 +30,7 @@ async function buildStatusText(userinfo: UserInfoGemini,  event: CommitCreateEve
     const result = {
       daysFollow: getDaysFromNow(rows.created_at),
       enableAI: (rows.is_u18 === 1) ? "disable" : "enable",
+      enablePredefined: (rows.is_ai_only === 1) ? "disable" : "enable",
       replyFreq: rows.reply_freq ?? "100",
       hoursFortune: getHoursFromNow(rows.last_uranai_at),
       convHistory: JSON.parse(rows.conv_history)?.length ?? 0,
@@ -43,6 +44,7 @@ async function buildStatusText(userinfo: UserInfoGemini,  event: CommitCreateEve
       `\n` +
       `つきあい: ${result.daysFollow} days\n` +
       `AIリプライ: ${result.enableAI}\n` +
+      `定型文リプライ: ${result.enablePredefined}\n` +
       `リプ頻度: ${result.replyFreq} %\n` +
       `占い: ${result.hoursFortune === null || result.hoursFortune >= 8 ? "enable" : "disable (クールタイム中)"}\n` +
       `分析: ${result.daysAnalyze === null || result.daysAnalyze >= 1 ? "enable" : "disable (クールタイム中)"}\n` +
@@ -52,7 +54,8 @@ async function buildStatusText(userinfo: UserInfoGemini,  event: CommitCreateEve
       `This is the status with ${userinfo.follower.displayName} and me!\n` +
       `\n` +
       `Companionship: ${result.daysFollow} days\n` +
-      `AI Reply: ${result.enableAI}\n` +
+      `Predefined reply: ${result.enableAI}\n` +
+      `AI reply: ${result.enablePredefined}\n` +
       `Reply Freq: ${result.replyFreq} %\n` +
       `Fortune: ${result.hoursFortune === null || result.hoursFortune >= 8 ? "enable" : "disable (on cooldown)"}\n` +
       `Analyze: ${result.daysAnalyze === null || result.daysAnalyze >= 1 ? "enable" : "disable (on cooldown)"}\n` +

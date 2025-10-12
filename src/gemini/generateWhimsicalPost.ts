@@ -104,6 +104,7 @@ const PROMPT_WHIMSICAL_WANT_PART = async (params: {topFollower?: ProfileView, to
 
 const PROMPT_INTRO_BOT_FEATURE = (langStr: string) => {
   const features = langStr === "日本語" ? [
+    "あなたが持っている「AI限定化」機能の紹介：あなたが定型文を使わずにAIリプライのみで全肯定する。「AI限定モード」とリプすればできる。",
     "あなたが持っている「占い」機能の紹介：1日1回今日の運勢が占える。「占い」とリプすればできる。",
     "あなたが持っている「性格分析」機能の紹介：1週間に1回性格診断ができる。「分析して」とリプすればできる。",
     "あなたが持っている「DJ」機能の紹介：あなたがユーザにおすすめの曲を選ぶ。「DJお願い」とリプすればできる。ただしサブスクメンバー限定。サブスクについてはbio欄参照。",
@@ -113,6 +114,7 @@ const PROMPT_INTRO_BOT_FEATURE = (langStr: string) => {
     "あなたが持っている「ステータス」機能の紹介：あなたとユーザのステータスを確認。「教えてステータス」とリプすればできる。",
     "あなたがこれまで選曲した曲のプレイリストがあることの紹介：URLも併せて紹介すること。URLは https://open.spotify.com/playlist/0rMAkyqQtxd4o8mIMja0sx です。",
   ] : [
+    "Introducing the AI only mode feature you have. You will give affirmative replies using only AI without using predefined replies. You can enable it by replying \"AI only mode\".",
     "Introducing the Fortune Telling feature you have. You can get your fortune told once a day by replying \"Fortune\"",
     "Introducing the Personality Analysis feature you have. You can get a personality diagnosis once a week by replying \"Analyze me\"",
     "Introducing the DJ feature you have. You choose songs you recommend to users by replying \"DJ, please\". However, this is limited to subscribed followers. Please see the bio for details on subscriptions.",

@@ -20,6 +20,7 @@ const desiredSchemas: Record<string, TableSchema> = {
       { name: 'created_at', type: 'TIMESTAMP', default: 'CURRENT_TIMESTAMP' },
       { name: 'updated_at', type: 'TIMESTAMP', default: 'CURRENT_TIMESTAMP' },
       { name: 'is_u18', type: 'INTEGER', default: 0 },
+      { name: 'is_ai_only', type: 'INTEGER', default: 0 },
       { name: 'last_uranai_at', type: 'TIMESTAMP', default: null },
       { name: 'reply_freq', type: 'INTEGER', default: 100 },
       { name: 'last_conv_at', type: 'TIMESTAMP', default: null },
