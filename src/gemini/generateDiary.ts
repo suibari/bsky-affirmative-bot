@@ -28,5 +28,5 @@ ${maxLength}
   // Geminiリクエスト数加算
   logger.addRPD();
 
-  return response.text ?? "";
+  return response ?? "";
 }

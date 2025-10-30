@@ -23,7 +23,7 @@ export function getRandomItems(array: string[], count: number) {
 /**
  * 必要に応じて画像を付与してシングルレスポンスを得る
  */
-export async function generateSingleResponse (prompt: string, userinfo?: UserInfoGemini) {
+export async function generateSingleResponse (prompt: string, userinfo?: UserInfoGemini): Promise<string> {
   const contents: PartListUnion = [prompt];
 
   if (userinfo?.image) {
@@ -53,7 +53,11 @@ export async function generateSingleResponse (prompt: string, userinfo?: UserInf
     }
   });
 
-  return response;
+  // Gemini出力の"["から"]"まで囲われたすべての部分を除去
+  const responseText = response.text || "";
+  const cleanedText = responseText.replace(/\[.*?\]/gs, '');
+  
+  return cleanedText;
 }
 
 /**

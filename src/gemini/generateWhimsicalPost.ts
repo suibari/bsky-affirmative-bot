@@ -26,7 +26,7 @@ export class WhimsicalPostGenerator {
     });
 
     const response = await generateSingleResponse(prompt);
-    const text = response.text || "";
+    const text = response || "";
 
     this.addPost(lang, text);
 

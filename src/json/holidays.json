@@ -54,12 +54,6 @@
     "regions": ["global"]
   },
   {
-    "id": "tanabata",
-    "names": { "ja": "七夕", "en": "Tanabata" },
-    "rule": { "type": "fixed", "month": 7, "day": 7 },
-    "regions": ["JP"]
-  },
-  {
     "id": "halloween",
     "names": { "ja": "ハロウィン", "en": "Halloween" },
     "rule": { "type": "fixed", "month": 10, "day": 31 },

@@ -51,5 +51,5 @@ ${getRandomItems(part_prompt_luckys, 3)}
   // Geminiリクエスト数加算
   logger.addRPD();
 
-  return response.text ?? "";
+  return response ?? "";
 }

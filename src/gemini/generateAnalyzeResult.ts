@@ -9,7 +9,7 @@ export async function generateAnalyzeResult(userinfo: UserInfoGemini) {
   // Geminiリクエスト数加算
   logger.addRPD();
 
-  return response.text ?? "";
+  return response ?? "";
 }
 
 const PROMPT_ANALYZE = (userinfo: UserInfoGemini) => {

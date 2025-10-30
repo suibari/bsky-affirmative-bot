@@ -10,7 +10,7 @@ export async function generateQuestion() {
   logger.addRPD();
 
   return {
-    text: response.text ?? "",
+    text: response ?? "",
     theme,
   }
 } 

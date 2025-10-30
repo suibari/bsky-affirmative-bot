@@ -9,7 +9,7 @@ export async function generateQuestionsAnswer(userinfo: UserInfoGemini, question
   // Geminiリクエスト数加算
   logger.addRPD();
 
-  return response.text ?? "";
+  return response ?? "";
 }
 
 const PROMPT_QUESTIONSANSWER = (userinfo: UserInfoGemini, questionTheme: string) => {

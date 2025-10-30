@@ -23,7 +23,7 @@ export async function generateCheerResult(userinfo: UserInfoGemini) {
   logger.addRPD();
 
   // AI出力のサニタイズ("-----"を含むときそれ以降の文字列を削除)
-  const result = response.text?.split("-----")[0];
+  const result = response?.split("-----")[0];
 
   // 末尾にハッシュタグを付与し返却
   const hashtag = userinfo.langStr === "日本語" ? " #全肯定応援団" : " #Bot-tanSquad";

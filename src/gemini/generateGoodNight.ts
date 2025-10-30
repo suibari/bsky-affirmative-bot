@@ -14,7 +14,7 @@ export async function generateGoodNight(param: GoodNightInfo) {
 
   logger.addRPD();
 
-  return response.text ?? "";
+  return response ?? "";
 }
 
 const PROMPT_GOODNIGHT_WORD = async (param: GoodNightInfo) => {

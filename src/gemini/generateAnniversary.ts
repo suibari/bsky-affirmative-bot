@@ -7,7 +7,7 @@ export async function generateAnniversary(userinfo: UserInfoGemini) {
 
   logger.addRPD();
 
-  return response.text ?? "";
+  return response ?? "";
 }
 
 const PROMPT_ANNIVERSARY_WORD = async (userinfo: UserInfoGemini) => {
