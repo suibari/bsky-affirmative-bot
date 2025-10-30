@@ -121,9 +121,9 @@ export class BiorhythmManager extends EventEmitter {
   }
 
   async updateTopPostUri() {
-    const row = await dbPosts.getHighestScore();
-    if (row) {
-      logger.updateTopPost(row.uri, row.comment);
+    const rows = await dbPosts.getHighestScore();
+    if (rows && rows.length > 0) {
+      logger.updateTopPost(rows[0].uri, rows[0].comment);
       this.emit('statsChange', this.getCurrentState());
     }
   }
