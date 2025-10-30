@@ -75,6 +75,7 @@ export class SQLite3 {
           reject(err);
         } else {
           console.log(`Connected to SQLite database: ${dbFile}`);
+          this.db!.configure("busyTimeout", 5000); // 5 seconds for SQLITE_BUSY timeout
           this.ensureSchema()
             .then(() => resolve())
             .catch(schemaErr => {
