@@ -161,9 +161,9 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
           }
 
         // ==============
-        // main: 通常ポスト or botへのメンション
+        // main: 通常ポスト(リプライ・メンション除く)
         // ==============
-        } else if (!record.reply || isReplyOrMentionToMe(record)) {
+        } else if (!record.reply && !isMention(record)) {
           let relatedPosts: string[] = []; // 類似ポスト格納用
 
           // 確率判定

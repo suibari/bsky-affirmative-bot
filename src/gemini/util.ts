@@ -109,7 +109,13 @@ export async function generateSingleResponseWithScore (prompt: string, userinfo?
       ]
     }
   });
+  
   const result = JSON.parse(response.text || "") as GeminiScore[];
+
+  // Gemini出力の"["から"]"まで囲われたすべての部分を除去
+  result.forEach(item => {
+    item.comment = item.comment.replace(/\[.*?\]/gs, '');
+  });
 
   return result[0];
 }
