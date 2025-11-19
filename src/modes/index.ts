@@ -83,7 +83,7 @@ export const handleMode = async (
   }
 
   // DB更新: 列、値が指定ある時だけ
-  if (options.dbColumn && options.dbValue) {
+  if (options.dbColumn && (options.dbValue !== undefined && options.dbValue !== null)) {
     options.db.updateDb(did, options.dbColumn, options.dbValue);
     console.log(`[INFO][${did}] exec mode: ${options.dbColumn}`);
   }
