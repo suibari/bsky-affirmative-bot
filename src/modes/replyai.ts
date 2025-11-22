@@ -1,12 +1,5 @@
 import { ProfileView } from "@atproto/api/dist/client/types/app/bsky/actor/defs";
 import { CommitCreateEvent } from "@skyware/jetstream";
-import {
-  AppBskyEmbedImages,
-  AppBskyEmbedExternal,
-  AppBskyEmbedRecord,
-  AppBskyEmbedRecordWithMedia,
-  AppBskyEmbedVideo,
-} from "@atproto/api";
 import { getImageUrl, getLangStr, splitUri, uniteDidNsidRkey } from "../bsky/util.js";
 import { generateAffirmativeWord } from "../gemini/generateAffirmativeWord.js";
 import { Record } from "@atproto/api/dist/client/types/app/bsky/feed/post";
@@ -76,14 +69,21 @@ export async function replyai(
     followersFriend = await getFollowersFriend(text_user, follower.did, NOUN_MATCH_NUM);
 
     // Gemini生成
-    result = await generateAffirmativeWord({
-      follower,
-      langStr,
-      posts: [text_user, ...relatedPosts],
-      likedByFollower: likedPost,
-      image,
-      followersFriend,
-      embed,
+    result = await retry(async () => {
+      return await generateAffirmativeWord({
+        follower,
+        langStr,
+        posts: [text_user, ...relatedPosts],
+        likedByFollower: likedPost,
+        image,
+        followersFriend,
+        embed,
+      });
+    }, {
+      retries: 3,
+      onRetry: (error: Error, attempt: number) => {
+        console.warn(`[WARN][${follower.did}] Attempt ${attempt} to generateAffirmativeWord failed. Retrying... Error: ${error.message}`);
+      }
     });
 
     // お気に入りポスト登録
@@ -102,12 +102,8 @@ export async function replyai(
 
     return result;
   } catch (e: any) {
-    // Geminiエラー時、ランダムワード返信する
-    if (e.message?.includes("429")) {
-      console.warn("[WARN] Gemini fetch failed due to billing error, falling back to random word.");
-    } else {
-      console.error("[ERROR] Gemini fetch failed: ", e);
-    }
+    // Gemini生成が3回失敗した場合、ランダムワード返信する
+    console.warn(`[WARN][${follower.did}] Gemini fetch failed after multiple retries: `, e);
 
     await replyrandom(follower, event);
     
