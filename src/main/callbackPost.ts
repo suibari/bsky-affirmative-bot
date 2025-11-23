@@ -10,7 +10,7 @@ import { handleCheer } from "../modes/cheer";
 import { handleConversation } from "../modes/conversation";
 import { handleFreq } from "../modes/frequency";
 import { handleU18Release, handleU18Register, handleAIonlyRegister, handleAIonlyRelease } from "../modes/limited";
-import { db, dbPosts } from "../db";
+import { db, dbPosts, dbReplies } from "../db";
 import retry from 'async-retry';
 import { botBiothythmManager, followers, logger } from "..";
 import { handleDiaryRegister, handleDiaryRelease } from "../modes/diary";
@@ -19,11 +19,12 @@ import { replyai } from "../modes/replyai";
 import { replyrandom } from "../modes/replyrandom";
 import { EXEC_PER_COUNTS } from "../config";
 import { handleAnniversaryConfirm, handleAnniversaryExec, handleAnniversaryRegister } from "../modes/anniversary";
-import { getLangStr, isMention, isReplyOrMentionToMe } from "../bsky/util";
+import { getLangStr, isMention, isReplyOrMentionToMe, uniteDidNsidRkey } from "../bsky/util";
 import { getConcatAuthorFeed } from "../bsky/getConcatAuthorFeed";
 import { embeddingTexts } from "../gemini/embeddingTexts";
 import { execConfirmStatus } from "../modes/status";
 import { question } from "../modes/question";
+import { doWhimsicalPostReply } from "../modes/whimsical";
 
 const OFFSET_UTC_TO_JST = 9 * 60 * 60 * 1000; // offset: +9h (to JST from UTC <SQlite3>)
 const MINUTES_THRD_RESPONSE = 10 * 60 * 1000; // 10min
@@ -148,6 +149,11 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
           if (await question.postReplyOfAnswer(event, follower)) {
             logger.addAnswer();
             botBiothythmManager.addAnswer();
+            return;
+          }
+
+          // 定期ポストへのリプライ: 会話機能より優先
+          if (await doWhimsicalPostReply(follower, event)) {
             return;
           }
 

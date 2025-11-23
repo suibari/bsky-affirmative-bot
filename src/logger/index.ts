@@ -41,6 +41,7 @@ export class Logger extends EventEmitter {
   private biorhythmState: BiorhythmState;
   private uniqueAffirmations: string[];
   private uriQuestionRoot?: string;
+  private uriWhimsicalPostRoot?: string;
   private themeQuestion?: string;
 
   constructor() {
@@ -114,6 +115,7 @@ export class Logger extends EventEmitter {
       this.uniqueAffirmations = parsedData.uniqueAffirmations || [];
       this.uriQuestionRoot = parsedData.uriQuestionRoot || "";
       this.themeQuestion = parsedData.themeQuestion || "";
+      this.uriWhimsicalPostRoot = parsedData.uriWhimsicalPostRoot || "";
       this.lastResetDay = parsedData.lastResetDay || new Date().getDate();
 
       // Handle lastInitializedDate
@@ -158,6 +160,7 @@ export class Logger extends EventEmitter {
         biorhythmState: this.biorhythmState,
         uniqueAffirmations: this.uniqueAffirmations,
         uriQuestionRoot: this.uriQuestionRoot,
+        uriWhimsicalPostRoot: this.uriWhimsicalPostRoot,
         themeQuestion: this.themeQuestion,
       };
       await fs.writeFile(LOG_FILE_PATH, JSON.stringify(dataToSave, null, 2));
@@ -353,6 +356,15 @@ export class Logger extends EventEmitter {
       uriQuestionRoot: this.uriQuestionRoot,
       themeQuestion: this.themeQuestion,
     };
+  }
+
+  setWhimsicalPostRoot(uriRoot: string) {
+    this.uriWhimsicalPostRoot = uriRoot;
+    this.saveLogToFile();
+  }
+
+  getWhimsicalPostRoot() {
+    return this.uriWhimsicalPostRoot;
   }
 
   addLang(lang: LanguageName) {

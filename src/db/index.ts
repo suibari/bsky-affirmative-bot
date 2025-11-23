@@ -56,6 +56,16 @@ const desiredSchemas: Record<string, TableSchema> = {
       { name: 'updated_at', type: 'TIMESTAMP' },
       { name: 'created_at', type: 'TIMESTAMP', notNull: true, default: 'CURRENT_TIMESTAMP' },
     ]
+  },
+  replies: {
+    columns: [
+      { name: 'did', type: 'TEXT', primaryKey: true },
+      { name: 'reply', type: 'TEXT' },
+      { name: 'uri', type: 'TEXT' },
+      { name: 'isRead', type: 'INTEGER', default: 0 },
+      { name: 'updated_at', type: 'TIMESTAMP' },
+      { name: 'created_at', type: 'TIMESTAMP', notNull: true, default: 'CURRENT_TIMESTAMP' },
+    ]
   }
 };
 
@@ -202,6 +212,19 @@ export class SQLite3 {
     this.db!.run(query, params, (err) => { // Use non-null assertion operator
       if (err) {
         console.error('Error updating data', err);
+      }
+    });
+  }
+
+  updateAllDb(column: string, value?: string | number) {
+    const query = `
+          UPDATE ${this.tableName}
+          SET ${column} = ?, updated_at = CURRENT_TIMESTAMP
+        `;
+    const params = [value];
+    this.db!.run(query, params, (err) => { // Use non-null assertion operator
+      if (err) {
+        console.error('Error updating all data', err);
       }
     });
   }
@@ -353,13 +376,15 @@ export class SQLite3 {
 export const db = new SQLite3("followers");
 export const dbPosts = new SQLite3("posts");
 export const dbLikes = new SQLite3("likes");
+export const dbReplies = new SQLite3("replies");
 
 // Export an initialization function that waits for all DBs to be ready
 export async function initializeDatabases() {
   await Promise.all([
     db.initialize(),
     dbPosts.initialize(),
-    dbLikes.initialize()
+    dbLikes.initialize(),
+    dbReplies.initialize(),
   ]);
   console.log("All databases initialized and schemas ensured.");
 }

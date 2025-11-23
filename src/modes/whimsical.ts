@@ -1,17 +1,21 @@
 import { postContinuous } from "../bsky/postContinuous";
 import { WhimsicalPostGenerator } from "../gemini/generateWhimsicalPost";
 import { botBiothythmManager } from "..";
-import { dbPosts } from "../db";
+import { dbPosts, dbReplies } from "../db";
 import { AtpAgent } from "@atproto/api";
 import { ProfileView } from "@atproto/api/dist/client/types/app/bsky/actor/defs";
 import { agent } from "../bsky/agent";
 import { getPds } from "../bsky/getPds";
 import { repost } from "../bsky/repost";
-import { splitUri } from "../bsky/util";
+import { getLangStr, splitUri, uniteDidNsidRkey } from "../bsky/util";
 import { generateGoodNight } from "../gemini/generateGoodNight";
 import { generateMyMoodSong } from "../gemini/generateMyMoodSong";
 import { searchSpotifyUrlAndAddPlaylist } from "../spotify";
+import { logger } from "../index";
+import { CommitCreateEvent } from "@skyware/jetstream";
+import { Record } from "@atproto/api/dist/client/types/app/bsky/feed/post";
 import retry from "async-retry";
+import { generateWhimsicalReply } from "../gemini/generateWhimsicalReply";
 
 const whimsicalPostGen = new WhimsicalPostGenerator();
 
@@ -65,7 +69,15 @@ export async function doWhimsicalPost () {
   
   text_bot += songInfo;
 
-  await postContinuous(text_bot);
+  const {uri, cid} = await postContinuous(text_bot);
+
+  // 
+  if (!uri) {
+    logger.setWhimsicalPostRoot(uri);
+  }
+
+  // リプライ記憶をクリア
+  dbReplies.clearAllRows();
 
   // 言語を切り替え
   isJapanesePost = !isJapanesePost;
@@ -126,5 +138,45 @@ export async function doGoodNightPost (mood: string) {
   } finally {
     // 1日のテーブルクリア
     dbPosts.clearAllRows();
+  }
+}
+
+export async function doWhimsicalPostReply (follower: ProfileView, event: CommitCreateEvent<"app.bsky.feed.post">,
+) {
+  const record = event.commit.record as Record;
+  const uri = uniteDidNsidRkey(follower.did, event.commit.collection, event.commit.rkey);
+  const rootUri = record.reply?.root.uri;
+  const langStr = getLangStr(record.langs);
+
+  // Root URIのチェック
+  const rootUriRef = logger.getWhimsicalPostRoot();
+
+  // すでにリプライ済みかチェック
+  const isReplied = await dbReplies.selectDb(follower.did, "did");
+
+  // uri一致かつ返信未処理かチェック
+  if (rootUri === rootUriRef && !isReplied) {
+    // リプライ生成
+    const currentMood = botBiothythmManager.getMood;
+    const result = await generateWhimsicalReply({
+      follower,
+      posts: [record.text],
+      langStr,
+    }, currentMood);
+
+    // ポスト
+    await postContinuous(result);
+
+    console.log(`[INFO][${follower.did}][WHIMSICAL] replied to reply of Whimsical post`);
+
+    // リプライを記憶
+    dbReplies.insertDb(follower.did);
+    dbReplies.updateDb(follower.did, "reply", record.text);
+    dbReplies.updateDb(follower.did, "uri", uri);
+
+    return true;
+  } else {
+    // console.log(`uri: ${uri}, uriRef: ${uriRef}`);
+    return false;
   }
 }

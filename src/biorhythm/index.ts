@@ -12,7 +12,7 @@ import { DailyStats } from '../logger';
 import { doGoodNightPost, doWhimsicalPost } from "../modes/whimsical";
 import EventEmitter from "events";
 import { startServer } from "../server";
-import { dbPosts } from "../db";
+import { dbPosts, dbReplies } from "../db";
 import { logger } from "..";
 import { generateImage } from '../gemini/generateImage';
 import { getFullDateAndTimeString } from "../gemini/util";
@@ -160,8 +160,11 @@ export class BiorhythmManager extends EventEmitter {
       this.status = newStatus;
     }
 
+    // 未読のリプライ取得
+    const unreadReply = await dbReplies.selectRows(["reply"], {column: "isRead", value: 0}) as string[];
+
     // LLMプロンプトを生成
-    const prompt = this.buildPrompt(getFullDateAndTimeString(), isWeekend);
+    const prompt = this.buildPrompt(getFullDateAndTimeString(), isWeekend, unreadReply);
 
     // RPDチェック: 超過時は全処理スキップし、丸1日後に再実行
     if (!(logger.checkRPD())) {
@@ -193,9 +196,9 @@ export class BiorhythmManager extends EventEmitter {
       this.firstStepDone = true;
 
       // 定期つぶやきポスト
-      if (((this.getEnergy >= 60) && (this.status !== "Sleep")) || process.env.NODE_ENV === "development") {
+      if (((this.getEnergy >= 60) && (this.status !== "Sleep"))) {
         const probability = Math.random() * 100;
-        if (probability < this.getEnergy || process.env.NODE_ENV === "development") {
+        if (probability < this.getEnergy) {
           console.log(`[INFO][BIORHYTHM] post and decrease energy!`);
           await doWhimsicalPost();
           this.energy -= 6000;
@@ -211,9 +214,13 @@ export class BiorhythmManager extends EventEmitter {
 
     // ログ出力
     console.log(`[INFO][BIORHYTHM] status: ${this.status}, energy: ${this.getEnergy}, action: ${this.getMood}`);
-    
+
+    // リプライ既読処理
+    dbReplies.updateAllDb("isRead", 1);
+
     // 次回スケジュール（5〜60分）
-    const nextInterval = Math.floor(Math.random() * (SCHEDULE_STEP_MAX - SCHEDULE_STEP_MIN + 1) + SCHEDULE_STEP_MIN) * 60 * 1000 ;
+    const nextInterval = process.env.NODE_ENV === "development" ? 5 * 60 * 1000 :
+      Math.floor(Math.random() * (SCHEDULE_STEP_MAX - SCHEDULE_STEP_MIN + 1) + SCHEDULE_STEP_MIN) * 60 * 1000 ;
 
     if (!this.firstStepDone) {
       // 起動時にサーバスタートが画像生成より先だと404が返るため、
@@ -236,23 +243,23 @@ export class BiorhythmManager extends EventEmitter {
     return 'Sleep';
   }
 
-  private buildPrompt(timeNow: string, isWeekend: Boolean): string {
+  private buildPrompt(timeNow: string, isWeekend: Boolean, unreadReply?: string[]): string {
     return `
 以下のキャラクターの行動を描写してほしいです。
 ${SYSTEM_INSTRUCTION}
-このキャラクターが現在どんな気分でなにをしているか、前回の行動ももとにして、具体的に考えてください。
+このキャラクターが現在どんな気分でなにをしているか、前回の行動とユーザーからのコメントをもとにして、具体的に考えてください。
 結果は「全肯定たんは～しています」という、AIに入力する平易なプロンプト文で出力してください。
 結果は200文字以内に収めてください。
-'WakeUp'のステータスの時、このキャラクターの起床時間です。以下を参考に、朝の支度から外出までの出来事を設定してください。
-${isWeekend ? `${eventsMorningDayoff}` : `${eventsMorningWorkday}`}
-'Study'のステータスの時、このキャラクターは学校で勉強しています。以下を参考に、学校での出来事を設定してください。
-${isWeekend ? `${eventsNoonDayoff}` : `${eventsNoonWorkday}`}
-'FreeTime'のステータスの時、このキャラクターは余暇を楽しんでいます。以下を参考に、街中や家での遊びを設定してください。
-${isWeekend ? `${eventsEveningDayoff}` : `${eventsEveningWorkday}`}
-'Relax'のステータスの時、このキャラクターはくつろいでいます。以下を参考に、テレビや読書などのリラックスできる出来事を設定してください。
-${eventsNight}
-'Sleep'のステータスの時、このキャラクターは就寝中です。行動はしなくてよいです。以下を参考に、夢を見ているならその内容を設定してください。
-${eventsMidnight}
+-----行動参考例-----
+* 以下がユーザーからもらったコメントです。
+${unreadReply}
+* 以下が基本的なキャラクターの行動例です。
+${this.status === "WakeUp" ? isWeekend ? `${eventsMorningDayoff}` : `${eventsMorningWorkday}` :
+  this.status === "Study" ? isWeekend ? `${eventsNoonDayoff}` : `${eventsNoonWorkday}` :
+  this.status === "FreeTime" ? isWeekend ? `${eventsEveningDayoff}` : `${eventsEveningWorkday}` :
+  this.status === "Relax" ? `${eventsNight}` :
+  this.status === "Sleep" ? `${eventsMidnight}` : ""
+}
 -----以下がキャラクターの状態-----
 ・現在
 現在時刻：${timeNow}
