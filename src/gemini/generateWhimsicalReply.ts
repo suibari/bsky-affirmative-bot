@@ -14,7 +14,8 @@ export async function generateWhimsicalReply(userinfo: UserInfoGemini, currentMo
 
 const PROMPT_WHIMSICALREPLY = (userinfo: UserInfoGemini, currentMood: string) => {
   return `あなたの日常のつぶやきポストにユーザーがリプライしてくれました。\n` +
-  `ユーザーのリプライにあなたなりの感想を述べて、ユーザーを喜ばせてください。ただし全肯定スタンスは必須です。\n` +
+  `ユーザーのリプライにあなたなりの感想を述べて、ユーザーを喜ばせてください。全肯定スタンスは必須です。\n` +
+  `ただし、ユーザーに質問してはいけません。` +
   `**出力は${userinfo.langStr}で行ってください。**\n` +
   `現在あなたがしていること: ${currentMood}\n` +
   `---ユーザーの回答---\n` +
