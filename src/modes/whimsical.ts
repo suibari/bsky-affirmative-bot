@@ -165,7 +165,7 @@ export async function doWhimsicalPostReply (follower: ProfileView, event: Commit
     }, currentMood);
 
     // ポスト
-    await postContinuous(result);
+    await postContinuous(result, {uri, cid: String(event.commit.cid), record});
 
     console.log(`[INFO][${follower.did}][WHIMSICAL] replied to reply of Whimsical post`);
 
