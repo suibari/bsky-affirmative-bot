@@ -25,11 +25,15 @@ let isJapanesePost = true;
 export async function doWhimsicalPost () {
   const langStr = isJapanesePost ? "日本語" : "English";
 
+  // ユーザーからのリプライを取得
+  const userReplies = await dbReplies.selectRows(["reply"]) as string[] | null;
+
   // ポスト
   const currentMood = botBiothythmManager.getMood;
   let text_bot = await whimsicalPostGen.generate({
     langStr: langStr,
     currentMood,
+    userReplies: userReplies ?? undefined,
   });
 
   // ムードソング

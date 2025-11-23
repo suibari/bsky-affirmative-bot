@@ -4,7 +4,7 @@ import { fetchNews } from "../gnews/index.js";
 import { LanguageName } from "../types.js";
 import { logger } from "../index.js";
 
-const lastPosts: string[] = [];
+let lastPosts: string[] = [];
 
 export class WhimsicalPostGenerator {
   private lastPostsMap: Record<string, string[]> = {};
@@ -16,13 +16,13 @@ export class WhimsicalPostGenerator {
     topPost?: string,
     langStr: LanguageName,
     currentMood: string,
+    userReplies?: string[],
   }) {
     const lang = params.langStr;
-    const lastPosts = this.lastPostsMap[lang] ?? [];
+    lastPosts = this.lastPostsMap[lang] ?? [];
 
     const prompt = await PROMPT_WHIMSICAL_POST({
       ...params,
-      lastPosts
     });
 
     const response = await generateSingleResponse(prompt);
@@ -50,7 +50,7 @@ const PROMPT_WHIMSICAL_POST = async (params: {
   topPost?: string,
   langStr: string,
   currentMood: string,
-  lastPosts: string[],
+  userReplies?: string[],
 }) => {
   return params.langStr === "日本語" ?
 `現在、${getFullDateAndTimeString()}です。
@@ -61,6 +61,9 @@ ${lastPosts.length > 0 ? `あなたが過去ポストした次の内容と重複
 [MUST: 必ず含める]
 * フォロワーへの挨拶
 * あなたが次の気分・状態であることを、一言で説明。文章をそのまま出力せず、要約してください：${params.currentMood}
+${params.userReplies && params.userReplies.length > 0 ?
+  `  また、気分・状態はユーザーからのリプライで決めたことを、ユーザーのリプライ内容に言及して伝える（ただし要約のみ）。もし、ユーザーが何かのアイテムに言及していた場合、それをどう使うかを伝える。ユーザーからのリプライ: ${params.userReplies}` : ""
+}
 [WANT: あなたが一番面白いと思うものを**いずれか1つだけ**含める]
 ${await PROMPT_WHIMSICAL_WANT_PART(params)}
 [MUST: 必ず含める]
@@ -75,6 +78,9 @@ Please make sure your post includes the following (**Do not include annotations 
 [MUST: includes all of the following]
 * A friendly greeting to your followers
 * Explain your current mood/state in a single phrase. Do not repeat the input text directly—summarize it: ${params.currentMood}
+${params.userReplies && params.userReplies.length > 0 ?
+  `  Also, introduce the user's reply (only a summary). Let them know that your mood/state reflects their reply. If the user mentions an item, tell them how to use it. User replies: ${params.userReplies}` : ""
+}
 [WANT: ideally include the thing you're **most** interested in right now]
 ${await PROMPT_WHIMSICAL_WANT_PART(params)}
 [MUST: includes all of the following]
