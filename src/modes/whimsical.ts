@@ -71,8 +71,8 @@ export async function doWhimsicalPost () {
 
   const {uri, cid} = await postContinuous(text_bot);
 
-  // 
-  if (!uri) {
+  // 投稿URIを保存
+  if (uri) {
     logger.setWhimsicalPostRoot(uri);
   }
 
