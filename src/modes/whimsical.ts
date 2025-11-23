@@ -158,7 +158,8 @@ export async function doWhimsicalPostReply (follower: ProfileView, event: Commit
   // すでにリプライ済みかチェック
   const isReplied = await dbReplies.selectDb(follower.did, "did");
 
-  // uri一致かつ返信未処理かチェック
+  // 最新のつぶやき対象かつ返信未処理かチェック
+  // NOTE: つぶやき以外のポストに対してリプライしてもisRepliedがtrueになるので不完全
   if (rootUri === rootUriRef && !isReplied) {
     // リプライ生成
     const currentMood = botBiothythmManager.getMood;
@@ -172,11 +173,6 @@ export async function doWhimsicalPostReply (follower: ProfileView, event: Commit
     await postContinuous(result, {uri, cid: String(event.commit.cid), record});
 
     console.log(`[INFO][${follower.did}][WHIMSICAL] replied to reply of Whimsical post`);
-
-    // リプライを記憶
-    dbReplies.insertDb(follower.did);
-    dbReplies.updateDb(follower.did, "reply", record.text);
-    dbReplies.updateDb(follower.did, "uri", uri);
 
     return true;
   } else {

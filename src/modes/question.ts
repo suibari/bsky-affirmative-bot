@@ -35,14 +35,14 @@ class QuestionMode {
     // 質問情報取得
     const {uriQuestionRoot, themeQuestion} = logger.getQuestionState();
     if (!uriQuestionRoot || !themeQuestion) {
-      console.log(`[INFO][QUESTION][${follower.did}] No question found`);
+      // console.log(`[INFO][QUESTION][${follower.did}] No question found`);
       return false;
     }
 
     // ユーザ回答スレッドチェック: わからないけど安全のため
     const uriRecordRoot = record.reply?.root.uri;
     if (uriRecordRoot !== uriQuestionRoot) {
-      console.log(`[INFO][QUESTION][${follower.did}] not question root`);
+      // console.log(`[INFO][QUESTION][${follower.did}] not question root`);
       return false;
     }
 
