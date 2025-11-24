@@ -55,14 +55,13 @@ const PROMPT_WHIMSICAL_POST = async (params: {
   return params.langStr === "日本語" ?
 `現在、${getFullDateAndTimeString()}です。
 あなたの気まぐれでSNSに投稿する文章をこれから生成します。
-文章は最大500文字以内とします。
 ${lastPosts.length > 0 ? `あなたが過去ポストした次の内容と重複しないようにしてください: ${lastPosts}` : ""}
 文章には以下を含めてください。(**"[MUST]"や"[WANT]"の文字は含めてはならない**)
 [MUST: 必ず含める]
 * フォロワーへの挨拶
 * あなたが次の気分・状態であることを、一言で説明。文章をそのまま出力せず、要約してください：${params.currentMood}
 ${params.userReplies && params.userReplies.length > 0 ?
-  `  また、気分・状態はユーザーからのリプライで決めたことを、ユーザーのリプライ内容に言及して伝える（ただし要約のみ）。もし、ユーザーが何かのアイテムに言及していた場合、それをどう使うかを伝える。ユーザーからのリプライ: ${params.userReplies}` : ""
+  `* ユーザーからのリプライについて、ユーザーが何かのアイテムに言及していた場合は、あなたがそれをどう使うつもりかを伝える。ユーザーからのリプライ: ${params.userReplies.join(",")}` : ""
 }
 [WANT: あなたが一番面白いと思うものを**いずれか1つだけ**含める]
 ${await PROMPT_WHIMSICAL_WANT_PART(params)}
@@ -72,14 +71,13 @@ ${PROMPT_INTRO_BOT_FEATURE("日本語")}
 `The current date and time is ${getFullDateAndTimeString()}.  
 You are going to write a whimsical social media post.
 The output should be in **English**.
-The output should be at most 1000 characters.
 ${lastPosts.length > 0 ? `Do not repeat or overlap with the following your past posts: ${lastPosts}` : ""}
 Please make sure your post includes the following (**Do not include annotations indicating "[MUST]" or "[WANT]"**):
 [MUST: includes all of the following]
 * A friendly greeting to your followers
 * Explain your current mood/state in a single phrase. Do not repeat the input text directly—summarize it: ${params.currentMood}
 ${params.userReplies && params.userReplies.length > 0 ?
-  `  Also, introduce the user's reply (only a summary). Let them know that your mood/state reflects their reply. If the user mentions an item, tell them how to use it. User replies: ${params.userReplies}` : ""
+  `* In user's reply to you, if they mention an item, tell them how you plan to use it. User replies: ${params.userReplies}` : ""
 }
 [WANT: ideally include the thing you're **most** interested in right now]
 ${await PROMPT_WHIMSICAL_WANT_PART(params)}
