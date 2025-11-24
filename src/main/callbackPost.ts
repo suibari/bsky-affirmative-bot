@@ -127,13 +127,13 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
           botBiothythmManager.addAnalysis();
           return;
         }
+        if (await handleDJ(event, follower, db) && logger.checkRPD()) {
+          logger.addDJ();
+          botBiothythmManager.addDJ();
+          return;
+        }
 
         if (subscribers.includes(follower.did)) {
-          if (await handleDJ(event, follower, db) && logger.checkRPD()) {
-            logger.addDJ();
-            botBiothythmManager.addDJ();
-            return;
-          }
           if (await handleCheer(event, follower, db) && logger.checkRPD()) {
             logger.addCheer();
             botBiothythmManager.addCheer();
