@@ -28,15 +28,29 @@ export async function doWhimsicalPost () {
   // ユーザーからのリプライを取得
   const userReplies = await dbReplies.selectRows(["reply"]) as string[] | null;
 
-  // ポスト
+  // Step1: ポスト文生成
   const currentMood = botBiothythmManager.getMood;
-  let text_bot = await whimsicalPostGen.generate({
-    langStr: langStr,
-    currentMood,
-    userReplies: userReplies ?? undefined,
-  });
+  let text_bot = await retry(
+    async (bail, attempt) => {
+      const generatedText = await whimsicalPostGen.generate({
+        langStr: langStr,
+        currentMood,
+        userReplies: userReplies ?? undefined,
+      });
+      if (!generatedText) {
+        throw new Error("Whimsical post generation failed, retrying...");
+      }
+      return generatedText;
+    },
+    {
+      retries: 3,
+      onRetry: (error: any, attempt) => {
+        console.warn(`[WARN] Whimsical post generation failed on attempt ${attempt}: ${error.message}`);
+      },
+    }
+  );
 
-  // ムードソング
+  // Step2: ムードソング
   let songInfo = "";
   let currentGeneratedSong = { title: "Unknown", artist: "Unknown" };
 
@@ -156,11 +170,11 @@ export async function doWhimsicalPostReply (follower: ProfileView, event: Commit
   const rootUriRef = logger.getWhimsicalPostRoot();
 
   // すでにリプライ済みかチェック
-  const isReplied = await dbReplies.selectDb(follower.did, "did");
+  const isReplied = await dbReplies.selectDb(follower.did, "isRead");
 
   // 最新のつぶやき対象かつ返信未処理かチェック
   // NOTE: つぶやき以外のポストに対してリプライしてもisRepliedがtrueになるので不完全
-  if (rootUri === rootUriRef && !isReplied) {
+  if (rootUri === rootUriRef && isReplied != 1) {
     // リプライ生成
     const currentMood = botBiothythmManager.getMood;
     const result = await generateWhimsicalReply({

@@ -147,6 +147,13 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
         if (record.reply && isReplyOrMentionToMe(record)) {
           const uri = uniteDidNsidRkey(follower.did, event.commit.collection, event.commit.rkey);
 
+          // リプライを記憶
+          dbReplies.insertOrUpdateDb(follower.did);
+          dbReplies.updateDb(follower.did, "reply", record.text);
+          dbReplies.updateDb(follower.did, "uri", uri);
+          dbReplies.updateDb(follower.did, "isRead", 0);
+          console.log(`[INFO][${follower.did}] new reply to me, so memorized`);
+
           // 質問コーナー回答: 会話機能より優先
           if (await question.postReplyOfAnswer(event, follower)) {
             logger.addAnswer();
@@ -166,13 +173,7 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
               botBiothythmManager.addConversation();
               return;
             }
-          }
-
-          // リプライを記憶: 定期ポストの判定上、最後に実施
-          dbReplies.insertDb(follower.did);
-          dbReplies.updateDb(follower.did, "reply", record.text);
-          dbReplies.updateDb(follower.did, "uri", uri);
-          console.log(`[INFO][${follower.did}] new reply to me, so memorized`);
+          }          
 
         // ==============
         // main: 通常ポスト(リプライ・メンション除く)
