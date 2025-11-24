@@ -89,10 +89,8 @@ export async function doWhimsicalPost () {
 
   const {uri, cid} = await postContinuous(text_bot);
 
-  // 投稿URIを保存
-  if (uri) {
-    logger.setWhimsicalPostRoot(uri);
-  }
+  // 投稿URIを保存 (リプライに反応するようにするため)
+  logger.setWhimsicalPostRoot(uri);
 
   // リプライ記憶をクリア
   dbReplies.clearAllRows();
@@ -147,7 +145,10 @@ export async function doGoodNightPost (mood: string) {
       });
 
       // ポスト
-      await postContinuous(text_bot);
+      const {uri, cid} = await postContinuous(text_bot);
+
+      // 投稿URIを保存 (リプライに反応するようにするため)
+      logger.setWhimsicalPostRoot(uri);
     } else {
       console.log("[INFO] No valid top post found after trying all highest score entries.");
     }
