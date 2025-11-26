@@ -37,21 +37,21 @@ const PROMPT_GOODNIGHT_WORD = async (param: GoodNightInfo) => {
   `${await botBiothythmManager.getLevelUp() > 0 ?
     `* レベルが${await botBiothythmManager.getLevelUp()}上がった!` : ""}` +
   `${Math.floor(logger.getDailyStats().affirmationCount / 1000) > 0 ?
-    `* 愛が${Math.floor(logger.getDailyStats().affirmationCount / 1000)}上がった!` : ""}` +
+    `* 全肯定力が${Math.floor(logger.getDailyStats().affirmationCount / 1000)}上がった!` : ""}` +
   `${Math.floor(logger.getDailyStats().likes / 1000) > 0 ?
-    `* 勇気が${Math.floor(logger.getDailyStats().likes / 1000)}上がった!` : ""}` +
-  `${Math.floor(logger.getDailyStats().reply) > 0 ?
-    `* 優しさが${Math.floor(logger.getDailyStats().reply)}上がった!` : ""}` +
+    `* Bluesky愛が${Math.floor(logger.getDailyStats().likes / 1000)}上がった!` : ""}` +
+  `${Math.floor(logger.getDailyStats().reply / 10) > 0 ?
+    `* トーク力が${Math.floor(logger.getDailyStats().reply / 10)}上がった!` : ""}` +
   `${Math.floor(logger.getDailyStats().analysis) > 0 ?
-    `* 賢さが${Math.floor(logger.getDailyStats().analysis)}上がった!` : ""}` +
+    `* かしこさが${Math.floor(logger.getDailyStats().analysis)}上がった!` : ""}` +
   `${Math.floor(logger.getDailyStats().fortune) > 0 ?
     `* 運の良さが${Math.floor(logger.getDailyStats().fortune)}上がった!` : ""}` +
   `${Math.floor(logger.getDailyStats().cheer) > 0 ?
-    `* 包容力が${Math.floor(logger.getDailyStats().cheer)}上がった!` : ""}` +
+    `* 拡散力が${Math.floor(logger.getDailyStats().cheer)}上がった!` : ""}` +
   `${Math.floor(logger.getDailyStats().dj) > 0 ?
     `* パリピ度が${Math.floor(logger.getDailyStats().dj)}上がった!` : ""}` +
-  `${Math.floor(logger.getDailyStats().anniversary) > 0 ?
-    `* 祝福が${Math.floor(logger.getDailyStats().anniversary)}上がった!` : ""}` +
+  `${Math.floor(logger.getDailyStats().anniversary / 1000) > 0 ?
+    `* 魔力が${Math.floor(logger.getDailyStats().anniversary / 1000)}上がった!` : ""}` +
   `---今日のあなたが全肯定されたポスト---` +
   `* ポストしたユーザ名: ${param.topFollower?.displayName ?? ""}` +
   `* ポスト内容: ${param.topPost ?? ""}`;

@@ -152,6 +152,7 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
           dbReplies.updateDb(follower.did, "reply", record.text);
           dbReplies.updateDb(follower.did, "uri", uri);
           dbReplies.updateDb(follower.did, "isRead", 0);
+          logger.addReply();
           console.log(`[INFO][${follower.did}] new reply to me, so memorized`);
 
           // 質問コーナー回答: 会話機能より優先
