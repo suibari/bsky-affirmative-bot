@@ -8,7 +8,7 @@ import eventsNight from "../json/event_night.json";
 import eventsMidnight from "../json/event_midnight.json";
 import { MODEL_GEMINI, SYSTEM_INSTRUCTION } from '../config';
 import { gemini } from '../gemini';
-import { DailyStats } from '../logger';
+import { DailyReport } from '../logger'; // DailyStatsをDailyReportに変更
 import { doGoodNightPost, doWhimsicalPost } from "../modes/whimsical";
 import EventEmitter from "events";
 import { startServer } from "../server";
@@ -22,7 +22,7 @@ import { LanguageName } from "../types"; // LanguageNameをインポート
 type Status = 'WakeUp' | 'Study' | 'FreeTime' | 'Relax' | 'Sleep';
 
 // WebSocket用にlangプロパティを配列に変換したDailyStatsの型を定義
-interface DailyStatsForWebSocket extends Omit<DailyStats, 'lang'> {
+interface DailyStatsForWebSocket extends Omit<DailyReport, 'lang'> { // DailyStatsをDailyReportに変更
   lang: [LanguageName, number][];
 }
 
