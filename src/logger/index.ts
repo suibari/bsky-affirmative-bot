@@ -387,7 +387,7 @@ export class Logger extends EventEmitter {
       dj: this.totalStats.dj,
       anniversary: this.totalStats.anniversary,
       answer: this.totalStats.answer,
-      lang: this.totalStats.lang,
+      lang: new Map<LanguageName, number>(this.totalStats.lang),
     };
   }
 
