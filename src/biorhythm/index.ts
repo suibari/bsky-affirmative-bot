@@ -18,6 +18,7 @@ import { generateImage } from '../gemini/generateImage';
 import { getFullDateAndTimeString } from "../gemini/util";
 import { question } from "../modes/question";
 import { LanguageName } from "../types"; // LanguageNameをインポート
+import { agent } from "../bsky/agent";
 
 type Status = 'WakeUp' | 'Study' | 'FreeTime' | 'Relax' | 'Sleep';
 
@@ -139,6 +140,15 @@ export class BiorhythmManager extends EventEmitter {
         lang: Array.from(dailyStats.lang.entries()), // Convert Map to array for WebSocket
       },
     };
+  }
+
+  async getLevelUp(): Promise<number> {
+    const profile = await agent.getProfile({ actor: process.env.BSKY_DID! });
+    const currentFollowersCount = profile.data.followersCount ?? 0;
+    const yesterdayFollowersCount = currentFollowersCount - logger.getDailyStats().followers;
+    const todayLevel = Math.floor(currentFollowersCount / 100);
+    const yesterdayLevel = Math.floor(yesterdayFollowersCount / 100);
+    return (todayLevel - yesterdayLevel) > 0 ? (todayLevel - yesterdayLevel) : 0;
   }
 
   // --------

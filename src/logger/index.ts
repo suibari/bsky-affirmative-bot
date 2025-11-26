@@ -11,6 +11,7 @@ const LOG_FILE_PATH = path.join(process.cwd(), "log.json");
 export interface Stats {
   followers: number;
   likes: number;
+  reply: number;
   affirmationCount: number;
   conversation: number;
   fortune: number;
@@ -60,6 +61,7 @@ export class Logger extends EventEmitter {
     this.totalStats = {
       followers: 0,
       likes: 0,
+      reply: 0,
       affirmationCount: 0,
       conversation: 0,
       fortune: 0,
@@ -73,6 +75,7 @@ export class Logger extends EventEmitter {
     this.yesterdayStats = { // yesterdayStatsの初期化
       followers: 0,
       likes: 0,
+      reply: 0,
       affirmationCount: 0,
       conversation: 0,
       fortune: 0,
@@ -109,6 +112,7 @@ export class Logger extends EventEmitter {
       const defaultStats: Stats = {
         followers: 0,
         likes: 0,
+        reply: 0,
         affirmationCount: 0,
         conversation: 0,
         fortune: 0,
@@ -212,6 +216,7 @@ export class Logger extends EventEmitter {
     this.yesterdayStats = {
       followers: this.totalStats.followers,
       likes: this.totalStats.likes,
+      reply: this.totalStats.reply,
       affirmationCount: this.totalStats.affirmationCount,
       conversation: this.totalStats.conversation,
       fortune: this.totalStats.fortune,
@@ -267,6 +272,12 @@ export class Logger extends EventEmitter {
 
   addLike() {
     this.totalStats.likes++; // 総回数のみ更新
+    this.saveLogToFile();
+    this.emit("statsChange");
+  }
+
+  addReply() {
+    this.totalStats.reply++;
     this.saveLogToFile();
     this.emit("statsChange");
   }
@@ -344,6 +355,7 @@ export class Logger extends EventEmitter {
     return {
       followers: this.totalStats.followers - this.yesterdayStats.followers,
       likes: this.totalStats.likes - this.yesterdayStats.likes,
+      reply: this.totalStats.reply - this.yesterdayStats.reply,
       affirmationCount: this.totalStats.affirmationCount - this.yesterdayStats.affirmationCount,
       uniqueAffirmationUserCount: this.uniqueAffirmations.length,
       conversation: this.totalStats.conversation - this.yesterdayStats.conversation,
@@ -366,6 +378,7 @@ export class Logger extends EventEmitter {
     return {
       followers: this.totalStats.followers,
       likes: this.totalStats.likes,
+      reply: this.totalStats.reply,
       affirmationCount: this.totalStats.affirmationCount,
       conversation: this.totalStats.conversation,
       fortune: this.totalStats.fortune,
