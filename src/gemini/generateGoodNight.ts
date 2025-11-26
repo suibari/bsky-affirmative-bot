@@ -40,8 +40,8 @@ const PROMPT_GOODNIGHT_WORD = async (param: GoodNightInfo) => {
     `* 全肯定力が${Math.floor(logger.getDailyStats().affirmationCount / 1000)}上がった!` : ""}` +
   `${Math.floor(logger.getDailyStats().likes / 1000) > 0 ?
     `* Bluesky愛が${Math.floor(logger.getDailyStats().likes / 1000)}上がった!` : ""}` +
-  `${Math.floor(logger.getDailyStats().reply / 10) > 0 ?
-    `* トーク力が${Math.floor(logger.getDailyStats().reply / 10)}上がった!` : ""}` +
+  `${Math.floor(logger.getDailyStats().reply / 100) > 0 ?
+    `* トーク力が${Math.floor(logger.getDailyStats().reply / 100)}上がった!` : ""}` +
   `${Math.floor(logger.getDailyStats().analysis) > 0 ?
     `* かしこさが${Math.floor(logger.getDailyStats().analysis)}上がった!` : ""}` +
   `${Math.floor(logger.getDailyStats().fortune) > 0 ?
