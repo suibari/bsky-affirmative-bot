@@ -8,7 +8,7 @@ import eventsNight from "../json/event_night.json";
 import eventsMidnight from "../json/event_midnight.json";
 import { MODEL_GEMINI, SYSTEM_INSTRUCTION } from '../config';
 import { gemini } from '../gemini';
-import { DailyReport } from '../logger'; // DailyStatsをDailyReportに変更
+import { DailyReport, Stats } from '../logger'; // DailyStatsをDailyReportに変更
 import { doGoodNightPost, doWhimsicalPost } from "../modes/whimsical";
 import EventEmitter from "events";
 import { startServer } from "../server";
@@ -32,6 +32,7 @@ interface BotStat {
   mood: string;
   status: string;
   dailyStats: DailyStatsForWebSocket; // 型をDailyStatsForWebSocketに変更
+  totalStats: Stats; // 追加: totalStatsプロパティ
 }
 
 const ENERGY_MAXIMUM = 10000;
@@ -131,6 +132,7 @@ export class BiorhythmManager extends EventEmitter {
 
   getCurrentState(): BotStat {
     const dailyStats = logger.getDailyStats();
+    const totalStats = logger.getTotalStats();
     return {
       energy: this.getEnergy,
       mood: this.getMood,
@@ -139,6 +141,9 @@ export class BiorhythmManager extends EventEmitter {
         ...dailyStats,
         lang: Array.from(dailyStats.lang.entries()), // Convert Map to array for WebSocket
       },
+      totalStats: {
+        ...totalStats,
+      }
     };
   }
 
