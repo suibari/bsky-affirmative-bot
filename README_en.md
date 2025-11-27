@@ -20,15 +20,18 @@ The bot has the following features:
 7. **Cheering**: Reposts user content for promotion.
 8. **DJ mode**: Selects music for the user.
 9. **Diary mode**: Creates a diary based on the user’s posts.
+10. **Anniversary mode**: When an anniversary comes, the bot will celebrate it.
 
 Additionally, this bot offers a subscription plan to cover operational costs.  
 
 Below is a comparison of available features for regular followers vs. subscribers. Details about subscription are available on [Patreon](https://www.patreon.com/posts/about-enhanced-133404007).
 
-| Subscription | Template Replies | AI Replies | Fortune | Frequency Control | Conversation | Analysis | Cheering | DJ | Diary |
-| ------------ | ---------------- | ---------- | ------- | ---------------- | ------------ | -------- | --------- | -- | ----- |
-| Regular      | ✓                |            | ✓       | ✓                |              | ✓        |           |    |       |
-| Subscriber   |                  | ✓          | ✓       | ✓                | ✓            | ✓        | ✓         | ✓  | ✓     |
+| Subscription | Template Replies | AI Replies | Fortune | Frequency Control | Conversation | Analysis | Cheering | DJ | Diary | Anniversary |
+| ------------ | ---------------- | ---------- | ------- | ---------------- | ------------ | -------- | --------- | -- | ----- | ----------- |
+| Regular      | ✓                | ✓*          | ✓       | ✓                |              | ✓        |           | ✓  |       | ✓     |
+| Subscriber   |                  | ✓          | ✓       | ✓                | ✓            | ✓        | ✓         | ✓  | ✓     | ✓   |
+
+*: AI-generated replies for regular followers occur randomly.
 
 ---
 
@@ -43,7 +46,7 @@ The flowchart below illustrates how the bot responds to your posts:
 ![bot flow](https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:uixgxpiqf4i63p6rgpu7ytmx/bafkreihxgiteyk25cpv3e7lkdsggntpb3jj6ybha4btq5ykf2fzdyq7j6u@jpeg)
 
 ### Fortune-telling
-1. Mention or reply to the bot with **"fortune"**.  
+1. After being followed back by the bot, Mention or reply to the bot with **"fortune"**.  
 2. The bot will reply with your fortune result.  
 
 (*You can only use this once every few hours.*)
@@ -60,7 +63,7 @@ The flowchart below illustrates how the bot responds to your posts:
 5. If you reply to that, the conversation continues (repeat from step 3).  
 
 ### Personality Analysis
-1. Mention or reply to the bot with **"analyze me"**.  
+1. After being followed back by the bot, Mention or reply to the bot with **"analyze me"**.  
 2. The bot will reply with an image containing your analysis result.  
 
 (*You can only use this once every few days.*)
@@ -72,7 +75,7 @@ The flowchart below illustrates how the bot responds to your posts:
 (*You can only use this once every few hours.*)
 
 ### DJ Mode
-1. Mention or reply to the bot with **"DJ please"**.  
+1. After being followed back by the bot, Mention or reply to the bot with **"DJ please"**.  
 2. The bot will recommend a song.  
 
 (*You can only use this once every few minutes.*)
@@ -81,6 +84,21 @@ The flowchart below illustrates how the bot responds to your posts:
 1. After being followed back by the bot, mention or reply with **"keep diary"**.  
 2. The bot will reply with a daily diary every evening, based on your posts.  
 3. To disable, mention or reply with **"stop diary"**.  
+
+### Anniversary Mode
+When an anniversary arrives, the bot will celebrate it in reply to the first user post of that day.
+There are two types of anniversaries: **preset anniversaries** and **user-registered anniversaries**.
+
+* **Preset anniversaries** refer to common holidays such as Christmas or New Year’s Day.
+* **User-registered anniversaries** are personal anniversaries that each user can set once.
+
+You can register a user anniversary using the following steps:
+
+1. Follow this bot according to the “How to Use” instructions.
+2. Post a mention or reply to this bot with **"Remember anniversary, MM/DD”** (e.g., "Remember anniversary, 12/31”).
+3. Upon successful registration, the bot will confirm it.
+4. On the anniversary date, the bot will reply to the user’s post to celebrate (if the user doesn’t post that day, no celebration will occur).
+5. To check your registered anniversary, post a mention or reply to this bot with **"Tell me anniversary”**.
 
 ---
 
