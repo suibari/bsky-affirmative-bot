@@ -36,12 +36,6 @@
     "regions": ["global"]
   },
   {
-    "id": "star_wars_day",
-    "names": { "ja": "スターウォーズの日", "en": "Star Wars Day" },
-    "rule": { "type": "fixed", "month": 5, "day": 4 },
-    "regions": ["global"]
-  },
-  {
     "id": "mothers_day",
     "names": { "ja": "母の日", "en": "Mother's Day" },
     "rule": { "type": "nth-weekday", "month": 5, "week": 2, "weekday": 0 },
