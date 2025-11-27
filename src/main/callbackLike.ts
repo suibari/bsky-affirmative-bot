@@ -17,6 +17,11 @@ export async function callbackLike (event: CommitCreateEvent<"app.bsky.feed.like
       async () => {
         // 自分宛以外のlikeを除外
         if (subjectDid !== process.env.BSKY_DID) return;
+
+        // 既にDBに存在するlikeを除外
+        // NOTE: 過去全てのいいねを保持しているわけではないので、あるポストに対しての連続イイネしか防げない
+        const uri = record.subject.uri;
+        if (await dbLikes.selectDb(did, "uri") == uri) return;
           
         console.log(`[INFO] detect liked by: ${did}`);
 
@@ -33,8 +38,9 @@ export async function callbackLike (event: CommitCreateEvent<"app.bsky.feed.like
         botBiothythmManager.addLike();
 
         // DB格納
-        dbLikes.insertDb(did);
+        dbLikes.insertOrUpdateDb(did);
         dbLikes.updateDb(did, "liked_post", text);
+        dbLikes.updateDb(did, "uri", uri);
       },{
         retries: 3,
         onRetry: (err, attempt) => {

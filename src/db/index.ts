@@ -53,6 +53,7 @@ const desiredSchemas: Record<string, TableSchema> = {
     columns: [
       { name: 'did', type: 'TEXT', primaryKey: true },
       { name: 'liked_post', type: 'TEXT' },
+      { name: 'uri', type: 'TEXT' },
       { name: 'updated_at', type: 'TIMESTAMP' },
       { name: 'created_at', type: 'TIMESTAMP', notNull: true, default: 'CURRENT_TIMESTAMP' },
     ]
