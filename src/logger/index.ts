@@ -166,6 +166,7 @@ export class Logger extends EventEmitter {
         totalStats: {
           followers: this.totalStats.followers,
           likes: this.totalStats.likes,
+          reply: this.totalStats.reply,
           affirmationCount: this.totalStats.affirmationCount,
           conversation: this.totalStats.conversation,
           fortune: this.totalStats.fortune,
@@ -179,6 +180,7 @@ export class Logger extends EventEmitter {
         yesterdayStats: {
           followers: this.yesterdayStats.followers,
           likes: this.yesterdayStats.likes,
+          reply: this.yesterdayStats.reply,
           affirmationCount: this.yesterdayStats.affirmationCount,
           conversation: this.yesterdayStats.conversation,
           fortune: this.yesterdayStats.fortune,
