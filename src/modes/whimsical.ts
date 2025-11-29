@@ -9,7 +9,7 @@ import { getPds } from "../bsky/getPds";
 import { repost } from "../bsky/repost";
 import { getLangStr, splitUri, uniteDidNsidRkey } from "../bsky/util";
 import { generateGoodNight } from "../gemini/generateGoodNight";
-import { generateMyMoodSong } from "../gemini/generateMyMoodSong";
+import { MyMoodSongGenerator } from "../gemini/generateMyMoodSong";
 import { searchSpotifyUrlAndAddPlaylist } from "../spotify";
 import { logger } from "../index";
 import { CommitCreateEvent } from "@skyware/jetstream";
@@ -18,6 +18,7 @@ import retry from "async-retry";
 import { generateWhimsicalReply } from "../gemini/generateWhimsicalReply";
 
 const whimsicalPostGen = new WhimsicalPostGenerator();
+const myMoodSongGen = new MyMoodSongGenerator();
 
 // 投稿言語を管理する変数
 let isJapanesePost = true;
@@ -58,7 +59,7 @@ export async function doWhimsicalPost () {
     const resultSpotify = await retry(
       async (bail, attempt) => {
         // AI生成
-        currentGeneratedSong = await generateMyMoodSong(currentMood, langStr);
+        currentGeneratedSong = await myMoodSongGen.generate(currentMood, langStr);
 
         // Spotify検索: ここで見つからなければリトライさせるねらい
         const spotifySearchTerm = { artist: currentGeneratedSong.artist, track: currentGeneratedSong.title };
