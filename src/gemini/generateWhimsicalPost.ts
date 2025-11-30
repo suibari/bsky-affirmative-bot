@@ -84,7 +84,7 @@ Rules:
 * Edit the whole sentence so that it sounds natural enough to post on social media. You can change the order of each part or add connecting sentences.
 * Use line breaks to make the text easier to read.
 * Decorate with emojis.
-* The output language must be consistent with the following "Language".
+* Translate the output post to match the "Language" below.
 * Output the post straight away (no preamble needed).
 
 Language: ${lang}

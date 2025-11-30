@@ -262,12 +262,10 @@ export class BiorhythmManager extends EventEmitter {
     return `
 以下のキャラクターの行動を描写してほしいです。
 ${SYSTEM_INSTRUCTION}
-このキャラクターが現在どんな気分でなにをしているか、前回の行動をもとにして、具体的に考えてください。
+このキャラクターが現在どんな気分でなにをしているか、現在時刻・ステータス・前回した行動をもとにして、具体的に考えてください。
 結果は「全肯定たんは～しています」という、AIに入力する平易なプロンプト文で出力してください。
 結果は200文字以内に収めてください。
 -----行動参考例-----
-* 以下がユーザーからもらったコメントです。**次の行動を考える際に優先的に参考にすること。**
-${unreadReply}
 * 以下が基本的なキャラクターの行動例です。
 ${this.status === "WakeUp" ? isWeekend ? `${eventsMorningDayoff}` : `${eventsMorningWorkday}` :
   this.status === "Study" ? isWeekend ? `${eventsNoonDayoff}` : `${eventsNoonWorkday}` :
@@ -275,6 +273,8 @@ ${this.status === "WakeUp" ? isWeekend ? `${eventsMorningDayoff}` : `${eventsMor
   this.status === "Relax" ? `${eventsNight}` :
   this.status === "Sleep" ? `${eventsMidnight}` : ""
 }
+* 以下がユーザーからもらったコメントです。次の行動を考える際に参考にすること。
+${unreadReply}
 -----以下がキャラクターの状態-----
 ・現在
 現在時刻：${timeNow}
