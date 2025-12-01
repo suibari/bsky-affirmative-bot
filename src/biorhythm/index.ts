@@ -19,8 +19,9 @@ import { getFullDateAndTimeString } from "../gemini/util";
 import { question } from "../modes/question";
 import { LanguageName } from "../types"; // LanguageNameをインポート
 import { agent } from "../bsky/agent";
+import { UtilityAI } from "./utilityAI";
 
-type Status = 'WakeUp' | 'Study' | 'FreeTime' | 'Relax' | 'Sleep';
+export type Status = 'WakeUp' | 'Study' | 'FreeTime' | 'Relax' | 'Sleep';
 
 // WebSocket用にlangプロパティを配列に変換したDailyStatsの型を定義
 interface DailyStatsForWebSocket extends Omit<DailyReport, 'lang'> { // DailyStatsをDailyReportに変更
@@ -168,15 +169,16 @@ export class BiorhythmManager extends EventEmitter {
     const hour = now.getHours();
     const isWeekend = now.getDay() === 0 || now.getDay() === 6;
 
-    const newStatus = this.getNextStatus(hour, isWeekend);
-
-    // 状態変更（20%の確率で維持）
-    if (Math.random() >= 0.2) {
-      this.status = newStatus;
-    }
-
     // 未読のリプライ取得
     const unreadReply = await dbReplies.selectRows(["reply"], {column: "isRead", value: 0}) as string[];
+
+    // 新しいステータス候補を決定
+    this.status = UtilityAI.selectAction({
+      hour,
+      isWeekend,
+      energy: this.getEnergy,
+      currentAction: this.moodPrev
+    });
 
     // LLMプロンプトを生成
     const prompt = this.buildPrompt(getFullDateAndTimeString(), isWeekend, unreadReply);
@@ -194,7 +196,7 @@ export class BiorhythmManager extends EventEmitter {
 
       // おやすみポスト
       if (this.firstStepDone) {
-        if (this.status !== this.statusPrev && this.status === "Sleep") {
+        if (this.status !== this.statusPrev && this.status === "Sleep" && hour > 18) {
           console.log(`[INFO][BIORHYTHM] post goodnight!`);
           await doGoodNightPost(this.getMood);
         }
@@ -202,7 +204,7 @@ export class BiorhythmManager extends EventEmitter {
       
       // おはようポスト
       if (this.firstStepDone) {
-        if (this.status !== this.statusPrev && this.status === "WakeUp") {
+        if (this.status !== this.statusPrev && this.status === "WakeUp" && hour < 12) {
           console.log(`[INFO][BIORHYTHM] post goodmorning!`);
           await question.postQuestion();
           this.energy -= 6000;
@@ -250,31 +252,37 @@ export class BiorhythmManager extends EventEmitter {
     }
   }
 
-  private getNextStatus(hour: number, isWeekend: boolean): Status {
-    if (hour >= 6 && hour < 9) return 'WakeUp';
-    if (hour >= 9 && hour < 17) return isWeekend ? 'FreeTime' : 'Study';
-    if (hour >= 17 && hour < 19) return 'FreeTime';
-    if (hour >= 19 && hour < 22) return 'Relax';
-    return 'Sleep';
-  }
-
   private buildPrompt(timeNow: string, isWeekend: Boolean, unreadReply?: string[]): string {
     return `
 以下のキャラクターの行動を描写してほしいです。
 ${SYSTEM_INSTRUCTION}
 このキャラクターが現在どんな気分でなにをしているか、現在時刻・ステータス・前回した行動をもとにして、具体的に考えてください。
-結果は「全肯定たんは～しています」という、AIに入力する平易なプロンプト文で出力してください。
-結果は200文字以内に収めてください。
+* ルール
+- 結果は「全肯定たんは～しています」という、AIに入力する平易なプロンプト文で出力してください。
+- 結果は200文字以内に収めてください。
+- WakeUpは起床時、Studyは勉強中、FreeTimeは余暇時間、Relaxは休憩中、Sleepは就寝中(夢の中)を意味します。
+- 以下の日にはその日にふさわしい行動をさせること
+  * 元旦 (1月1日)
+  * 節分 (2月3日)
+  * バレンタイン (2月14日)
+  * ホワイトデー (3月14日)
+  * エイプリルフール (4月1日)
+  * 母の日
+  * 父の日
+  * 七夕 (7月7日)
+  * ハロウィン (10月31日)
+  * クリスマス (12月25日)
+  * 大晦日 (12月31日)
 -----行動参考例-----
-* 以下が基本的なキャラクターの行動例です。
-${this.status === "WakeUp" ? isWeekend ? `${eventsMorningDayoff}` : `${eventsMorningWorkday}` :
-  this.status === "Study" ? isWeekend ? `${eventsNoonDayoff}` : `${eventsNoonWorkday}` :
-  this.status === "FreeTime" ? isWeekend ? `${eventsEveningDayoff}` : `${eventsEveningWorkday}` :
-  this.status === "Relax" ? `${eventsNight}` :
-  this.status === "Sleep" ? `${eventsMidnight}` : ""
+* 以下がキャラクターの行動例です。
+${this.status === "WakeUp" ? isWeekend ? `${JSON.stringify(eventsMorningDayoff)}` : `${JSON.stringify(eventsMorningWorkday)}` :
+  this.status === "Study" ? isWeekend ? `${JSON.stringify(eventsNoonDayoff)}` : `${JSON.stringify(eventsNoonWorkday)}` :
+  this.status === "FreeTime" ? isWeekend ? `${JSON.stringify(eventsEveningDayoff)}` : `${JSON.stringify(eventsEveningWorkday)}` :
+  this.status === "Relax" ? `${JSON.stringify(eventsNight)}` :
+  this.status === "Sleep" ? `${JSON.stringify(eventsMidnight)}` : ""
 }
 * 以下がユーザーからもらったコメントです。次の行動を考える際に参考にすること。
-${unreadReply}
+${JSON.stringify(unreadReply)}
 -----以下がキャラクターの状態-----
 ・現在
 現在時刻：${timeNow}
