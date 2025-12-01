@@ -49,6 +49,8 @@ export class BiorhythmManager extends EventEmitter {
   private moodPrev: string = "";
   private _generatedImage: Buffer | null = null;
   private firstStepDone = false;
+  private _lastGoodMorningPostDate: string | null = null;
+  private _lastGoodNightPostDate: string | null = null;
 
   constructor() {
     super();
@@ -194,20 +196,32 @@ export class BiorhythmManager extends EventEmitter {
       const newOutput = await this.generateStatus(prompt); // LLM出力取得
       await this.setOutput(newOutput);
 
+      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD形式
+
       // おやすみポスト
       if (this.firstStepDone) {
-        if (this.status !== this.statusPrev && this.status === "Sleep" && hour > 18) {
-          console.log(`[INFO][BIORHYTHM] post goodnight!`);
-          await doGoodNightPost(this.getMood);
+        if (this.status !== this.statusPrev && this.status === "Sleep") {
+          if (this._lastGoodNightPostDate !== today) {
+            console.log(`[INFO][BIORHYTHM] post goodnight!`);
+            await doGoodNightPost(this.getMood);
+            this._lastGoodNightPostDate = today;
+          } else {
+            console.log(`[INFO][BIORHYTHM] Goodnight post already done for today.`);
+          }
         }
       }
       
       // おはようポスト
       if (this.firstStepDone) {
-        if (this.status !== this.statusPrev && this.status === "WakeUp" && hour < 12) {
-          console.log(`[INFO][BIORHYTHM] post goodmorning!`);
-          await question.postQuestion();
-          this.energy -= 6000;
+        if (this.status !== this.statusPrev && this.status === "WakeUp") {
+          if (this._lastGoodMorningPostDate !== today) {
+            console.log(`[INFO][BIORHYTHM] post goodmorning!`);
+            await question.postQuestion();
+            this.energy -= 6000;
+            this._lastGoodMorningPostDate = today;
+          } else {
+            console.log(`[INFO][BIORHYTHM] Goodmorning post already done for today.`);
+          }
         }
       }
       this.firstStepDone = true;
