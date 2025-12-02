@@ -1,4 +1,4 @@
-import { AppBskyEmbedExternal, AppBskyEmbedImages,AppBskyEmbedRecord, AppBskyEmbedRecordWithMedia, BlobRef } from "@atproto/api";
+import { AppBskyEmbedExternal, AppBskyEmbedImages, AppBskyEmbedRecord, AppBskyEmbedRecordWithMedia, BlobRef } from "@atproto/api";
 import { Record } from "@atproto/api/dist/client/types/app/bsky/feed/post";
 import { agent } from "./agent.js"
 import { ProfileViewDetailed } from "@atproto/api/dist/client/types/app/bsky/actor/defs.js";
@@ -24,27 +24,27 @@ export async function parseEmbedPost(record: Record): Promise<Embed | undefined>
     }
 
     if (!uri) return undefined;
-    const {did, nsid, rkey} = splitUri(uri)
+    const { did, nsid, rkey } = splitUri(uri)
 
     try {
-      const response =  await agent.com.atproto.repo.getRecord({
+      const response = await agent.com.atproto.repo.getRecord({
         repo: did,
         collection: nsid,
         rkey: rkey,
       });
-      
+
       // embed user
-      const response_prof = await agent.app.bsky.actor.getProfile({actor: did});
-      const profile_embed = response_prof.data; 
+      const response_prof = await agent.app.bsky.actor.getProfile({ actor: did });
+      const profile_embed = response_prof.data;
 
       // embed text
       const value_embed = response.data.value as Record;
       const text_embed = value_embed.text ?? "";
-  
-      // embed image
-      const image_embed = getImageUrl(did, embed)
 
-      return {profile_embed, text_embed, image_embed};
+      // embed image
+      const image_embed = await getImageUrl(did, embed)
+
+      return { profile_embed, text_embed, image_embed };
     } catch (error) {
       console.warn(`Could not fetch embed record: ${embed.record}`);
       console.warn(error);
@@ -52,7 +52,7 @@ export async function parseEmbedPost(record: Record): Promise<Embed | undefined>
   } else if (AppBskyEmbedExternal.isMain(embed)) {
     const uri_embed = embed.external.uri;
 
-    return {uri_embed};
+    return { uri_embed };
   }
 
   return undefined;

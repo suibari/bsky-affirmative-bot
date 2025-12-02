@@ -50,7 +50,7 @@ export const handleMode = async (
     options.db.insertDb(did);
 
     // 画像読み出し
-    const image = getImageUrl(did, record.embed);
+    const image = await getImageUrl(did, record.embed);
     if (userinfo) {
         userinfo.image = image; // userinfoに画像情報をセット
     }

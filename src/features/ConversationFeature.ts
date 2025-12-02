@@ -70,7 +70,7 @@ export class ConversationFeature implements BotFeature {
         const record = event.commit.record as Record;
 
         // 添付画像取得
-        const image = getImageUrl(follower.did, record.embed);
+        const image = await getImageUrl(follower.did, record.embed);
 
         // 引用
         let embed: Embed | undefined = undefined;
@@ -237,7 +237,7 @@ export class ConversationFeature implements BotFeature {
         }
 
         // 画像読み取り
-        const image = getImageUrl(follower.did, record.embed);
+        const image = await getImageUrl(follower.did, record.embed);
 
         // 質問への回答
         const text = await generateQuestionsAnswer({

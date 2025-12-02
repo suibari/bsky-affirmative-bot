@@ -27,7 +27,7 @@ export async function replyAI(
 
     let result: GeminiScore | undefined;
     const text_user = record.text;
-    const image = getImageUrl(follower.did, record.embed);
+    const image = await getImageUrl(follower.did, record.embed);
 
     // 引用ポスト解析
     let embed: Embed | undefined = undefined;

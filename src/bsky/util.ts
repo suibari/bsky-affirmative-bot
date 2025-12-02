@@ -3,6 +3,7 @@ import { PostView } from "@atproto/api/dist/client/types/app/bsky/feed/defs";
 import * as AppBskyFeedPost from "@atproto/api/dist/client/types/app/bsky/feed/post"; // Changed import to use namespace
 
 import { ImageRef, LangMap, languageData, LanguageName, localeToTimezone } from "../types";
+import { getPds } from "./getPds";
 import e from "express";
 
 const langMap: LangMap = languageData.reduce((acc, lang) => {
@@ -33,7 +34,7 @@ export function isMention(record: AppBskyFeedPost.Record) { // Changed Record to
   for (const facet of facets) {
     for (const feature of facet.features) {
       if (feature.$type === 'app.bsky.richtext.facet#mention') {
-        const featureMention = feature as { 
+        const featureMention = feature as {
           $type: 'app.bsky.richtext.facet#mention';
           did: string;
         };
@@ -56,7 +57,7 @@ export function isReplyOrMentionToMe(record: AppBskyFeedPost.Record) { // Change
   if (record.reply) {
     const uri = record.reply.parent.uri;
     if (uri) {
-      ({did} = splitUri(uri));
+      ({ did } = splitUri(uri));
     }
   }
 
@@ -73,7 +74,7 @@ export function isReplyOrMentionToMe(record: AppBskyFeedPost.Record) { // Change
  */
 export function isSpam(post: PostView): boolean {
   const labelArray = ["spam"];
-  
+
   const authorLabels = post.author.labels;
   if (authorLabels) {
     for (const label of authorLabels) {
@@ -103,7 +104,7 @@ export function splitUri(uri: string) {
   const nsid = parts[3];
   const rkey = parts[4];
 
-  return {did, nsid, rkey};
+  return { did, nsid, rkey };
 }
 
 /**
@@ -113,7 +114,7 @@ export function splitUri(uri: string) {
  * @param rkey 
  * @returns 
  */
-export function uniteDidNsidRkey(did: string, nsid: string, rkey:string) {
+export function uniteDidNsidRkey(did: string, nsid: string, rkey: string) {
   return `at://${did}/${nsid}/${rkey}`;
 }
 
@@ -124,21 +125,31 @@ export function uniteDidNsidRkey(did: string, nsid: string, rkey:string) {
  * @returns 
  */
 export function getLangStr(langs: string[] | undefined): LanguageName {
-  const lang = (langs?.length === 1) ? langs[0] : "en" ;
+  const lang = (langs?.length === 1) ? langs[0] : "en";
   return langMap[lang]?.name ?? langMap["en"].name;
 }
 
 /**
  * 画像URLを取得
  * 画像、外部リンクOGP画像、動画サムネイルに対応
+ * 公式/自前問わずPDSのBlob APIを使用する
  */
-export function getImageUrl(did: string, embed: any) {
+export async function getImageUrl(did: string, embed: any): Promise<ImageRef[]> {
   let result: ImageRef[] = [];
+
+  // PDSエンドポイントを取得
+  let pdsEndpoint: string;
+  try {
+    pdsEndpoint = await getPds(did);
+  } catch (e) {
+    console.warn(`Failed to get PDS for ${did}, falling back to CDN assumption`, e);
+    pdsEndpoint = "https://bsky.social"; // fallback
+  }
 
   if (AppBskyEmbedImages.isMain(embed)) {
     (embed as AppBskyEmbedImages.Main).images.forEach(item => {
       if (item.image) {
-        const image_url = `https://cdn.bsky.app/img/feed_fullsize/plain/${did}/${(item.image.ref as any).$link}`; // 回避策
+        const image_url = `${pdsEndpoint}/xrpc/com.atproto.sync.getBlob?did=${did}&cid=${(item.image.ref as any).$link}`;
         const mimeType = item.image.mimeType;
         result.push({ image_url, mimeType });
       }
@@ -159,10 +170,11 @@ export function getImageUrl(did: string, embed: any) {
     }
   } else if (AppBskyEmbedRecordWithMedia.isMain(embed)) {
     const media = (embed as AppBskyEmbedRecordWithMedia.Main).media;
-    if (AppBskyEmbedImages.isMain(media) || AppBskyEmbedExternal.isMain(media)) {
-      result.push(...getImageUrl(did, media));
+    if (AppBskyEmbedImages.isMain(media) || AppBskyEmbedExternal.isMain(media) || AppBskyEmbedVideo.isMain(media)) {
+      const mediaImages = await getImageUrl(did, media);
+      result.push(...mediaImages);
     }
   }
-  
+
   return result;
 }
