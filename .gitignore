@@ -4,4 +4,4 @@ sqlite3/
 .env*
 log.*
 output.png
-src/gsheet/key/*.json
+service-account.json
