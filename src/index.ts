@@ -7,12 +7,12 @@ import { ProfileView } from '@atproto/api/dist/client/types/app/bsky/actor/defs.
 import { callbackPost } from './main/callbackPost.js';
 import { callbackLike } from './main/callbackLike.js';
 import { callbackFollow } from './main/callbackFollow.js';
-import { scheduleAllUserDiaries } from './modes/diary.js';
+import { scheduleAllUserDiaries } from './features/DiaryFeature.js';
 import { BiorhythmManager } from './biorhythm/index.js';
 import { Logger } from './logger/index.js';
 import { startServer } from './server/index.js';
 
-export let followers: ProfileView[] = []; 
+export let followers: ProfileView[] = [];
 export let botBiothythmManager: BiorhythmManager;
 export let logger: Logger;
 
@@ -23,10 +23,10 @@ export let logger: Logger;
     await initAgent();
 
     // 日記はinitAgent後に非同期実行
-    scheduleAllUserDiaries();
+    scheduleAllUserDiaries(db);
 
     console.log("[INFO] Fetching followers...");
-    followers = await getConcatFollowers({actor: process.env.BSKY_IDENTIFIER!});
+    followers = await getConcatFollowers({ actor: process.env.BSKY_IDENTIFIER! });
     console.log(`[INFO] finished fething followers: ${followers.length}`);
   } catch (error) {
     console.error("[ERROR] Failed to update followers:", error);

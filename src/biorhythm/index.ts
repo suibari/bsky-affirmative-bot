@@ -9,14 +9,13 @@ import eventsMidnight from "../json/event_midnight.json";
 import { MODEL_GEMINI, SYSTEM_INSTRUCTION } from '../config';
 import { gemini } from '../gemini';
 import { DailyReport, Stats } from '../logger'; // DailyStatsをDailyReportに変更
-import { doGoodNightPost, doWhimsicalPost } from "../modes/whimsical";
+import { doGoodNightPost, doWhimsicalPost, doQuestionPost } from "../features/whimsical";
 import EventEmitter from "events";
 import { startServer } from "../server";
 import { dbPosts, dbReplies } from "../db";
 import { logger } from "..";
 import { generateImage } from '../gemini/generateImage';
 import { getFullDateAndTimeString } from "../gemini/util";
-import { question } from "../modes/question";
 import { LanguageName } from "../types"; // LanguageNameをインポート
 import { agent } from "../bsky/agent";
 import { UtilityAI } from "./utilityAI";
@@ -172,7 +171,7 @@ export class BiorhythmManager extends EventEmitter {
     const isWeekend = now.getDay() === 0 || now.getDay() === 6;
 
     // 未読のリプライ取得
-    const unreadReply = await dbReplies.selectRows(["reply"], {column: "isRead", value: 0}) as string[];
+    const unreadReply = await dbReplies.selectRows(["reply"], { column: "isRead", value: 0 }) as string[];
 
     // 新しいステータス候補を決定
     this.status = UtilityAI.selectAction({
@@ -210,13 +209,13 @@ export class BiorhythmManager extends EventEmitter {
           }
         }
       }
-      
+
       // おはようポスト
       if (this.firstStepDone) {
         if (this.status !== this.statusPrev && this.status === "WakeUp") {
           if (this._lastGoodMorningPostDate !== today) {
             console.log(`[INFO][BIORHYTHM] post goodmorning!`);
-            await question.postQuestion();
+            await doQuestionPost();
             this.changeEnergy(-6000);
             this._lastGoodMorningPostDate = today;
           } else {
@@ -251,7 +250,7 @@ export class BiorhythmManager extends EventEmitter {
 
     // 次回スケジュール（5〜60分）
     const nextInterval = process.env.NODE_ENV === "development" ? 5 * 60 * 1000 :
-      Math.floor(Math.random() * (SCHEDULE_STEP_MAX - SCHEDULE_STEP_MIN + 1) + SCHEDULE_STEP_MIN) * 60 * 1000 ;
+      Math.floor(Math.random() * (SCHEDULE_STEP_MAX - SCHEDULE_STEP_MIN + 1) + SCHEDULE_STEP_MIN) * 60 * 1000;
 
     if (!this.firstStepDone) {
       // 起動時にサーバスタートが画像生成より先だと404が返るため、
@@ -290,11 +289,11 @@ ${SYSTEM_INSTRUCTION}
 -----行動参考例-----
 * 以下がキャラクターの行動例です。
 ${this.status === "WakeUp" ? isWeekend ? `${JSON.stringify(eventsMorningDayoff)}` : `${JSON.stringify(eventsMorningWorkday)}` :
-  this.status === "Study" ? isWeekend ? `${JSON.stringify(eventsNoonDayoff)}` : `${JSON.stringify(eventsNoonWorkday)}` :
-  this.status === "FreeTime" ? isWeekend ? `${JSON.stringify(eventsEveningDayoff)}` : `${JSON.stringify(eventsEveningWorkday)}` :
-  this.status === "Relax" ? `${JSON.stringify(eventsNight)}` :
-  this.status === "Sleep" ? `${JSON.stringify(eventsMidnight)}` : ""
-}
+        this.status === "Study" ? isWeekend ? `${JSON.stringify(eventsNoonDayoff)}` : `${JSON.stringify(eventsNoonWorkday)}` :
+          this.status === "FreeTime" ? isWeekend ? `${JSON.stringify(eventsEveningDayoff)}` : `${JSON.stringify(eventsEveningWorkday)}` :
+            this.status === "Relax" ? `${JSON.stringify(eventsNight)}` :
+              this.status === "Sleep" ? `${JSON.stringify(eventsMidnight)}` : ""
+      }
 * 以下がユーザーからもらったコメントです。次の行動を考える際に参考にすること。
 ${JSON.stringify(unreadReply)}
 -----以下がキャラクターの状態-----

@@ -1,0 +1,90 @@
+import { CommitCreateEvent } from "@skyware/jetstream";
+import { ProfileView } from "@atproto/api/dist/client/types/app/bsky/actor/defs";
+import { Record } from "@atproto/api/dist/client/types/app/bsky/feed/post";
+import { getLangStr, uniteDidNsidRkey } from "../bsky/util";
+import { postContinuous } from "../bsky/postContinuous";
+import { fetchSentiment } from "../util/negaposi";
+import { HNY_WORDS, OHAYO_WORDS, OYASUMI_WORDS, OTSUKARE_WORDS } from "../config";
+
+// JSON imports
+import wordNeg from "../json/affirmativeword_negative.json";
+import wordNrm from "../json/affirmativeword_normal.json";
+import wordPos from "../json/affirmativeword_positive.json";
+import wordNegEn from "../json/affirmativeword_negative_en.json";
+import wordNrmEn from "../json/affirmativeword_normal_en.json";
+import wordPosEn from "../json/affirmativeword_positive_en.json";
+import wordHny from "../json/affirmativeword_hny.json";
+import wordMorning from "../json/affirmativeword_morning.json";
+import wordNight from "../json/affirmativeword_night.json";
+import wordGj from "../json/affirmativeword_gj.json";
+
+const CONDITIONS = [
+    { keywords: HNY_WORDS, word: wordHny },
+    { keywords: OHAYO_WORDS, word: wordMorning },
+    { keywords: OYASUMI_WORDS, word: wordNight },
+    { keywords: OTSUKARE_WORDS, word: wordGj },
+];
+
+export async function replyRandom(follower: ProfileView, event: CommitCreateEvent<"app.bsky.feed.post">) {
+    let sentiment = 0;
+    let wordSpecial;
+    let wordArray: string[] = [];
+
+    const record = event.commit.record as Record;
+    const uri = uniteDidNsidRkey(follower.did, event.commit.collection, event.commit.rkey);
+    const cid = event.commit.cid;
+    const posttext = record.text;
+    const langStr = getLangStr(record.langs);
+
+    if (process.env.NODE_ENV === "development") {
+        console.log("[DEBUG] user>>> " + posttext);
+        console.log("[DEBUG] lang: " + langStr);
+    }
+
+    // 単語判定
+    for (const condition of CONDITIONS) {
+        for (const keyword of condition.keywords) {
+            if (posttext.includes(keyword)) {
+                wordSpecial = condition.word; // 一致するpathを返す
+            }
+        }
+    }
+
+    if (wordSpecial) {
+        // あいさつ判定
+        wordArray = wordSpecial;
+    } else {
+        // ネガポジフェッチ
+        const negaposiData = await fetchSentiment([posttext]);
+        sentiment = negaposiData.average_sentiments[0];
+
+        // 感情分析
+        if (langStr == "日本語") {
+            if (sentiment <= -0.2) {
+                wordArray = wordNeg;
+            } else if (sentiment >= 0.2) {
+                wordArray = wordPos;
+            } else {
+                wordArray = wordNrm;
+            };
+        } else {
+            if (sentiment <= -0.05) {
+                wordArray = wordNegEn;
+            } else if (sentiment >= 0.05) {
+                wordArray = wordPosEn;
+            } else {
+                wordArray = wordNrmEn;
+            };
+        }
+    }
+
+    let rand = Math.random();
+    rand = Math.floor(rand * wordArray.length);
+    const text_bot = wordArray[rand];
+    const text_bot_replaced = text_bot.replace("${name}", follower.displayName ?? "");
+
+    // ポスト
+    await postContinuous(text_bot_replaced, { uri, cid, record });
+
+    return null;
+}
