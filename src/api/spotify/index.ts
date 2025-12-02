@@ -31,7 +31,7 @@ async function getAccessToken(): Promise<string> {
 /**
  * 🎵 キーワードからSpotify楽曲を検索してURLを返す
  */
-export async function searchSpotifyTrack(param: {artist?: string, track: string}): Promise<{
+export async function searchSpotifyTrack(param: { artist?: string, track: string }): Promise<{
   url: string;
   uri: string;
 } | null> {
@@ -76,19 +76,40 @@ export async function addTrackToPlaylist(trackUri: string): Promise<void> {
 }
 
 /**
- * 🔍 プレイリストに曲が存在するかチェック
+ * 🔍 プレイリストに曲が存在するかチェック（ページネーション対応）
  * @param trackUri 
  * @returns 
  */
 async function isTrackInPlaylist(trackUri: string): Promise<boolean> {
   const accessToken = await getAccessToken();
 
-  const res = await axios.get(`https://api.spotify.com/v1/playlists/${PLAYLIST_ID}/tracks`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-    params: { fields: "items(track(uri))", limit: 100 },
-  });
+  let url: string | null = `https://api.spotify.com/v1/playlists/${PLAYLIST_ID}/tracks`;
 
-  return res.data.items.some((item: any) => item.track.uri === trackUri);
+  while (url) {
+    const res: {
+      data: {
+        items: Array<{ track: { uri: string } }>;
+        next: string | null;
+      };
+    } = await axios.get<{
+      items: Array<{ track: { uri: string } }>;
+      next: string | null;
+    }>(url, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      params: { fields: "items(track(uri)),next", limit: 100 },
+    });
+
+    // 現在のページで曲が見つかったら true を返す
+    const found = res.data.items.some((item: any) => item.track.uri === trackUri);
+    if (found) {
+      return true;
+    }
+
+    // 次のページがあれば続行、なければループ終了
+    url = res.data.next;
+  }
+
+  return false;
 }
 
 /**
@@ -96,7 +117,7 @@ async function isTrackInPlaylist(trackUri: string): Promise<boolean> {
  * @param query 曲名・アーティストなど
  * @returns 追加した曲のSpotify URL or null
  */
-export async function searchSpotifyUrlAndAddPlaylist(param: {artist?: string, track: string}): Promise<string | null> {
+export async function searchSpotifyUrlAndAddPlaylist(param: { artist?: string, track: string }): Promise<string | null> {
   try {
     // 曲検索
     let result = await searchSpotifyTrack(param);
