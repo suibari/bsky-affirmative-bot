@@ -5,6 +5,19 @@ const CLIENT_SECRET = process.env.SPOTIFY_CLIENT_SECRET!;
 const REFRESH_TOKEN = process.env.SPOTIFY_REFRESH_TOKEN!;
 const PLAYLIST_ID = process.env.SPOTIFY_PLAYLIST_ID!;
 
+export interface SpotifyTrack {
+  track: {
+    uri: string;
+    name: string;
+    artists: Array<{
+      name: string
+    }>;
+    external_urls: {
+      spotify: string
+    }
+  }
+}
+
 /**
  * ✅ アクセストークンを更新（自動）
  */
@@ -63,20 +76,56 @@ export async function searchSpotifyTrack(param: { artist?: string, track: string
 export async function addTrackToPlaylist(trackUri: string): Promise<void> {
   const accessToken = await getAccessToken();
 
-  await axios.post(
-    `https://api.spotify.com/v1/playlists/${PLAYLIST_ID}/tracks`,
-    { uris: [trackUri] },
-    {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-      },
-    }
-  );
+  if (process.env.NODE_ENV === "production") {
+    await axios.post(
+      `https://api.spotify.com/v1/playlists/${PLAYLIST_ID}/tracks`,
+      { uris: [trackUri] },
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+  }
 }
 
 /**
- * 🔍 プレイリストに曲が存在するかチェック（ページネーション対応）
+ * � プレイリストの全曲を取得（ページネーション対応）
+ * @returns プレイリスト内の全トラック情報の配列
+ */
+export async function getSpotifyPlaylist(): Promise<Array<SpotifyTrack>> {
+  const accessToken = await getAccessToken();
+
+  let url: string | null = `https://api.spotify.com/v1/playlists/${PLAYLIST_ID}/tracks`;
+  const allTracks: Array<SpotifyTrack> = [];
+
+  while (url) {
+    const res: {
+      data: {
+        items: Array<SpotifyTrack>;
+        next: string | null;
+      };
+    } = await axios.get<{
+      items: Array<SpotifyTrack>;
+      next: string | null;
+    }>(url, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      params: { fields: "items(track(uri,name,artists(name),external_urls)),next", limit: 100 },
+    });
+
+    // 現在のページのトラックを配列に追加
+    allTracks.push(...res.data.items);
+
+    // 次のページがあれば続行、なければループ終了
+    url = res.data.next;
+  }
+
+  return allTracks;
+}
+
+/**
+ * �🔍 プレイリストに曲が存在するかチェック（ページネーション対応）
  * @param trackUri 
  * @returns 
  */

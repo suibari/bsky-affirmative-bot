@@ -4,6 +4,7 @@ import { gemini } from "./index.js";
 import { logger } from "../index.js";
 import { getFullDateAndTimeString } from "./util.js";
 import { LanguageName } from "../types.js";
+import { SpotifyTrack } from "../api/spotify/index.js";
 
 type GeminiRecommendation = [
   {
@@ -16,10 +17,10 @@ type GeminiRecommendation = [
 export class MyMoodSongGenerator {
   private historyMap: Record<string, { title: string; artist: string }[]> = {};
 
-  constructor(private maxHistory = 3) {}
+  constructor(private maxHistory = 3) { }
 
-  async generate(currentMood: string, langStr: LanguageName) {
-    const history = this.historyMap[langStr] ?? [];
+  async generate(currentMood: string, langStr: LanguageName, spotifyPlaylist: SpotifyTrack[]) {
+    // const history = this.historyMap[langStr] ?? [];
 
     const SCHEMA_DJBOT = {
       type: Type.ARRAY,
@@ -40,6 +41,12 @@ export class MyMoodSongGenerator {
       }
     }
 
+    const history = spotifyPlaylist.map((track) => {
+      return {
+        title: track.track.name,
+        artist: track.track.artists.map((artist: { name: string }) => artist.name).join(", "),
+      }
+    });
     const prompt = this.PROMPT_DJ(currentMood, langStr, history);
     const contents: PartListUnion = prompt;
     const response = await gemini.models.generateContent({
@@ -82,7 +89,7 @@ export class MyMoodSongGenerator {
 * ${langStr}の曲を挙げてください。
 * titleに曲名、artistにアーティスト名を、正確に出力してください
 * commentには選曲に関するあなたのコメントを出力してください
-* 過去に選曲した曲は避けてください
+* 過去に選曲した曲は選んではいけません
 -----
 現在の時間: ${getFullDateAndTimeString()}
 今の気分: ${currentMood}

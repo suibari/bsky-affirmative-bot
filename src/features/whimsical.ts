@@ -5,7 +5,7 @@ import { splitUri } from "../bsky/util";
 import { postContinuous } from "../bsky/postContinuous";
 import { WhimsicalPostGenerator } from "../gemini/generateWhimsicalPost";
 import { MyMoodSongGenerator } from "../gemini/generateMyMoodSong";
-import { searchSpotifyUrlAndAddPlaylist } from "../api/spotify";
+import { getSpotifyPlaylist, searchSpotifyUrlAndAddPlaylist } from "../api/spotify";
 import { generateGoodNight } from "../gemini/generateGoodNight";
 import { repost } from "../bsky/repost";
 import { AtpAgent } from "@atproto/api";
@@ -53,8 +53,11 @@ export async function doWhimsicalPost() {
     try {
         const resultSpotify = await retry(
             async (bail, attempt) => {
+                // Spotifyプレイリストの全曲を取得
+                const spotifyPlaylist = await getSpotifyPlaylist();
+
                 // AI生成
-                currentGeneratedSong = await myMoodSongGen.generate(currentMood, langStr);
+                currentGeneratedSong = await myMoodSongGen.generate(currentMood, langStr, spotifyPlaylist);
 
                 // Spotify検索: ここで見つからなければリトライさせるねらい
                 const spotifySearchTerm = { artist: currentGeneratedSong.artist, track: currentGeneratedSong.title };
