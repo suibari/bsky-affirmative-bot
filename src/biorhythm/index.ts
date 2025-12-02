@@ -217,7 +217,7 @@ export class BiorhythmManager extends EventEmitter {
           if (this._lastGoodMorningPostDate !== today) {
             console.log(`[INFO][BIORHYTHM] post goodmorning!`);
             await question.postQuestion();
-            this.energy -= 6000;
+            this.changeEnergy(-6000);
             this._lastGoodMorningPostDate = today;
           } else {
             console.log(`[INFO][BIORHYTHM] Goodmorning post already done for today.`);
@@ -232,7 +232,7 @@ export class BiorhythmManager extends EventEmitter {
         if (probability < this.getEnergy || process.env.NODE_ENV === "development") {
           console.log(`[INFO][BIORHYTHM] post and decrease energy!`);
           await doWhimsicalPost();
-          this.energy -= 6000;
+          this.changeEnergy(-6000);
         }
       }
     } catch (e) {
@@ -240,8 +240,8 @@ export class BiorhythmManager extends EventEmitter {
       console.error(e);
     }
 
-    // エネルギー変動処理
-    this.handleEnergyByStatus();
+    // エネルギー変動処理: Energyは完全にユーザインタラクトベースとするのでコメントアウト
+    // this.handleEnergyByStatus();
 
     // ログ出力
     console.log(`[INFO][BIORHYTHM] status: ${this.status}, energy: ${this.getEnergy}, action: ${this.getMood}`);
@@ -319,7 +319,9 @@ ${JSON.stringify(unreadReply)}
   }
 
   private changeEnergy(amount: number) {
-    const newEnergy = Math.min(this.energy + amount, ENERGY_MAXIMUM);
+    // 0~100クリップ処理
+    const newEnergy = Math.max(Math.min(this.energy + amount, ENERGY_MAXIMUM), 0);
+
     if (newEnergy !== this.energy) {
       this.energy = newEnergy;
       this.emit('statsChange', this.getCurrentState());
@@ -345,12 +347,12 @@ ${JSON.stringify(unreadReply)}
   }
 
   private handleEnergyByStatus() {
-    if (this.status !== this.statusPrev) {
-      // 遷移した場合だけ処理
-      if (this.status === 'Sleep') {
-        this.energy = Math.max(this.energy - 2000, 0);
-      }
-    }
+    // if (this.status !== this.statusPrev) {
+    //   // 遷移した場合だけ処理
+    //   if (this.status === 'Sleep') {
+    //     this.energy = Math.max(this.energy - 2000, 0);
+    //   }
+    // }
 
     // 状態にかかわらず、現在の行動によるランダム変動（継続状態でも発生）
     // if (this.status === 'Study') {
