@@ -9,7 +9,7 @@ import { generateRecommendedSong } from "../gemini/generateRecommendedSong";
 import { getLangStr } from "../bsky/util";
 import { UserInfoGemini, GeminiResponseResult } from "../types";
 import { agent } from "../bsky/agent";
-import { searchSpotifyTrack } from "../spotify";
+import { searchSpotifyTrack } from "../api/spotify";
 
 export class DJFeature implements BotFeature {
     name = "DJ";

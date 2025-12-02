@@ -1,4 +1,4 @@
-import { getSubscribersFromSheet } from "../gsheet/index.js";
+import { getSubscribersFromSheet } from "../api/gsheet/index.js";
 import fs from "fs/promises";
 import path from "path";
 import EventEmitter from "events";

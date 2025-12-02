@@ -2,7 +2,7 @@ import { CommitCreateEvent } from "@skyware/jetstream";
 import { ProfileView } from "@atproto/api/dist/client/types/app/bsky/actor/defs";
 import { BotFeature, FeatureContext } from "./types";
 import { logger, botBiothythmManager, followers } from "../index";
-import { getSubscribersFromSheet } from "../gsheet";
+import { getSubscribersFromSheet } from "../api/gsheet";
 import { isReplyOrMentionToMe, uniteDidNsidRkey, getImageUrl, getLangStr } from "../bsky/util";
 import { dbReplies } from "../db";
 import { Record } from "@atproto/api/dist/client/types/app/bsky/feed/post";

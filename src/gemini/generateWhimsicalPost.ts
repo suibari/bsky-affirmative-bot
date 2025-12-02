@@ -1,6 +1,6 @@
 import { ProfileView } from "@atproto/api/dist/client/types/app/bsky/actor/defs.js";
 import { generateSingleResponse, getFullDateAndTimeString, getRandomItems, getWhatDay } from "./util.js";
-import { fetchNews } from "../gnews/index.js";
+import { fetchNews } from "../api/gnews/index.js";
 import { LanguageName } from "../types.js";
 import { logger } from "../index.js";
 import { gemini } from "./index.js";
@@ -10,7 +10,7 @@ import { MODEL_GEMINI, SYSTEM_INSTRUCTION } from "../config/index.js";
 export class WhimsicalPostGenerator {
   private historyMap: Record<string, string[]> = {};
 
-  constructor(private maxHistory = 3) {}
+  constructor(private maxHistory = 3) { }
 
   /**
    * つぶやきを生成する外部関数
@@ -37,7 +37,8 @@ export class WhimsicalPostGenerator {
       contents: [
         {
           role: "user",
-          parts: [{ text: `
+          parts: [{
+            text: `
   Create a structured SNS whimsical post.
   * "greeting": A cheerful greeting to start the post. **Take into consideration the "Date" below when greeting**. (Don't say "Good morning" at night.)
   * "currentMood": Your current mood. Output the following "Mood" as is.
@@ -77,7 +78,8 @@ export class WhimsicalPostGenerator {
       contents: [
         {
           role: "user",
-          parts: [{ text: `
+          parts: [{
+            text: `
 Create a SNS whimsical post from below structure.
 
 Rules:
@@ -125,7 +127,7 @@ Structure: ${JSON.stringify(structure)}`
     if (params.langStr === "日本語") {
       const today = getWhatDay();
       const news = (await fetchNews("ja")).map(a => a.title).join(" / ");
-      return { whatDay: today, positiveNews: news};
+      return { whatDay: today, positiveNews: news };
     } else {
       const today = getWhatDay();
       return { whatDay: today };

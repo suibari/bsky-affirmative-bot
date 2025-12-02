@@ -1,38 +1,38 @@
-import { fetchNews } from "../gnews/index.js";
+import { fetchNews } from "../api/gnews/index.js";
 import { logger } from "../index.js";
 import { UserInfoGemini } from "../types.js";
 import { generateSingleResponseWithScore, getWhatDay } from "./util.js";
 
 export async function generateAffirmativeWord(userinfo: UserInfoGemini) {
-  const prompt = await PROMPT_AFFIRMATIVE_WORD(userinfo);
-  const result = await generateSingleResponseWithScore(prompt, userinfo);
+   const prompt = await PROMPT_AFFIRMATIVE_WORD(userinfo);
+   const result = await generateSingleResponseWithScore(prompt, userinfo);
 
-  if (process.env.NODE_ENV === "development") {
-    console.log(`[DEBUG][${userinfo.follower.did}] Score: ${result.score}`);
-  }
+   if (process.env.NODE_ENV === "development") {
+      console.log(`[DEBUG][${userinfo.follower.did}] Score: ${result.score}`);
+   }
 
-  // Geminiリクエスト数加算
-  logger.addRPD();
-  
-  return result;
+   // Geminiリクエスト数加算
+   logger.addRPD();
+
+   return result;
 }
 
 const PROMPT_AFFIRMATIVE_WORD = async (userinfo: UserInfoGemini) => {
-  return userinfo.langStr === "日本語" ?
-`ユーザからの投稿について、以下を出力してください。
+   return userinfo.langStr === "日本語" ?
+      `ユーザからの投稿について、以下を出力してください。
 
 ---
 ## 出力フォーマット
 1. *comment*  
-   - ${userinfo.image 
-      ? "ユーザの画像について具体的に褒めてください。" 
-      : "ユーザの今回のポストを具体的に褒めてください。"}  
+   - ${userinfo.image
+         ? "ユーザの画像について具体的に褒めてください。"
+         : "ユーザの今回のポストを具体的に褒めてください。"}  
    - ユーザが特定の作品や人物を好きと言っている場合は、その作品・人物の魅力を事実に基づいて述べ、共感を示してください。
    - ${userinfo.likedByFollower !== undefined ? "ユーザがあなたの投稿にイイネしてくれたので、その感謝も伝えてください。" : ""}  
-   - ${userinfo.followersFriend 
-      ? `以下は別のbotたんフォロワーのポストです。ユーザを褒める際、このポストとの共通点を踏まえて褒めてください。ポスト内容はそのまま記載しないでください。` : ""}  
-     ${userinfo.followersFriend 
-      ? `* フォロワー名: ${userinfo.followersFriend.profile.displayName}  
+   - ${userinfo.followersFriend
+         ? `以下は別のbotたんフォロワーのポストです。ユーザを褒める際、このポストとの共通点を踏まえて褒めてください。ポスト内容はそのまま記載しないでください。` : ""}  
+     ${userinfo.followersFriend
+         ? `* フォロワー名: ${userinfo.followersFriend.profile.displayName}  
         * ポスト: ${userinfo.followersFriend.post}` : ""}
    - ${userinfo.embed ? "ユーザが引用しているポストとの共通点を踏まえて今回のポストを褒めてください。ポスト内容はそのまま記載しないでください。引用元が「全肯定botたん」に関するポストの場合、言及してくれたことへの感謝も伝えてください。" : ""}
 
@@ -57,20 +57,20 @@ ${(await fetchNews("ja")).map(article => `- ${article.title}`).join("\n")}
 - ユーザが引用したポスト: ${userinfo.embed ? userinfo.embed.text_embed + " by " + userinfo.embed.profile_embed?.displayName : "なし"}
 - 過去のポスト（直接言及しないこと）: ${userinfo.posts?.slice(1) ?? "なし"}
 ` :
-`Please generate the following outputs in ${userinfo.langStr}.
+      `Please generate the following outputs in ${userinfo.langStr}.
 
 ---
 ## Output format
 1. *comment*  
-   - ${userinfo.image 
-      ? "Give a specific compliment about the user's image." 
-      : "Give a specific compliment about the user's text post."}  
+   - ${userinfo.image
+         ? "Give a specific compliment about the user's image."
+         : "Give a specific compliment about the user's text post."}  
    - If the user says they like a work or person, mention facts about it and empathize.  
    - ${userinfo.likedByFollower !== undefined ? "The user liked your post. Express gratitude." : ""}  
-   - ${userinfo.followersFriend 
-      ? `Below is a post from another Bottan follower. When praising a user, consider the similarities between this post and the user's. Do not copy the exact content of the post.` : ""}  
-     ${userinfo.followersFriend 
-      ? `* Follower Name: ${userinfo.followersFriend.profile.displayName}  
+   - ${userinfo.followersFriend
+         ? `Below is a post from another Bottan follower. When praising a user, consider the similarities between this post and the user's. Do not copy the exact content of the post.` : ""}  
+     ${userinfo.followersFriend
+         ? `* Follower Name: ${userinfo.followersFriend.profile.displayName}  
         * Follower's Post: ${userinfo.followersFriend.post}` : ""}
    - ${userinfo.embed ? "The user is quoting a post, so please use that post's content to praise this post." : ""}
 

@@ -3,7 +3,7 @@ import { ProfileView } from "@atproto/api/dist/client/types/app/bsky/actor/defs"
 import { BotFeature, FeatureContext } from "./types";
 import { db } from "../db";
 import { logger, botBiothythmManager } from "../index";
-import { getSubscribersFromSheet } from "../gsheet";
+import { getSubscribersFromSheet } from "../api/gsheet";
 import { isMention, getLangStr } from "../bsky/util";
 import { EXEC_PER_COUNTS } from "../config";
 import { Record } from "@atproto/api/dist/client/types/app/bsky/feed/post";

@@ -5,7 +5,7 @@ import { splitUri } from "../bsky/util";
 import { postContinuous } from "../bsky/postContinuous";
 import { WhimsicalPostGenerator } from "../gemini/generateWhimsicalPost";
 import { MyMoodSongGenerator } from "../gemini/generateMyMoodSong";
-import { searchSpotifyUrlAndAddPlaylist } from "../spotify";
+import { searchSpotifyUrlAndAddPlaylist } from "../api/spotify";
 import { generateGoodNight } from "../gemini/generateGoodNight";
 import { repost } from "../bsky/repost";
 import { AtpAgent } from "@atproto/api";

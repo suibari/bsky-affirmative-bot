@@ -15,7 +15,7 @@ export async function getSubscribersFromSheet(): Promise<string[]> {
 
   // 認証設定
   const auth = new google.auth.GoogleAuth({
-    keyFile: 'src/gsheet/key/service-account.json',
+    keyFile: 'src/api/gsheet/key/service-account.json',
     scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
   });
 

@@ -6,7 +6,7 @@ import { parseEmbedPost } from "../bsky/parseEmbedPost";
 import { db } from "../db";
 import retry from 'async-retry';
 import { followers } from "..";
-import { getSubscribersFromSheet } from "../gsheet";
+import { getSubscribersFromSheet } from "../api/gsheet";
 import { features } from "../features";
 import { FeatureContext } from "../features/types";
 
