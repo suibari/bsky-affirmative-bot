@@ -4,7 +4,7 @@ import { postContinuous } from "../bsky/postContinuous";
 import { logger } from "..";
 import { db } from "../db";
 import { ProfileView } from "@atproto/api/dist/client/types/app/bsky/actor/defs";
-import { getSubscribersFromSheet } from "../gsheet";
+import { getSubscribersFromSheet } from "../api/gsheet";
 import { generateQuestionsAnswer } from "../gemini/generateQuestionsAnswer";
 import { CommitCreateEvent } from "@skyware/jetstream";
 import { Record } from "@atproto/api/dist/client/types/app/bsky/feed/post";
@@ -15,10 +15,10 @@ import { ImageRef } from "../types";
 class QuestionMode {
   async postQuestion() {
     // 質問生成
-    const {text, theme} = await generateQuestion();
+    const { text, theme } = await generateQuestion();
 
     // 投稿
-    const {uri, cid} = await postContinuous(text);
+    const { uri, cid } = await postContinuous(text);
 
     // 質問記憶更新
     logger.setQuestionState(uri, theme);
@@ -33,7 +33,7 @@ class QuestionMode {
     const uri = uniteDidNsidRkey(follower.did, event.commit.collection, event.commit.rkey);
 
     // 質問情報取得
-    const {uriQuestionRoot, themeQuestion} = logger.getQuestionState();
+    const { uriQuestionRoot, themeQuestion } = logger.getQuestionState();
     if (!uriQuestionRoot || !themeQuestion) {
       // console.log(`[INFO][QUESTION][${follower.did}] No question found`);
       return false;

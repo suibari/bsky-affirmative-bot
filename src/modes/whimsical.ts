@@ -10,7 +10,7 @@ import { repost } from "../bsky/repost";
 import { getLangStr, splitUri, uniteDidNsidRkey } from "../bsky/util";
 import { generateGoodNight } from "../gemini/generateGoodNight";
 import { MyMoodSongGenerator } from "../gemini/generateMyMoodSong";
-import { searchSpotifyUrlAndAddPlaylist } from "../spotify";
+import { searchSpotifyUrlAndAddPlaylist } from "../api/spotify";
 import { logger } from "../index";
 import { CommitCreateEvent } from "@skyware/jetstream";
 import { Record } from "@atproto/api/dist/client/types/app/bsky/feed/post";
@@ -23,7 +23,7 @@ const myMoodSongGen = new MyMoodSongGenerator();
 // 投稿言語を管理する変数
 let isJapanesePost = true;
 
-export async function doWhimsicalPost () {
+export async function doWhimsicalPost() {
   const langStr = isJapanesePost ? "日本語" : "English";
 
   // ユーザーからのリプライを取得
@@ -85,10 +85,10 @@ export async function doWhimsicalPost () {
     console.error(`[ERROR] Failed to find Spotify song after multiple retries: ${errorMessage}`);
     songInfo = `\n\nMyMoodSong:\n${currentGeneratedSong.title} - ${currentGeneratedSong.artist}\n(Not found in Spotify...)`;
   }
-  
+
   text_bot += songInfo;
 
-  const {uri, cid} = await postContinuous(text_bot);
+  const { uri, cid } = await postContinuous(text_bot);
 
   // 投稿URIを保存 (リプライに反応するようにするため)
   logger.setWhimsicalPostRoot(uri);
@@ -100,7 +100,7 @@ export async function doWhimsicalPost () {
   isJapanesePost = !isJapanesePost;
 }
 
-export async function doGoodNightPost (mood: string) {
+export async function doGoodNightPost(mood: string) {
   // スコアTOPのfollowerを取得 (上位5人)
   const rows = await dbPosts.getHighestScore();
 
@@ -110,12 +110,12 @@ export async function doGoodNightPost (mood: string) {
     try {
       // DBパース
       const uri: string = row.uri;
-      const {did, nsid, rkey} = splitUri(uri);
+      const { did, nsid, rkey } = splitUri(uri);
       const postContent: string = row.post;
-      const topFollower = (await agent.getProfile({actor: did})).data as ProfileView;
+      const topFollower = (await agent.getProfile({ actor: did })).data as ProfileView;
 
       // cid取得
-      const agentPDS = new AtpAgent({service: await getPds(did!)});
+      const agentPDS = new AtpAgent({ service: await getPds(did!) });
       const response = await agentPDS.com.atproto.repo.getRecord({
         repo: did,
         collection: nsid,
@@ -127,7 +127,7 @@ export async function doGoodNightPost (mood: string) {
         topPostData = { uri, did, nsid, rkey, post: postContent, cid, topFollower };
         break; // 成功した最初の投稿を使用
       }
-    } catch(e) {
+    } catch (e) {
       console.error(`[INFO] Failed to get record for ${row.uri}, trying next: ${e}`);
       // 次のレコードを試すため、ループを続行
     }
@@ -146,14 +146,14 @@ export async function doGoodNightPost (mood: string) {
       });
 
       // ポスト
-      const {uri, cid} = await postContinuous(text_bot);
+      const { uri, cid } = await postContinuous(text_bot);
 
       // 投稿URIを保存 (リプライに反応するようにするため)
       logger.setWhimsicalPostRoot(uri);
     } else {
       console.log("[INFO] No valid top post found after trying all highest score entries.");
     }
-  } catch(e) {
+  } catch (e) {
     console.error(`[INFO] good night post error: ${e}`);
   } finally {
     // 1日のテーブルクリア
@@ -161,7 +161,7 @@ export async function doGoodNightPost (mood: string) {
   }
 }
 
-export async function doWhimsicalPostReply (follower: ProfileView, event: CommitCreateEvent<"app.bsky.feed.post">,
+export async function doWhimsicalPostReply(follower: ProfileView, event: CommitCreateEvent<"app.bsky.feed.post">,
 ) {
   const record = event.commit.record as Record;
   const uri = uniteDidNsidRkey(follower.did, event.commit.collection, event.commit.rkey);
@@ -186,7 +186,7 @@ export async function doWhimsicalPostReply (follower: ProfileView, event: Commit
     }, currentMood);
 
     // ポスト
-    await postContinuous(result, {uri, cid: String(event.commit.cid), record});
+    await postContinuous(result, { uri, cid: String(event.commit.cid), record });
 
     console.log(`[INFO][${follower.did}][WHIMSICAL] replied to reply of Whimsical post`);
 

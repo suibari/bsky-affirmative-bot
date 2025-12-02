@@ -11,16 +11,16 @@ import { getLangStr, getTimezoneFromLang } from '../bsky/util.js';
 import { postContinuous } from '../bsky/postContinuous.js';
 import { agent, createOrRefreshSession } from '../bsky/agent.js';
 import { textToImageBufferWithBackground } from '../util/canvas.js';
-import { getSubscribersFromSheet } from '../gsheet/index.js'; // Uncommented this import
+import { getSubscribersFromSheet } from "../api/gsheet/index.js"; // Uncommented this import
 import { DateTime } from "luxon";
 import { LanguageName } from '../types.js';
 
 const TEXT_REGISTER_DIARY = (langStr: LanguageName) => (langStr === "日本語") ?
-"日記モードを設定しました! これから毎日、PM10時にあなたの今日のできごとを日記にしてまとめるね!" :
-"Diary mode has been enabled! From now on, every day at 10 PM, I'll write a diary of your day's events!";
+  "日記モードを設定しました! これから毎日、PM10時にあなたの今日のできごとを日記にしてまとめるね!" :
+  "Diary mode has been enabled! From now on, every day at 10 PM, I'll write a diary of your day's events!";
 const TEXT_RELEASE_DIARY = (langStr: LanguageName) => (langStr === "日本語") ?
-"日記モードを解除しました! また使ってね!" :
-"Diary mode has been disabled! Please use it again!"
+  "日記モードを解除しました! また使ってね!" :
+  "Diary mode has been disabled! Please use it again!"
 
 const scheduledTimers = new Map<string, NodeJS.Timeout>(); // 多重スケジュール抑止用
 
@@ -110,8 +110,8 @@ async function processUserDiary(userDid: string, db: SQLite3) {
     console.log(`[INFO][${userDid}] generating image...`);
     const imageGenerationDate = new Date(); // Use a new Date object for image generation context
     const formattedDate = `${imageGenerationDate.getFullYear()}/${imageGenerationDate.getMonth() + 1}/${imageGenerationDate.getDate()}`;
-    const buffer =  await textToImageBufferWithBackground(text_bot + `\n\n${formattedDate}`);
-    const {blob} = (await agent.uploadBlob(buffer, {encoding: "image/png"})).data;
+    const buffer = await textToImageBufferWithBackground(text_bot + `\n\n${formattedDate}`);
+    const { blob } = (await agent.uploadBlob(buffer, { encoding: "image/png" })).data;
 
     const TEXT_DIARY = (langStr === "日本語") ?
       `${profile.displayName}さんへ、今日の日記をまとめたよ! 画像を貼るので見てみてね。おやすみ～!` :
@@ -121,7 +121,7 @@ async function processUserDiary(userDid: string, db: SQLite3) {
       uri: latestPost.uri,
       cid: latestPost.cid,
       record: latestPost.record as Record
-    }, {blob, alt: `Dear ${profile.displayName}, From 全肯定botたん`});
+    }, { blob, alt: `Dear ${profile.displayName}, From 全肯定botたん` });
 
     console.log(`[INFO][${userDid}] finish to process diary`);
 
@@ -143,10 +143,10 @@ function scheduleUserDiary(userDid: string, timezone: string, db: SQLite3) {
   console.log(`[INFO][${userDid}] scheduling diary, tz: ${timezone}, next: ${delay}ms`);
   const timer = setTimeout(() => {
     processUserDiary(userDid, db)
-    .catch(err => console.error(`[ERROR][${userDid}]`, err))
-    .finally(() => {
-      scheduledTimers.delete(userDid); // 終了後に削除
-    });
+      .catch(err => console.error(`[ERROR][${userDid}]`, err))
+      .finally(() => {
+        scheduledTimers.delete(userDid); // 終了後に削除
+      });
   }, delay);
 
   scheduledTimers.set(userDid, timer);
@@ -170,7 +170,7 @@ async function manageUserDiarySchedules(db: SQLite3) {
   // Fetch subscribers from the sheet
   const subscribers = await getSubscribersFromSheet();
   const subscriberSet = new Set(subscribers);
-  
+
   // Filter users to include only those who are subscribers
   const eligibleUsers = usersWithDiaryMode.filter(user => subscriberSet.has(user.did));
   console.log(`[INFO][DIARY] subbed-follower && is_diary: ${eligibleUsers.length}`);
@@ -238,7 +238,7 @@ export async function scheduleAllUserDiaries() {
 
 // --- Original functions that should remain exported ---
 
-export async function handleDiaryRegister (event: CommitCreateEvent<"app.bsky.feed.post">, db: SQLite3) {
+export async function handleDiaryRegister(event: CommitCreateEvent<"app.bsky.feed.post">, db: SQLite3) {
   const record = event.commit.record as Record;
   const langStr = getLangStr(record.langs);
 
@@ -251,7 +251,7 @@ export async function handleDiaryRegister (event: CommitCreateEvent<"app.bsky.fe
   });
 }
 
-export async function handleDiaryRelease (event: CommitCreateEvent<"app.bsky.feed.post">, db: SQLite3) {
+export async function handleDiaryRelease(event: CommitCreateEvent<"app.bsky.feed.post">, db: SQLite3) {
   const record = event.commit.record as Record;
   const langStr = getLangStr(record.langs);
 

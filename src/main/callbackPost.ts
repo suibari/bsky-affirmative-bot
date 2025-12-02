@@ -14,7 +14,7 @@ import { db, dbPosts, dbReplies } from "../db";
 import retry from 'async-retry';
 import { botBiothythmManager, followers, logger } from "..";
 import { handleDiaryRegister, handleDiaryRelease } from "../modes/diary";
-import { getSubscribersFromSheet } from "../gsheet";
+import { getSubscribersFromSheet } from "../api/gsheet";
 import { replyai } from "../modes/replyai";
 import { replyrandom } from "../modes/replyrandom";
 import { EXEC_PER_COUNTS } from "../config";
@@ -31,7 +31,7 @@ const MINUTES_THRD_RESPONSE = 10 * 60 * 1000; // 10min
 let count_replyrandom = 0; // AI応答用カウント
 const LATEST_POSTS_COUNT = 5; // 直近ポスト収集数
 
-export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post">) {
+export async function callbackPost(event: CommitCreateEvent<"app.bsky.feed.post">) {
   const did = String(event.did);
   const record = event.commit.record as Record;
 
@@ -62,7 +62,7 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
         const text = record.text;
         const donate_word = ["donate", "donation", "donating", "gofund.me", "paypal.me", "【AUTO】"];
         // check text
-        const isIncludedDonate = donate_word.some(elem => 
+        const isIncludedDonate = donate_word.some(elem =>
           text.toLowerCase().includes(elem.toLowerCase())
         );
         if (isIncludedDonate) {
@@ -72,10 +72,10 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
         if (record.embed) {
           const embed = await parseEmbedPost(record);
           // check embed text
-          const isIncludedDonateQuote = 
-            donate_word.some(elem => 
+          const isIncludedDonateQuote =
+            donate_word.some(elem =>
               embed?.text_embed?.toLowerCase().includes(elem.toLowerCase())
-            ) || 
+            ) ||
             donate_word.some(elem =>
               embed?.uri_embed?.toLowerCase().includes(elem.toLowerCase())
             );
@@ -85,7 +85,7 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
         }
         // check label
         const labelsForbidden = ["spam"];
-        const {data} = await agent.getProfile({actor: did});
+        const { data } = await agent.getProfile({ actor: did });
         if (data.labels) {
           for (const label of data.labels) {
             if (labelsForbidden.some(elem => elem === label.val)) {
@@ -174,11 +174,11 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
               botBiothythmManager.addConversation();
               return;
             }
-          }          
+          }
 
-        // ==============
-        // main: 通常ポスト(リプライ・メンション除く)
-        // ==============
+          // ==============
+          // main: 通常ポスト(リプライ・メンション除く)
+          // ==============
         } else if (!record.reply && !isMention(record)) {
           let relatedPosts: string[] = []; // 類似ポスト格納用
 
@@ -250,11 +250,11 @@ export async function callbackPost (event: CommitCreateEvent<"app.bsky.feed.post
           db.insertOrUpdateDb(did);
         }
       }, {
-        retries: 3,
-        onRetry: (err, attempt) => {
-          console.warn(`[WARN][${event.did}] Retry attempt ${attempt} to doReply:`, err);
-        },
-      }
+      retries: 3,
+      onRetry: (err, attempt) => {
+        console.warn(`[WARN][${event.did}] Retry attempt ${attempt} to doReply:`, err);
+      },
+    }
     )
   } catch (e) {
     console.error(`[ERROR][${did}] callbackPost failed unexpectedly:`, e);

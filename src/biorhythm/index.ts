@@ -19,7 +19,10 @@ import { getFullDateAndTimeString } from "../gemini/util";
 import { question } from "../modes/question";
 import { LanguageName } from "../types"; // LanguageNameをインポート
 import { agent } from "../bsky/agent";
+
 import { UtilityAI } from "./utilityAI";
+import { getYokohamaWeather } from "../api/weather";
+import { Type } from "@google/genai";
 
 export type Status = 'WakeUp' | 'Study' | 'FreeTime' | 'Relax' | 'Sleep';
 
@@ -172,7 +175,7 @@ export class BiorhythmManager extends EventEmitter {
     const isWeekend = now.getDay() === 0 || now.getDay() === 6;
 
     // 未読のリプライ取得
-    const unreadReply = await dbReplies.selectRows(["reply"], {column: "isRead", value: 0}) as string[];
+    const unreadReply = await dbReplies.selectRows(["reply"], { column: "isRead", value: 0 }) as string[];
 
     // 新しいステータス候補を決定
     this.status = UtilityAI.selectAction({
@@ -182,8 +185,11 @@ export class BiorhythmManager extends EventEmitter {
       currentAction: this.moodPrev
     });
 
+    // 天候取得
+    const weather = await getYokohamaWeather();
+
     // LLMプロンプトを生成
-    const prompt = this.buildPrompt(getFullDateAndTimeString(), isWeekend, unreadReply);
+    const prompt = this.buildPrompt(getFullDateAndTimeString(), isWeekend, weather, unreadReply);
 
     // RPDチェック: 超過時は全処理スキップし、丸1日後に再実行
     if (!(logger.checkRPD())) {
@@ -192,9 +198,12 @@ export class BiorhythmManager extends EventEmitter {
       return;
     }
 
+    let duration_minutes = 60;
     try {
-      const newOutput = await this.generateStatus(prompt); // LLM出力取得
-      await this.setOutput(newOutput);
+      const result = await this.generateStatus(prompt); // LLM出力取得
+      const status_text = result.status_text;
+      duration_minutes = result.duration_minutes;
+      await this.setOutput(status_text);
 
       const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD形式
 
@@ -210,7 +219,7 @@ export class BiorhythmManager extends EventEmitter {
           }
         }
       }
-      
+
       // おはようポスト
       if (this.firstStepDone) {
         if (this.status !== this.statusPrev && this.status === "WakeUp") {
@@ -244,14 +253,15 @@ export class BiorhythmManager extends EventEmitter {
     // this.handleEnergyByStatus();
 
     // ログ出力
-    console.log(`[INFO][BIORHYTHM] status: ${this.status}, energy: ${this.getEnergy}, action: ${this.getMood}`);
+    console.log(`[INFO][BIORHYTHM] status: ${this.status}, energy: ${this.getEnergy}, action: ${this.getMood}, next: ${duration_minutes} min`);
 
     // リプライ既読処理
     dbReplies.updateAllDb("isRead", 1);
 
-    // 次回スケジュール（5〜60分）
+    // 次回スケジュール（AIが決めた時間、ただし最小5分、最大180分とする）
+    const duration = Math.max(5, Math.min(duration_minutes, 180));
     const nextInterval = process.env.NODE_ENV === "development" ? 5 * 60 * 1000 :
-      Math.floor(Math.random() * (SCHEDULE_STEP_MAX - SCHEDULE_STEP_MIN + 1) + SCHEDULE_STEP_MIN) * 60 * 1000 ;
+      duration * 60 * 1000;
 
     if (!this.firstStepDone) {
       // 起動時にサーバスタートが画像生成より先だと404が返るため、
@@ -266,14 +276,15 @@ export class BiorhythmManager extends EventEmitter {
     }
   }
 
-  private buildPrompt(timeNow: string, isWeekend: Boolean, unreadReply?: string[]): string {
+  private buildPrompt(timeNow: string, isWeekend: Boolean, weather: string, unreadReply?: string[]): string {
     return `
 以下のキャラクターの行動を描写してほしいです。
 ${SYSTEM_INSTRUCTION}
-このキャラクターが現在どんな気分でなにをしているか、現在時刻・ステータス・前回した行動をもとにして、具体的に考えてください。
+このキャラクターが現在どんな気分でなにをしているか、現在時刻・天候・ステータス・前回した行動をもとにして、具体的に考えてください。
 * ルール
-- 結果は「全肯定たんは～しています」という、AIに入力する平易なプロンプト文で出力してください。
-- 結果は200文字以内に収めてください。
+- 結果はJSON形式で出力してください。
+- "status_text": 「全肯定たんは～しています」という、AIに入力する平易なプロンプト文（200文字以内）。
+- "duration_minutes": その行動にかかる時間（分）。行動の内容に合わせて5分から90分の範囲内で適切に決めてください。
 - WakeUpは起床時、Studyは勉強中、FreeTimeは余暇時間、Relaxは休憩中、Sleepは就寝中(夢の中)を意味します。
 - 以下の日にはその日にふさわしい行動をさせること
   * 元旦 (1月1日)
@@ -290,16 +301,17 @@ ${SYSTEM_INSTRUCTION}
 -----行動参考例-----
 * 以下がキャラクターの行動例です。
 ${this.status === "WakeUp" ? isWeekend ? `${JSON.stringify(eventsMorningDayoff)}` : `${JSON.stringify(eventsMorningWorkday)}` :
-  this.status === "Study" ? isWeekend ? `${JSON.stringify(eventsNoonDayoff)}` : `${JSON.stringify(eventsNoonWorkday)}` :
-  this.status === "FreeTime" ? isWeekend ? `${JSON.stringify(eventsEveningDayoff)}` : `${JSON.stringify(eventsEveningWorkday)}` :
-  this.status === "Relax" ? `${JSON.stringify(eventsNight)}` :
-  this.status === "Sleep" ? `${JSON.stringify(eventsMidnight)}` : ""
-}
+        this.status === "Study" ? isWeekend ? `${JSON.stringify(eventsNoonDayoff)}` : `${JSON.stringify(eventsNoonWorkday)}` :
+          this.status === "FreeTime" ? isWeekend ? `${JSON.stringify(eventsEveningDayoff)}` : `${JSON.stringify(eventsEveningWorkday)}` :
+            this.status === "Relax" ? `${JSON.stringify(eventsNight)}` :
+              this.status === "Sleep" ? `${JSON.stringify(eventsMidnight)}` : ""
+      }
 * 以下がユーザーからもらったコメントです。次の行動を考える際に参考にすること。
 ${JSON.stringify(unreadReply)}
 -----以下がキャラクターの状態-----
 ・現在
 現在時刻：${timeNow}
+天候：${weather}
 ステータス：${this.status}
 体力気力（0～100）：${this.getEnergy}
 ・前回
@@ -310,12 +322,28 @@ ${JSON.stringify(unreadReply)}
 `;
   }
 
-  private async generateStatus(prompt: string): Promise<string> {
+  private async generateStatus(prompt: string): Promise<{ status_text: string, duration_minutes: number }> {
     const response = await gemini.models.generateContent({
       model: MODEL_GEMINI,
       contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            status_text: { type: Type.STRING },
+            duration_minutes: { type: Type.INTEGER },
+          },
+          required: ["status_text", "duration_minutes"],
+        },
+      }
     });
-    return response.text || "";
+
+    if (response.text) {
+      return JSON.parse(response.text);
+    }
+
+    return { status_text: "", duration_minutes: 60 };
   }
 
   private changeEnergy(amount: number) {

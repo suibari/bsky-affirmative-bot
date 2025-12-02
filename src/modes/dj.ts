@@ -8,19 +8,19 @@ import { generateRecommendedSong } from "../gemini/generateRecommendedSong.js";
 import { GeminiResponseResult, UserInfoGemini } from "../types.js";
 import { agent } from "../bsky/agent.js";
 import { SQLite3 } from "../db/index.js";
-import { searchSpotifyTrack } from "../spotify/index.js";
+import { searchSpotifyTrack } from "../api/spotify/index.js";
 
-export async function handleDJ (event: CommitCreateEvent<"app.bsky.feed.post">, follower: ProfileView, db: SQLite3) {
+export async function handleDJ(event: CommitCreateEvent<"app.bsky.feed.post">, follower: ProfileView, db: SQLite3) {
   const record = event.commit.record as Record;
 
   // ポスト収集
-  const response = await agent.getAuthorFeed({ 
+  const response = await agent.getAuthorFeed({
     actor: follower.did,
     limit: 100,
     filter: "posts_with_replies",
   });
   const posts = response.data.feed
-    .filter(post  => !post.reason) // リポスト除外
+    .filter(post => !post.reason) // リポスト除外
     .map(post => (post.post.record as Record).text);
 
   // 0要素目にDJリクエストポスト、1要素目以降に過去ポストをセット
@@ -34,19 +34,19 @@ export async function handleDJ (event: CommitCreateEvent<"app.bsky.feed.post">, 
     generateText: getSongLink,
     checkConditionsAND: await isPast(event, db, "last_dj_at", 5), // 5mins
   },
-  {
-    follower,
-    posts,
-    langStr: getLangStr(record.langs),
-  });
+    {
+      follower,
+      posts,
+      langStr: getLangStr(record.langs),
+    });
 }
 
 async function getSongLink(userinfo: UserInfoGemini): Promise<GeminiResponseResult> {
   const resultGemini = await generateRecommendedSong(userinfo);
-  const resultSpotify = await searchSpotifyTrack({artist: resultGemini.artist, track: resultGemini.title});
+  const resultSpotify = await searchSpotifyTrack({ artist: resultGemini.artist, track: resultGemini.title });
 
-  const result = 
-`${resultGemini.comment}
+  const result =
+    `${resultGemini.comment}
 title: ${resultGemini.title}
 artist: ${resultGemini.artist}
 
