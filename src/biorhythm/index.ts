@@ -51,8 +51,6 @@ export class BiorhythmManager extends EventEmitter {
   private moodPrev: string = "";
   private _generatedImage: Buffer | null = null;
   private firstStepDone = false;
-  private _lastGoodMorningPostDate: string | null = null;
-  private _lastGoodNightPostDate: string | null = null;
 
   constructor() {
     super();
@@ -204,31 +202,29 @@ export class BiorhythmManager extends EventEmitter {
       duration_minutes = result.duration_minutes;
       await this.setOutput(status_text);
 
-      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD形式
-
       // おやすみポスト
       if (this.firstStepDone) {
-        if (this.status !== this.statusPrev && this.status === "Sleep") {
-          if (this._lastGoodNightPostDate !== today) {
+        if (this.status !== this.statusPrev && this.status === "Sleep" && (hour >= 21 || hour <= 3)) {
+          if (logger.canPostGoodNight()) {
             console.log(`[INFO][BIORHYTHM] post goodnight!`);
             await doGoodNightPost(this.getMood);
-            this._lastGoodNightPostDate = today;
+            logger.setGoodNightPostDate();
           } else {
-            console.log(`[INFO][BIORHYTHM] Goodnight post already done for today.`);
+            console.log(`[INFO][BIORHYTHM] goodnight post already done today, skipping`);
           }
         }
       }
 
       // おはようポスト
       if (this.firstStepDone) {
-        if (this.status !== this.statusPrev && this.status === "WakeUp") {
-          if (this._lastGoodMorningPostDate !== today) {
+        if (this.status !== this.statusPrev && this.status === "WakeUp" && (hour >= 4 || hour <= 10)) {
+          if (logger.canPostGoodMorning()) {
             console.log(`[INFO][BIORHYTHM] post goodmorning!`);
             await doQuestionPost();
             this.changeEnergy(-6000);
-            this._lastGoodMorningPostDate = today;
+            logger.setGoodMorningPostDate();
           } else {
-            console.log(`[INFO][BIORHYTHM] Goodmorning post already done for today.`);
+            console.log(`[INFO][BIORHYTHM] goodmorning post already done today, skipping`);
           }
         }
       }

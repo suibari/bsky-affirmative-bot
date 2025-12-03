@@ -36,6 +36,8 @@ interface BiorhythmState {
   energy: number;
   mood: string;
   status: string;
+  lastGoodNightPostDate?: string; // YYYY-MM-DD形式
+  lastGoodMorningPostDate?: string; // YYYY-MM-DD形式
 }
 
 export class Logger extends EventEmitter {
@@ -95,6 +97,8 @@ export class Logger extends EventEmitter {
       energy: 5000, // Initial value from BiorhythmManager
       mood: "",
       status: "Sleep",
+      lastGoodNightPostDate: undefined,
+      lastGoodMorningPostDate: undefined,
     };
     this.uniqueAffirmations = [];
     this.uriQuestionRoot = "";
@@ -398,6 +402,28 @@ export class Logger extends EventEmitter {
     this.biorhythmState.mood = mood;
     this.biorhythmState.status = status;
     this.saveLogToFile();
+  }
+
+  setGoodNightPostDate() {
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD形式
+    this.biorhythmState.lastGoodNightPostDate = today;
+    this.saveLogToFile();
+  }
+
+  setGoodMorningPostDate() {
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD形式
+    this.biorhythmState.lastGoodMorningPostDate = today;
+    this.saveLogToFile();
+  }
+
+  canPostGoodNight(): boolean {
+    const today = new Date().toISOString().split('T')[0];
+    return this.biorhythmState.lastGoodNightPostDate !== today;
+  }
+
+  canPostGoodMorning(): boolean {
+    const today = new Date().toISOString().split('T')[0];
+    return this.biorhythmState.lastGoodMorningPostDate !== today;
   }
 
   getBiorhythmState(): BiorhythmState {
