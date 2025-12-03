@@ -52,7 +52,7 @@ export function startServer(bot: BiorhythmManager, logger: Logger) {
   // WebSocket接続
   wss.on('connection', (ws, req) => {
     const origin = req.headers.origin;
-    if (origin !== 'https://suibari.com') {
+    if (process.env.NODE_ENV === "production" && origin !== 'https://suibari.com') {
       console.log(`[WARN] Blocked WS connection from origin: ${origin}`);
       ws.close();
       return;

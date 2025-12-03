@@ -36,6 +36,8 @@ interface BotStat {
   status: string;
   dailyStats: DailyStatsForWebSocket; // 型をDailyStatsForWebSocketに変更
   totalStats: Stats; // 追加: totalStatsプロパティ
+  utilities: Record<Status, number>;
+  nextStepTime: string;
 }
 
 const ENERGY_MAXIMUM = 10000;
@@ -49,6 +51,7 @@ export class BiorhythmManager extends EventEmitter {
   private energyPrev: number = 5000;
   private timePrev: string = '';
   private moodPrev: string = "";
+  private nextStepTime: string = "";
   private _generatedImage: Buffer | null = null;
   private firstStepDone = false;
 
@@ -136,6 +139,11 @@ export class BiorhythmManager extends EventEmitter {
   getCurrentState(): BotStat {
     const dailyStats = logger.getDailyStats();
     const totalStats = logger.getTotalStats();
+
+    const now = new Date();
+    const hour = now.getHours();
+    const isWeekend = now.getDay() === 0 || now.getDay() === 6;
+
     return {
       energy: this.getEnergy,
       mood: this.getMood,
@@ -146,7 +154,14 @@ export class BiorhythmManager extends EventEmitter {
       },
       totalStats: {
         ...totalStats,
-      }
+      },
+      utilities: UtilityAI.getUtilities({
+        hour,
+        isWeekend,
+        energy: this.getEnergy,
+        currentAction: this.moodPrev
+      }),
+      nextStepTime: this.nextStepTime,
     };
   }
 
@@ -191,15 +206,27 @@ export class BiorhythmManager extends EventEmitter {
     // RPDチェック: 超過時は全処理スキップし、丸1日後に再実行
     if (!(logger.checkRPD())) {
       console.log(`[INFO][BIORHYTHM] RPD exceeded, skipping step.`);
-      setTimeout(() => this.step(), 24 * 60 * 60 * 1000); // 24時間後に再実行
+      const nextInterval = 24 * 60 * 60 * 1000;
+      this.nextStepTime = new Date(Date.now() + nextInterval).toISOString();
+      this.emit('statsChange', this.getCurrentState());
+      setTimeout(() => this.step(), nextInterval); // 24時間後に再実行
       return;
     }
 
     let duration_minutes = 60;
+    let nextInterval = 60 * 60 * 1000;
+
     try {
       const result = await this.generateStatus(prompt); // LLM出力取得
       const status_text = result.status_text;
       duration_minutes = result.duration_minutes;
+
+      // 次回スケジュール（AIが決めた時間、ただし最小5分、最大180分とする）
+      const duration = Math.max(5, Math.min(duration_minutes, 180));
+      nextInterval = process.env.NODE_ENV === "development" ? 5 * 60 * 1000 :
+        duration * 60 * 1000;
+      this.nextStepTime = new Date(Date.now() + nextInterval).toISOString();
+
       await this.setOutput(status_text);
 
       // おやすみポスト
@@ -252,11 +279,6 @@ export class BiorhythmManager extends EventEmitter {
 
     // リプライ既読処理
     dbReplies.updateAllDb("isRead", 1);
-
-    // 次回スケジュール（AIが決めた時間、ただし最小5分、最大180分とする）
-    const duration = Math.max(5, Math.min(duration_minutes, 180));
-    const nextInterval = process.env.NODE_ENV === "development" ? 5 * 60 * 1000 :
-      duration * 60 * 1000;
 
     if (!this.firstStepDone) {
       // 起動時にサーバスタートが画像生成より先だと404が返るため、
