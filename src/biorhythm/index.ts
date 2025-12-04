@@ -165,15 +165,6 @@ export class BiorhythmManager extends EventEmitter {
     };
   }
 
-  async getLevelUp(): Promise<number> {
-    const profile = await agent.getProfile({ actor: process.env.BSKY_DID! });
-    const currentFollowersCount = profile.data.followersCount ?? 0;
-    const yesterdayFollowersCount = currentFollowersCount - logger.getDailyStats().followers;
-    const todayLevel = Math.floor(currentFollowersCount / 100);
-    const yesterdayLevel = Math.floor(yesterdayFollowersCount / 100);
-    return (todayLevel - yesterdayLevel) > 0 ? (todayLevel - yesterdayLevel) : 0;
-  }
-
   // --------
   // メインループ
   // --------
@@ -201,7 +192,12 @@ export class BiorhythmManager extends EventEmitter {
     const weather = await getYokohamaWeather();
 
     // LLMプロンプトを生成
-    const prompt = this.buildPrompt(getFullDateAndTimeString(), isWeekend, weather, unreadReply);
+    const prompt = this.buildPrompt(getFullDateAndTimeString(), isWeekend, weather, unreadReply, UtilityAI.getUtilities({
+      hour,
+      isWeekend,
+      energy: this.getEnergy,
+      currentAction: this.moodPrev
+    }));
 
     // RPDチェック: 超過時は全処理スキップし、丸1日後に再実行
     if (!(logger.checkRPD())) {
@@ -293,16 +289,17 @@ export class BiorhythmManager extends EventEmitter {
     }
   }
 
-  private buildPrompt(timeNow: string, isWeekend: Boolean, weather: string, unreadReply?: string[]): string {
+  private buildPrompt(timeNow: string, isWeekend: Boolean, weather: string, unreadReply?: string[], utilities?: Record<Status, number>): string {
     return `
 以下のキャラクターの行動を描写してほしいです。
 ${SYSTEM_INSTRUCTION}
-このキャラクターが現在どんな気分でなにをしているか、現在時刻・天候・ステータス・前回した行動をもとにして、具体的に考えてください。
+このキャラクターが現在どんな気分でなにをしているか、現在時刻・天候・ステータス・行動欲求・前回した行動をもとにして、具体的に考えてください。
 * ルール
 - 結果はJSON形式で出力してください。
 - "status_text": 「全肯定たんは～しています」という、AIに入力する平易なプロンプト文（200文字以内）。
 - "duration_minutes": その行動にかかる時間（分）。行動の内容に合わせて5分から90分の範囲内で適切に決めてください。
-- WakeUpは起床時、Studyは勉強中、FreeTimeは余暇時間、Relaxは休憩中、Sleepは就寝中(夢の中)を意味します。
+- ステータスについて、WakeUpは起床時、Studyは勉強中、FreeTimeは余暇時間、Relaxは休憩中、Sleepは就寝中(夢の中)を意味します。
+- 行動欲求は、あなたがどの行動をしたいか、です。たとえばSleepが一番高いのに、ステータスがFreeTimeの場合、眠いのに遊んでいる状態です。
 - 以下の日にはその日にふさわしい行動をさせること
   * 元旦 (1月1日)
   * 節分 (2月3日)
@@ -331,6 +328,7 @@ ${JSON.stringify(unreadReply)}
 天候：${weather}
 ステータス：${this.status}
 体力気力（0～100）：${this.getEnergy}
+行動欲求：${JSON.stringify(utilities)}
 ・前回
 前回時刻：${this.timePrev}
 ステータス：${this.statusPrev}
