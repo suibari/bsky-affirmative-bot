@@ -14,8 +14,8 @@ export async function generateAnalyzeResult(userinfo: UserInfoGemini) {
 
 const PROMPT_ANALYZE = (userinfo: UserInfoGemini) => {
   return userinfo.langStr === "日本語" ?
-`ユーザ自身のポストとユーザがいいねしたポストを基に、性格分析をしてください。
-出力する文字数は最大500文字までです。
+    `ユーザ自身のポストとユーザがいいねしたポストを基に、性格分析をしてください。
+出力する文字数は最大600文字までです。
 空の行は入れないでください。
 分析結果は以下の要素に基づいて生成してください。具体的なポスト内容やいいね内容に言及してください。
 * ポジティブなポストの割合
@@ -32,7 +32,7 @@ const PROMPT_ANALYZE = (userinfo: UserInfoGemini) => {
 ポスト内容: ${userinfo.posts || ""}
 ユーザがいいねしたポスト: ${userinfo.likedByFollower || ""}
 ` :
-`Please analyze the user's personality based on their own posts and the posts they have liked.
+    `Please analyze the user's personality based on their own posts and the posts they have liked.
 The output should be in ${userinfo.langStr}.
 The maximum number of characters that can be output is 1000.
 Do not include any blank lines.

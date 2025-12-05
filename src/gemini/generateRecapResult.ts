@@ -17,12 +17,12 @@ const PROMPT_RECAP = (userinfo: UserInfoGemini) => {
     `ユーザの今年の振り返りをしてください。
 振り返り結果は以下の要素に基づいて生成してください。
 * ユーザの今年のポストの総括
-* ユーザがよく使う言葉 (特徴的な言葉をピックアップすること)
+* ユーザがよく使う言葉 (特徴的な名詞をピックアップすること)
 * ユーザがよく絡む相手 (全員の名前を挙げること)
-* 来年の抱負
+* 今年の総括から言える、来年の抱負
 # ルール
-* 悪い内容は含まず、全肯定のスタンスで分析してください。
-* 文字数は500文字以内とします
+* 悪い内容は含まず、全肯定のスタンスで振り返りしてください
+* 出力する文字数は600文字以内とします
 
 以下がユーザ名およびポスト、いいねしたポストです。
 -----
@@ -36,7 +36,7 @@ Generate the review results based on the following elements:
 * Summary of the user's posts this year
 * Words the user frequently uses (mention the most characteristic words)
 * People the user frequently interacts with (mention all of them)
-* Resolutions for next year
+* Resolutions for next year by summary of this year
 # Rules
 * Do not include negative content; analyze from a fully positive stance.
 * The text should be 1000 characters or less.
