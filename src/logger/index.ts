@@ -20,6 +20,7 @@ export interface Stats {
   dj: number;
   anniversary: number;
   answer: number;
+  recap: number;
   lang: Map<LanguageName, number>;
 }
 
@@ -72,6 +73,7 @@ export class Logger extends EventEmitter {
       dj: 0,
       anniversary: 0,
       answer: 0,
+      recap: 0,
       lang: new Map<LanguageName, number>(),
     };
     this.yesterdayStats = { // yesterdayStatsの初期化
@@ -86,6 +88,7 @@ export class Logger extends EventEmitter {
       dj: 0,
       anniversary: 0,
       answer: 0,
+      recap: 0,
       lang: new Map<LanguageName, number>(),
     };
     this.dailyBskyRate = 0;
@@ -125,6 +128,7 @@ export class Logger extends EventEmitter {
         dj: 0,
         anniversary: 0,
         answer: 0,
+        recap: 0,
         lang: new Map<LanguageName, number>(),
       };
       const defaultBiorhythmState = { energy: 5000, mood: "", status: "Sleep" };
@@ -231,6 +235,7 @@ export class Logger extends EventEmitter {
       dj: this.totalStats.dj,
       anniversary: this.totalStats.anniversary,
       answer: this.totalStats.answer,
+      recap: this.totalStats.recap,
       lang: new Map<LanguageName, number>(this.totalStats.lang),
     };
 
@@ -345,6 +350,12 @@ export class Logger extends EventEmitter {
     this.emit("statsChange");
   }
 
+  addRecap() {
+    this.totalStats.recap++; // 総回数のみ更新
+    this.saveLogToFile();
+    this.emit("statsChange");
+  }
+
   updateTopPost(uri: string, comment: string) {
     this.dailyTopPost = uri;
     this.dailyBotComment = comment;
@@ -371,6 +382,7 @@ export class Logger extends EventEmitter {
       dj: this.totalStats.dj - this.yesterdayStats.dj,
       anniversary: this.totalStats.anniversary - this.yesterdayStats.anniversary,
       answer: this.totalStats.answer - this.yesterdayStats.answer,
+      recap: this.totalStats.recap - this.yesterdayStats.recap,
       topPost: this.dailyTopPost,
       botComment: this.dailyBotComment,
       bskyrate: this.dailyBskyRate,
@@ -393,6 +405,7 @@ export class Logger extends EventEmitter {
       dj: this.totalStats.dj,
       anniversary: this.totalStats.anniversary,
       answer: this.totalStats.answer,
+      recap: this.totalStats.recap,
       lang: new Map<LanguageName, number>(this.totalStats.lang),
     };
   }

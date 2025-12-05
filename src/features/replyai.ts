@@ -71,7 +71,7 @@ export async function replyAI(
                 posts: [text_user, ...relatedPosts],
                 likedByFollower: likedPost,
                 image,
-                followersFriend,
+                followersFriend: followersFriend ? [followersFriend] : undefined,
                 embed,
             });
         }, {

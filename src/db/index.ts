@@ -36,6 +36,7 @@ const desiredSchemas: Record<string, TableSchema> = {
       { name: 'last_status_at', type: 'TIMESTAMP', default: null },
       { name: 'question_root_uri', type: 'TEXT', default: null },
       { name: 'last_answered_at', type: 'TIMESTAMP', default: null },
+      { name: 'last_recap_at', type: 'TIMESTAMP', default: null },
     ]
   },
   posts: {

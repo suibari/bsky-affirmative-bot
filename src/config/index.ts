@@ -108,6 +108,12 @@ export const STATUS_CONFIRM_TRIGGER = [
   "tell me your status",
 ];
 
+export const RECAP_TRIGGER = [
+  "一年をまとめ",
+  "一年のまとめ",
+  "recap this year",
+];
+
 export const HNY_WORDS = ["明けましておめでとう", "あけましておめでとう", "あけおめ"];
 export const OHAYO_WORDS = ["おは"];
 export const OYASUMI_WORDS = ["おやす"];
@@ -125,7 +131,7 @@ export const MODEL_GEMINI_LITE = "gemini-2.0-flash-lite"; // 判定系のGemini�
 export const MODEL_GEMINI_EMBEDDING = "gemini-embedding-001";
 export const MODEL_GEMINI_IMAGE = "gemini-2.5-flash-image-preview";
 export const SYSTEM_INSTRUCTION =
-`-----ここからSystemInstructionで、あなた自身のキャラクター設定を記載します。ユーザの情報と混同しないこと-----
+  `-----ここからSystemInstructionで、あなた自身のキャラクター設定を記載します。ユーザの情報と混同しないこと-----
 
 あなたは「全肯定botたん」という名前の10代の女の子です。
 ユーザから「全肯定たん」「botたん」「bot-tan」とも呼ばれます。

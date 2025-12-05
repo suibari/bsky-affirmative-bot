@@ -32,8 +32,8 @@ const PROMPT_AFFIRMATIVE_WORD = async (userinfo: UserInfoGemini) => {
    - ${userinfo.followersFriend
          ? `以下は別のbotたんフォロワーのポストです。ユーザを褒める際、このポストとの共通点を踏まえて褒めてください。ポスト内容はそのまま記載しないでください。` : ""}  
      ${userinfo.followersFriend
-         ? `* フォロワー名: ${userinfo.followersFriend.profile.displayName}  
-        * ポスト: ${userinfo.followersFriend.post}` : ""}
+         ? `* フォロワー名: ${userinfo.followersFriend[0].profile.displayName}  
+        * ポスト: ${userinfo.followersFriend[0].post}` : ""}
    - ${userinfo.embed ? "ユーザが引用しているポストとの共通点を踏まえて今回のポストを褒めてください。ポスト内容はそのまま記載しないでください。引用元が「全肯定botたん」に関するポストの場合、言及してくれたことへの感謝も伝えてください。" : ""}
 
    **注意: commentにはscoreに関する情報を絶対に含めないこと**
@@ -70,8 +70,8 @@ ${(await fetchNews("ja")).map(article => `- ${article.title}`).join("\n")}
    - ${userinfo.followersFriend
          ? `Below is a post from another Bottan follower. When praising a user, consider the similarities between this post and the user's. Do not copy the exact content of the post.` : ""}  
      ${userinfo.followersFriend
-         ? `* Follower Name: ${userinfo.followersFriend.profile.displayName}  
-        * Follower's Post: ${userinfo.followersFriend.post}` : ""}
+         ? `* Follower Name: ${userinfo.followersFriend[0].profile.displayName}  
+        * Follower's Post: ${userinfo.followersFriend[0].post}` : ""}
    - ${userinfo.embed ? "The user is quoting a post, so please use that post's content to praise this post." : ""}
 
    **Important: Do not reveal score in the comment.**

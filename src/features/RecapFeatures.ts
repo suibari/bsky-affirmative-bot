@@ -1,0 +1,117 @@
+import { ProfileView } from "@atproto/api/dist/client/types/app/bsky/actor/defs";
+import { CommitCreateEvent } from "@skyware/jetstream";
+import { BotFeature, FeatureContext } from "./types";
+import { RECAP_TRIGGER } from "../config";
+import { Record } from "@atproto/api/dist/client/types/app/bsky/feed/post";
+import { GeminiResponseResult, UserInfoGemini } from "../types";
+import { agent } from "../bsky/agent";
+import { getConcatAuthorFeed } from "../bsky/getConcatAuthorFeed";
+import { textToImageBufferWithBackground } from "../util/canvas";
+import { fetchSentiment } from "../util/negaposi";
+import retry from 'async-retry';
+import { getUserInvolvedUsers } from "../bsky/analyzeInteractions";
+import { generateRecapResult } from "../gemini/generateRecapResult";
+import { logger, botBiothythmManager } from "..";
+import { getLangStr } from "../bsky/util";
+import { handleMode, isPast } from "./utils";
+
+export class RecapFeature implements BotFeature {
+  name = "RecapFeature";
+
+  async shouldHandle(event: CommitCreateEvent<"app.bsky.feed.post">, follower: ProfileView, context: FeatureContext): Promise<boolean> {
+    const record = event.commit.record as Record;
+    const text = (record.text || "").toLowerCase();
+    return RECAP_TRIGGER.some(trigger => text.includes(trigger.toLowerCase()));
+  }
+
+  async handle(event: CommitCreateEvent<"app.bsky.feed.post">, follower: ProfileView, context: FeatureContext): Promise<void> {
+    const record = event.commit.record as Record;
+    const { db } = context;
+
+    const result = await handleMode(event, {
+      triggers: RECAP_TRIGGER,
+      db,
+      dbColumn: "last_recap_at",
+      dbValue: new Date().toISOString(),
+      generateText: this.getBlobWithRecap.bind(this),
+      checkConditionsAND: await isPast(event, db, "last_recap_at", 6 * 24 * 60), // 6days
+    },
+      {
+        follower,
+        langStr: getLangStr(record.langs),
+      });
+
+    if (result && logger.checkRPD()) {
+      logger.addRecap();
+      // botBiothythmManager.addRecap();
+    }
+  }
+
+  private async getBlobWithRecap(userinfo: UserInfoGemini): Promise<GeminiResponseResult> {
+    const TEXT_INTRO_RECAP = (userinfo.langStr === "日本語") ?
+      `${userinfo.follower.displayName}さんの今年のまとめだよ！ 画像を貼るので見てみてね。来年もよろしくね！` :
+      `${userinfo.follower.displayName}, here's your year summary! Check the image. Have a good year!`;
+
+    // ポスト収集
+    const feeds = await getConcatAuthorFeed(userinfo.follower.did, 1000); // とりあえず1000件
+    userinfo.posts = feeds.map(feed => (feed.post.record as Record).text);
+
+    // 形態素解析し、nouns_countsをソートして、上位20位の名詞を取得
+    const sentiment = await fetchSentiment(userinfo.posts);
+    const topWords = sentiment.nouns_counts.sort((a, b) => b.count - a.count).slice(0, 20);
+    userinfo.topWords = topWords.map(word => word.noun);
+
+    // よく絡む相手
+    const involvedUsers = await getUserInvolvedUsers(feeds);
+    userinfo.followersFriend = involvedUsers.slice(0, 5).map(involvedUser => {
+      return {
+        profile: involvedUser.profile as ProfileView,
+      };
+    });
+
+    // いいね収集
+    // const agentPDS = new AtpAgent({ service: await getPds(userinfo.follower.did) });
+    // const responseLike = await agentPDS.com.atproto.repo.listRecords({
+    //   repo: userinfo.follower.did,
+    //   collection: "app.bsky.feed.like",
+    //   limit: 100,
+    // });
+    // const uris = (responseLike.data.records as RecordList[])
+    //   .map(record => (record.value as any).subject.uri);
+    // const likes = (await getConcatPosts(uris))
+    //   .map(like => (like.record as RecordPost).text);
+    // userinfo.likedByFollower = likes;
+
+    const result = await retry(async () => {
+      const res = await generateRecapResult(userinfo);
+      if (!res) {
+        throw new Error("API result is empty, retrying...");
+      }
+      return res;
+    }, {
+      retries: 3,
+      onRetry: (e: unknown, attempt) => {
+        if (e instanceof Error) {
+          console.log(`[${new Date().toISOString()}] Attempt ${attempt} failed: ${e.message}`);
+        } else {
+          console.log(`[${new Date().toISOString()}] Attempt ${attempt} failed with an unknown error.`);
+        }
+      }
+    });
+
+    if (process.env.NODE_ENV === "development") {
+      console.log("[DEBUG] bot>>> " + result);
+    }
+
+    // 画像生成
+    const buffer = await textToImageBufferWithBackground(result);
+
+    // uploadBlod
+    const { blob } = (await agent.uploadBlob(buffer, { encoding: "image/png" })).data;
+
+    return {
+      text: TEXT_INTRO_RECAP,
+      imageBlob: blob,
+    };
+  }
+}

@@ -152,9 +152,10 @@ export type UserInfoGemini = {
   anniversary?: Holiday[];
   followersFriend?: {
     profile: ProfileView;
-    post: string;
-  }
+    post?: string;
+  }[];
   embed?: Embed;
+  topWords?: string[];
 };
 
 export interface Embed {
@@ -193,9 +194,9 @@ export type Holiday = {
   id: string;
   names: { ja: string; en: string };
   rule:
-    | { type: "fixed"; month: number; day: number }
-    | { type: "nth-weekday"; month: number; week: number; weekday: number } // weekday: 0=Sun..6=Sat
-    | { type: "easter"; calendar: "western" | "orthodox" };
+  | { type: "fixed"; month: number; day: number }
+  | { type: "nth-weekday"; month: number; week: number; weekday: number } // weekday: 0=Sun..6=Sat
+  | { type: "easter"; calendar: "western" | "orthodox" };
   regions?: string[];
 }
 
