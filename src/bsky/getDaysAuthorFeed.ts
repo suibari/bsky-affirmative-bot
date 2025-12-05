@@ -1,15 +1,15 @@
 import { FeedViewPost } from "@atproto/api/dist/client/types/app/bsky/feed/defs";
-import { agent } from "../bsky/agent"; // 適宜パスを調整
+import { agent } from "./agent"; // 適宜パスを調整
 import { AppBskyFeedGetAuthorFeed } from "@atproto/api";
 
 /**
- * 指定actorの過去24時間以内の投稿をすべて取得する
+ * 指定actorの過去daysAgo日以内の投稿をすべて取得する
  * @param {string} actor - 取得対象のアクター（DIDまたはhandle）
- * @returns {Promise<FeedViewPost[] | null>} - 24時間以内の投稿リスト。ブロックされていれば null。
+ * @returns {Promise<FeedViewPost[] | null>} - daysAgo日以内の投稿リスト。ブロックされていれば null。
  */
-export async function getTodaysAuthorFeed(actor: string): Promise<FeedViewPost[]> {
+export async function getDaysAuthorFeed(actor: string, daysAgo: number = 1): Promise<FeedViewPost[]> {
   const now = new Date();
-  const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  const dayAgo = new Date(now.getTime() - daysAgo * 24 * 60 * 60 * 1000);
   let cursor: string | undefined = undefined;
   let allPosts: FeedViewPost[] = [];
 

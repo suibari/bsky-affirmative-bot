@@ -10,7 +10,7 @@ import { SQLite3 } from "../db";
 import { LanguageName } from "../types";
 import { DateTime } from "luxon";
 import { getConcatProfiles } from "../bsky/getConcatProfiles";
-import { getTodaysAuthorFeed } from "../bsky/getTodaysAuthorFeed";
+import { getDaysAuthorFeed } from "../bsky/getDaysAuthorFeed";
 import { generateDiary } from "../gemini/generateDiary";
 import { textToImageBufferWithBackground } from "../util/canvas";
 import { agent } from "../bsky/agent";
@@ -113,7 +113,7 @@ async function processUserDiary(userDid: string, db: SQLite3) {
         const profile = profiles[0];
 
         // 本関数実行時から24h前までのポストを収集
-        const allRecentPosts = await getTodaysAuthorFeed(userDid);
+        const allRecentPosts = await getDaysAuthorFeed(userDid);
 
         if (allRecentPosts.length === 0) {
             console.log(`[INFO][${userDid}] today's post not found`);
@@ -235,7 +235,7 @@ async function manageUserDiarySchedules(db: SQLite3) {
             // Fetch latest post to get language
             // Note: getTodaysAuthorFeed is called here just to get the latest post for language detection.
             // The actual "today's posts" fetching happens in processUserDiary with a specific date.
-            const feedForLang = await getTodaysAuthorFeed(userDid);
+            const feedForLang = await getDaysAuthorFeed(userDid);
             const latestPost = feedForLang.find(item => !item.reply)?.post;
             if (!latestPost) {
                 console.log(`[INFO][${userDid}] latest post not found`);

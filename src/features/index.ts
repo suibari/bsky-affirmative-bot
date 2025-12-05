@@ -10,7 +10,7 @@ import { DJFeature } from "./DJFeature";
 import { CheerFeature } from "./CheerFeature";
 import { ConversationFeature } from "./ConversationFeature";
 import { NormalReplyFeature } from "./NormalReplyFeature";
-import { RecapFeature } from "./RecapFeatures";
+import { RecapYearFeature } from "./RecapYearFeatures";
 
 export const features: BotFeature[] = [
     new AnniversaryFeature(),
@@ -22,7 +22,7 @@ export const features: BotFeature[] = [
     new AnalyzeFeature(),
     new DJFeature(),
     new CheerFeature(),
-    new RecapFeature(),
+    new RecapYearFeature(),
     new ConversationFeature(),
     new NormalReplyFeature(),
 ];

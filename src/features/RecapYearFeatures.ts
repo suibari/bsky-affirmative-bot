@@ -14,8 +14,9 @@ import { generateRecapResult } from "../gemini/generateRecapResult";
 import { logger, botBiothythmManager } from "..";
 import { getLangStr } from "../bsky/util";
 import { handleMode, isPast } from "./utils";
+import { getDaysAuthorFeed } from "../bsky/getDaysAuthorFeed";
 
-export class RecapFeature implements BotFeature {
+export class RecapYearFeature implements BotFeature {
   name = "RecapFeature";
 
   async shouldHandle(event: CommitCreateEvent<"app.bsky.feed.post">, follower: ProfileView, context: FeatureContext): Promise<boolean> {
@@ -53,7 +54,7 @@ export class RecapFeature implements BotFeature {
       `${userinfo.follower.displayName}, here's your year summary! Check the image. Have a good year!`;
 
     // ポスト収集
-    const feeds = await getConcatAuthorFeed(userinfo.follower.did, 1000); // とりあえず1000件
+    const feeds = await getDaysAuthorFeed(userinfo.follower.did, 365); // とりあえず1000件
     userinfo.posts = feeds.map(feed => (feed.post.record as Record).text);
 
     // 形態素解析し、nouns_countsをソートして、上位20位の名詞を取得
