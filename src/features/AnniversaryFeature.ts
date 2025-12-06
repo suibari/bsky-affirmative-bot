@@ -12,6 +12,8 @@ import { GeminiResponseResult, Holiday, localeToTimezone, UserInfoGemini } from 
 import { agent } from "../bsky/agent";
 import { dateForHoliday, parseMonthDay, toMonthDayIso } from "../util/dateRules";
 import { generateAnniversary } from "../gemini/generateAnniversary";
+import { generateOmikuji } from "../gemini/generateOmikuji";
+import { getConcatAuthorFeed } from "../bsky/getConcatAuthorFeed";
 
 type AnniversaryInfo = {
     name: string;
@@ -192,8 +194,15 @@ export class AnniversaryFeature implements BotFeature {
         userinfo.posts = response.data.posts.map(post => (post.record as PostRecord).text);
         // console.log(`[DEBUG][${event.did}] last year post: ${userinfo.posts[0]}`);
 
+        // 直近のポストもセット
+        const recentPosts = await getConcatAuthorFeed(event.did, 100);
+        userinfo.posts = userinfo.posts.concat(recentPosts.map(post => (post.post.record as PostRecord).text));
+
         // 2. Gemini
-        const botText = await generateAnniversary(userinfo);
+        const isNewYear = userinfo.anniversary?.some(a => a.id === "new_year");
+        const botText = isNewYear
+            ? await generateOmikuji(userinfo)
+            : await generateAnniversary(userinfo);
 
         if (process.env.NODE_ENV === "development") {
             console.log("[DEBUG] bot>>> " + botText);

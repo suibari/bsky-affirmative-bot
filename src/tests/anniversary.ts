@@ -13,7 +13,7 @@ import { generateAnniversary } from '../gemini/generateAnniversary';
     langStr: "日本語",
     anniversary: [
       {
-        id : "",
+        id: "",
         names: {
           ja: "誕生日",
           en: "誕生日"
@@ -25,19 +25,19 @@ import { generateAnniversary } from '../gemini/generateAnniversary';
         },
       },
       {
-        id : "",
+        id: "",
         names: {
-          ja: "節分",
-          en: "節分"
+          ja: "クリスマス",
+          en: "Christmas"
         },
         rule: {
           type: "fixed",
-          month: 2,
-          day: 3,
+          month: 12,
+          day: 25,
         },
       }
     ],
-    posts: ["ハッピーバースデーとぅーみー"]
+    posts: ["ハッピーバースデーとぅーみー", "たのしいな"]
   }
 
   const text = await generateAnniversary(userinfo);
