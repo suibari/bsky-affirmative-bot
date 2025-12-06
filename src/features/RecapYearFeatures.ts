@@ -105,7 +105,7 @@ export class RecapYearFeature implements BotFeature {
     }
 
     // 画像生成
-    const buffer = await textToImageBufferWithBackground(result);
+    const buffer = await textToImageBufferWithBackground(result, "./img/bot-tan-idol.png");
 
     // uploadBlod
     const { blob } = (await agent.uploadBlob(buffer, { encoding: "image/png" })).data;
