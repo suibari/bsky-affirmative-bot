@@ -2,11 +2,11 @@ import { CommitCreateEvent } from "@skyware/jetstream";
 import { ProfileView } from "@atproto/api/dist/client/types/app/bsky/actor/defs";
 import { BotFeature, FeatureContext } from "./types";
 import { logger, botBiothythmManager } from "../index";
-import { DJ_TRIGGER } from "../config";
+import { DJ_TRIGGER, NICKNAMES_BOT } from "../config";
 import { Record } from "@atproto/api/dist/client/types/app/bsky/feed/post";
 import { handleMode, isPast } from "./utils";
 import { generateRecommendedSong } from "../gemini/generateRecommendedSong";
-import { getLangStr } from "../bsky/util";
+import { getLangStr, isReplyOrMentionToMe } from "../bsky/util";
 import { UserInfoGemini, GeminiResponseResult } from "../types";
 import { agent } from "../bsky/agent";
 import { searchSpotifyTrack } from "../api/spotify";
@@ -17,7 +17,17 @@ export class DJFeature implements BotFeature {
     async shouldHandle(event: CommitCreateEvent<"app.bsky.feed.post">, follower: ProfileView, context: FeatureContext): Promise<boolean> {
         const record = event.commit.record as Record;
         const text = (record.text || "").toLowerCase();
-        return DJ_TRIGGER.some(trigger => text.includes(trigger.toLowerCase()));
+
+        const isCalled = isReplyOrMentionToMe(record) || NICKNAMES_BOT.some(elem => text.includes(elem.toLowerCase()));
+        if (!isCalled) return false;
+
+        if (!DJ_TRIGGER.some(trigger => text.includes(trigger.toLowerCase()))) return false;
+
+        if (process.env.NODE_ENV !== "development") {
+            if (!(await isPast(event, context.db, "last_dj_at", 5))) return false;
+        }
+
+        return true;
     }
 
     async handle(event: CommitCreateEvent<"app.bsky.feed.post">, follower: ProfileView, context: FeatureContext): Promise<void> {
@@ -38,12 +48,10 @@ export class DJFeature implements BotFeature {
         posts.unshift(record.text);
 
         const result = await handleMode(event, {
-            triggers: DJ_TRIGGER,
             db,
             dbColumn: "last_dj_at",
             dbValue: new Date().toISOString(),
             generateText: this.getSongLink.bind(this),
-            checkConditionsAND: await isPast(event, db, "last_dj_at", 5), // 5mins
         },
             {
                 follower,

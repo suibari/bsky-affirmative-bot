@@ -3,6 +3,8 @@ import { ProfileView } from "@atproto/api/dist/client/types/app/bsky/actor/defs"
 import { BotFeature, FeatureContext } from "./types";
 import { Record } from "@atproto/api/dist/client/types/app/bsky/feed/post";
 import { handleMode } from "./utils";
+import { isReplyOrMentionToMe } from "../bsky/util";
+import { NICKNAMES_BOT } from "../config";
 
 const REGEX_FREQ = /freq(\d+)/gi;
 
@@ -12,6 +14,10 @@ export class FrequencyFeature implements BotFeature {
     async shouldHandle(event: CommitCreateEvent<"app.bsky.feed.post">, follower: ProfileView, context: FeatureContext): Promise<boolean> {
         const record = event.commit.record as any;
         const text = (record.text || "").toLowerCase();
+
+        const isCalled = isReplyOrMentionToMe(record) || NICKNAMES_BOT.some(elem => text.includes(elem.toLowerCase()));
+        if (!isCalled) return false;
+
         // Regex check for "freqN"
         return /freq\d+/.test(text);
     }
@@ -31,7 +37,6 @@ export class FrequencyFeature implements BotFeature {
         }
 
         await handleMode(event, {
-            triggers: ["freq"],
             db: context.db,
             dbColumn: "reply_freq",
             dbValue: Number(match_freq[1]),

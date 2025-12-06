@@ -129,12 +129,10 @@ export class ConversationFeature implements BotFeature {
         }
 
         return await handleMode(event, {
-            triggers: [], // トリガーワードなし、botへのリプライであれば常に反応
             db,
             dbColumn: "last_conv_at",
             dbValue: new Date().toISOString(),
             generateText: this.waitAndGenReply.bind(this),
-            checkConditionsOR: isReplyOrMentionToMe(record),
         },
             {
                 follower,

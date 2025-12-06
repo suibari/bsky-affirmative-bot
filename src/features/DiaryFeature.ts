@@ -53,7 +53,6 @@ export class DiaryFeature implements BotFeature {
         const langStr = getLangStr(record.langs);
 
         return await handleMode(event, {
-            triggers: DIARY_REGISTER_TRIGGER,
             db,
             dbColumn: "is_diary",
             dbValue: 1,
@@ -66,7 +65,6 @@ export class DiaryFeature implements BotFeature {
         const langStr = getLangStr(record.langs);
 
         return await handleMode(event, {
-            triggers: DIARY_RELEASE_TRIGGER,
             db,
             dbColumn: "is_diary",
             dbValue: 0,

@@ -3,10 +3,10 @@ import { ProfileView } from "@atproto/api/dist/client/types/app/bsky/actor/defs"
 import { BotFeature, FeatureContext } from "./types";
 import { SQLite3 } from "../db";
 import { logger, botBiothythmManager } from "../index";
-import { getLangStr } from "../bsky/util";
-import { ANNIV_REGISTER_TRIGGER, ANNIV_CONFIRM_TRIGGER } from "../config";
+import { ANNIV_REGISTER_TRIGGER, ANNIV_CONFIRM_TRIGGER, NICKNAMES_BOT } from "../config";
 import holidays from "../json/holidays.json";
 import { handleMode, isPast } from "./utils";
+import { getLangStr, isReplyOrMentionToMe } from "../bsky/util";
 import { Record as PostRecord } from "@atproto/api/dist/client/types/app/bsky/feed/post";
 import { GeminiResponseResult, Holiday, localeToTimezone, UserInfoGemini } from "../types";
 import { agent } from "../bsky/agent";
@@ -35,11 +35,26 @@ export class AnniversaryFeature implements BotFeature {
         const text = (record.text || "").toLowerCase();
         const lang = getLangStr(record.langs);
 
-        return (
-            ANNIV_REGISTER_TRIGGER.some(trigger => text.includes(trigger.toLowerCase())) ||
-            ANNIV_CONFIRM_TRIGGER.some(trigger => text.includes(trigger.toLowerCase())) ||
-            await this.shouldExecuteAnniversary(follower, context.db, lang)
-        );
+        const isCalled = isReplyOrMentionToMe(record) || NICKNAMES_BOT.some(elem => text.includes(elem.toLowerCase()));
+
+        if (isCalled) {
+            if (ANNIV_REGISTER_TRIGGER.some(t => text.includes(t.toLowerCase()))) {
+                if (await isPast(event, context.db, "last_anniv_registered_at", 6 * 24 * 60)) {
+                    return true;
+                }
+            }
+            if (ANNIV_CONFIRM_TRIGGER.some(t => text.includes(t.toLowerCase()))) {
+                return true;
+            }
+        }
+
+        if (!record.reply || isCalled) {
+            if (await this.shouldExecuteAnniversary(follower, context.db, lang)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     async handle(event: CommitCreateEvent<"app.bsky.feed.post">, follower: ProfileView, context: FeatureContext): Promise<void> {
@@ -78,12 +93,10 @@ export class AnniversaryFeature implements BotFeature {
         const annivInfo = this.parseAnniversaryCommand(record.text);
         if (!annivInfo) return false; // パース失敗時はリターン
 
-        // 経過判定
-        if (!(await isPast(event, db, "last_anniv_registered_at", 6 * 24 * 60))) return false; // 6days経過前はリターン
+        if (!annivInfo) return false; // パース失敗時はリターン
 
         // 最終登録日更新とリプライ
         const result = await handleMode(event, {
-            triggers: ANNIV_REGISTER_TRIGGER,
             db,
             dbColumn: "last_anniv_registered_at",
             dbValue: new Date().toISOString(),
@@ -113,7 +126,6 @@ export class AnniversaryFeature implements BotFeature {
         if (!annivInfo.name || !annivInfo.date) return false; // 未登録ならリターン
 
         return await handleMode(event, {
-            triggers: ANNIV_CONFIRM_TRIGGER,
             db,
             generateText: TEXT_CONFIRM_ANNIV(follower.displayName ?? "", langStr, annivInfo.name, annivInfo.date),
         });
@@ -147,12 +159,10 @@ export class AnniversaryFeature implements BotFeature {
             // 記念日であり、まだその日実行もしていないなら、記念日リプライする
             console.log(`[INFO][${follower.did}] happy ANNIVERSARY!, id: ${todayAnniversary.map(item => item.id).join(", ")}`);
             return await handleMode(event, {
-                triggers: [], // トリガーワードなし、OR条件を満たせば常に反応
                 db,
                 dbColumn: "last_anniv_execed_at",
                 dbValue: new Date().toISOString(),
                 generateText: this.getAnnivEmbed.bind(this),
-                checkConditionsOR: (!record.reply), // callbackPostより、通常ポストか、botへのメンションに対し反応する
             },
                 {
                     follower,

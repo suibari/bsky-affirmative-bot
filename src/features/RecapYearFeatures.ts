@@ -1,7 +1,7 @@
 import { ProfileView } from "@atproto/api/dist/client/types/app/bsky/actor/defs";
 import { CommitCreateEvent } from "@skyware/jetstream";
 import { BotFeature, FeatureContext } from "./types";
-import { RECAP_TRIGGER } from "../config";
+import { RECAP_TRIGGER, NICKNAMES_BOT } from "../config";
 import { Record } from "@atproto/api/dist/client/types/app/bsky/feed/post";
 import { GeminiResponseResult, UserInfoGemini } from "../types";
 import { agent } from "../bsky/agent";
@@ -12,7 +12,7 @@ import retry from 'async-retry';
 import { getUserInvolvedUsers } from "../bsky/analyzeInteractions";
 import { generateRecapResult } from "../gemini/generateRecapResult";
 import { logger, botBiothythmManager } from "..";
-import { getLangStr } from "../bsky/util";
+import { getLangStr, isReplyOrMentionToMe } from "../bsky/util";
 import { handleMode, isPast } from "./utils";
 import { getDaysAuthorFeed } from "../bsky/getDaysAuthorFeed";
 
@@ -22,7 +22,17 @@ export class RecapYearFeature implements BotFeature {
   async shouldHandle(event: CommitCreateEvent<"app.bsky.feed.post">, follower: ProfileView, context: FeatureContext): Promise<boolean> {
     const record = event.commit.record as Record;
     const text = (record.text || "").toLowerCase();
-    return RECAP_TRIGGER.some(trigger => text.includes(trigger.toLowerCase()));
+
+    const isCalled = isReplyOrMentionToMe(record) || NICKNAMES_BOT.some(elem => text.includes(elem.toLowerCase()));
+    if (!isCalled) return false;
+
+    if (!RECAP_TRIGGER.some(trigger => text.includes(trigger.toLowerCase()))) return false;
+
+    if (process.env.NODE_ENV !== "development") {
+      if (!(await isPast(event, context.db, "last_recap_at", 6 * 24 * 60))) return false;
+    }
+
+    return true;
   }
 
   async handle(event: CommitCreateEvent<"app.bsky.feed.post">, follower: ProfileView, context: FeatureContext): Promise<void> {
@@ -30,12 +40,10 @@ export class RecapYearFeature implements BotFeature {
     const { db } = context;
 
     const result = await handleMode(event, {
-      triggers: RECAP_TRIGGER,
       db,
       dbColumn: "last_recap_at",
       dbValue: new Date().toISOString(),
       generateText: this.getBlobWithRecap.bind(this),
-      checkConditionsAND: await isPast(event, db, "last_recap_at", 6 * 24 * 60), // 6days
     },
       {
         follower,

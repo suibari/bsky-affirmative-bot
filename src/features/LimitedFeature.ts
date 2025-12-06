@@ -1,10 +1,10 @@
 import { CommitCreateEvent } from "@skyware/jetstream";
 import { ProfileView } from "@atproto/api/dist/client/types/app/bsky/actor/defs";
 import { BotFeature, FeatureContext } from "./types";
-import { PREDEFINEDMODE_TRIGGER, PREDEFINEDMODE_RELEASE_TRIGGER, AIONLYMODE_TRIGGER, AIONLYMODE_RELEASE_TRIGGER } from "../config";
+import { PREDEFINEDMODE_TRIGGER, PREDEFINEDMODE_RELEASE_TRIGGER, AIONLYMODE_TRIGGER, AIONLYMODE_RELEASE_TRIGGER, NICKNAMES_BOT } from "../config";
 import { Record } from "@atproto/api/dist/client/types/app/bsky/feed/post";
 import { handleMode } from "./utils";
-import { getLangStr } from "../bsky/util";
+import { getLangStr, isReplyOrMentionToMe } from "../bsky/util";
 import { SQLite3 } from "../db";
 
 export class LimitedFeature implements BotFeature {
@@ -13,6 +13,10 @@ export class LimitedFeature implements BotFeature {
     async shouldHandle(event: CommitCreateEvent<"app.bsky.feed.post">, follower: ProfileView, context: FeatureContext): Promise<boolean> {
         const record = event.commit.record as any;
         const text = (record.text || "").toLowerCase();
+
+        const isCalled = isReplyOrMentionToMe(record) || NICKNAMES_BOT.some(elem => text.includes(elem.toLowerCase()));
+        if (!isCalled) return false;
+
         return (
             PREDEFINEDMODE_TRIGGER.some((trigger: string) => text.includes(trigger.toLowerCase())) ||
             PREDEFINEDMODE_RELEASE_TRIGGER.some((trigger: string) => text.includes(trigger.toLowerCase())) ||
@@ -23,10 +27,25 @@ export class LimitedFeature implements BotFeature {
 
     async handle(event: CommitCreateEvent<"app.bsky.feed.post">, follower: ProfileView, context: FeatureContext): Promise<void> {
         const { db } = context;
-        if (await this.handleU18Release(event, db)) return;
-        if (await this.handleU18Register(event, db)) return;
-        if (await this.handleAIonlyRegister(event, db)) return;
-        if (await this.handleAIonlyRelease(event, db)) return;
+        const record = event.commit.record as any;
+        const text = (record.text || "").toLowerCase();
+
+        if (PREDEFINEDMODE_RELEASE_TRIGGER.some((trigger: string) => text.includes(trigger.toLowerCase()))) {
+            await this.handleU18Release(event, db);
+            return;
+        }
+        if (PREDEFINEDMODE_TRIGGER.some((trigger: string) => text.includes(trigger.toLowerCase()))) {
+            await this.handleU18Register(event, db);
+            return;
+        }
+        if (AIONLYMODE_TRIGGER.some((trigger: string) => text.includes(trigger.toLowerCase()))) {
+            await this.handleAIonlyRegister(event, db);
+            return;
+        }
+        if (AIONLYMODE_RELEASE_TRIGGER.some((trigger: string) => text.includes(trigger.toLowerCase()))) {
+            await this.handleAIonlyRelease(event, db);
+            return;
+        }
     }
 
     private async handleU18Register(event: CommitCreateEvent<"app.bsky.feed.post">, db: SQLite3) {
@@ -38,7 +57,6 @@ export class LimitedFeature implements BotFeature {
             "Predefined reply mode enabled! I will give affirmative replies without using AI from now on.";
 
         return await handleMode(event, {
-            triggers: PREDEFINEDMODE_TRIGGER,
             db,
             dbColumn: "is_u18",
             dbValue: 1,
@@ -55,7 +73,6 @@ export class LimitedFeature implements BotFeature {
             "Predefined reply mode disabled! I will sometimes use AI to give affirmative replies from now on.";
 
         return await handleMode(event, {
-            triggers: PREDEFINEDMODE_RELEASE_TRIGGER,
             db,
             dbColumn: "is_u18",
             dbValue: 0,
@@ -72,7 +89,6 @@ export class LimitedFeature implements BotFeature {
             "AI only mode enabled! I will give affirmative replies using only AI from now on.";
 
         return await handleMode(event, {
-            triggers: AIONLYMODE_TRIGGER,
             db,
             dbColumn: "is_ai_only",
             dbValue: 1,
@@ -89,7 +105,6 @@ export class LimitedFeature implements BotFeature {
             "AI only mode disabled! I will sometimes use predefined replies to give affirmative replies from now on.";
 
         return await handleMode(event, {
-            triggers: AIONLYMODE_RELEASE_TRIGGER,
             db,
             dbColumn: "is_ai_only",
             dbValue: 0,

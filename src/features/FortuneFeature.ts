@@ -2,11 +2,11 @@ import { CommitCreateEvent } from "@skyware/jetstream";
 import { ProfileView } from "@atproto/api/dist/client/types/app/bsky/actor/defs";
 import { BotFeature, FeatureContext } from "./types";
 import { logger, botBiothythmManager } from "../index";
-import { FORTUNE_TRIGGER } from "../config";
+import { FORTUNE_TRIGGER, NICKNAMES_BOT } from "../config";
 import { Record } from "@atproto/api/dist/client/types/app/bsky/feed/post";
 import { handleMode, isPast } from "./utils";
 import { generateFortuneResult } from "../gemini/generateFortuneResult";
-import { getLangStr } from "../bsky/util";
+import { getLangStr, isReplyOrMentionToMe } from "../bsky/util";
 import { UserInfoGemini, GeminiResponseResult } from "../types";
 import { textToImageBufferWithBackground } from "../util/canvas";
 import { agent } from "../bsky/agent";
@@ -17,7 +17,17 @@ export class FortuneFeature implements BotFeature {
     async shouldHandle(event: CommitCreateEvent<"app.bsky.feed.post">, follower: ProfileView, context: FeatureContext): Promise<boolean> {
         const record = event.commit.record as any;
         const text = (record.text || "").toLowerCase();
-        return FORTUNE_TRIGGER.some(trigger => text.includes(trigger.toLowerCase()));
+
+        const isCalled = isReplyOrMentionToMe(record) || NICKNAMES_BOT.some(elem => text.includes(elem.toLowerCase()));
+        if (!isCalled) return false;
+
+        if (!FORTUNE_TRIGGER.some(trigger => text.includes(trigger.toLowerCase()))) return false;
+
+        if (process.env.NODE_ENV !== "development") {
+            if (!(await isPast(event, context.db, "last_uranai_at", 8 * 60))) return false;
+        }
+
+        return true;
     }
 
     async handle(event: CommitCreateEvent<"app.bsky.feed.post">, follower: ProfileView, context: FeatureContext): Promise<void> {
@@ -25,12 +35,10 @@ export class FortuneFeature implements BotFeature {
         const { db } = context;
 
         const result = await handleMode(event, {
-            triggers: FORTUNE_TRIGGER,
             db,
             dbColumn: "last_uranai_at",
             dbValue: new Date().toISOString(),
             generateText: this.getBlobWithAnalyze.bind(this),
-            checkConditionsAND: await isPast(event, db, "last_uranai_at", 8 * 60), // 8hours
         },
             {
                 follower,

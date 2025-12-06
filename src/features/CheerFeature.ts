@@ -23,7 +23,15 @@ export class CheerFeature implements BotFeature {
         const subscribers = await getSubscribersFromSheet();
         if (!subscribers.includes(follower.did)) return false;
 
-        return CHEER_TRIGGER.some(trigger => text.includes(trigger.toLowerCase()));
+        // Check trigger
+        if (!CHEER_TRIGGER.some(trigger => text.includes(trigger.toLowerCase()))) return false;
+
+        // Check condition (isPast)
+        if (process.env.NODE_ENV !== "development") {
+            if (!(await isPast(event, context.db, "last_cheer_at", 8 * 60))) return false;
+        }
+
+        return true;
     }
 
     async handle(event: CommitCreateEvent<"app.bsky.feed.post">, follower: ProfileView, context: FeatureContext): Promise<void> {
@@ -31,13 +39,10 @@ export class CheerFeature implements BotFeature {
         const { db } = context;
 
         const result = await handleMode(event, {
-            triggers: CHEER_TRIGGER,
             db,
             dbColumn: "last_cheer_at",
             dbValue: new Date().toISOString(),
             generateText: this.repostAndGenerate.bind(this),
-            checkConditionsAND: await isPast(event, db, "last_cheer_at", 8 * 60), // 8hours since prev
-            disableDefaultCondition: true,
             disableReply: true,
         },
             {

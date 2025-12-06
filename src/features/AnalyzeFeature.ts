@@ -2,12 +2,12 @@ import { CommitCreateEvent } from "@skyware/jetstream";
 import { ProfileView } from "@atproto/api/dist/client/types/app/bsky/actor/defs";
 import { BotFeature, FeatureContext } from "./types";
 import { logger, botBiothythmManager } from "../index";
-import { ANALYZE_TRIGGER } from "../config";
+import { ANALYZE_TRIGGER, NICKNAMES_BOT } from "../config";
 import retry from 'async-retry';
 import { Record as RecordPost } from '@atproto/api/dist/client/types/app/bsky/feed/post';
 import { Record as RecordList } from '@atproto/api/dist/client/types/com/atproto/repo/listRecords';
 import { agent } from '../bsky/agent';
-import { getLangStr } from "../bsky/util";
+import { getLangStr, isReplyOrMentionToMe } from "../bsky/util";
 import { handleMode, isPast } from "./utils";
 import { GeminiResponseResult, UserInfoGemini } from '../types';
 import { generateAnalyzeResult } from '../gemini/generateAnalyzeResult';
@@ -23,7 +23,17 @@ export class AnalyzeFeature implements BotFeature {
     async shouldHandle(event: CommitCreateEvent<"app.bsky.feed.post">, follower: ProfileView, context: FeatureContext): Promise<boolean> {
         const record = event.commit.record as any;
         const text = (record.text || "").toLowerCase();
-        return ANALYZE_TRIGGER.some(trigger => text.includes(trigger.toLowerCase()));
+
+        const isCalled = isReplyOrMentionToMe(record) || NICKNAMES_BOT.some(elem => text.includes(elem.toLowerCase()));
+        if (!isCalled) return false;
+
+        if (!ANALYZE_TRIGGER.some(trigger => text.includes(trigger.toLowerCase()))) return false;
+
+        if (process.env.NODE_ENV !== "development") {
+            if (!(await isPast(event, context.db, "last_analyze_at", 6 * 24 * 60))) return false;
+        }
+
+        return true;
     }
 
     async handle(event: CommitCreateEvent<"app.bsky.feed.post">, follower: ProfileView, context: FeatureContext): Promise<void> {
@@ -31,12 +41,10 @@ export class AnalyzeFeature implements BotFeature {
         const { db } = context;
 
         const result = await handleMode(event, {
-            triggers: ANALYZE_TRIGGER,
             db,
             dbColumn: "last_analyze_at",
             dbValue: new Date().toISOString(),
             generateText: this.getBlobWithAnalyze.bind(this),
-            checkConditionsAND: await isPast(event, db, "last_analyze_at", 6 * 24 * 60), // 6days
         },
             {
                 follower,
