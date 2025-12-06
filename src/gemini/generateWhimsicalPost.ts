@@ -42,7 +42,7 @@ export class WhimsicalPostGenerator {
   Create a structured SNS whimsical post.
   * "greeting": A cheerful greeting to start the post. **Take into consideration the "Date" below when greeting**. (Don't say "Good morning" at night.)
   * "currentMood": Your current mood. Output the following "Mood" as is.
-  * "replyAction": If your followers mention an object or place in "Follower replies", feature it as your activity. (If Follower replies is None, output "None".)
+  * "replyAction": If your followers mention an object or place in "Follower replies", describe it as your activity. (If Follower replies is None, output "None".)
   * "whatDay": What day is it today? Please choose one that interests you and explain what kind of day it is.
   * "positiveNews": Positive news. Pick one thing that you think is positive. (If None, output "None".)
   * "BotFunction": An introduction to the features you have.
@@ -86,7 +86,7 @@ Rules:
 * Edit the whole sentence so that it sounds natural enough to post on social media. You can change the order of each part or add connecting sentences.
 * Use line breaks to make the text easier to read.
 * Decorate with emojis.
-* Translate the output post to match the "Language" below.
+* Translate all parts in *Structure* to match the "Language" below.
 * Output the post straight away (no preamble needed).
 
 Language: ${lang}
@@ -153,7 +153,8 @@ Structure: ${JSON.stringify(structure)}`
       "あなたが持っている「ステータス」機能の紹介：あなたとユーザのステータスを確認。「教えてステータス」とリプすればできる。",
       "あなたが持っている「一年まとめ」機能の紹介：ユーザの一年を振り返る。「一年をまとめて」とリプすればできる。",
       "あなたがこれまで選曲した曲のプレイリストがあることの紹介：URLは https://open.spotify.com/playlist/0rMAkyqQtxd4o8mIMja0sx",
-      "あなたのステータスを確認できるダッシュボードの紹介：URLは https://suibari.com/character/"
+      "botたんのステータスを確認できるダッシュボードの紹介：URLは https://suibari.com/character/",
+      "botたんのイラストを見れるフィードの紹介：URLは https://bsky.app/profile/did:plc:uixgxpiqf4i63p6rgpu7ytmx/feed/196e948a58f4af5",
     ] : [
       "Introducing the AI only mode feature you have. You will give affirmative replies using only AI without using predefined replies. Users can enable it by replying \"AI only mode\".",
       "Introducing the Fortune Telling feature you have. You can get user's fortune told once a day by replying \"Fortune\"",
@@ -165,7 +166,8 @@ Structure: ${JSON.stringify(structure)}`
       "Introducing the Status feature you have. You can check the status of each function with you and the user by replying \"tell me status\".",
       "Introducing the Yearly Review feature you have. You can review the user's posts for the year by replying \"summarize year\".",
       "Introducing a playlist of songs you've selected so far: The URL is https://open.spotify.com/playlist/0rMAkyqQtxd4o8mIMja0sx.",
-      "Introducing the dashboard where the user can check your status: URL: https://suibari.com/character/",
+      "Introducing the dashboard where the user can check bot-tan's status: URL: https://suibari.com/character/",
+      "Introducing the feed where the user can check bot-tan's illustration: URL: https://bsky.app/profile/did:plc:uixgxpiqf4i63p6rgpu7ytmx/feed/196e948a58f4af5",
     ]
     return getRandomItems(features, 1)[0];
   }
