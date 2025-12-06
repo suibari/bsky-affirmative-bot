@@ -112,6 +112,7 @@ export const RECAP_TRIGGER = [
   "一年をまとめ",
   "一年のまとめ",
   "summarize this year",
+  "summarize year",
 ];
 
 export const HNY_WORDS = ["明けましておめでとう", "あけましておめでとう", "あけおめ"];

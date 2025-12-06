@@ -151,6 +151,7 @@ Structure: ${JSON.stringify(structure)}`
       "あなたが持っている「日記」機能の紹介：ユーザの今日のポストを日記にしてお届け。「日記つけて」とリプすれば設定できる。毎晩あなたからユーザに日記を送る。ただしサブスクメンバー限定。サブスクについてはbio欄参照。",
       "あなたが持っている「記念日」機能の紹介：ユーザの記念日をお祝い。「記念日登録、記念日名、MM/DD」とリプすれば設定できる。設定した記念日の当日にユーザをお祝いする。",
       "あなたが持っている「ステータス」機能の紹介：あなたとユーザのステータスを確認。「教えてステータス」とリプすればできる。",
+      "あなたが持っている「一年まとめ」機能の紹介：ユーザの一年を振り返る。「一年をまとめて」とリプすればできる。",
       "あなたがこれまで選曲した曲のプレイリストがあることの紹介：URLは https://open.spotify.com/playlist/0rMAkyqQtxd4o8mIMja0sx",
       "あなたのステータスを確認できるダッシュボードの紹介：URLは https://suibari.com/character/"
     ] : [
@@ -162,6 +163,7 @@ Structure: ${JSON.stringify(structure)}`
       "Introducing the Diary feature you have. You can have users daily posts collected into a diary by replying \"Keep a diary\". You will keep a diary for the user every night. However, this is limited to subscribed followers. Please see the bio for details on subscriptions.",
       "Introducing the Anniversary feature you have. Users can register their anniversary by replying \"register anniversary, [your anniversary name], MM/DD\". You will celebrate the user on the registered date.",
       "Introducing the Status feature you have. You can check the status of each function with you and the user by replying \"tell me status\".",
+      "Introducing the Yearly Review feature you have. You can review the user's posts for the year by replying \"summarize year\".",
       "Introducing a playlist of songs you've selected so far: The URL is https://open.spotify.com/playlist/0rMAkyqQtxd4o8mIMja0sx.",
       "Introducing the dashboard where the user can check your status: URL: https://suibari.com/character/",
     ]
