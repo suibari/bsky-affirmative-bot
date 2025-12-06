@@ -1,4 +1,4 @@
-import { CommitCreateEvent } from "@skyware/jetstream";
+import { CommitCreateEvent, CommitDeleteEvent } from "@skyware/jetstream";
 import { botBiothythmManager, followers, logger } from "..";
 import { agent } from "../bsky/agent";
 import { follow } from "../bsky/follow";
@@ -11,7 +11,7 @@ import { Record as RecordFollow } from '@atproto/api/dist/client/types/app/bsky/
 import { Record as RecordPost } from '@atproto/api/dist/client/types/app/bsky/feed/post.js';
 import { ProfileView } from "@atproto/api/dist/client/types/app/bsky/actor/defs.js";
 
-export async function callbackFollow (event: CommitCreateEvent<"app.bsky.graph.follow">) {
+export async function callbackFollow(event: CommitCreateEvent<"app.bsky.graph.follow">) {
   const did = String(event.did);
   const record = event.commit.record as RecordFollow;
 
@@ -52,8 +52,8 @@ export async function callbackFollow (event: CommitCreateEvent<"app.bsky.graph.f
           followers.length = 0; // 配列をクリア
           followers.push(...newFollowers); // 最新のリストで再作成
         },
-        { 
-          retries: 3, 
+        {
+          retries: 3,
           onRetry: (err, attempt) => {
             const message = err instanceof Error ? err.message : String(err);
             console.warn(`[WARN] Background follower refresh attempt ${attempt} failed:`, message)
@@ -99,5 +99,21 @@ export async function callbackFollow (event: CommitCreateEvent<"app.bsky.graph.f
     db.insertDb(did);
   } catch (e) {
     console.error("[ERROR] Failed during follow/greet process:", e);
+  }
+}
+
+export async function callbackUnfollow(event: CommitDeleteEvent<"app.bsky.graph.follow">) {
+  const did = String(event.did);
+
+  // 1. フォロワーリストから該当ユーザーを探す
+  const followerIndex = followers.findIndex(f => f.did === did);
+
+  if (followerIndex !== -1) {
+    console.log(`[INFO] Unfollow detected from ${did}. Removing from followers list.`);
+    followers.splice(followerIndex, 1);
+    console.log(`[INFO] Removed ${did} from followers list. Current count: ${followers.length}`);
+  } else {
+    // リストにない場合 (既に削除済み、あるいは再起動などでリストに含まれていなかった)
+    // console.debug(`[DEBUG] Unfollow from ${did} detected, but not in memory list.`);
   }
 }

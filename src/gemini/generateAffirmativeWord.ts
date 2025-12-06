@@ -44,11 +44,6 @@ const PROMPT_AFFIRMATIVE_WORD = async (userinfo: UserInfoGemini) => {
    - 苦手・つまらないと感じた話題は低得点。  
    - AIイラストは多いので減点してください。  
    - 特定のユーザを非難している投稿は大幅減点してください。  
-   - 最新ニュースのテーマは加点対象（ただし苦手なら不要）。  
-
----
-## 最新ニュース
-${(await fetchNews("ja")).map(article => `- ${article.title}`).join("\n")}
 
 ---
 ## ユーザ投稿
@@ -82,11 +77,6 @@ ${(await fetchNews("ja")).map(article => `- ${article.title}`).join("\n")}
    - Lower: boring, difficult, unpleasant.  
    - Deduct for AI illustrations.  
    - Heavy deduction if criticizing specific users.  
-   - Bonus if related to latest news (only if you like it).  
-
----
-## Latest news
-${(await fetchNews("en")).map(article => `- ${article.title}`).join("\n")}
 
 ---
 ## User post

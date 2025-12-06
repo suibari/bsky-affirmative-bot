@@ -6,7 +6,7 @@ import { getConcatFollowers } from './bsky/getConcatFollowers.js';
 import { ProfileView } from '@atproto/api/dist/client/types/app/bsky/actor/defs.js';
 import { callbackPost } from './main/callbackPost.js';
 import { callbackLike } from './main/callbackLike.js';
-import { callbackFollow } from './main/callbackFollow.js';
+import { callbackFollow, callbackUnfollow } from './main/callbackFollow.js';
 import { scheduleAllUserDiaries } from './features/DiaryFeature.js';
 import { BiorhythmManager } from './biorhythm/index.js';
 import { Logger } from './logger/index.js';
@@ -40,7 +40,7 @@ export let logger: Logger;
     await initializeDatabases();
 
     console.log("[INFO] Connecting to JetStream...");
-    await startWebSocket(callbackPost, callbackFollow, callbackLike);
+    await startWebSocket(callbackPost, callbackFollow, callbackLike, callbackUnfollow);
   } catch (error) {
     console.error("[ERROR] Failed to start WebSocket:", error);
   }
