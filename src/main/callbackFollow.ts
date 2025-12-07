@@ -4,7 +4,7 @@ import { agent } from "../bsky/agent";
 import { follow } from "../bsky/follow";
 import { getConcatFollowers } from "../bsky/getConcatFollowers";
 import { replyGreets } from "../bsky/replyGreets";
-import { isMention, isSpam, getLangStr } from "../bsky/util";
+import { isMention, isSpam, getLangStr, splitUri } from "../bsky/util";
 import { db } from "../db";
 import retry from 'async-retry';
 import { Record as RecordFollow } from '@atproto/api/dist/client/types/app/bsky/graph/follow.js';
@@ -109,9 +109,26 @@ export async function callbackUnfollow(event: CommitDeleteEvent<"app.bsky.graph.
   const followerIndex = followers.findIndex(f => f.did === did);
 
   if (followerIndex !== -1) {
-    console.log(`[INFO] Unfollow detected from ${did}. Removing from followers list.`);
-    followers.splice(followerIndex, 1);
-    console.log(`[INFO] Removed ${did} from followers list. Current count: ${followers.length}`);
+    const follower = followers[followerIndex];
+
+    // followedBy (URI) から rkey を抽出して比較する
+    // URI format: at://did:plc:xxx/app.bsky.graph.follow/rkey
+    const followedByUri = follower.viewer?.followedBy;
+
+    if (followedByUri) {
+      const { rkey } = splitUri(followedByUri);
+      if (rkey === event.commit.rkey) {
+        console.log(`[INFO] Unfollow detected from ${did}. Removing from followers list.`);
+        followers.splice(followerIndex, 1);
+        console.log(`[INFO] Removed ${did} from followers list. Current count: ${followers.length}`);
+      } else {
+        // 異なる rkey の削除イベント (= 別の人をアンフォローした) なので無視
+        // console.debug(`[DEBUG] Unfollow event from ${did} ignored. Rkey mismatch. Event: ${event.commit.rkey}, Known: ${rkey}`);
+      }
+    } else {
+      // followedBy がない場合は判断できないため、安全側に倒して削除しない (あるいは同期ズレの可能性)
+      console.warn(`[WARN] Unfollow event from ${did} but 'followedBy' is missing in memory. Skipping removal.`);
+    }
   } else {
     // リストにない場合 (既に削除済み、あるいは再起動などでリストに含まれていなかった)
     // console.debug(`[DEBUG] Unfollow from ${did} detected, but not in memory list.`);
