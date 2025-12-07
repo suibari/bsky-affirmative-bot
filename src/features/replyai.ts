@@ -97,8 +97,12 @@ export async function replyAI(
 
         return result;
     } catch (e: any) {
-        // Gemini生成が3回失敗した場合、ランダムワード返信する
-        console.warn(`[WARN][${follower.did}] Gemini fetch failed after multiple retries: `, e);
+        if (e.message === "HighMatchNum") {
+            console.log(`[INFO][${follower.did}] Switched to replyRandom due to HighMatchNum (>= 10)`);
+        } else {
+            // Gemini生成が3回失敗した場合、ランダムワード返信する
+            console.warn(`[WARN][${follower.did}] Gemini fetch failed after multiple retries: `, e);
+        }
 
         await replyRandom(follower, event);
 
@@ -142,6 +146,9 @@ async function getFollowersFriend(
     // 4. フォロワーのポストと名詞一致するものを抽出
     const matchingPosts = allPostNouns.filter(postData => {
         const commonNouns = postData.nouns.filter(noun => userPostNouns.includes(noun));
+        if (commonNouns.length >= 10 && postData.did !== userDid && !!postData.uri) {
+            throw new Error("HighMatchNum");
+        }
         if (commonNouns.length >= NOUN_MATCH_NUM && postData.did !== userDid && !!postData.uri) {
             // デバッグ出力
             console.log("[DEBUG] ==== Noun Mathing Candidates ====");
