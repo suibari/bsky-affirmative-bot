@@ -417,26 +417,14 @@ export class Logger extends EventEmitter {
     this.saveLogToFile();
   }
 
-  setGoodNightPostDate() {
-    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD形式
-    this.biorhythmState.lastGoodNightPostDate = today;
+  updateLastGoodNightDate(date: string) {
+    this.biorhythmState.lastGoodNightPostDate = date;
     this.saveLogToFile();
   }
 
-  setGoodMorningPostDate() {
-    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD形式
-    this.biorhythmState.lastGoodMorningPostDate = today;
+  updateLastGoodMorningDate(date: string) {
+    this.biorhythmState.lastGoodMorningPostDate = date;
     this.saveLogToFile();
-  }
-
-  canPostGoodNight(): boolean {
-    const today = new Date().toISOString().split('T')[0];
-    return this.biorhythmState.lastGoodNightPostDate !== today;
-  }
-
-  canPostGoodMorning(): boolean {
-    const today = new Date().toISOString().split('T')[0];
-    return this.biorhythmState.lastGoodMorningPostDate !== today;
   }
 
   getBiorhythmState(): BiorhythmState {

@@ -54,6 +54,8 @@ export class BiorhythmManager extends EventEmitter {
   private nextStepTime: string = "";
   private _generatedImage: Buffer | null = null;
   private firstStepDone = false;
+  private lastGoodNightPostDate?: string;
+  private lastGoodMorningPostDate?: string;
 
   constructor() {
     super();
@@ -74,6 +76,8 @@ export class BiorhythmManager extends EventEmitter {
     if (state.status !== "Sleep") {
       this.status = state.status as Status;
     }
+    this.lastGoodNightPostDate = state.lastGoodNightPostDate;
+    this.lastGoodMorningPostDate = state.lastGoodMorningPostDate;
     await this.updateTopPostUri();
     setInterval(() => this.updateTopPostUri(), 10 * 60 * 1000);
   }
@@ -228,10 +232,10 @@ export class BiorhythmManager extends EventEmitter {
       // おやすみポスト
       if (this.firstStepDone) {
         if (this.status !== this.statusPrev && this.status === "Sleep" && (hour >= 21 || hour <= 3)) {
-          if (logger.canPostGoodNight()) {
+          if (this.canPostGoodNight()) {
             console.log(`[INFO][BIORHYTHM] post goodnight!`);
             await doGoodNightPost(this.getMood);
-            logger.setGoodNightPostDate();
+            this.setGoodNightPostDate();
           } else {
             console.log(`[INFO][BIORHYTHM] goodnight post already done today, skipping`);
           }
@@ -241,11 +245,11 @@ export class BiorhythmManager extends EventEmitter {
       // おはようポスト
       if (this.firstStepDone) {
         if (this.status !== this.statusPrev && this.status === "WakeUp" && (hour >= 4 || hour <= 10)) {
-          if (logger.canPostGoodMorning()) {
+          if (this.canPostGoodMorning()) {
             console.log(`[INFO][BIORHYTHM] post goodmorning!`);
             await doQuestionPost();
             this.changeEnergy(-6000);
-            logger.setGoodMorningPostDate();
+            this.setGoodMorningPostDate();
           } else {
             console.log(`[INFO][BIORHYTHM] goodmorning post already done today, skipping`);
           }
@@ -410,5 +414,40 @@ ${JSON.stringify(unreadReply)}
       this.energy = newEnergy;
       logger.updateBiorhythmState(this.energy, this.moodPrev, this.status);
     }
+  }
+
+  private getAdjustedDateString(): string {
+    const now = new Date();
+    // 0~4時は前日扱いとする
+    if (now.getHours() <= 4) {
+      now.setDate(now.getDate() - 1);
+    }
+    // YYYY-MM-DD形式
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  private canPostGoodNight(): boolean {
+    const today = this.getAdjustedDateString();
+    return this.lastGoodNightPostDate !== today;
+  }
+
+  private setGoodNightPostDate() {
+    const today = this.getAdjustedDateString();
+    this.lastGoodNightPostDate = today;
+    logger.updateLastGoodNightDate(today);
+  }
+
+  private canPostGoodMorning(): boolean {
+    const today = this.getAdjustedDateString();
+    return this.lastGoodMorningPostDate !== today;
+  }
+
+  private setGoodMorningPostDate() {
+    const today = this.getAdjustedDateString();
+    this.lastGoodMorningPostDate = today;
+    logger.updateLastGoodMorningDate(today);
   }
 }
