@@ -156,6 +156,7 @@ export type UserInfoGemini = {
   }[];
   embed?: Embed;
   topWords?: string[];
+  postOnMonth?: string[][];
 };
 
 export interface Embed {

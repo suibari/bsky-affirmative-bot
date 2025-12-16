@@ -65,6 +65,19 @@ export class RecapYearFeature implements BotFeature {
     const feeds = await getDaysAuthorFeed(userinfo.follower.did, 365); // とりあえず1000件
     userinfo.posts = feeds.map(feed => (feed.post.record as Record).text);
 
+    // ポストを1~12月に振り分け、userinfo.postOnMonth[0:11]に格納する
+    userinfo.postOnMonth = Array.from({ length: 12 }, () => []);
+    feeds.forEach(feed => {
+      const record = feed.post.record as Record;
+      if (record.createdAt) {
+        const date = new Date(record.createdAt);
+        const month = date.getMonth(); // 0-11 based on local time (Server timezone)
+        if (month >= 0 && month < 12) {
+          userinfo.postOnMonth![month].push(record.text);
+        }
+      }
+    });
+
     // 形態素解析し、nouns_countsをソートして、上位20位の名詞を取得
     const sentiment = await fetchSentiment(userinfo.posts);
     const topWords = sentiment.nouns_counts.sort((a, b) => b.count - a.count).slice(0, 20);
