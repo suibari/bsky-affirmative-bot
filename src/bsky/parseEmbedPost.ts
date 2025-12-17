@@ -42,7 +42,12 @@ export async function parseEmbedPost(record: Record): Promise<Embed | undefined>
       const text_embed = value_embed.text ?? "";
 
       // embed image
-      const image_embed = await getImageUrl(did, embed)
+      // RecordWithMediaの場合はmediaプロパティを抽出
+      let embedForImage: any = embed;
+      if (AppBskyEmbedRecordWithMedia.isMain(embed)) {
+        embedForImage = (embed as AppBskyEmbedRecordWithMedia.Main).media;
+      }
+      const image_embed = await getImageUrl(did, embedForImage)
 
       return { profile_embed, text_embed, image_embed };
     } catch (error) {
