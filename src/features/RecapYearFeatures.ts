@@ -12,9 +12,10 @@ import retry from 'async-retry';
 import { getUserInvolvedUsers } from "../bsky/analyzeInteractions";
 import { generateRecapResult } from "../gemini/generateRecapResult";
 import { logger, botBiothythmManager } from "..";
-import { getLangStr, isReplyOrMentionToMe } from "../bsky/util";
+import { getLangStr, isReplyOrMentionToMe, uniteDidNsidRkey } from "../bsky/util";
 import { handleMode, isPast } from "./utils";
 import { getDaysAuthorFeed } from "../bsky/getDaysAuthorFeed";
+import { like } from "../bsky/like";
 
 export class RecapYearFeature implements BotFeature {
   name = "RecapFeature";
@@ -38,6 +39,10 @@ export class RecapYearFeature implements BotFeature {
   async handle(event: CommitCreateEvent<"app.bsky.feed.post">, follower: ProfileView, context: FeatureContext): Promise<void> {
     const record = event.commit.record as Record;
     const { db } = context;
+
+    // イイネ応答しておく
+    const uri = uniteDidNsidRkey(event.did, event.commit.collection, event.commit.rkey);
+    await like(uri, event.commit.cid);
 
     const result = await handleMode(event, {
       db,

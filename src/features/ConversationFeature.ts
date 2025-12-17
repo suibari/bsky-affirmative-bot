@@ -18,6 +18,7 @@ import { agent } from "../bsky/agent";
 import { generateQuestionsAnswer } from "../gemini/generateQuestionsAnswer";
 import { postContinuous } from "../bsky/postContinuous";
 import { generateWhimsicalReply } from "../gemini/generateWhimsicalReply";
+import { like } from "../bsky/like";
 
 const MAX_BOT_MEMORY = 100;
 
@@ -175,8 +176,7 @@ export class ConversationFeature implements BotFeature {
 
         // イイネ応答
         const uri = uniteDidNsidRkey(event.did, event.commit.collection, event.commit.rkey);
-        await agent.like(uri, event.commit.cid);
-        logger.addBskyRate(); // RateLimit加算
+        await like(uri, event.commit.cid);
 
         // historyのクリップ処理
         while (new_history.length > MAX_BOT_MEMORY) {

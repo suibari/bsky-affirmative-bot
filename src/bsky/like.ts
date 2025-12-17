@@ -2,16 +2,17 @@ import { logger } from '../index.js';
 import { agent } from './agent.js';
 
 /**
- * repostのオーバーライド
+ * likeのオーバーライド
  * 開発環境ではなにもしない
- * @param {*} record 
+ * @param {*} uri 
+ * @param {*} cid 
  */
-export async function repost(uri: string, cid: string): Promise<{
+export async function like(uri: string, cid: string): Promise<{
   uri: string,
   cid: string,
 }> {
   if (process.env.NODE_ENV === "production") {
-    const response = await agent.repost(uri, cid);
+    const response = await agent.like(uri, cid);
     return {
       uri: response.uri,
       cid: response.cid,
