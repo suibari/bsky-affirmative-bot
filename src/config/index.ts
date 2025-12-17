@@ -110,7 +110,11 @@ export const STATUS_CONFIRM_TRIGGER = [
 
 export const RECAP_TRIGGER = [
   "一年をまとめ",
+  "1年をまとめ",
+  "１年をまとめ",
   "一年のまとめ",
+  "1年のまとめ",
+  "１年のまとめ",
   "summarize this year",
   "summarize year",
 ];
