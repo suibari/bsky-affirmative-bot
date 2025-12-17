@@ -42,12 +42,8 @@ export async function parseEmbedPost(record: Record): Promise<Embed | undefined>
       const text_embed = value_embed.text ?? "";
 
       // embed image
-      // RecordWithMediaの場合はmediaプロパティを抽出
-      let embedForImage: any = embed;
-      if (AppBskyEmbedRecordWithMedia.isMain(embed)) {
-        embedForImage = (embed as AppBskyEmbedRecordWithMedia.Main).media;
-      }
-      const image_embed = await getImageUrl(did, embedForImage)
+      // 引用元ポストのembedから画像を取得（引用元のDIDを使用）
+      const image_embed = await getImageUrl(did, value_embed.embed);
 
       return { profile_embed, text_embed, image_embed };
     } catch (error) {
