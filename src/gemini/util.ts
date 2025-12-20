@@ -23,20 +23,29 @@ export function getRandomItems(array: string[], count: number) {
 /**
  * 必要に応じて画像を付与してシングルレスポンスを得る
  */
-export async function generateSingleResponse (prompt: string, userinfo?: UserInfoGemini): Promise<string> {
+export async function generateSingleResponse(prompt: string, userinfo?: UserInfoGemini): Promise<string> {
   const contents: PartListUnion = [prompt];
 
   if (userinfo?.image) {
     for (const img of userinfo.image) {
-      const response = await fetch(img.image_url);
-      const imageArrayBuffer = await response.arrayBuffer();
-      const base64ImageData = Buffer.from(imageArrayBuffer).toString("base64");
-      contents.push({
-        inlineData: {
-          mimeType: img.mimeType,
-          data: base64ImageData,
+      try {
+        const response = await fetch(img.image_url);
+        if (!response.ok) {
+          console.warn(`[WARN] Failed to fetch image: ${img.image_url} (Status: ${response.status})`);
+          continue;
         }
-      });
+        const imageArrayBuffer = await response.arrayBuffer();
+        const base64ImageData = Buffer.from(imageArrayBuffer).toString("base64");
+        contents.push({
+          inlineData: {
+            mimeType: img.mimeType,
+            data: base64ImageData,
+          }
+        });
+      } catch (e) {
+        console.warn(`[WARN] Error fetching image: ${img.image_url}`, e);
+        continue;
+      }
     }
   }
 
@@ -56,14 +65,14 @@ export async function generateSingleResponse (prompt: string, userinfo?: UserInf
   // Gemini出力の"["から"]"まで囲われたすべての部分を除去
   const responseText = response.text || "";
   const cleanedText = responseText.replace(/\[.*?\]/gs, '');
-  
+
   return cleanedText;
 }
 
 /**
  * 必要に応じて画像を付与して、botたんスコア付きのシングルレスポンスを得る
  */
-export async function generateSingleResponseWithScore (prompt: string, userinfo?: UserInfoGemini) {
+export async function generateSingleResponseWithScore(prompt: string, userinfo?: UserInfoGemini) {
   const contents: PartListUnion = [prompt];
   const responseSchema = {
     type: Type.ARRAY,
@@ -83,15 +92,24 @@ export async function generateSingleResponseWithScore (prompt: string, userinfo?
 
   if (userinfo?.image) {
     for (const img of userinfo.image) {
-      const response = await fetch(img.image_url);
-      const imageArrayBuffer = await response.arrayBuffer();
-      const base64ImageData = Buffer.from(imageArrayBuffer).toString("base64");
-      contents.push({
-        inlineData: {
-          mimeType: img.mimeType,
-          data: base64ImageData,
+      try {
+        const response = await fetch(img.image_url);
+        if (!response.ok) {
+          console.warn(`[WARN] Failed to fetch image: ${img.image_url} (Status: ${response.status})`);
+          continue;
         }
-      });
+        const imageArrayBuffer = await response.arrayBuffer();
+        const base64ImageData = Buffer.from(imageArrayBuffer).toString("base64");
+        contents.push({
+          inlineData: {
+            mimeType: img.mimeType,
+            data: base64ImageData,
+          }
+        });
+      } catch (e) {
+        console.warn(`[WARN] Error fetching image: ${img.image_url}`, e);
+        continue;
+      }
     }
   }
 
@@ -109,7 +127,7 @@ export async function generateSingleResponseWithScore (prompt: string, userinfo?
       ]
     }
   });
-  
+
   const result = JSON.parse(response.text || "") as GeminiScore[];
 
   // Gemini出力の"["から"]"まで囲われたすべての部分を除去

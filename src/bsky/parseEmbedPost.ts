@@ -43,7 +43,7 @@ export async function parseEmbedPost(record: Record): Promise<Embed | undefined>
 
       // embed image
       // 引用元ポストのembedから画像を取得（引用元のDIDを使用）
-      const image_embed = await getImageUrl(did, value_embed.embed);
+      const image_embed = await getImageUrl(profile_embed.did, value_embed.embed);
 
       return { profile_embed, text_embed, image_embed };
     } catch (error) {

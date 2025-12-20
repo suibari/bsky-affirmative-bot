@@ -141,6 +141,7 @@ export async function getImageUrl(did: string, embed: any): Promise<ImageRef[]> 
   let pdsEndpoint: string;
   try {
     pdsEndpoint = await getPds(did);
+    pdsEndpoint = pdsEndpoint.replace(/\/$/, ""); // 末尾のスラッシュを削除
   } catch (e) {
     console.warn(`Failed to get PDS for ${did}, falling back to CDN assumption`, e);
     pdsEndpoint = "https://bsky.social"; // fallback
