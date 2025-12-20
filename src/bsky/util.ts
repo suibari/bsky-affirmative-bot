@@ -149,7 +149,8 @@ export async function getImageUrl(did: string, embed: any): Promise<ImageRef[]> 
   if (AppBskyEmbedImages.isMain(embed)) {
     (embed as AppBskyEmbedImages.Main).images.forEach(item => {
       if (item.image) {
-        const image_url = `${pdsEndpoint}/xrpc/com.atproto.sync.getBlob?did=${did}&cid=${(item.image.ref as any).$link}`;
+        const cid = (item.image.ref as any).$link ?? item.image.ref?.toString(); // ref or IPLD
+        const image_url = `${pdsEndpoint}/xrpc/com.atproto.sync.getBlob?did=${did}&cid=${cid}`;
         const mimeType = item.image.mimeType;
         result.push({ image_url, mimeType });
       }
@@ -157,14 +158,16 @@ export async function getImageUrl(did: string, embed: any): Promise<ImageRef[]> 
   } else if (AppBskyEmbedExternal.isMain(embed)) {
     const thumb = (embed as AppBskyEmbedExternal.Main).external.thumb;
     if (thumb) {
-      const image_url = `https://cdn.bsky.app/img/feed_thumbnail/plain/${did}/${(thumb.ref as any).$link}`; // 回避策
+      const cid = (thumb.ref as any).$link ?? thumb.ref?.toString(); // ref or IPLD
+      const image_url = `https://cdn.bsky.app/img/feed_thumbnail/plain/${did}/${cid}`; // 回避策
       const mimeType = thumb.mimeType;
       result.push({ image_url, mimeType });
     }
   } else if (AppBskyEmbedVideo.isMain(embed)) {
     const video = (embed as AppBskyEmbedVideo.Main).video;
     if (video) {
-      const image_url = `https://video.bsky.app/watch/${did}/${(video.ref as any).$link}/thumbnail.jpg`; // 回避策
+      const cid = (video.ref as any).$link ?? video.ref?.toString(); // ref or IPLD
+      const image_url = `https://video.bsky.app/watch/${did}/${cid}/thumbnail.jpg`; // 回避策
       const mimeType = "image/jpeg"; // 動画のサムネイルはJPEG
       result.push({ image_url, mimeType });
     }
