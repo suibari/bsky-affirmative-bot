@@ -35,7 +35,7 @@ export class AnniversaryFeature implements BotFeature {
     async shouldHandle(event: CommitCreateEvent<"app.bsky.feed.post">, follower: ProfileView, context: FeatureContext): Promise<boolean> {
         const record = event.commit.record as any;
         const text = (record.text || "").toLowerCase();
-        const lang = getLangStr(record.langs);
+        const langCode = record.langs?.[0] || "en";
 
         const isCalled = isReplyOrMentionToMe(record) || NICKNAMES_BOT.some(elem => text.includes(elem.toLowerCase()));
 
@@ -51,7 +51,7 @@ export class AnniversaryFeature implements BotFeature {
         }
 
         if (!record.reply || isCalled) {
-            if (await this.shouldExecuteAnniversary(follower, context.db, lang)) {
+            if (await this.shouldExecuteAnniversary(follower, context.db, langCode)) {
                 return true;
             }
         }
