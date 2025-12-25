@@ -187,9 +187,12 @@ export class AnniversaryFeature implements BotFeature {
             until: until.toISOString(),
             author: userinfo.follower.did,
         })
-        const embedTo = (response.data.posts.length > 0) ? {
-            uri: response.data.posts[0].uri,
-            cid: response.data.posts[0].cid,
+        // リプライではないポストを優先して選ぶ。なければ最初のポスト（リプライ）を選ぶ
+        const selectedPost = response.data.posts.find(post => !(post.record as PostRecord).reply) || response.data.posts[0];
+
+        const embedTo = selectedPost ? {
+            uri: selectedPost.uri,
+            cid: selectedPost.cid,
         } : undefined;
         userinfo.lastYearPosts = response.data.posts.map(post => (post.record as PostRecord).text);
         // console.log(`[DEBUG][${event.did}] last year post: ${userinfo.lastYearPosts[0]}`);
