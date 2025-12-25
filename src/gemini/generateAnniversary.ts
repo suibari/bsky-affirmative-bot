@@ -22,8 +22,8 @@ const PROMPT_ANNIVERSARY_WORD = async (userinfo: UserInfoGemini) => {
     `---以下、ユーザ情報---` +
     `* ユーザ名: ${userinfo.follower.displayName ?? ""}` +
     `* 記念日: ${userinfo.anniversary?.map(item => item.names.ja).join(", ")}` +
-    `* 1年前のユーザのポスト: ${userinfo.posts?.[0] ?? "なし"}` +
-    `* 直近のユーザのポスト: ${userinfo.posts?.slice(1) ?? "なし"}` :
+    `* 1年前のユーザのポスト: ${userinfo.lastYearPosts?.[0] ?? "なし"}` +
+    `* 直近のユーザのポスト: ${userinfo.posts ?? "なし"}` :
     `Today is an anniversary. Celebrate the user to the fullest!` +
     `**Please output in ${userinfo.langStr}**` +
     `Celebration Rules:` +
@@ -36,7 +36,7 @@ const PROMPT_ANNIVERSARY_WORD = async (userinfo: UserInfoGemini) => {
     `---User Information Below---` +
     `* User Name: ${userinfo.follower.displayName ?? ""}` +
     `* Anniversary: ${userinfo.anniversary?.map(item => item.names.en).join(", ")}` +
-    `* User Posts from a Year Ago: ${userinfo.posts?.[0] ?? "None"}` +
-    `* User Recent Posts: ${userinfo.posts?.slice(1) ?? "None"}`
+    `* User Posts from a Year Ago: ${userinfo.lastYearPosts?.[0] ?? "None"}` +
+    `* User Recent Posts: ${userinfo.posts ?? "None"}`
     ;
 }

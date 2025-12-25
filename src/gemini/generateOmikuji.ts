@@ -22,7 +22,7 @@ const PROMPT_OMIKUJI = async (userinfo: UserInfoGemini) => {
     `---以下、ユーザ情報---` +
     `* ユーザ名: ${userinfo.follower.displayName ?? ""}` +
     `* 記念日: ${userinfo.anniversary?.map(item => item.names.ja).join(", ")}` +
-    `* 1年前のユーザのポスト: ${userinfo.posts?.[0] ?? "なし"}` +
+    `* 1年前のユーザのポスト: ${userinfo.lastYearPosts?.[0] ?? "なし"}` +
     `* おみくじの内容(タイトル): ${getRandomItems(omikujiName, 1)[0]}` +
     `* おみくじの内容(特によかった項目TOP3): ${getRandomItems(omikujiContents, 3)}` :
     `Today is an anniversary. Celebrate the user to the fullest!` +
@@ -37,7 +37,7 @@ const PROMPT_OMIKUJI = async (userinfo: UserInfoGemini) => {
     `---User Information Below---` +
     `* User Name: ${userinfo.follower.displayName ?? ""}` +
     `* Anniversary: ${userinfo.anniversary?.map(item => item.names.en).join(", ")}` +
-    `* User Posts from a Year Ago: ${userinfo.posts?.[0] ?? "None"}` +
+    `* User Posts from a Year Ago: ${userinfo.lastYearPosts?.[0] ?? "None"}` +
     `* Omikuji Title: ${getRandomItems(omikujiName, 1)[0]}` +
     `* Omikuji Content: ${getRandomItems(omikujiContents, 3)}`
     ;

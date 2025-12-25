@@ -191,12 +191,12 @@ export class AnniversaryFeature implements BotFeature {
             uri: response.data.posts[0].uri,
             cid: response.data.posts[0].cid,
         } : undefined;
-        userinfo.posts = response.data.posts.map(post => (post.record as PostRecord).text);
-        // console.log(`[DEBUG][${event.did}] last year post: ${userinfo.posts[0]}`);
+        userinfo.lastYearPosts = response.data.posts.map(post => (post.record as PostRecord).text);
+        // console.log(`[DEBUG][${event.did}] last year post: ${userinfo.lastYearPosts[0]}`);
 
         // 直近のポストもセット
         const recentPosts = await getConcatAuthorFeed(event.did, 100);
-        userinfo.posts = userinfo.posts.concat(recentPosts.map(post => (post.post.record as PostRecord).text));
+        userinfo.posts = recentPosts.map(post => (post.post.record as PostRecord).text);
 
         // 2. Gemini
         const isNewYear = userinfo.anniversary?.some(a => a.id === "new_year");

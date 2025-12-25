@@ -146,6 +146,7 @@ export type UserInfoGemini = {
   follower: ProfileView;
   langStr?: LanguageName;
   posts?: string[];
+  lastYearPosts?: string[];
   likedByFollower?: string[];
   history?: Content[];
   image?: ImageRef[];
