@@ -1,45 +1,44 @@
 import 'dotenv/config';
-import { generateFortuneResult } from "../gemini/generateFortuneResult";
+
 import { UserInfoGemini } from "../types";
 import { generateAnniversary } from '../gemini/generateAnniversary';
 
 (async () => {
-  const userinfo: UserInfoGemini = {
+  const userinfoBase: UserInfoGemini = {
     follower: {
       did: "did:plc:sample",
       handle: "suibari.com",
       displayName: "すいばり"
     },
     langStr: "日本語",
+    posts: ["ハッピーバースデーとぅーみー", "たのしいな"]
+  };
+
+  // Test 1: Just Birthday
+  const userinfoBirthday: UserInfoGemini = {
+    ...userinfoBase,
     anniversary: [
       {
-        id: "",
-        names: {
-          ja: "誕生日",
-          en: "誕生日"
-        },
-        rule: {
-          type: "fixed",
-          month: 2,
-          day: 7,
-        },
-      },
-      {
-        id: "",
-        names: {
-          ja: "クリスマス",
-          en: "Christmas"
-        },
-        rule: {
-          type: "fixed",
-          month: 12,
-          day: 25,
-        },
+        id: "birthday",
+        names: { ja: "誕生日", en: "Birthday" },
+        rule: { type: "fixed", month: 2, day: 7 },
       }
-    ],
-    posts: ["ハッピーバースデーとぅーみー", "たのしいな"]
-  }
+    ]
+  };
+  console.log("--- Test 1: Birthday Only ---");
+  console.log(await generateAnniversary(userinfoBirthday));
 
-  const text = await generateAnniversary(userinfo);
-  console.log(`bot>>> ${text}`);
+  // Test 2: Christmas
+  const userinfoChristmas: UserInfoGemini = {
+    ...userinfoBase,
+    anniversary: [
+      {
+        id: "christmas",
+        names: { ja: "クリスマス", en: "Christmas" },
+        rule: { type: "fixed", month: 12, day: 25 },
+      }
+    ]
+  };
+  console.log("\n--- Test 2: Christmas ---");
+  console.log(await generateAnniversary(userinfoChristmas));
 })();
