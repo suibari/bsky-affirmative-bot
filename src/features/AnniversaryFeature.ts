@@ -276,13 +276,12 @@ export class AnniversaryFeature implements BotFeature {
             now.getDate()
         );
 
-        // since = その日の 0:00:00 UTC
+        // since = その日の 0:00:00 Local
         const since = new Date(lastYear);
-        since.setUTCHours(0, 0, 0, 0);
 
-        // until = 翌日の 0:00:00 UTC
+        // until = 翌日の 0:00:00 Local
         const until = new Date(lastYear);
-        until.setUTCHours(24, 0, 0, 0);
+        until.setDate(until.getDate() + 1);
 
         return { since, until };
     }
