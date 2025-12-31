@@ -273,7 +273,7 @@ export class ConversationFeature implements BotFeature {
 
         // 最新のつぶやき対象かつ返信未処理かチェック
         // NOTE: つぶやき以外のポストに対してリプライしてもisRepliedがtrueになるので不完全
-        if (rootUri === rootUriRef && isReplied != 1) {
+        if (rootUri === rootUriRef && record.reply?.parent.uri === rootUriRef && isReplied != 1) {
             // リプライ生成
             const currentMood = botBiothythmManager.getMood;
             const result = await generateWhimsicalReply({
