@@ -194,7 +194,7 @@ export class AnniversaryFeature implements BotFeature {
             uri: selectedPost.uri,
             cid: selectedPost.cid,
         } : undefined;
-        userinfo.lastYearPosts = response.data.posts.map(post => (post.record as PostRecord).text);
+        userinfo.lastYearPosts = selectedPost ? [(selectedPost.record as PostRecord).text] : [];
         // console.log(`[DEBUG][${event.did}] last year post: ${userinfo.lastYearPosts[0]}`);
 
         // 直近のポストもセット
