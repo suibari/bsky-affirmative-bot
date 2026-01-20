@@ -2,7 +2,7 @@ import { PartListUnion, Type } from "@google/genai";
 import { MODEL_GEMINI, SYSTEM_INSTRUCTION } from "../config/index.js";
 import { gemini } from "./index.js";
 import { logger } from "../index.js";
-import { getFullDateAndTimeString } from "./util.js";
+import { getFullDateAndTimeString, extractJSON } from "./util.js";
 import { LanguageName } from "../types.js";
 import { SpotifyTrack } from "../api/spotify/index.js";
 
@@ -21,25 +21,7 @@ export class MyMoodSongGenerator {
 
   async generate(currentMood: string, langStr: LanguageName, spotifyPlaylist: SpotifyTrack[]) {
     // const history = this.historyMap[langStr] ?? [];
-
-    const SCHEMA_DJBOT = {
-      type: Type.ARRAY,
-      items: {
-        type: Type.OBJECT,
-        properties: {
-          title: {
-            type: Type.STRING,
-          },
-          artist: {
-            type: Type.STRING,
-          },
-          comment: {
-            type: Type.STRING,
-          }
-        },
-        propertyOrdering: ["title", "artist", "comment"],
-      }
-    }
+    // responseSchema removed
 
     const history = spotifyPlaylist.map((track) => {
       return {
@@ -48,14 +30,14 @@ export class MyMoodSongGenerator {
       }
     });
     const prompt = this.PROMPT_DJ(currentMood, langStr, history);
-    const contents: PartListUnion = prompt;
+    const contents: PartListUnion = [prompt];
     const response = await gemini.models.generateContent({
       model: MODEL_GEMINI,
       contents,
       config: {
         systemInstruction: SYSTEM_INSTRUCTION,
-        responseMimeType: "application/json",
-        responseSchema: SCHEMA_DJBOT,
+        // responseMimeType: "application/json", // Removed
+        // responseSchema: SCHEMA_DJBOT, // Removed
         tools: [
           {
             googleSearch: {},
@@ -63,7 +45,8 @@ export class MyMoodSongGenerator {
         ]
       }
     });
-    const result = JSON.parse(response.text || "") as GeminiRecommendation;
+
+    const result = extractJSON(response.text || "") as GeminiRecommendation;
 
     const song = result[0];
     this.saveHistory(langStr, { title: song.title, artist: song.artist });
@@ -84,6 +67,16 @@ export class MyMoodSongGenerator {
 
   private PROMPT_DJ(currentMood: string, langStr: LanguageName, history: { title: string; artist: string }[]) {
     return `あなたの今の気分と現在の時間にあった曲を選曲してください。
+以下のJSON形式で出力してください。
+\`\`\`json
+[
+  {
+    "title": "曲名",
+    "artist": "アーティスト名",
+    "comment": "コメント"
+  }
+]
+\`\`\`
 # ルール
 * 実在しない曲は挙げてはいけません。
 * ${langStr}の曲を挙げてください。

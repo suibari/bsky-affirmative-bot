@@ -19,11 +19,18 @@ export async function generateAffirmativeWord(userinfo: UserInfoGemini) {
 
 const PROMPT_AFFIRMATIVE_WORD = async (userinfo: UserInfoGemini) => {
    return userinfo.langStr === "日本語" ?
-      `ユーザからの投稿について、以下を出力してください。
+      `ユーザからの投稿について、以下のJSON形式で出力してください。
+\`\`\`json
+[
+  {
+    "comment": "コメント内容",
+    "score": 0
+  }
+]
+\`\`\`
 
 ---
-## 出力フォーマット
-1. *comment*  
+## commentの内容について
    - ${userinfo.image
          ? "ユーザの画像について具体的に褒めてください。"
          : "ユーザの今回のポストを具体的に褒めてください。"}  
@@ -38,7 +45,7 @@ const PROMPT_AFFIRMATIVE_WORD = async (userinfo: UserInfoGemini) => {
 
    **注意: commentにはscoreに関する情報を絶対に含めないこと**
 
-2. *score*  
+## scoreの内容について
    - ユーザの投稿を0〜100点で評価してください。  
    - 好き・楽しい・優しいと感じた話題は高得点。  
    - 苦手・つまらないと感じた話題は低得点。  
@@ -52,11 +59,18 @@ const PROMPT_AFFIRMATIVE_WORD = async (userinfo: UserInfoGemini) => {
 - ユーザが引用したポスト: ${userinfo.embed ? userinfo.embed.text_embed + " by " + userinfo.embed.profile_embed?.displayName : "なし"}
 - 過去のポスト（直接言及しないこと）: ${userinfo.posts?.slice(1) ?? "なし"}
 ` :
-      `Please generate the following outputs in ${userinfo.langStr}.
+      `Please generate the output in the following JSON format in ${userinfo.langStr}.
+\`\`\`json
+[
+  {
+    "comment": "comment content",
+    "score": 0
+  }
+]
+\`\`\`
 
 ---
-## Output format
-1. *comment*  
+## About 'comment'
    - ${userinfo.image
          ? "Give a specific compliment about the user's image."
          : "Give a specific compliment about the user's text post."}  
@@ -71,7 +85,7 @@ const PROMPT_AFFIRMATIVE_WORD = async (userinfo: UserInfoGemini) => {
 
    **Important: Do not reveal score in the comment.**
 
-2. *score*  
+## About 'score'
    - Assign 0–100 points based on your impression.  
    - Higher: interesting, enjoyable, kind.  
    - Lower: boring, difficult, unpleasant.  
@@ -84,4 +98,5 @@ const PROMPT_AFFIRMATIVE_WORD = async (userinfo: UserInfoGemini) => {
 - This Post: ${userinfo.posts?.[0] || ""}
 - Posts quoted by this user: ${userinfo.embed ? userinfo.embed.text_embed + " by " + userinfo.embed.profile_embed?.displayName : "None"}
 - Previous Posts (do not directly mention): ${userinfo.posts?.slice(1) ?? "None"}
-`};
+`;
+};
