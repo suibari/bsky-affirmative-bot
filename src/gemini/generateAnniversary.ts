@@ -21,6 +21,7 @@ const PROMPT_ANNIVERSARY_WORD = async (userinfo: UserInfoGemini) => {
     `* 記念日が2つ以上の場合、それぞれに言及すること` +
     `* 1年前のユーザのポストがある場合、その内容をもとに、1年のがんばりをねぎらうこと` +
     (isChristmas ? `* 直近のユーザのポストから、botたんサンタからのクリスマスのプレゼントを提案すること` : ``) +
+    `* 文字数は600文字以下にすること` +
     `---以下、ユーザ情報---` +
     `* ユーザ名: ${userinfo.follower.displayName ?? ""}` +
     `* 記念日: ${userinfo.anniversary?.map(item => item.names.ja).join(", ")}` +

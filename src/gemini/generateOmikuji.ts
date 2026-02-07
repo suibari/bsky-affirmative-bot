@@ -19,6 +19,7 @@ const PROMPT_OMIKUJI = async (userinfo: UserInfoGemini) => {
     `* 1年前のユーザのポストがある場合、その内容をもとに、1年のがんばりをねぎらうこと` +
     `* おみくじのタイトルの意味を解説すること。アニメの元ネタがある場合は解説する` +
     `* おみくじの内容(特によかった項目TOP3)を解説すること` +
+    `* 文字数は600文字以下にすること` +
     `---以下、ユーザ情報---` +
     `* ユーザ名: ${userinfo.follower.displayName ?? ""}` +
     `* 記念日: ${userinfo.anniversary?.map(item => item.names.ja).join(", ")}` +
@@ -34,6 +35,7 @@ const PROMPT_OMIKUJI = async (userinfo: UserInfoGemini) => {
     `* If there are posts from the user from a year ago, use those posts to praise their efforts this year.` +
     `* Explain the meaning of the omikuji title.` +
     `* Explain the top 3 items of the omikuji content.` +
+    `* Character count must be 600 characters or less.` +
     `---User Information Below---` +
     `* User Name: ${userinfo.follower.displayName ?? ""}` +
     `* Anniversary: ${userinfo.anniversary?.map(item => item.names.en).join(", ")}` +
