@@ -1,4 +1,4 @@
-[submodule "src/util/twemoji"]
-	path = src/util/twemoji
+[submodule "apps/bsky_bot_server/src/util/twemoji"]
+	path = apps/bsky_bot_server/src/util/twemoji
 	url = https://github.com/twitter/twemoji.git
 	branch = gh-pages

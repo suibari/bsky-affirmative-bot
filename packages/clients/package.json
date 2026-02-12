@@ -1,0 +1,17 @@
+{
+  "name": "@bsky-affirmative-bot/clients",
+  "version": "1.0.0",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@bsky-affirmative-bot/shared-configs": "workspace:*",
+    "axios": "^1.13.5",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3"
+  }
+}

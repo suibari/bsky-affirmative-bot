@@ -1,15 +1,20 @@
 {
-  "compilerOptions": {
-    "target": "ESNext",
-    "module": "ESNext",
-    "moduleResolution": "node",
-    "outDir": "dist",
-    "rootDir": "src",
-    "strict": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "resolveJsonModule": true,
-    "allowSyntheticDefaultImports": true,
-  },
-  "include": ["src/**/*"]
+  "files": [],
+  "references": [
+    {
+      "path": "./apps/bsky_bot_server"
+    },
+    {
+      "path": "./apps/biorhythm_server"
+    },
+    {
+      "path": "./apps/memory_server"
+    },
+    {
+      "path": "./packages/bot_brain"
+    },
+    {
+      "path": "./packages/shared-configs"
+    }
+  ]
 }

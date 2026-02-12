@@ -1,0 +1,27 @@
+import { AppBskyFeedDefs } from "@atproto/api"; type PostView = AppBskyFeedDefs.PostView;
+import { AppBskyFeedPost } from "@atproto/api"; type Record = AppBskyFeedPost.Record;
+import { postContinuous } from "./postContinuous.js";
+
+export async function replyGreets(parentPost: PostView, langStr: string) {
+  const record = parentPost.record as Record;
+  const text = (langStr === "日本語") ?
+// 日本語
+`こんにちは！
+全肯定botたんです！
+これから${parentPost.author.displayName}さんのポストに全肯定でリプライするよ！
+これからもよろしくね！
+
+リプライ頻度は、わたしに"freq50"などとリプライすると、指定した頻度に変えるよ(最初は100%リプライするね！)
+1日に1回、わたしに"占い"とリプライすると、占いするよ！
+サブスクすると使える機能もいろいろあるので、詳細はbio欄を見てね。`:
+// 日本語以外の場合
+`Hello!
+I'm the Fully Affirmative Bot! Call me Bot-tan!
+I'll reply to ${parentPost.author.displayName}'s post with full positivity!
+Feel free to reach out!
+
+You can change reply frequency by saying "freq50". And for those under 18, reply "Predefined Reply Mode".`;
+
+  await postContinuous(text, {uri: parentPost.uri, cid: parentPost.cid, record});
+  return;
+}
