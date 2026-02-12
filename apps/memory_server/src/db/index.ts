@@ -149,6 +149,11 @@ export class SQLite3 {
       return;
     }
 
+    const tableExists = await this.checkTableExists();
+    if (!tableExists) {
+      await this.createTable(desiredSchema);
+    }
+
     const currentColumns = await this.getCurrentSchema();
     const existingColumnNames = new Set(currentColumns.map(col => col.name));
 
@@ -186,20 +191,6 @@ export class SQLite3 {
           });
         });
       }
-    }
-
-    // Check if table exists (for create table if not exists - logic implied by ensureSchema requiring table? 
-    // No, ensureSchema only ADDS columns. It doesn't CREATE table.
-    // The original code seemingly assumed tables exist or created them elsewhere?
-    // Wait, 'sqlite3' opens DB. If file exists, it opens. Tables?
-    // The original code did NOT have CREATE TABLE logic!
-    // It only had ALTER TABLE ADD COLUMN.
-    // So if I start with empty DB, it will fail to ALTER TABLE on non-existent table!
-    // I MUST ADD CREATE TABLE logic.
-
-    const tableExists = await this.checkTableExists();
-    if (!tableExists) {
-      await this.createTable(desiredSchema);
     }
   }
 
