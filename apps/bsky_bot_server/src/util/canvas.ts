@@ -1,9 +1,9 @@
-import { createCanvas, loadImage, registerFont, CanvasRenderingContext2D } from 'canvas';
+import { createCanvas, loadImage, GlobalFonts, SKRSContext2D as CanvasRenderingContext2D } from '@napi-rs/canvas';
 import * as fs from 'fs';
 import * as path from 'path';
 
 // フォント設定（必要に応じて変更）
-registerFont('./fonts/JK-Maru-Gothic-M.otf', { family: 'JK-Maru-Gothic' });
+GlobalFonts.registerFromPath('./fonts/JK-Maru-Gothic-M.otf', 'JK-Maru-Gothic');
 
 /**
  * テキストと背景画像を合成し、PNGバッファとして返す

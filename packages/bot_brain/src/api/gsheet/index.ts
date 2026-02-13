@@ -1,5 +1,6 @@
 import { google } from 'googleapis';
 import retry from 'async-retry';
+import * as path from 'path';
 
 let cachedDids: string[] = [];
 let lastFetchedAt: number = 0; // UNIXミリ秒で保存
@@ -15,7 +16,7 @@ export async function getSubscribersFromSheet(): Promise<string[]> {
 
   // 認証設定
   const auth = new google.auth.GoogleAuth({
-    keyFile: 'src/api/gsheet/key/service-account.json',
+    keyFile: path.join(__dirname, '../../../../bot_brain/src/api/gsheet/key/service-account.json'),
     scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
   });
 
