@@ -1,4 +1,4 @@
-import { NegaposiApiResponse } from "../types.js";
+import { NegaposiApiResponse } from "@bsky-affirmative-bot/shared-configs";
 
 export async function fetchSentiment(texts: string[]): Promise<NegaposiApiResponse> {
   const response = await fetch(process.env.NEGAPOSI_URL!, {

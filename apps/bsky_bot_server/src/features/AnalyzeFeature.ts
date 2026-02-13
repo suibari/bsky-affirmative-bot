@@ -10,7 +10,7 @@ type RecordList = ComAtprotoRepoListRecords.Record;
 import { agent } from '../bsky/agent.js';
 import { getLangStr, isReplyOrMentionToMe } from "../bsky/util.js";
 import { handleMode, isPast } from "./utils.js";
-import { GeminiResponseResult, UserInfoGemini } from '../types.js';
+import { GeminiResponseResult, UserInfoGemini } from '@bsky-affirmative-bot/shared-configs';
 import { generateAnalyzeResult } from "@bsky-affirmative-bot/bot-brain";
 import { textToImageBufferWithBackground } from '../util/canvas.js';
 import { getConcatPosts } from '../bsky/getConcatPosts.js';

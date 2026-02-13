@@ -3,7 +3,7 @@ import { AppBskyActorDefs } from "@atproto/api"; type ProfileView = AppBskyActor
 import { AppBskyFeedPost } from "@atproto/api"; type Record = AppBskyFeedPost.Record;
 import { getImageUrl, getLangStr, uniteDidNsidRkey } from "../bsky/util.js";
 import { generateAffirmativeWord } from "@bsky-affirmative-bot/bot-brain";
-import { Embed, GeminiScore } from "../types.js";
+import { Embed, GeminiScore } from "@bsky-affirmative-bot/shared-configs";
 import { MemoryService } from "@bsky-affirmative-bot/clients";
 import { postContinuous } from "../bsky/postContinuous.js";
 import { fetchSentiment } from "../util/negaposi.js";

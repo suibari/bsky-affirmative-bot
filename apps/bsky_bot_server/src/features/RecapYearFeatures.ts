@@ -3,7 +3,7 @@ import { CommitCreateEvent } from "@skyware/jetstream";
 import { BotFeature, FeatureContext } from "./types.js";
 import { RECAP_TRIGGER, NICKNAMES_BOT } from "@bsky-affirmative-bot/shared-configs";
 import { AppBskyFeedPost } from "@atproto/api"; type Record = AppBskyFeedPost.Record;
-import { GeminiResponseResult, UserInfoGemini } from "../types.js";
+import { GeminiResponseResult, UserInfoGemini } from "@bsky-affirmative-bot/shared-configs";
 import { MemoryService } from "@bsky-affirmative-bot/clients";
 import { agent } from "../bsky/agent.js";
 import { getConcatAuthorFeed } from "../bsky/getConcatAuthorFeed.js";

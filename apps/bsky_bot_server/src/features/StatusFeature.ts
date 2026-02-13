@@ -6,7 +6,7 @@ import { AppBskyFeedPost } from "@atproto/api"; type Record = AppBskyFeedPost.Re
 import { handleMode, isPast } from "./utils.js";
 import { getLangStr, isReplyOrMentionToMe } from "../bsky/util.js";
 import { MemoryService } from "@bsky-affirmative-bot/clients";
-import { GeminiResponseResult, UserInfoGemini } from "../types.js";
+import { GeminiResponseResult, UserInfoGemini } from "@bsky-affirmative-bot/shared-configs";
 
 export class StatusFeature implements BotFeature {
     name = "Status";

@@ -7,7 +7,7 @@ import { AppBskyFeedPost } from "@atproto/api"; type Record = AppBskyFeedPost.Re
 import { handleMode, isPast } from "./utils.js";
 import { generateFortuneResult } from "@bsky-affirmative-bot/bot-brain";
 import { getLangStr, isReplyOrMentionToMe } from "../bsky/util.js";
-import { UserInfoGemini, GeminiResponseResult } from "../types.js";
+import { UserInfoGemini, GeminiResponseResult } from "@bsky-affirmative-bot/shared-configs";
 import { textToImageBufferWithBackground } from "../util/canvas.js";
 import { agent } from "../bsky/agent.js";
 

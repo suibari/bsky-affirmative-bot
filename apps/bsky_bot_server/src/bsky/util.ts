@@ -2,7 +2,7 @@ import { $Typed, AppBskyEmbedDefs, AppBskyEmbedExternal, AppBskyEmbedImages, App
 import { AppBskyFeedDefs } from "@atproto/api"; type PostView = AppBskyFeedDefs.PostView;
 import { AppBskyFeedPost } from "@atproto/api";
 
-import { ImageRef, LangMap, languageData, LanguageName, localeToTimezone } from "../types.js";
+import { ImageRef, LangMap, languageData, LanguageName, localeToTimezone } from "@bsky-affirmative-bot/shared-configs";
 import { getPds } from "./getPds.js";
 import e from "express";
 

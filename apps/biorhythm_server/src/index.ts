@@ -4,7 +4,7 @@ import { WebSocketServer } from "ws";
 import dotenv from "dotenv";
 import { BiorhythmManager } from "./manager.js";
 
-dotenv.config();
+dotenv.config({ path: '../../.env' });
 
 const app = express();
 app.use(express.json());

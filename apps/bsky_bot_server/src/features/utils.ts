@@ -4,13 +4,12 @@ type Record = AppBskyFeedPost.Record;
 import { getImageUrl, uniteDidNsidRkey } from "../bsky/util.js";
 import { postContinuous } from "../bsky/postContinuous.js";
 import { MemoryService } from "@bsky-affirmative-bot/clients";
-import { GeminiResponseResult, UserInfoGemini } from "../types.js";
+import { GeminiResponseResult, UserInfoGemini } from "@bsky-affirmative-bot/shared-configs";
 
 export type TriggeredReplyHandlerOptions = {
-    db?: any;            // SQLite3 mock (Compatibility)
     dbColumn?: string;   // 更新対象DBのカラム名（例: "is_u18"）
     dbValue?: number | string; // 登録時にセットする値（例: 1）
-    generateText: GeminiResponseResult | ((userinfo: UserInfoGemini, event: CommitCreateEvent<"app.bsky.feed.post">, db?: any) => Promise<GeminiResponseResult | undefined>); // 返信するテキスト(コールバック対応)
+    generateText: GeminiResponseResult | ((userinfo: UserInfoGemini, event: CommitCreateEvent<"app.bsky.feed.post">) => Promise<GeminiResponseResult | undefined>); // 返信するテキスト(コールバック対応)
     disableReply?: boolean; // リプライの無効化
 };
 
@@ -38,7 +37,7 @@ export const handleMode = async (
     let result: GeminiResponseResult | undefined;
     if (typeof options.generateText === "function") {
         if (!userinfo) throw new Error("userinfo is required for responseText function.");
-        result = await options.generateText(userinfo, event, options.db);
+        result = await options.generateText(userinfo, event);
     } else {
         result = options.generateText;
     }
@@ -76,29 +75,15 @@ export const handleMode = async (
  */
 export async function isPast(
     event: CommitCreateEvent<"app.bsky.feed.post">,
-    arg2: any,
-    arg3: any,
-    arg4?: number
+    column: string,
+    mins: number
 ) {
-    let db_colname: string;
-    let mins_thrd: number;
-
-    if (typeof arg2 === "string") {
-        // New signature: (event, col, mins)
-        db_colname = arg2;
-        mins_thrd = arg3;
-    } else {
-        // Legacy signature: (event, db, col, mins)
-        db_colname = arg3;
-        mins_thrd = arg4!;
-    }
-
     const did = String(event.did);
-    const msec_thrd = mins_thrd * 60 * 1000;
+    const msec_thrd = mins * 60 * 1000;
     const postedAt = new Date((event.commit.record as Record).createdAt);
 
     const follower = await MemoryService.getFollower(did);
-    const lastAt = new Date(follower?.[db_colname] || 0);
+    const lastAt = new Date(follower?.[column] || 0);
 
     return (postedAt.getTime() - lastAt.getTime() > msec_thrd);
 }

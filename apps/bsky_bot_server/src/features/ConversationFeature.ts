@@ -7,7 +7,7 @@ import { getSubscribersFromSheet } from "@bsky-affirmative-bot/bot-brain";
 import { isReplyOrMentionToMe, uniteDidNsidRkey, getImageUrl, getLangStr } from "../bsky/util.js";
 import { AppBskyFeedPost } from "@atproto/api"; type Record = AppBskyFeedPost.Record;
 import { Content } from "@google/genai";
-import { Embed, GeminiResponseResult, UserInfoGemini } from "../types.js";
+import { Embed, GeminiResponseResult, UserInfoGemini } from "@bsky-affirmative-bot/shared-configs";
 import { parseEmbedPost } from '../bsky/parseEmbedPost.js';
 import { parseThread, ParsedThreadResult } from "../bsky/parseThread.js";
 import { handleMode } from "./utils.js";

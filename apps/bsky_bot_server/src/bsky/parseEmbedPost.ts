@@ -3,7 +3,7 @@ import { AppBskyFeedPost } from "@atproto/api"; type Record = AppBskyFeedPost.Re
 import { agent } from "./agent.js"
 import { AppBskyActorDefs } from "@atproto/api"; type ProfileViewDetailed = AppBskyActorDefs.ProfileViewDetailed;
 import { getImageUrl, splitUri } from "./util.js";
-import { Embed, ImageRef } from "../types.js";
+import { Embed, ImageRef } from "@bsky-affirmative-bot/shared-configs";
 
 /**
  * 引用ポストの解析

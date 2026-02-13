@@ -8,7 +8,7 @@ import holidays from "@bsky-affirmative-bot/shared-configs/json/holidays.json" w
 import { handleMode, isPast } from "./utils.js";
 import { getLangStr, isReplyOrMentionToMe } from "../bsky/util.js";
 import { AppBskyFeedPost } from "@atproto/api"; type PostRecord = AppBskyFeedPost.Record;
-import { GeminiResponseResult, Holiday, localeToTimezone, UserInfoGemini } from "../types.js";
+import { GeminiResponseResult, Holiday, localeToTimezone, UserInfoGemini } from "@bsky-affirmative-bot/shared-configs";
 import { agent } from "../bsky/agent.js";
 import { dateForHoliday, parseMonthDay, toMonthDayIso } from "@bsky-affirmative-bot/shared-configs";
 import { generateAnniversary } from "@bsky-affirmative-bot/bot-brain";

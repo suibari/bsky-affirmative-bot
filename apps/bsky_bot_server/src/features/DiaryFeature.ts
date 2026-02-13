@@ -7,7 +7,7 @@ import { AppBskyFeedPost } from "@atproto/api"; type Record = AppBskyFeedPost.Re
 import { handleMode } from "./utils.js";
 import { getLangStr, getTimezoneFromLang } from "../bsky/util.js";
 import { MemoryService } from "@bsky-affirmative-bot/clients";
-import { LanguageName } from "../types.js";
+import { LanguageName } from "@bsky-affirmative-bot/shared-configs";
 import { DateTime } from "luxon";
 import { getConcatProfiles } from "../bsky/getConcatProfiles.js";
 import { getDaysAuthorFeed } from "../bsky/getDaysAuthorFeed.js";

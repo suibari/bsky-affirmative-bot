@@ -2,7 +2,7 @@ import { CommitCreateEvent } from "@skyware/jetstream";
 import { AppBskyFeedPost } from "@atproto/api";
 import { agent } from "./agent.js";
 import { features } from "../features/index.js";
-import { db, dbLikes } from "../db.js";
+import { MemoryService } from "@bsky-affirmative-bot/clients";
 import { followerMap, updateFollowers } from "./followerManagement.js";
 import { logger, botBiothythmManager } from "../index.js";
 import { isMention, isSpam, getLangStr, splitUri } from "./util.js";
@@ -33,7 +33,7 @@ export async function onPost(event: any) {
         // Note: parseEmbedPost and other checks could be added here if needed, 
         // but using current features architecture is preferred.
 
-        const context = { db };
+        const context = {};
 
         for (const feature of features) {
           try {
@@ -85,8 +85,8 @@ export async function onFollow(event: any) {
   updateFollowers().catch(e => console.error("[ERROR] Background follower update failed:", e));
 
   // Check if new user in DB
-  const isExist = await db.selectDb(did, "created_at");
-  if (isExist) {
+  const isExist = await MemoryService.getFollower(did);
+  if (isExist && isExist.created_at) {
     console.log(`[INFO] ${did} is an existing user. Skipping follow-back.`);
     return;
   }
@@ -108,7 +108,7 @@ export async function onFollow(event: any) {
       }
     }
 
-    await db.insertDb(did);
+    await MemoryService.ensureFollower(did);
   } catch (e) {
     console.error("[ERROR] Follow/Greet process failed:", e);
   }
@@ -124,7 +124,8 @@ export async function onLike(event: any) {
   try {
     await retry(async () => {
       const uri = record.subject.uri;
-      if (await dbLikes.selectDb(did, "uri") === uri) return;
+      const existingLike = await MemoryService.getLike(did);
+      if (existingLike && existingLike.uri === uri) return;
 
       console.log(`[INFO] Detected like from: ${did}`);
 
@@ -140,9 +141,7 @@ export async function onLike(event: any) {
       // Actually I'll use addAffirmation or similar if addLike is not there, or add it to index.ts.
       await botBiothythmManager.addAffirmation(did);
 
-      await dbLikes.insertOrUpdateDb(did);
-      await dbLikes.updateDb(did, "liked_post", text);
-      await dbLikes.updateDb(did, "uri", uri);
+      await MemoryService.upsertLike({ did, liked_post: text, uri });
     }, {
       retries: 3,
       onRetry: (err, attempt) => {

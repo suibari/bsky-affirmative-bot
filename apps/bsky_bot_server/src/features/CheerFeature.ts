@@ -7,7 +7,7 @@ import { CHEER_TRIGGER } from "@bsky-affirmative-bot/shared-configs";
 import { AppBskyFeedPost } from "@atproto/api"; type Record = AppBskyFeedPost.Record;
 import { handleMode, isPast } from "./utils.js";
 import { getLangStr, uniteDidNsidRkey } from "../bsky/util.js";
-import { UserInfoGemini, GeminiResponseResult } from "../types.js";
+import { UserInfoGemini, GeminiResponseResult } from "@bsky-affirmative-bot/shared-configs";
 import { judgeCheerSubject } from "@bsky-affirmative-bot/bot-brain";
 import { generateCheerResult } from "@bsky-affirmative-bot/bot-brain";
 import { repost } from "../bsky/repost.js";
