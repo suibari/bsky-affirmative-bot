@@ -84,51 +84,75 @@ const desiredSchemas: Record<string, TableSchema> = {
       { name: 'did', type: 'TEXT' },
       { name: 'created_at', type: 'TIMESTAMP', default: 'CURRENT_TIMESTAMP' },
     ]
+  },
+  feature_usage: {
+    columns: [
+      { name: 'id', type: 'INTEGER', primaryKey: true },
+      { name: 'feature', type: 'TEXT', notNull: true },
+      { name: 'did', type: 'TEXT' },
+      { name: 'details', type: 'JSON' },
+      { name: 'created_at', type: 'TIMESTAMP', default: 'CURRENT_TIMESTAMP' },
+    ]
   }
 };
 
-export class SQLite3 {
-  private db: sqlite3.Database | null = null;
-  tableName: string;
-  pkName: string; // Primary Key column name
-  private initializationPromise: Promise<void>;
+const dbFile = process.env.SQLITE_DB_FILE || ':memory:';
 
-  constructor(tableName = 'followers', pkName = 'did') {
-    const dbFile = process.env.SQLITE_DB_FILE || ':memory:';
-    this.tableName = tableName;
-    this.pkName = pkName;
+// Singleton connection
+let sharedDb: sqlite3.Database | null = null;
+let initializationPromise: Promise<void> | null = null;
 
-    this.initializationPromise = new Promise((resolve, reject) => {
-      this.db = new sqlite3.Database(dbFile, (err) => {
+const getSharedDb = (): Promise<sqlite3.Database> => {
+  if (sharedDb) return Promise.resolve(sharedDb);
+
+  if (!initializationPromise) {
+    initializationPromise = new Promise((resolve, reject) => {
+      const db = new sqlite3.Database(dbFile, (err) => {
         if (err) {
           console.error(`Could not connect to database ${dbFile}`, err);
+          initializationPromise = null; // Reset on failure
           reject(err);
         } else {
+          sharedDb = db;
+
+          // Configure DB
+          db.configure("busyTimeout", 5000); // 5 seconds
+
           // Enable WAL mode
-          this.db!.run('PRAGMA journal_mode = WAL;', (err) => {
+          db.run('PRAGMA journal_mode = WAL;', (err) => {
             if (err) {
               console.error('Failed to enable WAL mode:', err);
             } else {
-              console.log(`Connected to SQLite database: ${dbFile} (Table: ${tableName}) [WAL Enabled]`);
+              console.log(`Connected to SQLite database: ${dbFile} [WAL Enabled]`);
             }
+            resolve();
           });
-
-          this.db!.configure("busyTimeout", 1000);
-          this.ensureSchema()
-            .then(() => resolve())
-            .catch(schemaErr => {
-              console.error(`Schema initialization failed for ${this.tableName}:`, schemaErr);
-              reject(schemaErr);
-            });
         }
       });
     });
   }
 
+  return initializationPromise.then(() => sharedDb!);
+};
+
+export class SQLite3 {
+  tableName: string;
+  pkName: string; // Primary Key column name
+
+  constructor(tableName = 'followers', pkName = 'did') {
+    this.tableName = tableName;
+    this.pkName = pkName;
+  }
+
+  private async getDb(): Promise<sqlite3.Database> {
+    return await getSharedDb();
+  }
+
   private async getCurrentSchema(): Promise<ColumnDefinition[]> {
+    const db = await this.getDb();
     const currentSchemaQuery = `PRAGMA table_info(${this.tableName});`;
     return new Promise((resolve, reject) => {
-      this.db!.all(currentSchemaQuery, [], (err, rows: any[]) => {
+      db.all(currentSchemaQuery, [], (err, rows: any[]) => {
         if (err) {
           console.error(`Error getting schema for ${this.tableName}:`, err);
           reject(err);
@@ -160,6 +184,7 @@ export class SQLite3 {
 
     const currentColumns = await this.getCurrentSchema();
     const existingColumnNames = new Set(currentColumns.map(col => col.name));
+    const db = await this.getDb();
 
     for (const desiredCol of desiredSchema.columns) {
       if (!existingColumnNames.has(desiredCol.name)) {
@@ -185,7 +210,7 @@ export class SQLite3 {
 
         console.log(`Executing: ${addColumnQuery}`);
         await new Promise((resolve, reject) => {
-          this.db!.run(addColumnQuery, (err) => {
+          db.run(addColumnQuery, (err) => {
             if (err) {
               console.error(`Error adding column ${desiredCol.name} to ${this.tableName}:`, err);
               reject(err);
@@ -198,16 +223,17 @@ export class SQLite3 {
     }
   }
 
-  private checkTableExists(): Promise<boolean> {
+  private async checkTableExists(): Promise<boolean> {
+    const db = await this.getDb();
     return new Promise((resolve, reject) => {
-      this.db!.get(`SELECT name FROM sqlite_master WHERE type='table' AND name='${this.tableName}';`, (err, row) => {
+      db.get(`SELECT name FROM sqlite_master WHERE type='table' AND name='${this.tableName}';`, (err, row) => {
         if (err) reject(err);
         else resolve(!!row);
       });
     });
   }
 
-  private createTable(schema: TableSchema): Promise<void> {
+  private async createTable(schema: TableSchema): Promise<void> {
     let query = `CREATE TABLE ${this.tableName} (`;
     const cols = schema.columns.map(col => {
       let def = `${col.name} ${col.type}`;
@@ -226,9 +252,10 @@ export class SQLite3 {
     });
     query += cols.join(', ') + ');';
 
+    const db = await this.getDb();
     return new Promise((resolve, reject) => {
       console.log(`Creating table ${this.tableName}:`, query);
-      this.db!.run(query, (err) => {
+      db.run(query, (err) => {
         if (err) reject(err);
         else resolve();
       });
@@ -236,49 +263,57 @@ export class SQLite3 {
   }
 
   async initialize(): Promise<void> {
-    await this.initializationPromise;
+    // Ensure DB is connected
+    await this.getDb();
+    // Then ensure schema
+    await this.ensureSchema();
   }
 
-  insertDb(id: string) {
+  async insertDb(id: string): Promise<void> {
+    const db = await this.getDb();
     const query = `INSERT OR IGNORE INTO ${this.tableName} (${this.pkName}) VALUES (?);`;
-    this.db!.run(query, [id], err => { if (err) console.error(err); });
+    db.run(query, [id], err => { if (err) console.error(err); });
   }
 
-  upsertRow(data: Record<string, any>) {
+  async upsertRow(data: Record<string, any>) {
+    const db = await this.getDb();
     const keys = Object.keys(data);
     if (keys.length === 0) return;
     const placeholders = keys.map(() => '?').join(',');
     const query = `INSERT OR REPLACE INTO ${this.tableName} (${keys.join(',')}) VALUES (${placeholders})`;
     return new Promise<void>((resolve, reject) => {
-      this.db!.run(query, Object.values(data), (err) => {
+      db.run(query, Object.values(data), (err) => {
         if (err) { console.error(err); reject(err); }
         else resolve();
       });
     });
   }
 
-  insertRow(data: Record<string, any>) {
+  async insertRow(data: Record<string, any>) {
+    const db = await this.getDb();
     const keys = Object.keys(data);
     if (keys.length === 0) return;
     const placeholders = keys.map(() => '?').join(',');
     const query = `INSERT INTO ${this.tableName} (${keys.join(',')}) VALUES (${placeholders})`;
     return new Promise<void>((resolve, reject) => {
-      this.db!.run(query, Object.values(data), (err) => {
+      db.run(query, Object.values(data), (err) => {
         if (err) { console.error(err); reject(err); }
         else resolve();
       });
     });
   }
 
-  updateDb(id: string, column: string, value?: string | number | null) {
+  async updateDb(id: string, column: string, value?: string | number | null): Promise<void> {
+    const db = await this.getDb();
     const query = `UPDATE ${this.tableName} SET ${column} = ?, updated_at = CURRENT_TIMESTAMP WHERE ${this.pkName} = ?`;
-    this.db!.run(query, [value, id], err => { if (err) console.error(err); });
+    db.run(query, [value, id], err => { if (err) console.error(err); });
   }
 
-  getRowById(id: string): Promise<Record<string, any> | null> {
+  async getRowById(id: string): Promise<Record<string, any> | null> {
+    const db = await this.getDb();
     return new Promise((resolve, reject) => {
       const query = `SELECT * FROM ${this.tableName} WHERE ${this.pkName} = ?;`;
-      this.db!.get(query, [id], (err, row: any) => {
+      db.get(query, [id], (err, row: any) => {
         if (err) reject(err);
         else {
           resolve(row || null);
@@ -287,58 +322,70 @@ export class SQLite3 {
     });
   }
 
-  getOne(query: string, params: any[] = []): Promise<any> {
+  async getOne(query: string, params: any[] = []): Promise<any> {
+    const db = await this.getDb();
     return new Promise((resolve, reject) => {
-      this.db!.get(query, params, (err, row) => {
+      db.get(query, params, (err, row) => {
         if (err) reject(err);
         else resolve(row);
       });
     });
   }
 
-  getAll(query: string, params: any[] = []): Promise<any[]> {
+  async getAll(query: string, params: any[] = []): Promise<any[]> {
+    const db = await this.getDb();
     return new Promise((resolve, reject) => {
-      this.db!.all(query, params, (err, rows) => {
+      db.all(query, params, (err, rows) => {
         if (err) reject(err);
         else resolve(rows);
       });
     });
   }
 
-  run(query: string, params: any[] = []): Promise<void> {
+  async run(query: string, params: any[] = []): Promise<void> {
+    const db = await this.getDb();
     return new Promise((resolve, reject) => {
-      this.db!.run(query, params, (err) => {
+      db.run(query, params, (err) => {
         if (err) reject(err);
         else resolve();
       });
     });
   }
 
-  selectRows(column: string, value: any): Promise<any[]> {
+  async selectRows(column: string, value: any): Promise<any[]> {
     return this.getAll(`SELECT * FROM ${this.tableName} WHERE ${column} = ?`, [value]);
   }
 
-  insertOrUpdateDb(id: string) {
+  async insertOrUpdateDb(id: string): Promise<void> {
+    const db = await this.getDb();
     const query = `INSERT INTO ${this.tableName} (${this.pkName}) VALUES (?) ON CONFLICT(${this.pkName}) DO UPDATE SET updated_at = CURRENT_TIMESTAMP;`;
-    this.db!.run(query, [id], err => { if (err) console.error(err); });
+    db.run(query, [id], err => { if (err) console.error(err); });
   }
 
-  deleteRow(id: string): void {
+  async deleteRow(id: string): Promise<void> {
+    const db = await this.getDb();
     const query = `DELETE FROM ${this.tableName} WHERE ${this.pkName} = ?;`;
-    this.db!.run(query, [id], err => { if (err) console.error(err); });
+    db.run(query, [id], err => { if (err) console.error(err); });
   }
 
-  clearAllRows(): Promise<void> {
+  async clearAllRows(): Promise<void> {
+    const db = await this.getDb();
     const query = `DELETE FROM ${this.tableName};`;
     return new Promise((resolve, reject) => {
-      this.db!.run(query, (err) => {
+      db.run(query, (err) => {
         if (err) reject(err);
         else resolve();
       });
     });
   }
 
-  closeDb() { this.db!.close(); }
+  async closeDb(): Promise<void> {
+    if (sharedDb) {
+      sharedDb.close();
+      sharedDb = null;
+      initializationPromise = null;
+    }
+  }
 }
 
 export const db = new SQLite3("followers", "did");
@@ -347,6 +394,7 @@ export const dbLikes = new SQLite3("likes", "did");
 export const dbReplies = new SQLite3("replies", "did");
 export const dbBotState = new SQLite3("bot_state", "key");
 export const dbAffirmations = new SQLite3("affirmations", "id");
+export const dbFeatureUsage = new SQLite3("feature_usage", "id");
 
 export async function initializeDatabases() {
   await db.initialize();
@@ -355,5 +403,6 @@ export async function initializeDatabases() {
   await dbReplies.initialize();
   await dbBotState.initialize();
   await dbAffirmations.initialize();
+  await dbFeatureUsage.initialize();
   console.log("All databases initialized.");
 }

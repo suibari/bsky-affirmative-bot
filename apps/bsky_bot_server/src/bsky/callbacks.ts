@@ -40,6 +40,7 @@ export async function onPost(event: any) {
             if (await feature.shouldHandle(event, follower, context)) {
               console.log(`[INFO][${authorDid}] Feature matched: ${feature.name}`);
               await feature.handle(event, follower, context);
+              await MemoryService.logUsage(feature.name, authorDid, { text });
               // In the new architecture, we usually continue to next feature if they are independent,
               // but original callbackPost stopped after first match. 
               // Given the monorepo design, let's stick to the features array loop.
@@ -95,6 +96,7 @@ export async function onFollow(event: any) {
 
   try {
     botBiothythmManager.addAnniversary(); // Example of boosting energy on new follow
+    await MemoryService.logUsage('follow', did);
     await follow(did);
 
     const response = await agent.getAuthorFeed({ actor: did, filter: 'posts_no_replies' });
@@ -137,11 +139,10 @@ export async function onLike(event: any) {
       const text = (response.data.value as any).text;
 
       // Update BioRhythm and DB
-      // botBiothythmManager.addLike() was in original plan but I need to make sure it's exported in index.ts
-      // Actually I'll use addAffirmation or similar if addLike is not there, or add it to index.ts.
-      await botBiothythmManager.addAffirmation(did);
+      await botBiothythmManager.addLike();
 
       await MemoryService.upsertLike({ did, liked_post: text, uri });
+      await MemoryService.logUsage('like', did, { uri, text });
     }, {
       retries: 3,
       onRetry: (err, attempt) => {

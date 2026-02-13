@@ -38,6 +38,8 @@ app.post("/energy", (req, res) => {
     manager.addAnalysis();
   } else if (type === "anniversary") {
     manager.addAnniversary();
+  } else if (type === "like") {
+    manager.addLike();
   } else if (amount) {
     // Generic energy change
     (manager as any).changeEnergy(amount);

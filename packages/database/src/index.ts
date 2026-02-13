@@ -1,4 +1,4 @@
-import { db, dbPosts, dbLikes, dbReplies, dbBotState, dbAffirmations, initializeDatabases } from './db.js';
+import { db, dbPosts, dbLikes, dbReplies, dbBotState, dbAffirmations, dbFeatureUsage, initializeDatabases } from './db.js';
 
 import { LanguageName } from '@bsky-affirmative-bot/shared-configs';
 
@@ -205,6 +205,18 @@ export class MemoryService {
     await dbReplies.run(`UPDATE replies SET isRead = 1, updated_at = CURRENT_TIMESTAMP`);
   }
 
+  static async logUsage(feature: string, did: string | null, details?: any) {
+    try {
+      await dbFeatureUsage.insertRow({
+        feature,
+        did,
+        details: details ? JSON.stringify(details) : null
+      });
+    } catch (e) {
+      console.error(`Failed to log usage for feature ${feature}:`, e);
+    }
+  }
+
   static async getDailyStats(): Promise<DailyReport> {
     const getCount = async (dbInst: any, table: string) => {
       const row = await dbInst.getOne(
@@ -233,20 +245,39 @@ export class MemoryService {
     // Total affirmations count (not unique)
     const affirmationCountTotal = await getCount(dbAffirmations, 'affirmations');
 
+    const getFeatureCount = async (featureName: string) => {
+      const row = await dbFeatureUsage.getOne(
+        `SELECT count(*) as count FROM feature_usage WHERE feature = ? AND created_at >= date('now', 'localtime', 'start of day')`,
+        [featureName]
+      );
+      return row ? row.count : 0;
+    };
+
+    const [conversation, fortune, cheer, analysis, dj, anniversary, answer, recap] = await Promise.all([
+      getFeatureCount('conversation'),
+      getFeatureCount('fortune'),
+      getFeatureCount('cheer'),
+      getFeatureCount('analysis'),
+      getFeatureCount('dj'),
+      getFeatureCount('anniversary'),
+      getFeatureCount('answer'),
+      getFeatureCount('recap')
+    ]);
+
     return {
       followers: 0, // Mock
       likes: likes,
       reply: replies,
       affirmationCount: affirmationCountTotal,
       uniqueAffirmationUserCount: affirmations,
-      conversation: 0,
-      fortune: 0,
-      cheer: 0,
-      analysis: 0,
-      dj: 0,
-      anniversary: 0,
-      answer: 0,
-      recap: 0,
+      conversation,
+      fortune,
+      cheer,
+      analysis,
+      dj,
+      anniversary,
+      answer,
+      recap,
       lang: new Map(), // Mock
       topPost: "",
       botComment: "",
@@ -256,20 +287,48 @@ export class MemoryService {
   }
 
   static async getTotalStats(): Promise<Stats> {
-    // Mock for now, similar to previous client
+    const getCount = async (dbInst: any, table: string) => {
+      const row = await dbInst.getOne(
+        `SELECT count(*) as count FROM ${table}`
+      );
+      return row ? row.count : 0;
+    };
+
+    const getFeatureCount = async (featureName: string) => {
+      const row = await dbFeatureUsage.getOne(
+        `SELECT count(*) as count FROM feature_usage WHERE feature = ?`,
+        [featureName]
+      );
+      return row ? row.count : 0;
+    };
+
+    const [likes, affirmations, replies, conversation, fortune, cheer, analysis, dj, anniversary, answer, recap] = await Promise.all([
+      getCount(dbLikes, 'likes'),
+      getCount(dbAffirmations, 'affirmations'),
+      getCount(dbReplies, 'replies'),
+      getFeatureCount('conversation'),
+      getFeatureCount('fortune'),
+      getFeatureCount('cheer'),
+      getFeatureCount('analysis'),
+      getFeatureCount('dj'),
+      getFeatureCount('anniversary'),
+      getFeatureCount('answer'),
+      getFeatureCount('recap')
+    ]);
+
     return {
       followers: 0,
-      likes: 0,
-      reply: 0,
-      affirmationCount: 0,
-      conversation: 0,
-      fortune: 0,
-      cheer: 0,
-      analysis: 0,
-      dj: 0,
-      anniversary: 0,
-      answer: 0,
-      recap: 0,
+      likes,
+      reply: replies,
+      affirmationCount: affirmations,
+      conversation,
+      fortune,
+      cheer,
+      analysis,
+      dj,
+      anniversary,
+      answer,
+      recap,
       lang: new Map()
     };
   }
