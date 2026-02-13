@@ -113,7 +113,7 @@ export class SQLite3 {
             }
           });
 
-          this.db!.configure("busyTimeout", 5000);
+          this.db!.configure("busyTimeout", 1000);
           this.ensureSchema()
             .then(() => resolve())
             .catch(schemaErr => {
@@ -349,13 +349,11 @@ export const dbBotState = new SQLite3("bot_state", "key");
 export const dbAffirmations = new SQLite3("affirmations", "id");
 
 export async function initializeDatabases() {
-  await Promise.all([
-    db.initialize(),
-    dbPosts.initialize(),
-    dbLikes.initialize(),
-    dbReplies.initialize(),
-    dbBotState.initialize(),
-    dbAffirmations.initialize(),
-  ]);
+  await db.initialize();
+  await dbPosts.initialize();
+  await dbLikes.initialize();
+  await dbReplies.initialize();
+  await dbBotState.initialize();
+  await dbAffirmations.initialize();
   console.log("All databases initialized.");
 }
