@@ -79,7 +79,7 @@ export class NormalReplyFeature implements BotFeature {
         await logger.addAffirmation(did);
         await logger.addLang(getLangStr(record.langs));
 
-        await MemoryService.ensureFollower(did);
+        await MemoryService.upsertFollowerInteraction(did);
     }
 
     private isJudgeByFreq(probability: number) {

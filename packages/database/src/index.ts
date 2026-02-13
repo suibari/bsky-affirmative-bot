@@ -216,6 +216,15 @@ export class MemoryService {
     }
   }
 
+  static async upsertFollowerInteraction(did: string) {
+    await db.insert(followers)
+      .values({ did, updated_at: new Date() })
+      .onConflictDoUpdate({
+        target: followers.did,
+        set: { updated_at: new Date() }
+      });
+  }
+
   static async getUnreadReplies(): Promise<string[]> {
     const result = await db.select({ reply: replies.reply })
       .from(replies)

@@ -16,9 +16,12 @@ export const logger = {
     return await MemoryService.checkRPD();
   },
   addAffirmation: async (did: string) => {
-    // This should probably call MemoryService to record affirmation in DB
+    await MemoryService.addAffirmation({ did });
   },
-  addLang: async (lang: string) => { },
+  addLang: async (lang: string) => {
+    // Cast to any because MemoryService expects specific LanguageName type
+    await MemoryService.incrementLang(lang as any);
+  },
   addCheer: async () => { },
   addReply: async () => { },
   addAnswer: async () => { },
