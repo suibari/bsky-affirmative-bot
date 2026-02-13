@@ -1,12 +1,14 @@
 import sqlite3 from 'sqlite3';
+import dotenv from 'dotenv';
+dotenv.config();
 
 // Define the desired schema structure
 interface ColumnDefinition {
   name: string;
   type: string;
-  notNull?: boolean; // Corrected from 'notnull'
+  notNull?: boolean;
   default?: string | number | null;
-  primaryKey?: boolean; // Note: Adding PKs via ALTER TABLE is complex in SQLite
+  primaryKey?: boolean;
 }
 
 interface TableSchema {
@@ -91,7 +93,7 @@ export class SQLite3 {
   pkName: string; // Primary Key column name
   private initializationPromise: Promise<void>;
 
-  constructor(tableName = 'followers', pkName = 'did') { // Default PK is 'did'
+  constructor(tableName = 'followers', pkName = 'did') {
     const dbFile = process.env.SQLITE_DB_FILE || ':memory:';
     this.tableName = tableName;
     this.pkName = pkName;
@@ -102,7 +104,15 @@ export class SQLite3 {
           console.error(`Could not connect to database ${dbFile}`, err);
           reject(err);
         } else {
-          console.log(`Connected to SQLite database: ${dbFile} (Table: ${tableName})`);
+          // Enable WAL mode
+          this.db!.run('PRAGMA journal_mode = WAL;', (err) => {
+            if (err) {
+              console.error('Failed to enable WAL mode:', err);
+            } else {
+              console.log(`Connected to SQLite database: ${dbFile} (Table: ${tableName}) [WAL Enabled]`);
+            }
+          });
+
           this.db!.configure("busyTimeout", 5000);
           this.ensureSchema()
             .then(() => resolve())
@@ -115,12 +125,6 @@ export class SQLite3 {
     });
   }
 
-  // ... getCurrentSchema and ensureSchema skipped (unchanged mostly, except logging) ...
-  // Actually, I should keep them or assume they are replaced if I replace the whole class.
-  // But replace_file_content only replaces the chunk.
-  // I will use replace_file_content for methods.
-
-  // Method to get current schema
   private async getCurrentSchema(): Promise<ColumnDefinition[]> {
     const currentSchemaQuery = `PRAGMA table_info(${this.tableName});`;
     return new Promise((resolve, reject) => {
@@ -213,7 +217,6 @@ export class SQLite3 {
         const val = col.default;
         if (val === null) def += ' DEFAULT NULL';
         else if (typeof val === 'string') {
-          // specialized handling for CURRENT_TIMESTAMP
           if (val.toUpperCase() === 'CURRENT_TIMESTAMP') def += ' DEFAULT CURRENT_TIMESTAMP';
           else def += ` DEFAULT '${val.replace(/'/g, "''")}'`;
         }
@@ -236,13 +239,11 @@ export class SQLite3 {
     await this.initializationPromise;
   }
 
-  // Generic Insert/Update
   insertDb(id: string) {
     const query = `INSERT OR IGNORE INTO ${this.tableName} (${this.pkName}) VALUES (?);`;
     this.db!.run(query, [id], err => { if (err) console.error(err); });
   }
 
-  // Generic Upsert Row (Insert or Replace)
   upsertRow(data: Record<string, any>) {
     const keys = Object.keys(data);
     if (keys.length === 0) return;
@@ -256,7 +257,6 @@ export class SQLite3 {
     });
   }
 
-  // Generic Insert Row
   insertRow(data: Record<string, any>) {
     const keys = Object.keys(data);
     if (keys.length === 0) return;
@@ -323,9 +323,6 @@ export class SQLite3 {
     this.db!.run(query, [id], err => { if (err) console.error(err); });
   }
 
-  // selectDb, selectRows, deleteRow, closeDb, getHighestScore, clearAllRows ... use generic logic or remove if unused.
-  // Keeping essential ones.
-
   deleteRow(id: string): void {
     const query = `DELETE FROM ${this.tableName} WHERE ${this.pkName} = ?;`;
     this.db!.run(query, [id], err => { if (err) console.error(err); });
@@ -344,7 +341,6 @@ export class SQLite3 {
   closeDb() { this.db!.close(); }
 }
 
-// Initialize database instances
 export const db = new SQLite3("followers", "did");
 export const dbPosts = new SQLite3("posts", "did");
 export const dbLikes = new SQLite3("likes", "did");
@@ -363,12 +359,3 @@ export async function initializeDatabases() {
   ]);
   console.log("All databases initialized.");
 }
-
-// Example of how to use it:
-// import { initializeDatabases } from './db';
-// async function main() {
-//   await initializeDatabases();
-//   // Now you can safely use db, dbPosts, dbLikes
-//   // db.insertDb('some_did');
-// }
-// main();

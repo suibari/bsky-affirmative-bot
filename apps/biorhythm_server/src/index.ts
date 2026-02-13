@@ -101,6 +101,9 @@ server.listen(PORT, async () => {
   console.log(`Biorhythm Server running on port ${PORT}`);
   console.log(`🟢 WS server listening on path /ws`);
   try {
+    const { initializeDatabases } = await import("@bsky-affirmative-bot/clients");
+    await initializeDatabases();
+
     await manager.init();
     await manager.step();
     console.log("[INFO] Biorhythm loop started.");

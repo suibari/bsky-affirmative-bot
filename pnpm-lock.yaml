@@ -155,34 +155,6 @@ importers:
         specifier: ^5.9.3
         version: 5.9.3
 
-  apps/memory_server:
-    dependencies:
-      dotenv:
-        specifier: ^16.4.5
-        version: 16.6.1
-      express:
-        specifier: ^5.0.0
-        version: 5.2.1
-      sqlite3:
-        specifier: ^5.1.7
-        version: 5.1.7
-    devDependencies:
-      '@types/express':
-        specifier: ^5.0.0
-        version: 5.0.6
-      '@types/node':
-        specifier: ^22.0.0
-        version: 22.19.11
-      '@types/sqlite3':
-        specifier: ^3.1.11
-        version: 3.1.11
-      tsx:
-        specifier: ^4.7.1
-        version: 4.21.0
-      typescript:
-        specifier: ^5.8.3
-        version: 5.9.3
-
   packages/bot_brain:
     dependencies:
       '@atproto/api':
@@ -225,6 +197,9 @@ importers:
 
   packages/clients:
     dependencies:
+      '@bsky-affirmative-bot/database':
+        specifier: workspace:*
+        version: link:../database
       '@bsky-affirmative-bot/shared-configs':
         specifier: workspace:*
         version: link:../shared-configs
@@ -235,6 +210,28 @@ importers:
         specifier: ^16.4.5
         version: 16.6.1
     devDependencies:
+      typescript:
+        specifier: ^5.8.3
+        version: 5.9.3
+
+  packages/database:
+    dependencies:
+      '@bsky-affirmative-bot/shared-configs':
+        specifier: workspace:*
+        version: link:../shared-configs
+      dotenv:
+        specifier: ^16.4.5
+        version: 16.6.1
+      sqlite3:
+        specifier: ^5.1.7
+        version: 5.1.7
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.11
+      '@types/sqlite3':
+        specifier: ^3.1.11
+        version: 3.1.11
       typescript:
         specifier: ^5.8.3
         version: 5.9.3

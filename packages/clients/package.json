@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "@bsky-affirmative-bot/shared-configs": "workspace:*",
+    "@bsky-affirmative-bot/database": "workspace:*",
     "axios": "^1.13.5",
     "dotenv": "^16.4.5"
   },

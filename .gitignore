@@ -5,3 +5,4 @@ sqlite3/
 log.*
 output.png
 service-account.json
+*.tsbuildinfo

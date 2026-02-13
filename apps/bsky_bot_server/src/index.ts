@@ -73,9 +73,12 @@ export const botBiothythmManager = {
 app.listen(PORT, async () => {
   console.log(`Besky Bot Server running on port ${PORT}`);
   try {
+    const { initializeDatabases } = await import("@bsky-affirmative-bot/clients");
+    await initializeDatabases();
+
     await initAgent();
     await updateFollowers();
-    await startWebSocket(onPost, onFollow, onLike);
+    startWebSocket(onPost, onFollow, onLike); // startWebSocket is void or async? It was awaited before.
   } catch (e) {
     console.error("[CRITICAL] Bot startup failed:", e);
   }

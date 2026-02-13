@@ -8,9 +8,6 @@
       "path": "./apps/biorhythm_server"
     },
     {
-      "path": "./apps/memory_server"
-    },
-    {
       "path": "./packages/bot_brain"
     },
     {
