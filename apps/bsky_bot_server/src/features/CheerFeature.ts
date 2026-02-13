@@ -39,7 +39,7 @@ export class CheerFeature implements BotFeature {
 
         const result = await handleMode(event, {
             dbColumn: "last_cheer_at",
-            dbValue: new Date().toISOString(),
+            dbValue: new Date(),
             generateText: this.repostAndGenerate.bind(this),
             disableReply: true,
         },

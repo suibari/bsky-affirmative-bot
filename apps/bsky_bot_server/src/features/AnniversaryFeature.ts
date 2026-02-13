@@ -96,7 +96,7 @@ export class AnniversaryFeature implements BotFeature {
         // 最終登録日更新とリプライ
         const result = await handleMode(event, {
             dbColumn: "last_anniv_registered_at",
-            dbValue: new Date().toISOString(),
+            dbValue: new Date(),
             generateText: TEXT_REGISTER_ANNIV(follower.displayName ?? "", langStr, annivInfo?.name, annivInfo?.date),
         });
 
@@ -158,7 +158,7 @@ export class AnniversaryFeature implements BotFeature {
             console.log(`[INFO][${follower.did}] happy ANNIVERSARY!, id: ${todayAnniversary.map(item => item.id).join(", ")}`);
             return await handleMode(event, {
                 dbColumn: "last_anniv_execed_at",
-                dbValue: new Date().toISOString(),
+                dbValue: new Date(),
                 generateText: this.getAnnivEmbed.bind(this),
             },
                 {

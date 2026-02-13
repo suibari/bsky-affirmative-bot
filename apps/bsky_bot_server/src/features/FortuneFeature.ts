@@ -35,7 +35,7 @@ export class FortuneFeature implements BotFeature {
 
         const result = await handleMode(event, {
             dbColumn: "last_uranai_at",
-            dbValue: new Date().toISOString(),
+            dbValue: new Date(),
             generateText: this.getBlobWithAnalyze.bind(this),
         },
             {

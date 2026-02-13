@@ -1,9 +1,25 @@
 import { createCanvas, loadImage, GlobalFonts, SKRSContext2D as CanvasRenderingContext2D } from '@napi-rs/canvas';
 import * as fs from 'fs';
 import * as path from 'path';
+import { pathToFileURL } from 'url';
 
-// フォント設定（必要に応じて変更）
-GlobalFonts.registerFromPath('./fonts/JK-Maru-Gothic-M.otf', 'JK-Maru-Gothic');
+// ワークスペースルートを探すヘルパー
+function findWorkspaceRoot(startPath: string): string {
+  let curr = path.resolve(startPath);
+  while (curr !== path.parse(curr).root) {
+    if (fs.existsSync(path.join(curr, 'pnpm-workspace.yaml'))) {
+      return curr;
+    }
+    curr = path.dirname(curr);
+  }
+  return process.cwd(); // 見つからなければcwd
+}
+
+const workspaceRoot = findWorkspaceRoot(process.cwd());
+
+// フォント設定
+const FONT_PATH = path.resolve(workspaceRoot, 'fonts/JK-Maru-Gothic-M.otf');
+GlobalFonts.registerFromPath(FONT_PATH, 'JK-Maru-Gothic');
 
 /**
  * テキストと背景画像を合成し、PNGバッファとして返す
@@ -12,7 +28,8 @@ export async function textToImageBufferWithBackground(
   text: string,
   backgroundPath: string = './img/bot-tan.png'
 ): Promise<Buffer> {
-  const bgImage = await loadImage(path.resolve(backgroundPath));
+  const resolvedPath = path.resolve(workspaceRoot, backgroundPath.replace(/^\.\//, ''));
+  const bgImage = await loadImage(pathToFileURL(resolvedPath));
   const originalWidth = bgImage.width;
   const originalHeight = bgImage.height;
 
@@ -48,7 +65,7 @@ export async function textToImageBufferWithBackground(
   const buffer = canvas.toBuffer('image/png');
 
   if (process.env.NODE_ENV === 'development') {
-    const outputPath = path.resolve('./img/output.png');
+    const outputPath = path.resolve(workspaceRoot, 'img/output.png');
     fs.writeFileSync(outputPath, buffer);
     console.log(`Image saved for debugging: ${outputPath}`);
   }
@@ -120,7 +137,7 @@ async function drawTextWithLocalEmoji(
     if (isEmoji(char)) {
       const imgPath = getTwemojiImagePath(char);
       if (fs.existsSync(imgPath)) {
-        const img = await loadImage(imgPath);
+        const img = await loadImage(pathToFileURL(imgPath));
         ctx.drawImage(img, cursorX, y, fontSize, fontSize);
         cursorX += fontSize;
         continue;

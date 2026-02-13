@@ -41,9 +41,8 @@ export async function onPost(event: any) {
               console.log(`[INFO][${authorDid}] Feature matched: ${feature.name}`);
               await feature.handle(event, follower, context);
               await MemoryService.logUsage(feature.name, authorDid, { text });
-              // In the new architecture, we usually continue to next feature if they are independent,
-              // but original callbackPost stopped after first match. 
-              // Given the monorepo design, let's stick to the features array loop.
+
+              break;
             }
           } catch (e) {
             console.error(`[ERROR][${authorDid}] Feature ${feature.name} failed:`, e);

@@ -8,7 +8,7 @@ import { GeminiResponseResult, UserInfoGemini } from "@bsky-affirmative-bot/shar
 
 export type TriggeredReplyHandlerOptions = {
     dbColumn?: string;   // 更新対象DBのカラム名（例: "is_u18"）
-    dbValue?: number | string; // 登録時にセットする値（例: 1）
+    dbValue?: number | string | Date; // 登録時にセットする値（例: 1）
     generateText: GeminiResponseResult | ((userinfo: UserInfoGemini, event: CommitCreateEvent<"app.bsky.feed.post">) => Promise<GeminiResponseResult | undefined>); // 返信するテキスト(コールバック対応)
     disableReply?: boolean; // リプライの無効化
 };

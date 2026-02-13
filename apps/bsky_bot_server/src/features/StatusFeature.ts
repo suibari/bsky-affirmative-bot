@@ -32,7 +32,7 @@ export class StatusFeature implements BotFeature {
 
         await handleMode(event, {
             dbColumn: "last_status_at",
-            dbValue: new Date().toISOString(),
+            dbValue: new Date(),
             generateText: this.buildStatusText.bind(this),
         }, {
             follower,

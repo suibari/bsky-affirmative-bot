@@ -48,7 +48,7 @@ export class DJFeature implements BotFeature {
 
         const result = await handleMode(event, {
             dbColumn: "last_dj_at",
-            dbValue: new Date().toISOString(),
+            dbValue: new Date(),
             generateText: this.getSongLink.bind(this),
         },
             {

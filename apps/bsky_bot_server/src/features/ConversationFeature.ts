@@ -130,7 +130,7 @@ export class ConversationFeature implements BotFeature {
 
         return await handleMode(event, {
             dbColumn: "last_conv_at",
-            dbValue: new Date().toISOString(),
+            dbValue: new Date(),
             generateText: this.waitAndGenReply.bind(this),
         },
             {
@@ -249,7 +249,7 @@ export class ConversationFeature implements BotFeature {
 
         // DB更新
         await MemoryService.updateFollower(follower.did, "question_root_uri", uriQuestionRoot);
-        await MemoryService.updateFollower(follower.did, "last_answered_at", new Date().toISOString());
+        await MemoryService.updateFollower(follower.did, "last_answered_at", new Date());
         console.log(`[INFO][QUESTION] Replied to answer from ${follower.did}: ${uri}`);
 
         return true;

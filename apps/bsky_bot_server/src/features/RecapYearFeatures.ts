@@ -46,7 +46,7 @@ export class RecapYearFeature implements BotFeature {
 
     const result = await handleMode(event, {
       dbColumn: "last_recap_at",
-      dbValue: new Date().toISOString(),
+      dbValue: new Date(),
       generateText: this.getBlobWithRecap.bind(this),
     },
       {
