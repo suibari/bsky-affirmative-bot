@@ -124,14 +124,14 @@ export const OHAYO_WORDS = ["おは"];
 export const OYASUMI_WORDS = ["おやす"];
 export const OTSUKARE_WORDS = ["お疲れ", "おつ", "しごおわ"];
 
-export const EXEC_PER_COUNTS = 15; // 何回に1回AI応答するか
+export const EXEC_PER_COUNTS = 20; // 何回に1回AI応答するか
 export const LIMIT_REQUEST_PER_DAY_GEMINI = 2000;
 export const TOTAL_SCORE_FOR_AUTONOMOUS = process.env.NODE_ENV === "development" ? 100 : (30000 / EXEC_PER_COUNTS); // このスコアがたまったらbotが自律ポスト
 
 // -------------------
 // Prompt系
 // -------------------
-export const MODEL_GEMINI = "gemini-2.5-flash";
+export const MODEL_GEMINI = "gemini-2.5-flash-lite";
 export const MODEL_GEMINI_HIGH = "gemini-2.5-flash"; // 会話のみ、高品質を使う
 export const MODEL_GEMINI_LITE = "gemini-2.5-flash-lite"; // 判定系のGemini利用のみ、LITEを使う
 export const MODEL_GEMINI_EMBEDDING = "gemini-embedding-001";
