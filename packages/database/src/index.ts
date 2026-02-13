@@ -60,28 +60,26 @@ export class MemoryService {
     }
   }
 
+  static async setBotState(key: string, value: any) {
+    await db.insert(bot_state)
+      .values({ key, value })
+      .onConflictDoUpdate({
+        target: bot_state.key,
+        set: { value, updated_at: new Date() }
+      });
+  }
+
   static async getBiorhythmState(): Promise<any> {
     const state = await this.getBotState('biorhythm');
     return state || {};
   }
 
   static async updateBiorhythmState(state: any) {
-    await db.insert(bot_state)
-      .values({ key: 'biorhythm', value: state })
-      .onConflictDoUpdate({
-        target: bot_state.key,
-        set: { value: state, updated_at: new Date() }
-      });
+    await this.setBotState('biorhythm', state);
   }
 
   static async updateTopPost(uri: string, comment?: string) {
-    const value = { uri, comment };
-    await db.insert(bot_state)
-      .values({ key: 'dailyTopPost', value })
-      .onConflictDoUpdate({
-        target: bot_state.key,
-        set: { value, updated_at: new Date() }
-      });
+    await this.setBotState('dailyTopPost', { uri, comment });
   }
 
   static async clearReplies() {
@@ -102,12 +100,7 @@ export class MemoryService {
 
   static async setWhimsicalPostRoot(uri: string) {
     try {
-      await db.insert(bot_state)
-        .values({ key: 'whimsical_post_root', value: uri })
-        .onConflictDoUpdate({
-          target: bot_state.key,
-          set: { value: uri, updated_at: new Date() }
-        });
+      await this.setBotState('whimsical_post_root', uri);
     } catch (error) {
       console.error("Failed to set whimsical post root:", error);
     }
@@ -116,18 +109,8 @@ export class MemoryService {
   static async setQuestionState(uri: string, theme: string) {
     try {
       await Promise.all([
-        db.insert(bot_state)
-          .values({ key: 'question_post_uri', value: uri })
-          .onConflictDoUpdate({
-            target: bot_state.key,
-            set: { value: uri, updated_at: new Date() }
-          }),
-        db.insert(bot_state)
-          .values({ key: 'question_theme', value: theme })
-          .onConflictDoUpdate({
-            target: bot_state.key,
-            set: { value: theme, updated_at: new Date() }
-          })
+        this.setBotState('question_post_uri', uri),
+        this.setBotState('question_theme', theme)
       ]);
     } catch (error) {
       console.error("Failed to set question state:", error);
@@ -202,6 +185,7 @@ export class MemoryService {
 
   static async addAffirmation(data: any) {
     await db.insert(affirmations).values(data);
+    await this.logUsage('affirmation', data.did);
   }
 
   static async getFollower(did: string): Promise<any> {
@@ -228,6 +212,7 @@ export class MemoryService {
     // Log interaction if it's a new follower
     if (!existing.did) {
       await this.logUsage('follow', did);
+      await this.logUsage('followers', did); // Increment followers count separately
     }
   }
 
@@ -251,104 +236,145 @@ export class MemoryService {
         did,
         details: details || null
       });
+
+      await this.incrementStats(type);
+
     } catch (e) {
       console.error(`Failed to log interaction for ${type}:`, e);
     }
   }
 
+  private static async getStatsWithMap(key: string): Promise<Stats> {
+    const stats = (await this.getBotState(key)) as Stats || this.getEmptyStats();
+    if (!(stats.lang instanceof Map)) {
+      stats.lang = new Map<LanguageName, number>(Object.entries(stats.lang || {}) as [LanguageName, number][]);
+    }
+    return stats;
+  }
+
+  private static async saveStatsWithMap(key: string, stats: Stats) {
+    // Convert Map to Object for storage if needed, but we modify the stats object in place usually
+    // Let's ensure we don't mutate the Map in a way that breaks JSON if we just rely on default serialization?
+    // Drizzle jsonb handles objects. Maps serialize to {} by default in JSON.stringify.
+    // So we MUST convert Map to Object before saving.
+    const statsToSave = { ...stats };
+    if (stats.lang instanceof Map) {
+      statsToSave.lang = Object.fromEntries(stats.lang) as any;
+    }
+    await this.setBotState(key, statsToSave);
+  }
+
+  private static async incrementStats(type: string, amount: number = 1) {
+    try {
+      const currentStats = await this.getStatsWithMap('totalStats');
+
+      // Update specific stat
+      if (type === 'followers') currentStats.followers += amount;
+      else if (type === 'like') currentStats.likes += amount;
+      else if (type === 'reply') currentStats.reply += amount;
+      else if (type === 'affirmation') currentStats.affirmationCount += amount;
+      else if (type === 'conversation') currentStats.conversation += amount;
+      else if (type === 'fortune') currentStats.fortune += amount;
+      else if (type === 'cheer') currentStats.cheer += amount;
+      else if (type === 'analysis') currentStats.analysis += amount;
+      else if (type === 'dj') currentStats.dj += amount;
+      else if (type === 'anniversary') currentStats.anniversary += amount;
+      else if (type === 'answer') currentStats.answer += amount;
+      else if (type === 'recap') currentStats.recap += amount;
+
+      await this.saveStatsWithMap('totalStats', currentStats);
+    } catch (e) {
+      console.error(`Failed to increment stats for ${type}:`, e);
+    }
+  }
+
+  static async incrementLang(langName: LanguageName) {
+    try {
+      const currentStats = await this.getStatsWithMap('totalStats');
+
+      const count = currentStats.lang.get(langName) || 0;
+      currentStats.lang.set(langName, count + 1);
+
+      await this.saveStatsWithMap('totalStats', currentStats);
+    } catch (e) {
+      console.error(`Failed to increment lang for ${langName}:`, e);
+    }
+  }
+
+  static getEmptyStats(): Stats {
+    return {
+      followers: 0,
+      likes: 0,
+      reply: 0,
+      affirmationCount: 0,
+      conversation: 0,
+      fortune: 0,
+      cheer: 0,
+      analysis: 0,
+      dj: 0,
+      anniversary: 0,
+      answer: 0,
+      recap: 0,
+      lang: new Map()
+    };
+  }
+
+  static async resetDailyStats() {
+    try {
+      const totalStats = await this.getStatsWithMap('totalStats');
+      await this.saveStatsWithMap('yesterdayStats', totalStats);
+    } catch (e) {
+      console.error("Failed to reset daily stats:", e);
+    }
+  }
+
   static async getDailyStats(): Promise<DailyReport> {
-    const startOfDay = new Date();
-    startOfDay.setHours(0, 0, 0, 0);
+    const totalStats = await this.getStatsWithMap('totalStats');
+    const yesterdayStats = await this.getStatsWithMap('yesterdayStats');
+    const dailyTopPostData = await this.getBotState('dailyTopPost');
 
-    const [likesCount, affirmationsCount, repliesCount, followersCount] = await Promise.all([
-      db.select({ count: sql<number>`count(*)` }).from(likes).where(gte(likes.created_at, startOfDay)),
-      db.select({ count: sql<number>`count(distinct ${affirmations.did})` }).from(affirmations).where(gte(affirmations.created_at, startOfDay)),
-      db.select({ count: sql<number>`count(*)` }).from(replies).where(gte(replies.created_at, startOfDay)),
-      db.select({ count: sql<number>`count(*)` }).from(followers)
-    ]);
-
-    const affirmationCountTotal = await db.select({ count: sql<number>`count(*)` }).from(affirmations).where(gte(affirmations.created_at, startOfDay));
-
-    const getInteractionCount = async (typeName: string) => {
-      const result = await db.select({ count: sql<number>`count(*)` })
-        .from(interaction)
-        .where(and(eq(interaction.type, typeName), gte(interaction.created_at, startOfDay)));
-      return Number(result[0]?.count || 0);
+    const diff = (key: keyof Stats) => {
+      const total = (totalStats[key] as number) || 0;
+      const yesterday = (yesterdayStats[key] as number) || 0;
+      return total - yesterday;
     };
 
-    const [conversation, fortune, cheer, analysis, dj, anniversary, answer, recap] = await Promise.all([
-      getInteractionCount('conversation'),
-      getInteractionCount('fortune'),
-      getInteractionCount('cheer'),
-      getInteractionCount('analysis'),
-      getInteractionCount('dj'),
-      getInteractionCount('anniversary'),
-      getInteractionCount('answer'),
-      getInteractionCount('recap')
-    ]);
+    const getLangDiff = () => {
+      const tMap = totalStats.lang;
+      const yMap = yesterdayStats.lang;
+      const diffMap = new Map<LanguageName, number>();
+
+      tMap.forEach((v: number, k: LanguageName) => {
+        const yVal = yMap.get(k) || 0;
+        diffMap.set(k, v - yVal);
+      });
+      return diffMap;
+    };
 
     return {
-      followers: Number(followersCount[0]?.count || 0),
-      likes: Number(likesCount[0]?.count || 0),
-      reply: Number(repliesCount[0]?.count || 0),
-      affirmationCount: Number(affirmationCountTotal[0]?.count || 0),
-      uniqueAffirmationUserCount: Number(affirmationsCount[0]?.count || 0),
-      conversation,
-      fortune,
-      cheer,
-      analysis,
-      dj,
-      anniversary,
-      answer,
-      recap,
-      lang: new Map(), // Mock
-      topPost: "",
-      botComment: "",
+      followers: totalStats.followers,
+      likes: diff('likes'),
+      reply: diff('reply'),
+      affirmationCount: diff('affirmationCount'),
+      uniqueAffirmationUserCount: diff('affirmationCount'),
+      conversation: diff('conversation'),
+      fortune: diff('fortune'),
+      cheer: diff('cheer'),
+      analysis: diff('analysis'),
+      dj: diff('dj'),
+      anniversary: diff('anniversary'),
+      answer: diff('answer'),
+      recap: diff('recap'),
+      lang: getLangDiff(),
+      topPost: dailyTopPostData?.uri || "",
+      botComment: dailyTopPostData?.comment || "",
       bskyrate: 0,
       rpd: 0
     } as DailyReport;
   }
 
   static async getTotalStats(): Promise<Stats> {
-    const [likesCount, affirmationsCount, repliesCount] = await Promise.all([
-      db.select({ count: sql<number>`count(*)` }).from(likes),
-      db.select({ count: sql<number>`count(*)` }).from(affirmations),
-      db.select({ count: sql<number>`count(*)` }).from(replies)
-    ]);
-
-    const getInteractionCount = async (typeName: string) => {
-      const result = await db.select({ count: sql<number>`count(*)` })
-        .from(interaction)
-        .where(eq(interaction.type, typeName));
-      return Number(result[0]?.count || 0);
-    };
-
-    const [conversation, fortune, cheer, analysis, dj, anniversary, answer, recap] = await Promise.all([
-      getInteractionCount('conversation'),
-      getInteractionCount('fortune'),
-      getInteractionCount('cheer'),
-      getInteractionCount('analysis'),
-      getInteractionCount('dj'),
-      getInteractionCount('anniversary'),
-      getInteractionCount('answer'),
-      getInteractionCount('recap')
-    ]);
-
-    return {
-      followers: 0,
-      likes: Number(likesCount[0]?.count || 0),
-      reply: Number(repliesCount[0]?.count || 0),
-      affirmationCount: Number(affirmationsCount[0]?.count || 0),
-      conversation,
-      fortune,
-      cheer,
-      analysis,
-      dj,
-      anniversary,
-      answer,
-      recap,
-      lang: new Map()
-    };
+    return await this.getStatsWithMap('totalStats');
   }
 
   static async checkRPD(): Promise<boolean> {

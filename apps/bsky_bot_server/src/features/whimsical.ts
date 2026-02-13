@@ -99,6 +99,9 @@ export async function doWhimsicalPost(currentMood: string) {
     // リプライ記憶をクリア
     await MemoryService.clearReplies();
 
+    // 言語ごとの投稿数をカウント
+    await MemoryService.incrementLang(langStr as any);
+
     // 言語を切り替え
     isJapanesePost = !isJapanesePost;
 }
@@ -170,6 +173,8 @@ export async function doGoodNightPost(mood: string) {
     } catch (e) {
         console.error(`[INFO] good night post error: ${e}`);
     } finally {
+        // Statsリセット
+        await MemoryService.resetDailyStats();
         // 1日のテーブルクリア
         await MemoryService.clearPosts();
     }
