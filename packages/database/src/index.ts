@@ -352,7 +352,7 @@ export class MemoryService {
     };
 
     return {
-      followers: totalStats.followers,
+      followers: diff('followers'),
       likes: diff('likes'),
       reply: diff('reply'),
       affirmationCount: diff('affirmationCount'),
@@ -373,8 +373,12 @@ export class MemoryService {
     } as DailyReport;
   }
 
-  static async getTotalStats(): Promise<Stats> {
-    return await this.getStatsWithMap('totalStats');
+  static async getTotalStats(): Promise<any> {
+    const stats = await this.getStatsWithMap('totalStats');
+    return {
+      ...stats,
+      lang: Object.fromEntries(stats.lang)
+    };
   }
 
   static async checkRPD(): Promise<boolean> {
