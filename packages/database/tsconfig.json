@@ -5,8 +5,8 @@
     "declaration": true,
     "outDir": "dist",
     "rootDir": "src",
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext"
+    "module": "ESNext",
+    "moduleResolution": "bundler"
   },
   "include": [
     "src/**/*"

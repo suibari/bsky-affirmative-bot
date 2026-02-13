@@ -1,5 +1,5 @@
-import { db, dbPosts, dbLikes, dbReplies, dbBotState, dbAffirmations, dbFeatureUsage, initializeDatabases } from './db.js';
-
+import { db, initializeDatabases, bot_state, followers, posts, likes, replies, affirmations, interaction } from './db.js';
+import { eq, desc, sql, gte, and } from 'drizzle-orm';
 import { LanguageName } from '@bsky-affirmative-bot/shared-configs';
 
 export { initializeDatabases };
@@ -44,7 +44,8 @@ export interface Stats {
 export class MemoryService {
   static async getBotState(key: string): Promise<any> {
     try {
-      const row = await dbBotState.getRowById(key);
+      const result = await db.select().from(bot_state).where(eq(bot_state.key, key)).limit(1);
+      const row = result[0];
       if (row && typeof row.value === 'string') {
         try {
           return JSON.parse(row.value);
@@ -65,22 +66,27 @@ export class MemoryService {
   }
 
   static async updateBiorhythmState(state: any) {
-    await dbBotState.run(
-      `INSERT INTO bot_state (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=CURRENT_TIMESTAMP`,
-      ['biorhythm', JSON.stringify(state)]
-    );
+    await db.insert(bot_state)
+      .values({ key: 'biorhythm', value: state })
+      .onConflictDoUpdate({
+        target: bot_state.key,
+        set: { value: state, updated_at: new Date() }
+      });
   }
 
   static async updateTopPost(uri: string, comment?: string) {
-    await dbBotState.run(
-      `INSERT INTO bot_state (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=CURRENT_TIMESTAMP`,
-      ['dailyTopPost', JSON.stringify({ uri, comment })]
-    );
+    const value = { uri, comment };
+    await db.insert(bot_state)
+      .values({ key: 'dailyTopPost', value })
+      .onConflictDoUpdate({
+        target: bot_state.key,
+        set: { value, updated_at: new Date() }
+      });
   }
 
   static async clearReplies() {
     try {
-      await dbReplies.clearAllRows();
+      await db.delete(replies);
     } catch (error) {
       console.error("Failed to clear replies:", error);
     }
@@ -88,7 +94,7 @@ export class MemoryService {
 
   static async clearPosts() {
     try {
-      await dbPosts.clearAllRows();
+      await db.delete(posts);
     } catch (error) {
       console.error("Failed to clear posts:", error);
     }
@@ -96,10 +102,12 @@ export class MemoryService {
 
   static async setWhimsicalPostRoot(uri: string) {
     try {
-      await dbBotState.run(
-        `INSERT INTO bot_state (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=CURRENT_TIMESTAMP`,
-        ["whimsical_post_root", JSON.stringify(uri)]
-      );
+      await db.insert(bot_state)
+        .values({ key: 'whimsical_post_root', value: uri })
+        .onConflictDoUpdate({
+          target: bot_state.key,
+          set: { value: uri, updated_at: new Date() }
+        });
     } catch (error) {
       console.error("Failed to set whimsical post root:", error);
     }
@@ -108,14 +116,18 @@ export class MemoryService {
   static async setQuestionState(uri: string, theme: string) {
     try {
       await Promise.all([
-        dbBotState.run(
-          `INSERT INTO bot_state (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=CURRENT_TIMESTAMP`,
-          ["question_post_uri", JSON.stringify(uri)]
-        ),
-        dbBotState.run(
-          `INSERT INTO bot_state (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=CURRENT_TIMESTAMP`,
-          ["question_theme", JSON.stringify(theme)]
-        )
+        db.insert(bot_state)
+          .values({ key: 'question_post_uri', value: uri })
+          .onConflictDoUpdate({
+            target: bot_state.key,
+            set: { value: uri, updated_at: new Date() }
+          }),
+        db.insert(bot_state)
+          .values({ key: 'question_theme', value: theme })
+          .onConflictDoUpdate({
+            target: bot_state.key,
+            set: { value: theme, updated_at: new Date() }
+          })
       ]);
     } catch (error) {
       console.error("Failed to set question state:", error);
@@ -123,153 +135,164 @@ export class MemoryService {
   }
 
   static async getHighestScorePosts(): Promise<any[]> {
-    return await dbPosts.getAll(
-      `SELECT * FROM posts WHERE score IS NOT NULL ORDER BY score DESC LIMIT 5`
-    );
+    return await db.select().from(posts).orderBy(desc(posts.score)).limit(5);
   }
 
   static async getAllPosts(): Promise<any[]> {
-    return await dbPosts.getAll(`SELECT * FROM posts`);
+    return await db.select().from(posts);
   }
 
   static async getPost(did: string): Promise<any> {
-    const row = await dbPosts.getRowById(did);
-    return row || {};
+    const result = await db.select().from(posts).where(eq(posts.did, did)).limit(1);
+    return result[0] || {};
   }
 
   static async upsertPost(data: any) {
-    // Ensure did is present in data or passed separately?
-    // Based on memory_server routes, we were doing:
-    // put /posts/:did -> const data = { ...req.body, did }; await dbPosts.upsertRow(data);
-    // post /posts -> await dbPosts.upsertRow(req.body);
-    await dbPosts.upsertRow(data);
+    await db.insert(posts)
+      .values(data)
+      .onConflictDoUpdate({
+        target: posts.did,
+        set: data
+      });
   }
 
   static async getLike(did: string): Promise<any> {
-    const row = await dbLikes.getRowById(did);
-    return row || {};
+    const result = await db.select().from(likes).where(eq(likes.did, did)).limit(1);
+    return result[0] || {};
   }
 
   static async upsertLike(data: any) {
-    await dbLikes.upsertRow(data);
+    await db.insert(likes)
+      .values(data)
+      .onConflictDoUpdate({
+        target: likes.did,
+        set: data
+      });
+    // Log interaction
+    await this.logUsage('like', data.did);
   }
 
   static async deleteLike(did: string) {
-    await dbLikes.deleteRow(did);
+    await db.delete(likes).where(eq(likes.did, did));
   }
 
   static async getReply(did: string): Promise<any> {
-    const row = await dbReplies.getRowById(did);
-    return row || {};
+    const result = await db.select().from(replies).where(eq(replies.did, did)).limit(1);
+    return result[0] || {};
   }
 
   static async addReply(data: any) {
-    await dbReplies.upsertRow(data);
+    await db.insert(replies)
+      .values(data)
+      .onConflictDoUpdate({
+        target: replies.did,
+        set: data
+      });
   }
 
   static async upsertReply(did: string, data: any) {
-    // Ensure DID match
     const rowData = { ...data, did };
-    await dbReplies.upsertRow(rowData);
+    await db.insert(replies)
+      .values(rowData)
+      .onConflictDoUpdate({
+        target: replies.did,
+        set: rowData
+      });
   }
 
   static async addAffirmation(data: any) {
-    await dbAffirmations.insertRow(data);
+    await db.insert(affirmations).values(data);
   }
 
   static async getFollower(did: string): Promise<any> {
-    const row = await db.getRowById(did);
-    return row || {};
+    const result = await db.select().from(followers).where(eq(followers.did, did)).limit(1);
+    return result[0] || {};
   }
 
   static async getFollowersByColumn(column: string, value: any): Promise<any[]> {
-    return await db.selectRows(column, value);
+    return await db.select().from(followers).where(sql`${sql.identifier(column)} = ${value}`);
   }
 
   static async updateFollower(did: string, column: string, value: any) {
-    db.updateDb(did, column, value);
+    await db.update(followers)
+      .set({ [column]: value, updated_at: new Date() })
+      .where(eq(followers.did, did));
   }
 
   static async ensureFollower(did: string) {
-    db.insertOrUpdateDb(did);
+    const existing = await this.getFollower(did);
+    await db.insert(followers)
+      .values({ did })
+      .onConflictDoNothing();
+
+    // Log interaction if it's a new follower
+    if (!existing.did) {
+      await this.logUsage('follow', did);
+    }
   }
 
   static async getUnreadReplies(): Promise<string[]> {
-    const rows = await dbReplies.getAll(
-      `SELECT reply FROM replies WHERE isRead = 0 ORDER BY RANDOM()`
-    );
-    return rows.map((r: any) => r.reply);
+    const result = await db.select({ reply: replies.reply })
+      .from(replies)
+      .where(eq(replies.isRead, 0))
+      .orderBy(sql`RANDOM()`);
+    return result.map(r => r.reply).filter((r): r is string => !!r);
   }
 
   static async markRepliesRead() {
-    await dbReplies.run(`UPDATE replies SET isRead = 1, updated_at = CURRENT_TIMESTAMP`);
+    await db.update(replies)
+      .set({ isRead: 1, updated_at: new Date() });
   }
 
-  static async logUsage(feature: string, did: string | null, details?: any) {
+  static async logUsage(type: string, did: string | null, details?: any) {
     try {
-      await dbFeatureUsage.insertRow({
-        feature,
+      await db.insert(interaction).values({
+        type,
         did,
-        details: details ? JSON.stringify(details) : null
+        details: details || null
       });
     } catch (e) {
-      console.error(`Failed to log usage for feature ${feature}:`, e);
+      console.error(`Failed to log interaction for ${type}:`, e);
     }
   }
 
   static async getDailyStats(): Promise<DailyReport> {
-    const getCount = async (dbInst: any, table: string) => {
-      const row = await dbInst.getOne(
-        `SELECT count(*) as count FROM ${table} WHERE created_at >= date('now', 'localtime', 'start of day')`
-      );
-      return row ? row.count : 0;
-    };
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
 
-    const getUniqueCount = async (dbInst: any, table: string, col: string) => {
-      const row = await dbInst.getOne(
-        `SELECT count(distinct ${col}) as count FROM ${table} WHERE created_at >= date('now', 'localtime', 'start of day')`
-      );
-      return row ? row.count : 0;
-    };
-
-    const [likes, affirmations, replies, followers] = await Promise.all([
-      getCount(dbLikes, 'likes'),
-      getUniqueCount(dbAffirmations, 'affirmations', 'did'),
-      getCount(dbReplies, 'replies'),
-      (async () => {
-        const row = await db.getOne(`SELECT count(*) as count FROM followers`);
-        return row ? row.count : 0;
-      })()
+    const [likesCount, affirmationsCount, repliesCount, followersCount] = await Promise.all([
+      db.select({ count: sql<number>`count(*)` }).from(likes).where(gte(likes.created_at, startOfDay)),
+      db.select({ count: sql<number>`count(distinct ${affirmations.did})` }).from(affirmations).where(gte(affirmations.created_at, startOfDay)),
+      db.select({ count: sql<number>`count(*)` }).from(replies).where(gte(replies.created_at, startOfDay)),
+      db.select({ count: sql<number>`count(*)` }).from(followers)
     ]);
 
-    // Total affirmations count (not unique)
-    const affirmationCountTotal = await getCount(dbAffirmations, 'affirmations');
+    const affirmationCountTotal = await db.select({ count: sql<number>`count(*)` }).from(affirmations).where(gte(affirmations.created_at, startOfDay));
 
-    const getFeatureCount = async (featureName: string) => {
-      const row = await dbFeatureUsage.getOne(
-        `SELECT count(*) as count FROM feature_usage WHERE feature = ? AND created_at >= date('now', 'localtime', 'start of day')`,
-        [featureName]
-      );
-      return row ? row.count : 0;
+    const getInteractionCount = async (typeName: string) => {
+      const result = await db.select({ count: sql<number>`count(*)` })
+        .from(interaction)
+        .where(and(eq(interaction.type, typeName), gte(interaction.created_at, startOfDay)));
+      return Number(result[0]?.count || 0);
     };
 
     const [conversation, fortune, cheer, analysis, dj, anniversary, answer, recap] = await Promise.all([
-      getFeatureCount('conversation'),
-      getFeatureCount('fortune'),
-      getFeatureCount('cheer'),
-      getFeatureCount('analysis'),
-      getFeatureCount('dj'),
-      getFeatureCount('anniversary'),
-      getFeatureCount('answer'),
-      getFeatureCount('recap')
+      getInteractionCount('conversation'),
+      getInteractionCount('fortune'),
+      getInteractionCount('cheer'),
+      getInteractionCount('analysis'),
+      getInteractionCount('dj'),
+      getInteractionCount('anniversary'),
+      getInteractionCount('answer'),
+      getInteractionCount('recap')
     ]);
 
     return {
-      followers: 0, // Mock
-      likes: likes,
-      reply: replies,
-      affirmationCount: affirmationCountTotal,
-      uniqueAffirmationUserCount: affirmations,
+      followers: Number(followersCount[0]?.count || 0),
+      likes: Number(likesCount[0]?.count || 0),
+      reply: Number(repliesCount[0]?.count || 0),
+      affirmationCount: Number(affirmationCountTotal[0]?.count || 0),
+      uniqueAffirmationUserCount: Number(affirmationsCount[0]?.count || 0),
       conversation,
       fortune,
       cheer,
@@ -287,40 +310,35 @@ export class MemoryService {
   }
 
   static async getTotalStats(): Promise<Stats> {
-    const getCount = async (dbInst: any, table: string) => {
-      const row = await dbInst.getOne(
-        `SELECT count(*) as count FROM ${table}`
-      );
-      return row ? row.count : 0;
+    const [likesCount, affirmationsCount, repliesCount] = await Promise.all([
+      db.select({ count: sql<number>`count(*)` }).from(likes),
+      db.select({ count: sql<number>`count(*)` }).from(affirmations),
+      db.select({ count: sql<number>`count(*)` }).from(replies)
+    ]);
+
+    const getInteractionCount = async (typeName: string) => {
+      const result = await db.select({ count: sql<number>`count(*)` })
+        .from(interaction)
+        .where(eq(interaction.type, typeName));
+      return Number(result[0]?.count || 0);
     };
 
-    const getFeatureCount = async (featureName: string) => {
-      const row = await dbFeatureUsage.getOne(
-        `SELECT count(*) as count FROM feature_usage WHERE feature = ?`,
-        [featureName]
-      );
-      return row ? row.count : 0;
-    };
-
-    const [likes, affirmations, replies, conversation, fortune, cheer, analysis, dj, anniversary, answer, recap] = await Promise.all([
-      getCount(dbLikes, 'likes'),
-      getCount(dbAffirmations, 'affirmations'),
-      getCount(dbReplies, 'replies'),
-      getFeatureCount('conversation'),
-      getFeatureCount('fortune'),
-      getFeatureCount('cheer'),
-      getFeatureCount('analysis'),
-      getFeatureCount('dj'),
-      getFeatureCount('anniversary'),
-      getFeatureCount('answer'),
-      getFeatureCount('recap')
+    const [conversation, fortune, cheer, analysis, dj, anniversary, answer, recap] = await Promise.all([
+      getInteractionCount('conversation'),
+      getInteractionCount('fortune'),
+      getInteractionCount('cheer'),
+      getInteractionCount('analysis'),
+      getInteractionCount('dj'),
+      getInteractionCount('anniversary'),
+      getInteractionCount('answer'),
+      getInteractionCount('recap')
     ]);
 
     return {
       followers: 0,
-      likes,
-      reply: replies,
-      affirmationCount: affirmations,
+      likes: Number(likesCount[0]?.count || 0),
+      reply: Number(repliesCount[0]?.count || 0),
+      affirmationCount: Number(affirmationsCount[0]?.count || 0),
       conversation,
       fortune,
       cheer,
@@ -336,10 +354,11 @@ export class MemoryService {
   static async checkRPD(): Promise<boolean> {
     try {
       const dailyStats = await this.getDailyStats();
-      const replies = dailyStats.reply;
-      return (replies || 0) < 300;
+      const repliesCount = dailyStats.reply;
+      return (repliesCount || 0) < 300;
     } catch (e) {
       return true; // Default to true on error
     }
   }
 }
+
