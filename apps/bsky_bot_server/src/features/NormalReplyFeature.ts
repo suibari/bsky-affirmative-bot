@@ -1,7 +1,7 @@
 import { CommitCreateEvent } from "@skyware/jetstream";
 import { AppBskyActorDefs } from "@atproto/api"; type ProfileView = AppBskyActorDefs.ProfileView;
 import { BotFeature, FeatureContext } from "./types.js";
-import { logger } from "../index.js";
+import { logger, botBiothythmManager } from "../index.js";
 import { getSubscribersFromSheet } from "@bsky-affirmative-bot/bot-brain";
 import { isMention, getLangStr } from "../bsky/util.js";
 import { EXEC_PER_COUNTS } from "@bsky-affirmative-bot/shared-configs";
@@ -77,6 +77,7 @@ export class NormalReplyFeature implements BotFeature {
         }
 
         await logger.addAffirmation(did);
+        await botBiothythmManager.addAffirmation(did);
         await logger.addLang(getLangStr(record.langs));
 
         await MemoryService.upsertFollowerInteraction(did);

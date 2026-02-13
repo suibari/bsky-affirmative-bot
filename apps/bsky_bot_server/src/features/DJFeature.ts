@@ -1,7 +1,7 @@
 import { CommitCreateEvent } from "@skyware/jetstream";
 import { AppBskyActorDefs } from "@atproto/api"; type ProfileView = AppBskyActorDefs.ProfileView;
 import { BotFeature, FeatureContext } from "./types.js";
-import { logger } from "../index.js";
+import { logger, botBiothythmManager } from "../index.js";
 import { DJ_TRIGGER, NICKNAMES_BOT } from "@bsky-affirmative-bot/shared-configs";
 import { AppBskyFeedPost } from "@atproto/api"; type Record = AppBskyFeedPost.Record;
 import { handleMode, isPast } from "./utils.js";
@@ -59,6 +59,7 @@ export class DJFeature implements BotFeature {
 
         if (result && await logger.checkRPD()) {
             await logger.addDJ();
+            await botBiothythmManager.addDJ();
         }
     }
 

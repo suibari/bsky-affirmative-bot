@@ -94,7 +94,7 @@ export async function onFollow(event: any) {
   console.log(`[INFO] New follower: ${did}! Executing follow-back and greeting.`);
 
   try {
-    botBiothythmManager.addAnniversary(); // Example of boosting energy on new follow
+    botBiothythmManager.addFollower(); // Boost energy on new follow
     await MemoryService.logUsage('follow', did);
     await follow(did);
 

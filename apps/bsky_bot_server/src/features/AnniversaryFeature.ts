@@ -2,7 +2,7 @@ import { CommitCreateEvent } from "@skyware/jetstream";
 import { AppBskyActorDefs } from "@atproto/api"; type ProfileView = AppBskyActorDefs.ProfileView;
 import { BotFeature, FeatureContext } from "./types.js";
 import { MemoryService } from "@bsky-affirmative-bot/clients";
-import { logger } from "../index.js";
+import { logger, botBiothythmManager } from "../index.js";
 import { ANNIV_REGISTER_TRIGGER, ANNIV_CONFIRM_TRIGGER, NICKNAMES_BOT } from "@bsky-affirmative-bot/shared-configs";
 import holidays from "@bsky-affirmative-bot/shared-configs/json/holidays.json" with { type: "json" };
 import { handleMode, isPast } from "./utils.js";
@@ -63,6 +63,7 @@ export class AnniversaryFeature implements BotFeature {
         // Priority 1: Exec (Automatic celebration)
         if (await this.handleAnniversaryExec(event, follower) && await logger.checkRPD()) {
             await logger.addAnniversary();
+            await botBiothythmManager.addAnniversary();
             return;
         }
 

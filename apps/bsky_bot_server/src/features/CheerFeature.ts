@@ -1,7 +1,7 @@
 import { CommitCreateEvent } from "@skyware/jetstream";
 import { AppBskyActorDefs } from "@atproto/api"; type ProfileView = AppBskyActorDefs.ProfileView;
 import { BotFeature, FeatureContext } from "./types.js";
-import { logger } from "../index.js";
+import { logger, botBiothythmManager } from "../index.js";
 import { getSubscribersFromSheet } from "@bsky-affirmative-bot/bot-brain";
 import { CHEER_TRIGGER } from "@bsky-affirmative-bot/shared-configs";
 import { AppBskyFeedPost } from "@atproto/api"; type Record = AppBskyFeedPost.Record;
@@ -51,6 +51,7 @@ export class CheerFeature implements BotFeature {
 
         if (result && await logger.checkRPD()) {
             await logger.addCheer();
+            await botBiothythmManager.addCheer();
         }
     }
 
