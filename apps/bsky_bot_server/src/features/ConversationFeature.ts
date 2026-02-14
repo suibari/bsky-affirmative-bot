@@ -90,7 +90,12 @@ export class ConversationFeature implements BotFeature {
 
         // 前回までの会話取得
         const row = await MemoryService.getFollower(follower.did);
-        let history = JSON.parse(row?.conv_history || "[]") as Content[];
+        let history: Content[] = [];
+        if (row?.conv_history) {
+            history = typeof row.conv_history === 'string'
+                ? JSON.parse(row.conv_history)
+                : row.conv_history;
+        }
         const conv_root_cid = row?.conv_root_cid;
 
         // スレッドrootがポストしたユーザでないなら早期リターン
@@ -197,7 +202,7 @@ export class ConversationFeature implements BotFeature {
         }
 
         // DB登録
-        await MemoryService.updateFollower(userinfo.follower.did, "conv_history", JSON.stringify(new_history));
+        await MemoryService.updateFollower(userinfo.follower.did, "conv_history", new_history);
         await MemoryService.updateFollower(userinfo.follower.did, "conv_root_cid", rootCid);
         console.log(`[INFO][${userinfo.follower.did}] send coversation-result`);
 

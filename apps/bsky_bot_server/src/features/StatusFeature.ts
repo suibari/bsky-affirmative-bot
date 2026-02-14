@@ -50,7 +50,9 @@ export class StatusFeature implements BotFeature {
                 enablePredefined: (rows.is_ai_only === 1) ? "disable" : "enable",
                 replyFreq: rows.reply_freq ?? "100",
                 hoursFortune: this.getHoursFromNow(rows.last_uranai_at),
-                convHistory: JSON.parse(rows.conv_history || "[]").length,
+                convHistory: (Array.isArray(rows.conv_history)
+                    ? rows.conv_history
+                    : JSON.parse(rows.conv_history || "[]")).length,
                 daysAnalyze: this.getDaysFromNow(rows.last_analyze_at),
                 hoursCheer: this.getHoursFromNow(rows.last_cheer_at),
                 userAnnivName: rows.user_anniv_name ?? "",
