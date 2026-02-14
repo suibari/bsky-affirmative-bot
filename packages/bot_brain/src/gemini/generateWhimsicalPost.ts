@@ -1,5 +1,5 @@
 import { ProfileView } from "@atproto/api/dist/client/types/app/bsky/actor/defs.js";
-import { generateSingleResponse } from "./util.js";
+import { generateSingleResponse, generateContentWithRetry } from "./util.js";
 import { getFullDateAndTimeString, getRandomItems, getWhatDay } from "@bsky-affirmative-bot/shared-configs";
 import { fetchNews } from "../api/gnews/index.js";
 import { UserInfoGemini, GeminiScore, LanguageName } from "@bsky-affirmative-bot/shared-configs";
@@ -32,7 +32,7 @@ export class WhimsicalPostGenerator {
     const botFunction = this.getBotFunctions(params);
 
     // --- Step 1 各パーツ生成 ---
-    const first = await gemini.models.generateContent({
+    const first = await generateContentWithRetry({
       model: MODEL_GEMINI,
       config: { tools: this.tools, systemInstruction: SYSTEM_INSTRUCTION },
       contents: [
@@ -73,7 +73,7 @@ export class WhimsicalPostGenerator {
     const structure = call.args;
 
     // --- Step 2: 最終文章生成 ---
-    const second = await gemini.models.generateContent({
+    const second = await generateContentWithRetry({
       model: MODEL_GEMINI,
       config: { tools: this.tools, systemInstruction: SYSTEM_INSTRUCTION },
       contents: [

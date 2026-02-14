@@ -7,7 +7,7 @@ import eventsEveningDayoff from "@bsky-affirmative-bot/shared-configs/json/event
 import eventsNight from "@bsky-affirmative-bot/shared-configs/json/event_night.json" with { type: "json" };
 import eventsMidnight from "@bsky-affirmative-bot/shared-configs/json/event_midnight.json" with { type: "json" };
 import { MODEL_GEMINI, SYSTEM_INSTRUCTION } from '@bsky-affirmative-bot/shared-configs';
-import { gemini } from '@bsky-affirmative-bot/bot-brain';
+import { gemini, generateContentWithRetry } from '@bsky-affirmative-bot/bot-brain';
 import { DailyReport, Stats } from '@bsky-affirmative-bot/shared-configs';
 // import { doGoodNightPost, doWhimsicalPost, doQuestionPost } from "./features/whimsical.js"; // Removed
 import EventEmitter from "events";
@@ -349,7 +349,7 @@ ${JSON.stringify(unreadReply)}
   }
 
   private async generateStatus(prompt: string): Promise<{ status_text: string, duration_minutes: number }> {
-    const response = await gemini.models.generateContent({
+    const response = await generateContentWithRetry({
       model: MODEL_GEMINI,
       contents: prompt,
       config: {

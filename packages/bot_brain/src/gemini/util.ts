@@ -7,6 +7,28 @@ import { UserInfoGemini, GeminiScore } from "@bsky-affirmative-bot/shared-config
 // Extracted to shared-configs
 
 /**
+ * 2000文字を超える場合はリトライするgenerateContentのラッパー
+ */
+export async function generateContentWithRetry(params: any, retryCount = 3): Promise<any> {
+  let response;
+  for (let i = 0; i <= retryCount; i++) {
+    try {
+      response = await gemini.models.generateContent(params);
+      const text = response.text || "";
+      if (text.length <= 2000) {
+        return response;
+      }
+      console.warn(`[WARN] Generated content exceeded 2000 characters (${text.length}). Retrying... (${i + 1}/${retryCount})`);
+    } catch (e) {
+      console.error(`[ERROR] generateContent failed. Retrying... (${i + 1}/${retryCount})`, e);
+      if (i === retryCount) throw e;
+    }
+  }
+  console.warn(`[WARN] Failed to generate content under 2000 characters after ${retryCount} retries. Returning last response.`);
+  return response;
+}
+
+/**
  * 必要に応じて画像を付与してシングルレスポンスを得る
  */
 export async function generateSingleResponse(prompt: string, userinfo?: UserInfoGemini): Promise<string> {
@@ -35,7 +57,7 @@ export async function generateSingleResponse(prompt: string, userinfo?: UserInfo
     }
   }
 
-  const response = await gemini.models.generateContent({
+  const response = await generateContentWithRetry({
     model: MODEL_GEMINI,
     contents,
     config: {
@@ -110,7 +132,7 @@ export async function generateSingleResponseWithScore(prompt: string, userinfo?:
     }
   }
 
-  const response = await gemini.models.generateContent({
+  const response = await generateContentWithRetry({
     model: MODEL_GEMINI,
     contents,
     config: {

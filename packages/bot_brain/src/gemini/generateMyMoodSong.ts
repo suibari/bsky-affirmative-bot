@@ -2,7 +2,7 @@ import { PartListUnion, Type } from "@google/genai";
 import { MODEL_GEMINI, SYSTEM_INSTRUCTION } from "@bsky-affirmative-bot/shared-configs";
 import { gemini } from "./index.js";
 
-import { extractJSON } from "./util.js";
+import { extractJSON, generateContentWithRetry } from "./util.js";
 import { getFullDateAndTimeString } from "@bsky-affirmative-bot/shared-configs";
 import { UserInfoGemini, GeminiScore, LanguageName } from "@bsky-affirmative-bot/shared-configs";
 import { SpotifyTrack } from "../api/spotify/index.js";
@@ -32,7 +32,7 @@ export class MyMoodSongGenerator {
     });
     const prompt = this.PROMPT_DJ(currentMood, langStr, history);
     const contents: PartListUnion = [prompt];
-    const response = await gemini.models.generateContent({
+    const response = await generateContentWithRetry({
       model: MODEL_GEMINI,
       contents,
       config: {
