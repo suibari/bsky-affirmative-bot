@@ -9,7 +9,6 @@ import { replyAI } from "./replyai.js";
 import { replyRandom } from "./replyrandom.js";
 import { MemoryService } from "@bsky-affirmative-bot/clients";
 
-const OFFSET_UTC_TO_JST = 9 * 60 * 60 * 1000;
 const MINUTES_THRD_RESPONSE = 10 * 60 * 1000;
 
 export class NormalReplyFeature implements BotFeature {
@@ -44,8 +43,7 @@ export class NormalReplyFeature implements BotFeature {
         } else {
             const postedAt = new Date(record.createdAt);
             const updatedAt = new Date(row?.updated_at || 0);
-            const updatedAtJst = new Date(updatedAt.getTime() + OFFSET_UTC_TO_JST);
-            const isPast = postedAt.getTime() - updatedAtJst.getTime() > MINUTES_THRD_RESPONSE;
+            const isPast = postedAt.getTime() - updatedAt.getTime() > MINUTES_THRD_RESPONSE;
 
             if (!isPast) {
                 console.log(`[INFO][${did}] Ignored post, REASON: past 10min`);
