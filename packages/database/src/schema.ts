@@ -24,6 +24,7 @@ export const followers = affirmativeBotSchema.table("followers", {
   question_root_uri: text("question_root_uri"),
   last_answered_at: timestamp("last_answered_at"),
   last_recap_at: timestamp("last_recap_at"),
+  is_diary: integer("is_diary").default(0),
 });
 
 export const posts = affirmativeBotSchema.table("posts", {
