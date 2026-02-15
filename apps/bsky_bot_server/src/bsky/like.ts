@@ -1,4 +1,4 @@
-import { logger } from '../index.js';
+import { logger } from '../logger.js';
 import { agent } from './agent.js';
 
 /**

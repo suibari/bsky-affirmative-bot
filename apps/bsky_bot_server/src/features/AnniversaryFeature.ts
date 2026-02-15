@@ -1,8 +1,8 @@
 import { CommitCreateEvent } from "@skyware/jetstream";
 import { AppBskyActorDefs } from "@atproto/api"; type ProfileView = AppBskyActorDefs.ProfileView;
 import { BotFeature, FeatureContext } from "./types.js";
-import { MemoryService } from "@bsky-affirmative-bot/clients";
-import { logger, botBiothythmManager } from "../index.js";
+import { MemoryService, botBiothythmManager } from "@bsky-affirmative-bot/clients";
+import { logger } from "../logger.js";
 import { ANNIV_REGISTER_TRIGGER, ANNIV_CONFIRM_TRIGGER, NICKNAMES_BOT } from "@bsky-affirmative-bot/shared-configs";
 import holidays from "@bsky-affirmative-bot/shared-configs/json/holidays.json" with { type: "json" };
 import { handleMode, isPast } from "./utils.js";

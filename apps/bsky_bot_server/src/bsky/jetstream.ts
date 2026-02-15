@@ -4,7 +4,6 @@ import ws from "ws";
 let jetstream: Jetstream | null = null;
 
 // WebSocket接続の開始関数
-// WebSocket接続の開始関数
 export async function startWebSocket(
   postCallback?: (evt: any) => Promise<void>,
   followCallback?: (evt: any) => Promise<void>,

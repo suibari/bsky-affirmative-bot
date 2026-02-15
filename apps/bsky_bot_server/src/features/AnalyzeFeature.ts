@@ -1,7 +1,8 @@
 import { CommitCreateEvent } from "@skyware/jetstream";
 import { AppBskyActorDefs } from "@atproto/api"; type ProfileView = AppBskyActorDefs.ProfileView;
 import { BotFeature, FeatureContext } from "./types.js";
-import { logger, botBiothythmManager } from "../index.js";
+import { logger } from "../logger.js";
+import { botBiothythmManager } from "@bsky-affirmative-bot/clients";
 import { ANALYZE_TRIGGER, NICKNAMES_BOT } from "@bsky-affirmative-bot/shared-configs";
 import retry from 'async-retry';
 import { AppBskyFeedPost, ComAtprotoRepoListRecords } from '@atproto/api';

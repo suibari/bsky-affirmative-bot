@@ -12,7 +12,7 @@ import { fetchSentiment } from "../util/negaposi.js";
 import retry from 'async-retry';
 import { getUserInvolvedUsers } from "../bsky/analyzeInteractions.js";
 import { generateRecapResult } from "@bsky-affirmative-bot/bot-brain";
-import { logger } from "../index.js";
+import { logger } from "../logger.js";
 import { getLangStr, isReplyOrMentionToMe, uniteDidNsidRkey } from "../bsky/util.js";
 import { handleMode, isPast } from "./utils.js";
 import { getDaysAuthorFeed } from "../bsky/getDaysAuthorFeed.js";

@@ -2,7 +2,7 @@ import { AppBskyFeedPost } from "@atproto/api"; type Record = AppBskyFeedPost.Re
 import { agent } from './agent.js';
 import { BlobRef, RichText } from "@atproto/api";
 import ogs from 'open-graph-scraper'; // ← これを使ってOGP取得
-import { logger } from "../index.js";
+import { logger } from "../logger.js";
 
 /**
  * postのオーバーライド
@@ -15,7 +15,7 @@ export async function post(record: Record, embedRecord?: Record): Promise<{
 }> {
   if (process.env.NODE_ENV === "production") {
     // リッチテキスト解釈
-    const rt = new RichText({text: record.text});
+    const rt = new RichText({ text: record.text });
     await rt.detectFacets(agent);
     record.text = rt.text;
     record.facets = rt.facets;
@@ -25,7 +25,7 @@ export async function post(record: Record, embedRecord?: Record): Promise<{
     // embed: 引用ポスト付与
     if (embedRecord) {
       record.embed = embedRecord;
-    // embed: リンクカード付与
+      // embed: リンクカード付与
     } else if (urlMatch) {
       const url = urlMatch;
 
