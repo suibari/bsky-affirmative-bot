@@ -20,7 +20,7 @@ export async function getSubscribersFromSheet(): Promise<string[]> {
 
   // 認証設定
   const auth = new google.auth.GoogleAuth({
-    keyFile: path.join(__dirname, 'key/service-account.json'),
+    keyFile: path.join(__dirname, __dirname.includes('dist') ? '../../../src/api/gsheet/key/service-account.json' : 'key/service-account.json'),
     scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
   });
 
