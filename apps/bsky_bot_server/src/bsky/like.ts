@@ -1,4 +1,4 @@
-import { logger } from '../logger.js';
+import { MemoryService } from '@bsky-affirmative-bot/clients';
 import { agent } from './agent.js';
 
 /**
@@ -11,6 +11,9 @@ export async function like(uri: string, cid: string): Promise<{
   uri: string,
   cid: string,
 }> {
+  // RateLimit加算
+  MemoryService.incrementStats('bskyrate', 3).catch(e => console.error("Failed to increment bskyrate:", e));
+
   if (process.env.NODE_ENV === "production") {
     const response = await agent.like(uri, cid);
     return {
@@ -18,9 +21,6 @@ export async function like(uri: string, cid: string): Promise<{
       cid: response.cid,
     };
   }
-
-  // RateLimit加算
-  logger.addBskyRate();
 
   return {
     uri: "dev-stub-uri",

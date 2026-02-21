@@ -2,7 +2,6 @@ import { CommitCreateEvent } from "@skyware/jetstream";
 import { AppBskyActorDefs } from "@atproto/api"; type ProfileView = AppBskyActorDefs.ProfileView;
 import { BotFeature, FeatureContext } from "./types.js";
 import { MemoryService, botBiothythmManager } from "@bsky-affirmative-bot/clients";
-import { logger } from "../logger.js";
 import { ANNIV_REGISTER_TRIGGER, ANNIV_CONFIRM_TRIGGER, NICKNAMES_BOT } from "@bsky-affirmative-bot/shared-configs";
 import holidays from "@bsky-affirmative-bot/shared-configs/json/holidays.json" with { type: "json" };
 import { handleMode, isPast } from "./utils.js";
@@ -61,8 +60,8 @@ export class AnniversaryFeature implements BotFeature {
 
     async handle(event: CommitCreateEvent<"app.bsky.feed.post">, follower: ProfileView, context: FeatureContext): Promise<void> {
         // Priority 1: Exec (Automatic celebration)
-        if (await this.handleAnniversaryExec(event, follower) && await logger.checkRPD()) {
-            await logger.addAnniversary();
+        if (await this.handleAnniversaryExec(event, follower) && await MemoryService.checkRPD()) {
+            await MemoryService.logUsage('anniversary', follower.did);
             await botBiothythmManager.addAnniversary();
             return;
         }

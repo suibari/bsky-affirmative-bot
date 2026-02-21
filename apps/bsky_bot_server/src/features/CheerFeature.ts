@@ -1,7 +1,7 @@
 import { CommitCreateEvent } from "@skyware/jetstream";
 import { AppBskyActorDefs } from "@atproto/api"; type ProfileView = AppBskyActorDefs.ProfileView;
 import { BotFeature, FeatureContext } from "./types.js";
-import { logger } from "../logger.js";
+import { MemoryService } from "@bsky-affirmative-bot/clients";
 import { botBiothythmManager } from "@bsky-affirmative-bot/clients";
 import { getSubscribersFromSheet } from "@bsky-affirmative-bot/bot-brain";
 import { CHEER_TRIGGER } from "@bsky-affirmative-bot/shared-configs";
@@ -50,8 +50,8 @@ export class CheerFeature implements BotFeature {
                 langStr: getLangStr(record.langs),
             });
 
-        if (result && await logger.checkRPD()) {
-            await logger.addCheer();
+        if (result && await MemoryService.checkRPD()) {
+            await MemoryService.logUsage('cheer', follower.did);
             await botBiothythmManager.addCheer();
         }
     }

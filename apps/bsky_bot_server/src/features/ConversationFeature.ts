@@ -1,7 +1,7 @@
 import { CommitCreateEvent } from "@skyware/jetstream";
 import { AppBskyActorDefs } from "@atproto/api"; type ProfileView = AppBskyActorDefs.ProfileView;
 import { BotFeature, FeatureContext } from "./types.js";
-import { logger } from "../logger.js";
+import { MemoryService } from "@bsky-affirmative-bot/clients";
 import { followerMap } from "../bsky/followerManagement.js";
 import { getSubscribersFromSheet } from "@bsky-affirmative-bot/bot-brain";
 import { isReplyOrMentionToMe, uniteDidNsidRkey, getImageUrl, getLangStr } from "../bsky/util.js";
@@ -18,7 +18,6 @@ import { generateQuestionsAnswer } from "@bsky-affirmative-bot/bot-brain";
 import { postContinuous } from "../bsky/postContinuous.js";
 import { generateWhimsicalReply } from "@bsky-affirmative-bot/bot-brain";
 import { like } from "../bsky/like.js";
-import { MemoryService } from "@bsky-affirmative-bot/clients";
 
 const MAX_BOT_MEMORY = 100;
 
@@ -40,12 +39,12 @@ export class ConversationFeature implements BotFeature {
             uri: uri,
             isRead: 0
         });
-        await logger.addReply();
+        await MemoryService.logUsage('reply', follower.did);
         console.log(`[INFO][${follower.did}] new reply to me, so memorized`);
 
         // 質問コーナー回答: 会話機能より優先
         if (await this.postReplyOfAnswer(event, follower)) {
-            await logger.addAnswer();
+            await MemoryService.logUsage('answer', follower.did);
             return;
         }
 
@@ -57,8 +56,8 @@ export class ConversationFeature implements BotFeature {
         // サブスクライバー限定で会話機能発動する
         const subscribers = await getSubscribersFromSheet();
         if (subscribers.includes(follower.did)) {
-            if (await this.handleConversation(event, follower) && await logger.checkRPD()) {
-                await logger.addConversation();
+            if (await this.handleConversation(event, follower) && await MemoryService.checkRPD()) {
+                await MemoryService.logUsage('conversation', follower.did);
                 return;
             }
         }
@@ -216,7 +215,8 @@ export class ConversationFeature implements BotFeature {
         const uri = uniteDidNsidRkey(follower.did, event.commit.collection, event.commit.rkey);
 
         // 質問情報取得
-        const { uriQuestionRoot, themeQuestion } = await logger.getQuestionState();
+        const uriQuestionRoot = await MemoryService.getBotState("question_post_uri");
+        const themeQuestion = await MemoryService.getBotState("question_theme");
         if (!uriQuestionRoot || !themeQuestion) {
             // console.log(`[INFO][QUESTION][${follower.did}] No question found`);
             return false;
@@ -268,7 +268,7 @@ export class ConversationFeature implements BotFeature {
         const langStr = getLangStr(record.langs);
 
         // Root URIのチェック
-        const rootUriRef = await logger.getWhimsicalPostRoot();
+        const rootUriRef = await MemoryService.getBotState("whimsical_post_root");
 
         // すでにリプライ済みかチェック
         const row = await MemoryService.getFollower(follower.did);

@@ -23,6 +23,7 @@ export interface DailyReport {
   botComment: string;
   bskyrate: number;
   rpd: number;
+  lastInitializedDate: string;
 }
 
 export interface Stats {
@@ -39,6 +40,8 @@ export interface Stats {
   answer: number;
   recap: number;
   lang: Map<LanguageName, number>;
+  bskyrate: number;
+  rpd: number;
 }
 
 export class MemoryService {
@@ -273,7 +276,7 @@ export class MemoryService {
     await this.setBotState(key, statsToSave);
   }
 
-  private static async incrementStats(type: string, amount: number = 1) {
+  static async incrementStats(type: string, amount: number = 1) {
     try {
       const currentStats = await this.getStatsWithMap('totalStats');
 
@@ -290,6 +293,8 @@ export class MemoryService {
       else if (type === 'anniversary') currentStats.anniversary += amount;
       else if (type === 'answer') currentStats.answer += amount;
       else if (type === 'recap') currentStats.recap += amount;
+      else if (type === 'rpd') currentStats.rpd += amount;
+      else if (type === 'bskyrate') currentStats.bskyrate += amount;
 
       await this.saveStatsWithMap('totalStats', currentStats);
     } catch (e) {
@@ -324,7 +329,9 @@ export class MemoryService {
       anniversary: 0,
       answer: 0,
       recap: 0,
-      lang: new Map()
+      lang: new Map(),
+      bskyrate: 0,
+      rpd: 0
     };
   }
 
@@ -332,6 +339,7 @@ export class MemoryService {
     try {
       const totalStats = await this.getStatsWithMap('totalStats');
       await this.saveStatsWithMap('yesterdayStats', totalStats);
+      await this.setBotState('stats_last_reset_at', new Date().toISOString());
     } catch (e) {
       console.error("Failed to reset daily stats:", e);
     }
@@ -341,6 +349,9 @@ export class MemoryService {
     const totalStats = await this.getStatsWithMap('totalStats');
     const yesterdayStats = await this.getStatsWithMap('yesterdayStats');
     const dailyTopPostData = await this.getBotState('dailyTopPost');
+    const lastResetAt = await this.getBotState('stats_last_reset_at');
+
+    const lastResetDate = lastResetAt ? new Date(lastResetAt) : new Date();
 
     const diff = (key: keyof Stats) => {
       const total = (totalStats[key] as number) || 0;
@@ -360,12 +371,23 @@ export class MemoryService {
       return diffMap;
     };
 
+    // Calculate unique affirmations since last reset
+    let uniqueAffirmationCount = 0;
+    try {
+      const result = await db.select({ count: sql`count(distinct ${affirmations.did})` })
+        .from(affirmations)
+        .where(gte(affirmations.created_at, lastResetDate));
+      uniqueAffirmationCount = Number(result[0]?.count || 0);
+    } catch (e) {
+      console.error("Failed to get unique affirmation count:", e);
+    }
+
     return {
       followers: diff('followers'),
       likes: diff('likes'),
       reply: diff('reply'),
       affirmationCount: diff('affirmationCount'),
-      uniqueAffirmationUserCount: diff('affirmationCount'),
+      uniqueAffirmationUserCount: uniqueAffirmationCount,
       conversation: diff('conversation'),
       fortune: diff('fortune'),
       cheer: diff('cheer'),
@@ -377,8 +399,9 @@ export class MemoryService {
       lang: getLangDiff(),
       topPost: dailyTopPostData?.uri || "",
       botComment: dailyTopPostData?.comment || "",
-      bskyrate: 0,
-      rpd: 0
+      bskyrate: diff('bskyrate'),
+      rpd: diff('rpd'),
+      lastInitializedDate: lastResetAt || new Date().toISOString()
     } as DailyReport;
   }
 

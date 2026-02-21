@@ -1,10 +1,8 @@
 import { PartListUnion, Type } from "@google/genai";
-import { gemini } from ".";
+import { gemini } from "./index.js";
 import { MODEL_GEMINI, SYSTEM_INSTRUCTION } from "@bsky-affirmative-bot/shared-configs";
 import { UserInfoGemini, GeminiScore } from "@bsky-affirmative-bot/shared-configs";
-
-
-// Extracted to shared-configs
+import { MemoryService } from "@bsky-affirmative-bot/database";
 
 /**
  * 2000文字を超える場合はリトライするgenerateContentのラッパー
@@ -15,6 +13,10 @@ export async function generateContentWithRetry(params: any, retryCount = 3): Pro
     try {
       response = await gemini.models.generateContent(params);
       const text = response.text || "";
+
+      // Increment RPD on success
+      MemoryService.incrementStats('rpd', 1).catch((e: any) => console.error("Failed to increment RPD:", e));
+
       if (text.length <= 2000) {
         return response;
       }

@@ -1,4 +1,4 @@
-import { gemini } from ".";
+import { gemini } from "./index.js";
 import cosineSimilarity from "compute-cosine-similarity";
 import { MODEL_GEMINI, SYSTEM_INSTRUCTION, MODEL_GEMINI_EMBEDDING } from "@bsky-affirmative-bot/shared-configs";
 
@@ -34,8 +34,8 @@ export async function embeddingTexts(srcText: string, targetTexts: string[]) {
   })
 
 
-  const rawEmbeddings = response.embeddings?.map(e => e.values);
-  const validEmbeddings = rawEmbeddings?.filter(embedding => Array.isArray(embedding)) as number[][];
+  const rawEmbeddings = response.embeddings?.map((e: any) => e.values);
+  const validEmbeddings = rawEmbeddings?.filter((embedding: any) => Array.isArray(embedding)) as number[][];
 
   if (validEmbeddings) {
     const srcEmbedding = validEmbeddings[0];

@@ -1,5 +1,5 @@
 import { Modality, PartListUnion } from "@google/genai";
-import { gemini } from ".";
+import { gemini } from "./index.js";
 import * as fs from "node:fs";
 import { MODEL_GEMINI, SYSTEM_INSTRUCTION, MODEL_GEMINI_IMAGE } from "@bsky-affirmative-bot/shared-configs";
 

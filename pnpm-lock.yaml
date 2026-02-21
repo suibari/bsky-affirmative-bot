@@ -160,6 +160,9 @@ importers:
       '@atproto/api':
         specifier: ^0.18.21
         version: 0.18.21
+      '@bsky-affirmative-bot/database':
+        specifier: workspace:*
+        version: link:../database
       '@bsky-affirmative-bot/shared-configs':
         specifier: workspace:*
         version: link:../shared-configs

@@ -1,8 +1,8 @@
 import { AppBskyFeedPost } from "@atproto/api"; type Record = AppBskyFeedPost.Record;
+import { MemoryService } from '@bsky-affirmative-bot/clients';
 import { agent } from './agent.js';
 import { BlobRef, RichText } from "@atproto/api";
 import ogs from 'open-graph-scraper'; // ← これを使ってOGP取得
-import { logger } from "../logger.js";
 
 /**
  * postのオーバーライド
@@ -63,7 +63,7 @@ export async function post(record: Record, embedRecord?: Record): Promise<{
     }
 
     // RateLimit加算
-    logger.addBskyRate();
+    MemoryService.incrementStats('bskyrate', 3).catch(e => console.error("Failed to increment bskyrate:", e));
 
     // 投稿
     const response = await agent.post(record);

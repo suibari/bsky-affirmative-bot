@@ -1,7 +1,7 @@
 import { CommitCreateEvent } from "@skyware/jetstream";
 import { AppBskyActorDefs } from "@atproto/api"; type ProfileView = AppBskyActorDefs.ProfileView;
 import { BotFeature, FeatureContext } from "./types.js";
-import { logger } from "../logger.js";
+import { MemoryService } from "@bsky-affirmative-bot/clients";
 import { botBiothythmManager } from "@bsky-affirmative-bot/clients";
 import { ANALYZE_TRIGGER, NICKNAMES_BOT } from "@bsky-affirmative-bot/shared-configs";
 import retry from 'async-retry';
@@ -51,8 +51,8 @@ export class AnalyzeFeature implements BotFeature {
                 langStr: getLangStr(record.langs),
             });
 
-        if (result && await logger.checkRPD()) {
-            await logger.addAnalysis();
+        if (result && await MemoryService.checkRPD()) {
+            await MemoryService.logUsage('analysis', follower.did);
             await botBiothythmManager.addAnalysis();
         }
     }

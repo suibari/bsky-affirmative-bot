@@ -233,6 +233,7 @@ export interface DailyReport {
   botComment: string;
   bskyrate: number;
   rpd: number;
+  lastInitializedDate: string;
 }
 
 export interface Stats {
@@ -249,5 +250,7 @@ export interface Stats {
   answer: number;
   recap: number;
   lang: Map<LanguageName, number>;
+  bskyrate: number;
+  rpd: number;
 }
 export type Status = 'WakeUp' | 'Study' | 'FreeTime' | 'Relax' | 'Sleep';

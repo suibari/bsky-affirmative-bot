@@ -1,4 +1,5 @@
-import { ProfileView } from "@atproto/api/dist/client/types/app/bsky/actor/defs";
+import { AppBskyActorDefs } from "@atproto/api";
+type ProfileView = AppBskyActorDefs.ProfileView;
 import { UserInfoGemini, GeminiScore } from "@bsky-affirmative-bot/shared-configs";
 import { generateSingleResponse } from "./util.js";
 

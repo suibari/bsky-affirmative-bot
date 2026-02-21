@@ -1,7 +1,7 @@
 import { CommitCreateEvent } from "@skyware/jetstream";
 import { AppBskyActorDefs } from "@atproto/api"; type ProfileView = AppBskyActorDefs.ProfileView;
 import { BotFeature, FeatureContext } from "./types.js";
-import { logger } from "../logger.js";
+import { MemoryService } from "@bsky-affirmative-bot/clients";
 import { botBiothythmManager } from "@bsky-affirmative-bot/clients";
 import { FORTUNE_TRIGGER, NICKNAMES_BOT } from "@bsky-affirmative-bot/shared-configs";
 import { AppBskyFeedPost } from "@atproto/api"; type Record = AppBskyFeedPost.Record;
@@ -44,8 +44,8 @@ export class FortuneFeature implements BotFeature {
                 langStr: getLangStr(record.langs),
             });
 
-        if (result && await logger.checkRPD()) {
-            await logger.addFortune();
+        if (result && await MemoryService.checkRPD()) {
+            await MemoryService.logUsage('fortune', follower.did);
             await botBiothythmManager.addFortune();
         }
     }

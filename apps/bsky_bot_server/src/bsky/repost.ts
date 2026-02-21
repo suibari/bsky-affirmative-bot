@@ -1,4 +1,4 @@
-import { logger } from '../logger.js';
+import { MemoryService } from '@bsky-affirmative-bot/clients';
 import { agent } from './agent.js';
 
 /**
@@ -19,7 +19,7 @@ export async function repost(uri: string, cid: string): Promise<{
   }
 
   // RateLimit加算
-  logger.addBskyRate();
+  MemoryService.incrementStats('bskyrate', 3).catch(e => console.error("Failed to increment bskyrate:", e));
 
   return {
     uri: "dev-stub-uri",

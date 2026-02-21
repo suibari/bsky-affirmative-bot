@@ -4,7 +4,6 @@ import { agent } from "./agent.js";
 import { features } from "../features/index.js";
 import { MemoryService, botBiothythmManager } from "@bsky-affirmative-bot/clients";
 import { followerMap, updateFollowers } from "./followerManagement.js";
-import { logger } from "../logger.js";
 import { isMention, isSpam, getLangStr, splitUri } from "./util.js";
 import { follow } from "./follow.js";
 import { replyGreets } from "./replyGreets.js";
