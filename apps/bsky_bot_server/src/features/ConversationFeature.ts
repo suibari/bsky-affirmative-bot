@@ -285,11 +285,16 @@ export class ConversationFeature implements BotFeature {
 
         // 最新のつぶやき対象かつ返信未処理かチェック
         // NOTE: つぶやき以外のポストに対してリプライしてもisRepliedがtrueになるので不完全
+        // さらに、1ユーザー1回限りに制限するため last_whimsical_responded_uri をチェック
         if (rootUri === rootUriRef && record.reply?.parent.uri === rootUriRef && isReplied != 1) {
+            // すでにリプライ済み（1ユーザー1回制限）ならスキップ
+            if (row?.last_whimsical_responded_uri === rootUriRef) {
+                // console.log(`[INFO][${follower.did}][WHIMSICAL] already replied to this whimsical post, skipping`);
+                return false;
+            }
+
             // リプライ生成
             // botBiothythmManager.getMood -> use biorhythm state?
-            // Actually bot-brain's whimsical generation might need mood.
-            // For now, assume mood 50 if not found.
             const result = await generateWhimsicalReply({
                 follower,
                 posts: [record.text],
@@ -298,6 +303,9 @@ export class ConversationFeature implements BotFeature {
 
             // ポスト
             await postContinuous(result, { uri, cid: String(event.commit.cid), record });
+
+            // DB更新: リプライ済みURIを記録
+            await MemoryService.updateFollower(follower.did, "last_whimsical_responded_uri", rootUriRef);
 
             console.log(`[INFO][${follower.did}][WHIMSICAL] replied to reply of Whimsical post`);
 
