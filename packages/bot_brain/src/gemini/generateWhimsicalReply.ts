@@ -7,9 +7,6 @@ export async function generateWhimsicalReply(userinfo: UserInfoGemini, currentMo
   const prompt = PROMPT_WHIMSICALREPLY(userinfo, currentMood);
   const response = await generateSingleResponse(prompt, userinfo);
 
-  // Geminiリクエスト数加算
-  
-
   return response ?? "";
 }
 

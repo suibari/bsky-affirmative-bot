@@ -270,36 +270,26 @@ export class ConversationFeature implements BotFeature {
         // Root URIのチェック
         const rootUriRef = await MemoryService.getBotState("whimsical_post_root");
 
-        // すでにリプライ済みかチェック
-        const row = await MemoryService.getFollower(follower.did);
-        const replyRow = await MemoryService.getLike(follower.did); // Use getLike or add getReplyById?
-        // Wait, replies table in memory_server has did as PK.
-        // We need a way to get reply by DID.
-        // MemoryService.getLike gets row from likes table by DID.
-        // I should add getReply to MemoryService.
-
-        // Actually, dbReplies in original was table 'replies'.
-        // Let's assume I'll add getReply to MemoryService.
-        const rowReply = await MemoryService.getReply(follower.did);
-        const isReplied = rowReply?.isRead;
-
-        // 最新のつぶやき対象かつ返信未処理かチェック
-        // NOTE: つぶやき以外のポストに対してリプライしてもisRepliedがtrueになるので不完全
-        // さらに、1ユーザー1回限りに制限するため last_whimsical_responded_uri をチェック
-        if (rootUri === rootUriRef && record.reply?.parent.uri === rootUriRef && isReplied != 1) {
+        // 最新のつぶやき対象（ツリー内のどのポストでも可）かチェック
+        // 1ユーザー1回限りに制限するため last_whimsical_responded_uri を使用
+        if (rootUri === rootUriRef) {
             // すでにリプライ済み（1ユーザー1回制限）ならスキップ
+            const row = await MemoryService.getFollower(follower.did);
             if (row?.last_whimsical_responded_uri === rootUriRef) {
                 // console.log(`[INFO][${follower.did}][WHIMSICAL] already replied to this whimsical post, skipping`);
                 return false;
             }
 
             // リプライ生成
-            // botBiothythmManager.getMood -> use biorhythm state?
+            // botBiothythmManagerの代わりにDBから現在のmoodを取得
+            const bioState = await MemoryService.getBiorhythmState();
+            const currentMood = bioState.mood || "のんびりしています";
+
             const result = await generateWhimsicalReply({
                 follower,
                 posts: [record.text],
                 langStr,
-            }, "50");
+            }, currentMood);
 
             // ポスト
             await postContinuous(result, { uri, cid: String(event.commit.cid), record });
