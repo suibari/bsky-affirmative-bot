@@ -34,6 +34,16 @@ if echo "$DIFF_FILES" | grep -q "apps/biorhythm_server/"; then
     RESTART_BIO=true
 fi
 
+# DB 判定/push
+if echo "$DIFF_FILES" | grep -q "packages/database/src/schema.ts" then
+    PUSH_DB=true
+fi
+
+if [ "$PUSH_DB" = true ]; then
+    echo "♻️  Pushing DB..."
+    pnpm --filter database exec drizzle-kit push --config=packages/database/drizzle.config.cjs
+fi
+
 # 実際の再起動処理
 if [ "$RESTART_BIO" = true ]; then
     echo "♻️  Restarting Biorhythm Server..."
