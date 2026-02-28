@@ -18,6 +18,7 @@ DIFF_FILES=$(git diff --name-only $OLD_COMMIT $NEW_COMMIT)
 
 RESTART_BOT=false
 RESTART_BIO=false
+PUSH_DB=false
 
 # 判定ロジック
 if echo "$DIFF_FILES" | grep -q "packages/"; then
@@ -35,7 +36,7 @@ if echo "$DIFF_FILES" | grep -q "apps/biorhythm_server/"; then
 fi
 
 # DB 判定/push
-if echo "$DIFF_FILES" | grep -q "packages/database/src/schema.ts" then
+if echo "$DIFF_FILES" | grep -q "packages/database/src/schema.ts"; then
     PUSH_DB=true
 fi
 
