@@ -1,0 +1,24 @@
+{
+  "name": "@bsky-affirmative-bot/database",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@bsky-affirmative-bot/shared-configs": "workspace:*",
+    "dotenv": "^16.4.5",
+    "drizzle-orm": "^0.45.1",
+    "postgres": "^3.4.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "drizzle-kit": "^0.31.9",
+    "typescript": "^5.8.3"
+  }
+}

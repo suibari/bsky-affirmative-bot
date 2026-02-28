@@ -1,0 +1,25 @@
+{
+  "name": "@bsky-affirmative-bot/shared-configs",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js",
+    "./json/*": "./src/json/*"
+  },
+  "scripts": {
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@atproto/api": "^0.18.21",
+    "@google/genai": "^1.41.0",
+    "canvas": "^3.2.1",
+    "dotenv": "^16.6.1"
+  },
+  "devDependencies": {
+    "@types/node": "^25.2.3",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}
