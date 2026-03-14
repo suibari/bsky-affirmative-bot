@@ -426,10 +426,10 @@ export class MemoryService {
       }
 
       // Safety limit for replies (300)
-      if (repliesCount >= 300) {
-        console.warn(`[WARN] Reply limit reached (${repliesCount}/300)`);
-        return false;
-      }
+      // if (repliesCount >= 300) {
+      //   console.warn(`[WARN] Reply limit reached (${repliesCount}/300)`);
+      //   return false;
+      // }
 
       return true;
     } catch (e) {
