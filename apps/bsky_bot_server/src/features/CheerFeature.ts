@@ -36,6 +36,11 @@ export class CheerFeature implements BotFeature {
     }
 
     async handle(event: CommitCreateEvent<"app.bsky.feed.post">, follower: ProfileView, context: FeatureContext): Promise<void> {
+        if (!(await MemoryService.checkRPD())) {
+            console.log(`[INFO][${follower.did}] Ignored Cheer, REASON: rpd over`);
+            return;
+        }
+
         const record = event.commit.record as Record;
 
         const result = await handleMode(event, {
@@ -50,7 +55,7 @@ export class CheerFeature implements BotFeature {
                 langStr: getLangStr(record.langs),
             });
 
-        if (result && await MemoryService.checkRPD()) {
+        if (result) {
             await MemoryService.logUsage('cheer', follower.did);
             await botBiothythmManager.addCheer();
         }

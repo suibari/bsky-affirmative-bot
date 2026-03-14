@@ -59,8 +59,14 @@ export class AnniversaryFeature implements BotFeature {
     }
 
     async handle(event: CommitCreateEvent<"app.bsky.feed.post">, follower: ProfileView, context: FeatureContext): Promise<void> {
+        // Geminiを使う機能の前にリクエスト上限チェック
+        if (!(await MemoryService.checkRPD())) {
+            console.log(`[INFO][${follower.did}] Ignored Anniversary features, REASON: rpd over`);
+            return;
+        }
+
         // Priority 1: Exec (Automatic celebration)
-        if (await this.handleAnniversaryExec(event, follower) && await MemoryService.checkRPD()) {
+        if (await this.handleAnniversaryExec(event, follower)) {
             await MemoryService.logUsage('anniversary', follower.did);
             await botBiothythmManager.addAnniversary();
             return;
@@ -202,9 +208,9 @@ export class AnniversaryFeature implements BotFeature {
             ? await generateOmikuji(userinfo)
             : await generateAnniversary(userinfo);
 
-        if (process.env.NODE_ENV === "development") {
-            console.log("[DEBUG] bot>>> " + botText);
-        }
+        // if (process.env.NODE_ENV === "development") {
+        //     console.log("[DEBUG] bot>>> " + botText);
+        // }
 
         // embedToがなければキー省略
         return {

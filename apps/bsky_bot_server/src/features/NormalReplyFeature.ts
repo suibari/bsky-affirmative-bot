@@ -65,12 +65,17 @@ export class NormalReplyFeature implements BotFeature {
             }
         }
 
-        if (replyType === "ai" && await MemoryService.checkRPD()) {
-            await replyAI(follower, event, relatedPosts);
+        if (replyType === "ai") {
+            if (await MemoryService.checkRPD()) {
+                await replyAI(follower, event, relatedPosts);
+            } else {
+                console.log(`[INFO][${did}] Ignored post, REASON: rpd over`);
+                return;
+            }
         } else if (replyType === "random") {
             await replyRandom(follower, event);
         } else {
-            console.log(`[INFO][${did}] Ignored post, REASON: AI-Only-mode or rpd over`);
+            console.log(`[INFO][${did}] Ignored post, REASON: AI-Only-mode`);
             return;
         }
 

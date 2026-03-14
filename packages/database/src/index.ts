@@ -1,6 +1,6 @@
 import { db, initializeDatabases, bot_state, followers, posts, likes, replies, affirmations, interaction } from './db.js';
 import { eq, desc, sql, gte, and } from 'drizzle-orm';
-import { LanguageName } from '@bsky-affirmative-bot/shared-configs';
+import { LanguageName, LIMIT_REQUEST_PER_DAY_GEMINI } from '@bsky-affirmative-bot/shared-configs';
 
 export { initializeDatabases };
 
@@ -416,9 +416,24 @@ export class MemoryService {
   static async checkRPD(): Promise<boolean> {
     try {
       const dailyStats = await this.getDailyStats();
-      const repliesCount = dailyStats.reply;
-      return (repliesCount || 0) < 300;
+      const rpdCount = dailyStats.rpd || 0;
+      const repliesCount = dailyStats.reply || 0;
+
+      // Gemini RPD limit check
+      if (rpdCount >= LIMIT_REQUEST_PER_DAY_GEMINI) {
+        console.warn(`[WARN] Gemini RPD limit reached (${rpdCount}/${LIMIT_REQUEST_PER_DAY_GEMINI})`);
+        return false;
+      }
+
+      // Safety limit for replies (300)
+      if (repliesCount >= 300) {
+        console.warn(`[WARN] Reply limit reached (${repliesCount}/300)`);
+        return false;
+      }
+
+      return true;
     } catch (e) {
+      console.error("Error in checkRPD:", e);
       return true; // Default to true on error
     }
   }

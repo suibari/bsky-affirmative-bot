@@ -33,7 +33,7 @@ export class ConversationFeature implements BotFeature {
         const record = event.commit.record as Record;
         const uri = uniteDidNsidRkey(follower.did, event.commit.collection, event.commit.rkey);
 
-        // リプライを記憶
+        // リプライを記憶 (これはGeminiを使わない)
         await MemoryService.upsertReply(follower.did, {
             reply: record.text,
             uri: uri,
@@ -41,6 +41,12 @@ export class ConversationFeature implements BotFeature {
         });
         await MemoryService.logUsage('reply', follower.did);
         console.log(`[INFO][${follower.did}] new reply to me, so memorized`);
+
+        // Geminiを使う機能の前にリクエスト上限チェック
+        if (!(await MemoryService.checkRPD())) {
+            console.log(`[INFO][${follower.did}] Ignored Gemini features, REASON: rpd over`);
+            return;
+        }
 
         // 質問コーナー回答: 会話機能より優先
         if (await this.postReplyOfAnswer(event, follower)) {
@@ -56,7 +62,7 @@ export class ConversationFeature implements BotFeature {
         // サブスクライバー限定で会話機能発動する
         const subscribers = await getSubscribersFromSheet();
         if (subscribers.includes(follower.did)) {
-            if (await this.handleConversation(event, follower) && await MemoryService.checkRPD()) {
+            if (await this.handleConversation(event, follower)) {
                 await MemoryService.logUsage('conversation', follower.did);
                 return;
             }

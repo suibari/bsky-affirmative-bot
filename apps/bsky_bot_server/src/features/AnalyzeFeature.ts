@@ -39,6 +39,11 @@ export class AnalyzeFeature implements BotFeature {
     }
 
     async handle(event: CommitCreateEvent<"app.bsky.feed.post">, follower: ProfileView, context: FeatureContext): Promise<void> {
+        if (!(await MemoryService.checkRPD())) {
+            console.log(`[INFO][${follower.did}] Ignored Analyze, REASON: rpd over`);
+            return;
+        }
+
         const record = event.commit.record as RecordPost;
 
         const result = await handleMode(event, {
@@ -51,7 +56,7 @@ export class AnalyzeFeature implements BotFeature {
                 langStr: getLangStr(record.langs),
             });
 
-        if (result && await MemoryService.checkRPD()) {
+        if (result) {
             await MemoryService.logUsage('analysis', follower.did);
             await botBiothythmManager.addAnalysis();
         }
@@ -96,9 +101,9 @@ export class AnalyzeFeature implements BotFeature {
             }
         });
 
-        if (process.env.NODE_ENV === "development") {
-            console.log("[DEBUG] bot>>> " + result);
-        }
+        // if (process.env.NODE_ENV === "development") {
+        //     console.log("[DEBUG] bot>>> " + result);
+        // }
 
         // 画像生成
         const buffer = await textToImageBufferWithBackground(result, "./img/bot-tan-analyze.png");

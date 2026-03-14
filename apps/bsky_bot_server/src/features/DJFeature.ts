@@ -47,6 +47,11 @@ export class DJFeature implements BotFeature {
         // 0要素目にDJリクエストポスト、1要素目以降に過去ポストをセット
         posts.unshift(record.text);
 
+        if (!(await MemoryService.checkRPD())) {
+            console.log(`[INFO][${follower.did}] Ignored DJ, REASON: rpd over`);
+            return;
+        }
+
         const result = await handleMode(event, {
             dbColumn: "last_dj_at",
             dbValue: new Date(),
@@ -58,7 +63,7 @@ export class DJFeature implements BotFeature {
                 langStr: getLangStr(record.langs),
             });
 
-        if (result && await MemoryService.checkRPD()) {
+        if (result) {
             await MemoryService.logUsage('dj', follower.did);
             await botBiothythmManager.addDJ();
         }

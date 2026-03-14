@@ -43,6 +43,11 @@ export class RecapYearFeature implements BotFeature {
     const uri = uniteDidNsidRkey(event.did, event.commit.collection, event.commit.rkey);
     await like(uri, event.commit.cid);
 
+    if (!(await MemoryService.checkRPD())) {
+      console.log(`[INFO][${follower.did}] Ignored Recap, REASON: rpd over`);
+      return;
+    }
+
     const result = await handleMode(event, {
       dbColumn: "last_recap_at",
       dbValue: new Date(),
@@ -53,7 +58,7 @@ export class RecapYearFeature implements BotFeature {
         langStr: getLangStr(record.langs),
       });
 
-    if (result && await MemoryService.checkRPD()) {
+    if (result) {
       await MemoryService.logUsage('recap', follower.did);
     }
   }
@@ -110,9 +115,9 @@ export class RecapYearFeature implements BotFeature {
       }
     });
 
-    if (process.env.NODE_ENV === "development") {
-      console.log("[DEBUG] bot>>> " + result);
-    }
+    // if (process.env.NODE_ENV === "development") {
+    //   console.log("[DEBUG] bot>>> " + result);
+    // }
 
     // 画像生成
     const buffer = await textToImageBufferWithBackground(result, "./img/bot-tan-idol.png");
