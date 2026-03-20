@@ -2,6 +2,7 @@ import { AppBskyFeedPost } from "@atproto/api"; type Record = AppBskyFeedPost.Re
 import { $Typed, AppBskyEmbedRecord, BlobRef } from "@atproto/api";
 import { post } from "./post.js";
 import { ComAtprotoRepoStrongRef } from "@atproto/api"; type Main = ComAtprotoRepoStrongRef.Main;
+import { POST_TEXT_LIMIT } from "@bsky-affirmative-bot/shared-configs";
 
 /**
  * 300文字以上のポストの場合、自動で分割投稿する
@@ -23,6 +24,12 @@ export async function postContinuous(
     cid: string,
   },
 ): Promise<{ uri: string; cid: string; }> {
+  // ポスト制限文字数以上の場合は切り詰める
+  if (text.length > POST_TEXT_LIMIT) {
+    console.warn(`[WARN] Post text exceeded POST_TEXT_LIMIT (${text.length} > ${POST_TEXT_LIMIT}). Truncating...`);
+    text = text.slice(0, POST_TEXT_LIMIT);
+  }
+
   const MAX_LENGTH = 300;
   const parts = splitTextSmart(text, MAX_LENGTH);
 

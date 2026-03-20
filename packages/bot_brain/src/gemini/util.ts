@@ -1,11 +1,11 @@
 import { PartListUnion, Type } from "@google/genai";
 import { gemini } from "./index.js";
-import { MODEL_GEMINI, SYSTEM_INSTRUCTION } from "@bsky-affirmative-bot/shared-configs";
+import { MODEL_GEMINI, SYSTEM_INSTRUCTION, POST_TEXT_LIMIT } from "@bsky-affirmative-bot/shared-configs";
 import { UserInfoGemini, GeminiScore } from "@bsky-affirmative-bot/shared-configs";
 import { MemoryService } from "@bsky-affirmative-bot/database";
 
 /**
- * 2000文字を超える場合はリトライするgenerateContentのラッパー
+ * POST_TEXT_LIMITを超える場合はリトライするgenerateContentのラッパー
  */
 export async function generateContentWithRetry(params: any, retryCount = 3): Promise<any> {
   let response;
@@ -17,10 +17,10 @@ export async function generateContentWithRetry(params: any, retryCount = 3): Pro
       // Increment RPD on success
       MemoryService.incrementStats('rpd', 1).catch((e: any) => console.error("Failed to increment RPD:", e));
 
-      if (text.length <= 2000) {
+      if (text.length <= POST_TEXT_LIMIT) {
         return response;
       }
-      console.warn(`[WARN] Generated content exceeded 2000 characters (${text.length}). Retrying... (${i + 1}/${retryCount})`);
+      console.warn(`[WARN] Generated content exceeded ${POST_TEXT_LIMIT} characters (${text.length}). Retrying... (${i + 1}/${retryCount})`);
     } catch (e) {
       console.error(`[ERROR] generateContent failed. Retrying... (${i + 1}/${retryCount})`, e);
       if (i === retryCount) throw e;
