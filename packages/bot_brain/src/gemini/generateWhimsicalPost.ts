@@ -6,7 +6,7 @@ import { UserInfoGemini, GeminiScore, LanguageName } from "@bsky-affirmative-bot
 
 import { gemini } from "./index.js";
 import { Content, ToolListUnion, Type } from "@google/genai";
-import { MODEL_GEMINI, SYSTEM_INSTRUCTION } from "@bsky-affirmative-bot/shared-configs";
+import { MODEL_GEMINI_HIGH, SYSTEM_INSTRUCTION } from "@bsky-affirmative-bot/shared-configs";
 
 export class WhimsicalPostGenerator {
   private historyMap: Record<string, string[]> = {};
@@ -33,7 +33,7 @@ export class WhimsicalPostGenerator {
 
     // --- Step 1 各パーツ生成 ---
     const first = await generateContentWithRetry({
-      model: MODEL_GEMINI,
+      model: MODEL_GEMINI_HIGH,
       config: { tools: this.tools, systemInstruction: SYSTEM_INSTRUCTION },
       contents: [
         {
@@ -74,7 +74,7 @@ export class WhimsicalPostGenerator {
 
     // --- Step 2: 最終文章生成 ---
     const second = await generateContentWithRetry({
-      model: MODEL_GEMINI,
+      model: MODEL_GEMINI_HIGH,
       config: { tools: this.tools, systemInstruction: SYSTEM_INSTRUCTION },
       contents: [
         {
