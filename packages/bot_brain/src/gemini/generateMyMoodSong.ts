@@ -20,16 +20,15 @@ export class MyMoodSongGenerator {
 
   constructor(private maxHistory = 3) { }
 
-  async generate(currentMood: string, langStr: LanguageName, spotifyPlaylist: SpotifyTrack[]) {
-    // const history = this.historyMap[langStr] ?? [];
-    // responseSchema removed
+  async generate(currentMood: string, langStr: LanguageName, spotifyPlaylist?: SpotifyTrack[]) {
+    const history = this.historyMap[langStr] ?? [];
 
-    const history = spotifyPlaylist.map((track) => {
-      return {
-        title: track.track.name,
-        artist: track.track.artists.map((artist: { name: string }) => artist.name).join(", "),
-      }
-    });
+    // const history = spotifyPlaylist?.map((track) => {
+    //   return {
+    //     title: track.track.name,
+    //     artist: track.track.artists.map((artist: { name: string }) => artist.name).join(", "),
+    //   }
+    // });
     const prompt = this.PROMPT_DJ(currentMood, langStr, history);
     const contents: PartListUnion = [prompt];
     const response = await generateContentWithRetry({
@@ -87,7 +86,7 @@ export class MyMoodSongGenerator {
 -----
 現在の時間: ${getFullDateAndTimeString()}
 今の気分: ${currentMood}
-過去に選曲した曲: ${JSON.stringify(history)}
+過去に選曲した曲: ${history ? JSON.stringify(history) : "なし"}
 `
   };
 }

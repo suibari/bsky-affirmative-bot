@@ -10,7 +10,7 @@ import { generateRecommendedSong } from "@bsky-affirmative-bot/bot-brain";
 import { getLangStr, isReplyOrMentionToMe } from "../bsky/util.js";
 import { UserInfoGemini, GeminiResponseResult } from "@bsky-affirmative-bot/shared-configs";
 import { agent } from "../bsky/agent.js";
-import { searchSpotifyTrack } from "@bsky-affirmative-bot/bot-brain";
+import { searchYoutubeLink } from "@bsky-affirmative-bot/bot-brain";
 
 export class DJFeature implements BotFeature {
     name = "DJ";
@@ -71,14 +71,14 @@ export class DJFeature implements BotFeature {
 
     private async getSongLink(userinfo: UserInfoGemini): Promise<GeminiResponseResult> {
         const resultGemini = await generateRecommendedSong(userinfo);
-        const resultSpotify = await searchSpotifyTrack({ artist: resultGemini.artist, track: resultGemini.title });
+        const resultYoutube = await searchYoutubeLink(`${resultGemini.artist} ${resultGemini.title}`);
 
         const result =
             `${resultGemini.comment}
 title: ${resultGemini.title}
 artist: ${resultGemini.artist}
 
-${resultSpotify?.url ?? "[Sorry, I couldn't find the song on Spotify...]"}`;
+${resultYoutube ?? "[Sorry, I couldn't find the song on Youtube...]"}`;
 
         return result;
     }

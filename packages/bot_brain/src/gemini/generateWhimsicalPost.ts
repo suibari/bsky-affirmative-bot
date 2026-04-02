@@ -153,7 +153,6 @@ Structure: ${JSON.stringify(structure)}`
       "あなたが持っている「記念日」機能の紹介：ユーザの記念日をお祝い。「記念日登録、記念日名、MM/DD」とリプすれば設定できる。設定した記念日の当日にユーザをお祝いする。",
       "あなたが持っている「ステータス」機能の紹介：あなたとユーザのステータスを確認。「教えてステータス」とリプすればできる。",
       "あなたが持っている「一年まとめ」機能の紹介：ユーザの一年を振り返る。「一年をまとめて」とリプすればできる。",
-      "あなたがこれまで選曲した曲のプレイリストがあることの紹介：URLは https://open.spotify.com/playlist/0rMAkyqQtxd4o8mIMja0sx",
       "botたんのステータスを確認できるダッシュボードの紹介：URLは https://suibari.com/character/",
       "botたんのイラストを見れるフィードの紹介：URLは https://bsky.app/profile/did:plc:uixgxpiqf4i63p6rgpu7ytmx/feed/196e948a58f4af5",
     ] : [
@@ -166,7 +165,6 @@ Structure: ${JSON.stringify(structure)}`
       "Introducing the Anniversary feature you have. Users can register their anniversary by replying \"register anniversary, [your anniversary name], MM/DD\". You will celebrate the user on the registered date.",
       "Introducing the Status feature you have. You can check the status of each function with you and the user by replying \"tell me status\".",
       "Introducing the Yearly Review feature you have. You can review the user's posts for the year by replying \"summarize year\".",
-      "Introducing a playlist of songs you've selected so far: The URL is https://open.spotify.com/playlist/0rMAkyqQtxd4o8mIMja0sx.",
       "Introducing the dashboard where the user can check bot-tan's status: URL: https://suibari.com/character/",
       "Introducing the feed where the user can check bot-tan's illustration: URL: https://bsky.app/profile/did:plc:uixgxpiqf4i63p6rgpu7ytmx/feed/196e948a58f4af5",
     ]

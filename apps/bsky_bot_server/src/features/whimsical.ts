@@ -9,7 +9,7 @@ import { generateGoodNight } from "@bsky-affirmative-bot/bot-brain";
 import { repost } from "../bsky/repost.js";
 import { AtpAgent } from "@atproto/api";
 import { getPds } from "../bsky/getPds.js";
-import { generateQuestion } from "@bsky-affirmative-bot/bot-brain";
+import { generateQuestion, searchYoutubeLink } from "@bsky-affirmative-bot/bot-brain";
 import { agent } from "../bsky/agent.js";
 import retry from 'async-retry';
 
@@ -56,21 +56,17 @@ export async function doWhimsicalPost(currentMood: string) {
     let currentGeneratedSong = { title: "Unknown", artist: "Unknown" };
 
     try {
-        const resultSpotify = await retry(
+        const resultYoutube = await retry(
             async (bail, attempt) => {
-                // Spotifyプレイリストの全曲を取得
-                const spotifyPlaylist = await getSpotifyPlaylist();
-
                 // AI生成
-                currentGeneratedSong = await myMoodSongGen.generate(currentMood, langStr, spotifyPlaylist);
+                currentGeneratedSong = await myMoodSongGen.generate(currentMood, langStr);
 
-                // Spotify検索: ここで見つからなければリトライさせるねらい
-                const spotifySearchTerm = { artist: currentGeneratedSong.artist, track: currentGeneratedSong.title };
-                const url = await searchSpotifyUrlAndAddPlaylist(spotifySearchTerm);
+                // Youtube検索: ここで見つからなければリトライさせるねらい
+                const url = await searchYoutubeLink(`${currentGeneratedSong.artist} ${currentGeneratedSong.title}`);
 
                 // 見つからなければエラーを投げてリトライさせる
                 if (!url) {
-                    throw new Error("Spotify URL not found, retrying...");
+                    throw new Error("Youtube URL not found, retrying...");
                 }
 
                 return url;
@@ -78,15 +74,15 @@ export async function doWhimsicalPost(currentMood: string) {
             {
                 retries: 3,
                 onRetry: (error: any, attempt) => {
-                    console.warn(`[WARN] Spotify search failed on attempt ${attempt}: ${error.message}`);
+                    console.warn(`[WARN] Youtube search failed on attempt ${attempt}: ${error.message}`);
                 },
             }
         );
-        songInfo = `\n\nMyMoodSong:\n${currentGeneratedSong.title} - ${currentGeneratedSong.artist}\n${resultSpotify}`;
+        songInfo = `\n\nMyMoodSong:\n${currentGeneratedSong.title} - ${currentGeneratedSong.artist}\n${resultYoutube}`;
     } catch (e: unknown) {
         const errorMessage = e instanceof Error ? e.message : String(e);
-        console.error(`[ERROR] Failed to find Spotify song after multiple retries: ${errorMessage}`);
-        songInfo = `\n\nMyMoodSong:\n${currentGeneratedSong.title} - ${currentGeneratedSong.artist}\n(Not found in Spotify...)`;
+        console.error(`[ERROR] Failed to find Youtube song after multiple retries: ${errorMessage}`);
+        songInfo = `\n\nMyMoodSong:\n${currentGeneratedSong.title} - ${currentGeneratedSong.artist}\n(Not found in Youtube...)`;
     }
 
     text_bot += songInfo;
