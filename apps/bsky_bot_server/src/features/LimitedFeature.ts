@@ -97,8 +97,8 @@ export class LimitedFeature implements BotFeature {
         const langStr = getLangStr(record.langs);
 
         const TEXT_RELEASE_AIONLY = (langStr === "日本語") ?
-            "AI限定モードを設定しました! これからはたまに定型文を使って全肯定しますね。" :
-            "AI only mode disabled! I will sometimes use predefined replies to give affirmative replies from now on.";
+            "AI限定モードを解除しました! これからは定型文も使って全肯定しますね。" :
+            "AI only mode disabled! I will use predefined replies to give affirmative replies from now on.";
 
         return await handleMode(event, {
             dbColumn: "is_ai_only",
