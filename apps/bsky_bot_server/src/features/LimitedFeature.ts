@@ -37,12 +37,12 @@ export class LimitedFeature implements BotFeature {
             await this.handleU18Register(event);
             return;
         }
-        if (AIONLYMODE_TRIGGER.some((trigger: string) => text.includes(trigger.toLowerCase()))) {
-            await this.handleAIonlyRegister(event);
-            return;
-        }
         if (AIONLYMODE_RELEASE_TRIGGER.some((trigger: string) => text.includes(trigger.toLowerCase()))) {
             await this.handleAIonlyRelease(event);
+            return;
+        }
+        if (AIONLYMODE_TRIGGER.some((trigger: string) => text.includes(trigger.toLowerCase()))) {
+            await this.handleAIonlyRegister(event);
             return;
         }
     }
