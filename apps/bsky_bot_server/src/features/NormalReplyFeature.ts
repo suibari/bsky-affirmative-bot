@@ -13,7 +13,6 @@ const MINUTES_THRD_RESPONSE = 10 * 60 * 1000;
 
 export class NormalReplyFeature implements BotFeature {
     name = "NormalReply";
-    private count_replyrandom = 0;
 
     async shouldHandle(event: CommitCreateEvent<"app.bsky.feed.post">, follower: ProfileView, context: FeatureContext): Promise<boolean> {
         const record = event.commit.record as any;
@@ -54,11 +53,8 @@ export class NormalReplyFeature implements BotFeature {
             const isU18 = row?.is_u18 ?? 0;
             const isAIOnly = row?.is_ai_only ?? 0;
 
-            if (this.count_replyrandom >= EXEC_PER_COUNTS && isU18 === 0) {
-                this.count_replyrandom = 0;
-                replyType = "ai";
-            } else if (isAIOnly === 0) {
-                this.count_replyrandom++;
+            // 非サブスクは常にrandomモードにする
+            if (isAIOnly === 0) {
                 replyType = "random";
             } else {
                 replyType = null;
