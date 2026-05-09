@@ -132,7 +132,7 @@ export const TOTAL_SCORE_FOR_AUTONOMOUS = process.env.NODE_ENV === "development"
 // -------------------
 // Prompt系
 // -------------------
-export const MODEL_GEMINI = "gemini-2.5-flash";
+export const MODEL_GEMINI = "gemini-2.5-flash-lite";
 export const MODEL_GEMINI_HIGH = "gemini-2.5-flash"; // 会話のみ、高品質を使う
 export const MODEL_GEMINI_LITE = "gemini-2.5-flash-lite"; // 判定系のGemini利用のみ、LITEを使う
 export const MODEL_GEMINI_EMBEDDING = "gemini-embedding-001";
