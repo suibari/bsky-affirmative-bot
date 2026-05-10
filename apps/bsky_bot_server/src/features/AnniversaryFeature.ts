@@ -49,7 +49,7 @@ export class AnniversaryFeature implements BotFeature {
             }
         }
 
-        if (!record.reply || isCalled) {
+        if (!record.reply) {
             if (await this.shouldExecuteAnniversary(follower, langCode)) {
                 return true;
             }
