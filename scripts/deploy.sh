@@ -42,7 +42,7 @@ fi
 
 if [ "$PUSH_DB" = true ]; then
     echo "♻️  Pushing DB..."
-    pnpm --filter database exec drizzle-kit push --config=packages/database/drizzle.config.cjs
+    pnpm --filter database exec drizzle-kit push --config=drizzle.config.cjs
 fi
 
 # 実際の再起動処理
