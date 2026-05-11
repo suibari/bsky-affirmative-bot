@@ -2,7 +2,7 @@ import { CommitCreateEvent } from "@skyware/jetstream";
 import { AppBskyActorDefs } from "@atproto/api"; type ProfileView = AppBskyActorDefs.ProfileView;
 import { BotFeature, FeatureContext } from "./types.js";
 import { MemoryService, botBiothythmManager } from "@bsky-affirmative-bot/clients";
-import { ANNIV_REGISTER_TRIGGER, ANNIV_CONFIRM_TRIGGER, NICKNAMES_BOT } from "@bsky-affirmative-bot/shared-configs";
+import { ANNIV_REGISTER_TRIGGER, ANNIV_CONFIRM_TRIGGER, ANNIV_ENABLE_TRIGGER, ANNIV_DISABLE_TRIGGER, NICKNAMES_BOT } from "@bsky-affirmative-bot/shared-configs";
 import holidays from "@bsky-affirmative-bot/shared-configs/json/holidays.json" with { type: "json" };
 import { handleMode, isPast } from "./utils.js";
 import { getLangStr, isReplyOrMentionToMe } from "../bsky/util.js";
@@ -27,6 +27,14 @@ const TEXT_CONFIRM_ANNIV = (displayName: string, langStr: string, anniv_name: st
     `${displayName}さんの記念日「${anniv_name}」は、${anniv_date}って覚えてるよ! ${anniv_name}になったらお祝いするから、楽しみに待っててね～` :
     `I remember that ${displayName}'s anniversary, ${anniv_name}, is ${anniv_date}! I'll celebrate on ${anniv_name}, so look forward to it!`;
 
+const TEXT_ENABLE_ANNIV = (langStr: string) => (langStr === "日本語") ?
+    "記念日のお祝いをONにしたよ！特別な日を一緒にお祝いしようね！" :
+    "Anniversary celebration is turned ON! Let's celebrate your special days together!";
+
+const TEXT_DISABLE_ANNIV = (langStr: string) => (langStr === "日本語") ?
+    "記念日のお祝いをOFFにしたよ！もしまたお祝いしたくなったら教えてね！" :
+    "Anniversary celebration is turned OFF! Let me know if you want me to celebrate again!";
+
 export class AnniversaryFeature implements BotFeature {
     name = "Anniversary";
     private processingUsers = new Map<string, boolean>();
@@ -45,6 +53,12 @@ export class AnniversaryFeature implements BotFeature {
                 }
             }
             if (ANNIV_CONFIRM_TRIGGER.some(t => text.includes(t.toLowerCase()))) {
+                return true;
+            }
+            if (ANNIV_ENABLE_TRIGGER.some(t => text.includes(t.toLowerCase()))) {
+                return true;
+            }
+            if (ANNIV_DISABLE_TRIGGER.some(t => text.includes(t.toLowerCase()))) {
                 return true;
             }
         }
@@ -72,6 +86,10 @@ export class AnniversaryFeature implements BotFeature {
             return;
         }
 
+        // Priority 1.5: Enable / Disable
+        if (await this.handleAnniversaryEnable(event, follower)) return;
+        if (await this.handleAnniversaryDisable(event, follower)) return;
+
         // Priority 2: Register
         if (await this.handleAnniversaryRegister(event, follower)) return;
 
@@ -79,12 +97,42 @@ export class AnniversaryFeature implements BotFeature {
         if (await this.handleAnniversaryConfirm(event, follower)) return;
     }
 
+    private async handleAnniversaryEnable(event: CommitCreateEvent<"app.bsky.feed.post">, follower: ProfileView) {
+        const record = event.commit.record as PostRecord;
+        const langStr = getLangStr(record.langs);
+        const text = (record.text || "").toLowerCase();
+
+        if (!ANNIV_ENABLE_TRIGGER.some(t => text.includes(t.toLowerCase()))) return false;
+
+        return await handleMode(event, {
+            dbColumn: "is_anniv",
+            dbValue: 1,
+            generateText: TEXT_ENABLE_ANNIV(langStr),
+        });
+    }
+
+    private async handleAnniversaryDisable(event: CommitCreateEvent<"app.bsky.feed.post">, follower: ProfileView) {
+        const record = event.commit.record as PostRecord;
+        const langStr = getLangStr(record.langs);
+        const text = (record.text || "").toLowerCase();
+
+        if (!ANNIV_DISABLE_TRIGGER.some(t => text.includes(t.toLowerCase()))) return false;
+
+        return await handleMode(event, {
+            dbColumn: "is_anniv",
+            dbValue: 0,
+            generateText: TEXT_DISABLE_ANNIV(langStr),
+        });
+    }
+
     private async shouldExecuteAnniversary(follower: ProfileView, lang: string): Promise<boolean> {
+        const followerRow = await MemoryService.getFollower(follower.did);
+        if (followerRow?.is_anniv === 0) return false;
+
         const todayAnniversary = await this.getTodayAnniversary(follower, lang);
         if (todayAnniversary.length === 0) return false;
 
         const todayStr = this.formatYMD(new Date(), lang);
-        const followerRow = await MemoryService.getFollower(follower.did);
         const lastAnnivExeced = followerRow?.last_anniv_execed_at;
         const lastStr = this.formatYMD(new Date(lastAnnivExeced || 0), lang);
 

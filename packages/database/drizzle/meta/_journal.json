@@ -8,6 +8,13 @@
       "when": 1770973264486,
       "tag": "0000_cynical_the_fury",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1778507945690,
+      "tag": "0001_hesitant_nightcrawler",
+      "breakpoints": true
     }
   ]
 }

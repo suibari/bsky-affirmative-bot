@@ -99,6 +99,20 @@ export const ANNIV_CONFIRM_TRIGGER = [
   "tell me anniversary",
 ];
 
+export const ANNIV_ENABLE_TRIGGER = [
+  "記念日オン",
+  "記念日on",
+  "enable anniversary",
+  "turn on anniversary",
+];
+
+export const ANNIV_DISABLE_TRIGGER = [
+  "記念日オフ",
+  "記念日off",
+  "disable anniversary",
+  "turn off anniversary",
+];
+
 export const STATUS_CONFIRM_TRIGGER = [
   "教えてステータス",
   "おしえてステータス",
