@@ -72,6 +72,7 @@ export function isReplyOrMentionToMe(record: AppBskyFeedPost.Record) { // Change
  */
 export const IGNORE_LABELS = [
   "!hide",
+  "!unspecced-takedown",
   "violence",
   "threat",
   "hate",
