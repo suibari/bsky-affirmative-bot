@@ -78,6 +78,7 @@ export const IGNORE_LABELS = [
   "hate",
   "spam",
   "sexual",
+  "porn",
   "nudity",
   "toxic"
 ];
