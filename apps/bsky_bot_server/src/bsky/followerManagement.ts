@@ -3,7 +3,12 @@ import { getConcatFollowers } from "./getConcatFollowers.js";
 // Follower Cache
 export const followerMap = new Map<string, any>();
 
+let isUpdating = false;
+
 export async function updateFollowers() {
+  if (isUpdating) return;
+  isUpdating = true;
+  
   console.log("[INFO] Fetching followers...");
   const actor = process.env.BSKY_IDENTIFIER!;
   try {
@@ -13,5 +18,7 @@ export async function updateFollowers() {
     console.log(`[INFO] Cached ${followerMap.size} followers.`);
   } catch (e) {
     console.error("[ERROR] Failed to update followers:", e);
+  } finally {
+    isUpdating = false;
   }
 }

@@ -26,7 +26,11 @@ app.listen(PORT, async () => {
     await initializeDatabases();
 
     await initAgent();
-    await updateFollowers();
+    
+    // フォロワー取得は時間がかかるため非同期で実行し、ブロックしない
+    updateFollowers().catch(e => {
+      console.error("[ERROR] Failed to update followers on startup:", e);
+    });
 
     // Run diary scheduling in the background
     scheduleAllUserDiaries().catch(e => {
