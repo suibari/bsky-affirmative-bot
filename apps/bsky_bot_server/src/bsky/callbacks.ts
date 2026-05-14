@@ -4,7 +4,7 @@ import { agent } from "./agent.js";
 import { features } from "../features/index.js";
 import { MemoryService, botBiothythmManager } from "@bsky-affirmative-bot/clients";
 import { followerMap, updateFollowers } from "./followerManagement.js";
-import { isMention, isSpam, getLangStr, splitUri } from "./util.js";
+import { isMention, getLangStr, splitUri, isIgnoreTarget, hasNGWord, isIgnorePost } from "./util.js";
 import { follow } from "./follow.js";
 import { replyGreets } from "./replyGreets.js";
 import retry from 'async-retry';
@@ -21,13 +21,27 @@ export async function onPost(event: any) {
         // Self filter
         if (authorDid === process.env.BSKY_DID) return;
 
+        // Label filter
+        if (isIgnoreTarget(follower.labels)) {
+          console.log(`[INFO][${authorDid}] Ignored due to author labels`);
+          return;
+        }
+
+        let selfLabels: { val: string }[] | undefined;
+        if (record.labels && typeof record.labels === 'object' && 'values' in record.labels) {
+          selfLabels = record.labels.values as { val: string }[];
+        }
+        if (isIgnoreTarget(selfLabels)) {
+          console.log(`[INFO][${authorDid}] Ignored due to self labels`);
+          return;
+        }
+
         // Spam filter
         const text = record.text || "";
-        const donate_word = ["donate", "donation", "donating", "gofund.me", "paypal.me", "【AUTO】"];
-        const isIncludedDonate = donate_word.some(elem =>
-          text.toLowerCase().includes(elem.toLowerCase())
-        );
-        if (isIncludedDonate) return;
+        if (hasNGWord(text)) {
+          console.log(`[INFO][${authorDid}] Ignored due to NG word`);
+          return;
+        }
 
         // Note: parseEmbedPost and other checks could be added here if needed, 
         // but using current features architecture is preferred.
@@ -80,6 +94,12 @@ export async function onFollow(event: any) {
     }
   }
 
+  const profile = followerMap.get(did);
+  if (profile && isIgnoreTarget(profile.labels)) {
+    console.log(`[INFO] ${did} is ignored due to author labels. Skipping follow-back.`);
+    return;
+  }
+
   // Background full update
   updateFollowers().catch(e => console.error("[ERROR] Background follower update failed:", e));
 
@@ -101,7 +121,7 @@ export async function onFollow(event: any) {
     for (const feed of response.data.feed) {
       // Use util functions for consistency
       const postRecord = feed.post.record as AppBskyFeedPost.Record;
-      if (isMention(postRecord) && !feed.reason && !isSpam(feed.post)) {
+      if (isMention(postRecord) && !feed.reason && !isIgnorePost(feed.post) && !hasNGWord(postRecord.text)) {
         const langStr = getLangStr(postRecord.langs);
         await replyGreets(feed.post, langStr);
         break;

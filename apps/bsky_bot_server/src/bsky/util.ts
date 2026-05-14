@@ -68,29 +68,77 @@ export function isReplyOrMentionToMe(record: AppBskyFeedPost.Record) { // Change
 }
 
 /**
- * スパム判定し真偽を返す
+ * フィルター対象となるラベルのリスト
+ */
+export const IGNORE_LABELS = [
+  "!hide",
+  "violence",
+  "threat",
+  "hate",
+  "spam",
+  "sexual",
+  "nudity",
+  "toxic"
+];
+
+/**
+ * フィルター対象となるNGワードのリスト
+ */
+export const NG_WORDS = [
+  // 寄付系のワード
+  "donate",
+  "donation",
+  "donating",
+  "gofund.me",
+  "paypal.me",
+  "【AUTO】",
+  // 暴力系のワード
+  "kill",
+  "die",
+  "death",
+  "hurt",
+  "harm",
+  "murder",
+  "suicide",
+  "stab",
+  "shoot",
+  // 攻撃的なワード
+  "hate",
+  "disgusting",
+  "trash",
+  "garbage",
+  "ugly"
+];
+
+/**
+ * 無視対象ラベルが含まれているか判定する
+ * @param labels ラベルの配列 (authorLabels や postLabels など)
+ * @returns 含まれていれば true
+ */
+export function isIgnoreTarget(labels?: { val: string }[] | null): boolean {
+  if (!labels) return false;
+  return labels.some(label => IGNORE_LABELS.includes(label.val));
+}
+
+/**
+ * テキストにNGワードが含まれているか判定する（大文字小文字区別なし、部分一致）
+ * @param text 対象のテキスト
+ * @returns 含まれていれば true
+ */
+export function hasNGWord(text?: string | null): boolean {
+  if (!text) return false;
+  const lowerText = text.toLowerCase();
+  return NG_WORDS.some(word => lowerText.includes(word.toLowerCase()));
+}
+
+/**
+ * ポスト（およびその投稿者）が無視対象ラベルを持っているか判定する
  * @param post 
  * @returns 
  */
-export function isSpam(post: PostView): boolean {
-  const labelArray = ["spam"];
-
-  const authorLabels = post.author.labels;
-  if (authorLabels) {
-    for (const label of authorLabels) {
-      if (labelArray.some(elem => elem === label.val)) {
-        return true;
-      };
-    };
-  };
-  const postLabels = post.labels;
-  if (postLabels) {
-    for (const label of postLabels) {
-      if (labelArray.some(elem => elem === label.val)) {
-        return true;
-      };
-    };
-  };
+export function isIgnorePost(post: PostView): boolean {
+  if (isIgnoreTarget(post.author.labels)) return true;
+  if (isIgnoreTarget(post.labels)) return true;
   return false;
 }
 
