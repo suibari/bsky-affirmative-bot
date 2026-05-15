@@ -11,6 +11,8 @@ import { MemoryService } from "@bsky-affirmative-bot/clients";
 
 const MINUTES_THRD_RESPONSE = 10 * 60 * 1000;
 
+let globalNonSubPostCount = 0;
+
 export class NormalReplyFeature implements BotFeature {
     name = "NormalReply";
 
@@ -53,9 +55,14 @@ export class NormalReplyFeature implements BotFeature {
             const isU18 = row?.is_u18 ?? 0;
             const isAIOnly = row?.is_ai_only ?? 0;
 
-            // 非サブスクは常にrandomモードにする
             if (isAIOnly === 0) {
-                replyType = "random";
+                globalNonSubPostCount = (globalNonSubPostCount + 1) % EXEC_PER_COUNTS;
+                if (globalNonSubPostCount === 0) {
+                    console.log(`[INFO][${did}] AI reply triggered by count (${EXEC_PER_COUNTS})`);
+                    replyType = "ai";
+                } else {
+                    replyType = "random";
+                }
             } else {
                 replyType = null;
             }
