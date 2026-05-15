@@ -30,27 +30,12 @@ export async function onPost(event: any) {
         // External & Self Label filter via AppView
         // 外部ラベラー（Official Moderation等）の反映を待つため少し待機
         await new Promise(resolve => setTimeout(resolve, 3000));
-        try {
-          const uri = `at://${authorDid}/${event.commit.collection}/${event.commit.rkey}`;
-          const response = await agent.app.bsky.feed.getPosts({ uris: [uri] });
-          const postView = response.data.posts[0];
-          if (postView && isIgnorePost(postView)) {
-             console.log(`[INFO][${authorDid}] Ignored due to post labels (fetched from AppView)`);
-             return;
-          }
-        } catch (e) {
-          console.warn(`[WARN][${authorDid}] Failed to fetch post for label check:`, e);
-          // Fallback to self-label check if fetch fails
-          let selfLabels: { val: string }[] | undefined;
-          if (Array.isArray(record.labels)) {
-            selfLabels = record.labels as { val: string }[];
-          } else if (record.labels && typeof record.labels === 'object' && Array.isArray((record.labels as any).values)) {
-            selfLabels = (record.labels as any).values as { val: string }[];
-          }
-          if (isIgnoreTarget(selfLabels)) {
-            console.log(`[INFO][${authorDid}] Ignored due to self labels (fallback)`);
-            return;
-          }
+        const uri = `at://${authorDid}/${event.commit.collection}/${event.commit.rkey}`;
+        const response = await agent.app.bsky.feed.getPosts({ uris: [uri] });
+        const postView = response.data.posts[0];
+        if (postView && isIgnorePost(postView)) {
+           console.log(`[INFO][${authorDid}] Ignored due to post labels (fetched from AppView)`);
+           return;
         }
 
         // Spam filter
