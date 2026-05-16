@@ -1,5 +1,5 @@
 import { CommitCreateEvent } from "@skyware/jetstream";
-import { AppBskyFeedPost } from "@atproto/api";
+import { AppBskyFeedPost, AtpAgent } from "@atproto/api";
 import { agent } from "./agent.js";
 import { features } from "../features/index.js";
 import { MemoryService, botBiothythmManager } from "@bsky-affirmative-bot/clients";
@@ -46,6 +46,12 @@ export async function onPost(event: any) {
             console.log(`[INFO][${authorDid}] Saving NG word to replies table for blacklisting`);
             await MemoryService.upsertReply(authorDid, { reply: text, uri: uri, isRead: 0 });
           }
+          return;
+        }
+
+        // Bot check
+        if (await isBot(authorDid, agent)) {
+          console.log(`[INFO][${authorDid}] Ignored as bot account`);
           return;
         }
 
@@ -173,4 +179,22 @@ export async function onLike(event: any) {
   } catch (e) {
     console.error(`[ERROR][${did}] onLike failed:`, e);
   }
+}
+
+async function isBot(did: string, agent: AtpAgent): Promise<boolean> {
+  const response = await agent.getAuthorFeed({ actor: did, limit: 10 });
+  let linkCount = 0;
+  for (const item of response.data.feed) {
+    const record = item.post.record as any;
+    const hasFacetLink = record.facets?.some((f: any) => 
+      f.features?.some((feat: any) => feat.$type === 'app.bsky.richtext.facet#link')
+    );
+    const hasExternalLink = record.embed?.$type === 'app.bsky.embed.external' || !!record.embed?.external;
+    
+    if (hasFacetLink || hasExternalLink) {
+      linkCount++;
+    }
+  }
+  // console.log(`[INFO][${did}] Bot check: ${linkCount}/10 posts have links`);
+  return linkCount >= 4;
 }
