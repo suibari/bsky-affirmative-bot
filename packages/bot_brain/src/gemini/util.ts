@@ -144,7 +144,10 @@ export async function generateSingleResponseWithScore(prompt: string, userinfo?:
       tools: [
         {
           googleSearch: {},
-        }
+        },
+        {
+          urlContext: {},
+        },
       ]
     }
   });

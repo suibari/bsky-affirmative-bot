@@ -65,7 +65,8 @@ const PROMPT_CONVERSATION = (userinfo: UserInfoGemini) => {
 -----
 ユーザ名: ${userinfo.follower.displayName}
 メッセージ: ${userinfo.posts?.[0] || ""}
-ユーザが引用したポスト: ${userinfo.embed ? userinfo.embed.text_embed + " by " + userinfo.embed.profile_embed?.displayName : "なし"}
+ユーザが引用したポスト: ${userinfo.embed?.text_embed ? userinfo.embed.text_embed + " by " + userinfo.embed.profile_embed?.displayName : "なし"}
+ユーザが共有したリンク: ${userinfo.embed?.uri_embed ? `${userinfo.embed.title_embed} (${userinfo.embed.uri_embed}) ${userinfo.embed.description_embed || ""}` : "なし"}
 ` :
     `Please respond to the message from the following username.  
 Always try to end your message with a question to keep the conversation going.  
@@ -78,6 +79,7 @@ The output must be in plain text (not in object or JSON format).
 -----Below is the user's message-----  
 Username: ${userinfo.follower.displayName}  
 Message: ${userinfo.posts?.[0] || ""}
-Posts quoted by this user: ${userinfo.embed ? userinfo.embed.text_embed + " by " + userinfo.embed.profile_embed?.displayName : "None"}
+Posts quoted by this user: ${userinfo.embed?.text_embed ? userinfo.embed.text_embed + " by " + userinfo.embed.profile_embed?.displayName : "None"}
+Links shared by this user: ${userinfo.embed?.uri_embed ? `${userinfo.embed.title_embed} (${userinfo.embed.uri_embed}) ${userinfo.embed.description_embed || ""}` : "None"}
 `
 };

@@ -166,6 +166,8 @@ export interface Embed {
   profile_embed?: ProfileViewDetailed;
   text_embed?: string;
   uri_embed?: string;
+  title_embed?: string;
+  description_embed?: string;
   image_embed?: ImageRef[];
 }
 

@@ -52,8 +52,10 @@ export async function parseEmbedPost(record: Record): Promise<Embed | undefined>
     }
   } else if (AppBskyEmbedExternal.isMain(embed)) {
     const uri_embed = embed.external.uri;
+    const title_embed = embed.external.title;
+    const description_embed = embed.external.description;
 
-    return { uri_embed };
+    return { uri_embed, title_embed, description_embed };
   }
 
   return undefined;

@@ -13,7 +13,7 @@ export async function generateAffirmativeWord(userinfo: UserInfoGemini) {
    }
 
    // Geminiリクエスト数加算
-   
+
 
    return result;
 }
@@ -47,7 +47,8 @@ const PROMPT_AFFIRMATIVE_WORD = async (userinfo: UserInfoGemini) => {
      ${userinfo.followersFriend
          ? `* フォロワー名: ${userinfo.followersFriend[0].profile.displayName}  
         * ポスト: ${userinfo.followersFriend[0].post}` : ""}
-   - ${userinfo.embed ? "ユーザが引用しているポストとの共通点を踏まえて今回のポストを褒めてください。ポスト内容はそのまま記載しないでください。引用元が「全肯定botたん」に関するポストの場合、言及してくれたことへの感謝も伝えてください。" : ""}
+    - ${userinfo.embed?.text_embed ? "ユーザが引用しているポストとの共通点を踏まえて今回のポストを褒めてください。ポスト内容はそのまま記載しないでください。引用元が「全肯定botたん」に関するポストの場合、言及してくれたことへの感謝も伝えてください。" : ""}
+    - ${userinfo.embed?.uri_embed ? "ユーザが共有しているリンク先の内容について、URLコンテキスト機能を必ず使用して実際のページ内容を確認し、その具体的な中身（記事のテーマや主張など）に触れた上で、ユーザの感性や興味を具体的に褒めてください。" : ""}
 
    **注意: commentにはscoreに関する情報を絶対に含めないこと**
 
@@ -62,7 +63,8 @@ const PROMPT_AFFIRMATIVE_WORD = async (userinfo: UserInfoGemini) => {
 ## ユーザ投稿
 - ユーザ名: ${userinfo.follower.displayName}
 - 今回のポスト: ${userinfo.posts?.[0] || ""}
-- ユーザが引用したポスト: ${userinfo.embed ? userinfo.embed.text_embed + " by " + userinfo.embed.profile_embed?.displayName : "なし"}
+- ユーザが引用したポスト: ${userinfo.embed?.text_embed ? userinfo.embed.text_embed + " by " + userinfo.embed.profile_embed?.displayName : "なし"}
+- ユーザが共有したリンク: ${userinfo.embed?.uri_embed ? `${userinfo.embed.title_embed} (${userinfo.embed.uri_embed}) ${userinfo.embed.description_embed || ""}` : "なし"}
 - 過去のポスト（直接言及しないこと）: ${userinfo.posts?.slice(1) ?? "なし"}
 ` :
       `Please generate the output in the following JSON format in ${userinfo.langStr}.
@@ -92,7 +94,8 @@ const PROMPT_AFFIRMATIVE_WORD = async (userinfo: UserInfoGemini) => {
      ${userinfo.followersFriend
          ? `* Follower Name: ${userinfo.followersFriend[0].profile.displayName}  
         * Follower's Post: ${userinfo.followersFriend[0].post}` : ""}
-   - ${userinfo.embed ? "The user is quoting a post, so please use that post's content to praise this post." : ""}
+    - ${userinfo.embed?.text_embed ? "The user is quoting a post, so please use that post's content to praise this post." : ""}
+    - ${userinfo.embed?.uri_embed ? "Be sure to use the URL context feature to check the actual content of the shared link, and specifically praise the user's interest or perspective by referring to the specific theme or content of the link." : ""}
 
    **Important: Do not reveal score in the comment.**
 
@@ -107,7 +110,8 @@ const PROMPT_AFFIRMATIVE_WORD = async (userinfo: UserInfoGemini) => {
 ## User post
 - Username: ${userinfo.follower.displayName}  
 - This Post: ${userinfo.posts?.[0] || ""}
-- Posts quoted by this user: ${userinfo.embed ? userinfo.embed.text_embed + " by " + userinfo.embed.profile_embed?.displayName : "None"}
+- Posts quoted by this user: ${userinfo.embed?.text_embed ? userinfo.embed.text_embed + " by " + userinfo.embed.profile_embed?.displayName : "None"}
+- Links shared by this user: ${userinfo.embed?.uri_embed ? `${userinfo.embed.title_embed} (${userinfo.embed.uri_embed}) ${userinfo.embed.description_embed || ""}` : "None"}
 - Previous Posts (do not directly mention): ${userinfo.posts?.slice(1) ?? "None"}
 `;
 };
