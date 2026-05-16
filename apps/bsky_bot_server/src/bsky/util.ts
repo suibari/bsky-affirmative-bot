@@ -109,7 +109,13 @@ export const NG_WORDS = [
   "disgusting",
   "trash",
   "garbage",
-  "ugly"
+  "ugly",
+  // 暴言
+  "shut up",
+  "stfu",
+  "fuck off",
+  "go away",
+  "stop replying",
 ];
 
 /**
