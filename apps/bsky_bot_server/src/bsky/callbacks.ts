@@ -182,10 +182,14 @@ export async function onLike(event: any) {
 }
 
 async function isBot(did: string, agent: AtpAgent): Promise<boolean> {
-  const response = await agent.getAuthorFeed({ actor: did, limit: 10 });
+  const response = await agent.getAuthorFeed({ actor: did, limit: 20 });
   let linkCount = 0;
+  let hasReplyToOthers = false;
+
   for (const item of response.data.feed) {
     const record = item.post.record as any;
+    
+    // リンクチェック (facets または embed.external)
     const hasFacetLink = record.facets?.some((f: any) => 
       f.features?.some((feat: any) => feat.$type === 'app.bsky.richtext.facet#link')
     );
@@ -194,7 +198,19 @@ async function isBot(did: string, agent: AtpAgent): Promise<boolean> {
     if (hasFacetLink || hasExternalLink) {
       linkCount++;
     }
+
+    // リプライチェック (自分以外へのリプライがあるか)
+    if (record.reply) {
+      const parentAuthorDid = splitUri(record.reply.parent.uri).did;
+      if (parentAuthorDid !== did) {
+        hasReplyToOthers = true;
+      }
+    }
   }
-  // console.log(`[INFO][${did}] Bot check: ${linkCount}/10 posts have links`);
-  return linkCount >= 4;
+
+  const isDetected = linkCount >= 8 && !hasReplyToOthers;
+  // if (isDetected) {
+  //   console.log(`[INFO][${did}] Bot detected: ${linkCount} links found and no external replies in last 20 posts`);
+  // }
+  return isDetected;
 }
