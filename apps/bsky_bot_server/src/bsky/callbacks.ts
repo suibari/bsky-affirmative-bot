@@ -4,7 +4,7 @@ import { agent } from "./agent.js";
 import { features } from "../features/index.js";
 import { MemoryService, botBiothythmManager } from "@bsky-affirmative-bot/clients";
 import { followerMap, updateFollowers } from "./followerManagement.js";
-import { isMention, getLangStr, splitUri, isIgnoreTarget, hasNGWord, isIgnorePost } from "./util.js";
+import { isMention, getLangStr, splitUri, isIgnoreTarget, hasNGWord, isIgnorePost, isReplyOrMentionToMe } from "./util.js";
 import { follow } from "./follow.js";
 import { replyGreets } from "./replyGreets.js";
 import retry from 'async-retry';
@@ -42,11 +42,12 @@ export async function onPost(event: any) {
         const text = record.text || "";
         if (hasNGWord(text)) {
           console.log(`[INFO][${authorDid}] Ignored due to NG word`);
+          if (isReplyOrMentionToMe(record)) {
+            console.log(`[INFO][${authorDid}] Saving NG word to replies table for blacklisting`);
+            await MemoryService.upsertReply(authorDid, { reply: text, uri: uri, isRead: 0 });
+          }
           return;
         }
-
-        // Note: parseEmbedPost and other checks could be added here if needed, 
-        // but using current features architecture is preferred.
 
         const context = {};
 

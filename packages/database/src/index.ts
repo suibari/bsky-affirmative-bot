@@ -177,7 +177,7 @@ export class MemoryService {
   }
 
   static async upsertReply(did: string, data: any) {
-    const rowData = { ...data, did };
+    const rowData = { ...data, did, updated_at: new Date() };
     await db.insert(replies)
       .values(rowData)
       .onConflictDoUpdate({
@@ -238,7 +238,8 @@ export class MemoryService {
 
   static async markRepliesRead() {
     await db.update(replies)
-      .set({ isRead: 1, updated_at: new Date() });
+      .set({ isRead: 1 })
+      .where(eq(replies.isRead, 0));
   }
 
   static async logUsage(type: string, did: string | null, details?: any) {
