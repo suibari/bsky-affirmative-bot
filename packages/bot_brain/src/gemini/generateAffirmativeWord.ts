@@ -79,6 +79,7 @@ const PROMPT_AFFIRMATIVE_WORD = async (userinfo: UserInfoGemini) => {
 
 ---
 ## About 'comment'
+   - **CRITICAL: You MUST write the "comment" value entirely in ${userinfo.langStr}. DO NOT use Japanese.**
    - ${userinfo.image
          ? "Give a specific compliment about the user's image."
          : "Give a specific compliment about the user's text post."}  
