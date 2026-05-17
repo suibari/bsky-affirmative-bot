@@ -93,6 +93,9 @@ export const NG_WORDS = [
   "donating",
   "gofund.me",
   "paypal.me",
+  // 広告
+  "ご案内状況",
+  // bot投稿
   "【AUTO】",
   // 暴力系のワード
   "kill",
