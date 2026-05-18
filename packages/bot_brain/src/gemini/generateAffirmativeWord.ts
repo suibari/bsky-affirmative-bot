@@ -19,6 +19,35 @@ export async function generateAffirmativeWord(userinfo: UserInfoGemini) {
 }
 
 const PROMPT_AFFIRMATIVE_WORD = async (userinfo: UserInfoGemini) => {
+   const postText = userinfo.posts?.[0] || "";
+   const postLength = postText.length;
+   const lengthLimitJa = postLength === 0
+      ? "300文字以内"
+      : `${postLength}文字以上、${postLength * 2}文字以内`;
+   const lengthLimitEn = postLength === 0
+      ? "within 300 characters"
+      : `between ${postLength} and ${postLength * 2} characters`;
+
+   let styleJa = "";
+   let styleEn = "";
+   if (postLength === 0) {
+      // 画像のみなど
+      styleJa = "300文字以内の一般的な長さで返答してください。";
+      styleEn = "Respond within 300 characters.";
+   } else if (postLength <= 30) {
+      // 短文（30文字以内）
+      styleJa = "ユーザーのポストが短いため、必ず1文〜2文程度の一言（50文字以内）で、簡潔かつテンポよく短く返答してください。長文は厳禁です。";
+      styleEn = "Since the user's post is short, keep your response brief and concise (within 50 characters, 1-2 sentences). Absolutely avoid a long reply.";
+   } else if (postLength <= 200) {
+      // 中文（30〜200文字）
+      styleJa = `ユーザーのポストの長さに合わせて、あなたも「${postLength * 2}文字以内」の範囲でバランスをとって返答してください。`;
+      styleEn = `Match the length of the user's post, keeping your response within ${postLength * 2} characters.`;
+   } else {
+      // 長文（200文字以上）
+      styleJa = "ユーザーのポストが長文のため、あなたも「400〜600文字程度」のたっぷりとした長文で、熱量高く語るように返答してください。";
+      styleEn = "Since the user's post is a long text, respond with a substantial and comprehensive long text (around 400 to 600 characters) to match their energy.";
+   }
+
    return userinfo.langStr === "日本語" ?
       `ユーザからの投稿について、以下のJSON形式で出力してください。
 \`\`\`json
@@ -32,6 +61,8 @@ const PROMPT_AFFIRMATIVE_WORD = async (userinfo: UserInfoGemini) => {
 
 ---
 ## commentの内容について
+   - **文量スタイル**: ${styleJa}
+   - **注意: JSONのパースエラーを防ぐため、commentの値（文字列）の中では二重引用符（"）を絶対に使用しないでください。代わりに、一重引用符（'）や「」などの記号を使用してください。**
    - ${userinfo.image
          ? "ユーザの画像について具体的に褒めてください。"
          : "ユーザの今回のポストを具体的に褒めてください。"}  
@@ -62,7 +93,7 @@ const PROMPT_AFFIRMATIVE_WORD = async (userinfo: UserInfoGemini) => {
 ---
 ## ユーザ投稿
 - ユーザ名: ${userinfo.follower.displayName}
-- 今回のポスト: ${userinfo.posts?.[0] || ""}
+- 今回のポスト: ${postText}
 - ユーザが引用したポスト: ${userinfo.embed?.text_embed ? userinfo.embed.text_embed + " by " + userinfo.embed.profile_embed?.displayName : "なし"}
 - ユーザが共有したリンク: ${userinfo.embed?.uri_embed ? `${userinfo.embed.title_embed} (${userinfo.embed.uri_embed}) ${userinfo.embed.description_embed || ""}` : "なし"}
 - 過去のポスト（直接言及しないこと）: ${userinfo.posts?.slice(1) ?? "なし"}
@@ -79,6 +110,8 @@ const PROMPT_AFFIRMATIVE_WORD = async (userinfo: UserInfoGemini) => {
 
 ---
 ## About 'comment'
+   - **STYLE CONSTRAINT**: ${styleEn}
+   - **CRITICAL: To prevent JSON parsing errors, NEVER use double quotes (") inside the "comment" value. Use single quotes (') or other punctuation marks instead.**
    - **CRITICAL: You MUST write the "comment" value entirely in ${userinfo.langStr}. DO NOT use Japanese.**
    - ${userinfo.image
          ? "Give a specific compliment about the user's image."
@@ -110,7 +143,7 @@ const PROMPT_AFFIRMATIVE_WORD = async (userinfo: UserInfoGemini) => {
 ---
 ## User post
 - Username: ${userinfo.follower.displayName}  
-- This Post: ${userinfo.posts?.[0] || ""}
+- This Post: ${postText}
 - Posts quoted by this user: ${userinfo.embed?.text_embed ? userinfo.embed.text_embed + " by " + userinfo.embed.profile_embed?.displayName : "None"}
 - Links shared by this user: ${userinfo.embed?.uri_embed ? `${userinfo.embed.title_embed} (${userinfo.embed.uri_embed}) ${userinfo.embed.description_embed || ""}` : "None"}
 - Previous Posts (do not directly mention): ${userinfo.posts?.slice(1) ?? "None"}
