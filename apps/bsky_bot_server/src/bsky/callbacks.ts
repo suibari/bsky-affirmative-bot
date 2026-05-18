@@ -8,6 +8,7 @@ import { isMention, getLangStr, splitUri, isIgnoreTarget, hasNGWord, isIgnorePos
 import { follow } from "./follow.js";
 import { replyGreets } from "./replyGreets.js";
 import retry from 'async-retry';
+import { ProfileView } from "@atproto/api/dist/client/types/app/bsky/actor/defs.js";
 
 export async function onPost(event: any) {
   const authorDid = event.did;
@@ -34,8 +35,8 @@ export async function onPost(event: any) {
         const response = await agent.app.bsky.feed.getPosts({ uris: [uri] });
         const postView = response.data.posts[0];
         if (postView && isIgnorePost(postView)) {
-           console.log(`[INFO][${authorDid}] Ignored due to post labels (fetched from AppView)`);
-           return;
+          console.log(`[INFO][${authorDid}] Ignored due to post labels (fetched from AppView)`);
+          return;
         }
 
         // Spam filter
@@ -96,7 +97,7 @@ export async function onFollow(event: any) {
   if (!followerMap.has(did)) {
     try {
       const { data: profile } = await agent.getProfile({ actor: did });
-      followerMap.set(did, profile);
+      followerMap.set(did, profile as ProfileView);
       console.log(`[INFO] ${did} added to follower map optimistically.`);
     } catch (e) {
       console.warn(`[WARN] Failed to fetch profile for ${did} optimistically.`);
@@ -182,19 +183,35 @@ export async function onLike(event: any) {
 }
 
 async function isBot(did: string, agent: AtpAgent): Promise<boolean> {
+  let follower = followerMap.get(did);
+
+  if (follower) {
+    // handle に "bot" が含まれているか（大文字小文字を区別しない）
+    if (follower.handle && follower.handle.toLowerCase().includes('bot')) {
+      console.log(`[INFO][${did}] Bot detected: handle "${follower.handle}" contains "bot"`);
+      return true;
+    }
+    // "bot" Label が付いているか
+    if (follower.labels && follower.labels.some((l: any) => l.val === 'bot')) {
+      console.log(`[INFO][${did}] Bot detected: label "bot" found`);
+      return true;
+    }
+  }
+
+  // アフィリエイトbot検出
   const response = await agent.getAuthorFeed({ actor: did, limit: 20 });
   let linkCount = 0;
   let hasReplyToOthers = false;
 
   for (const item of response.data.feed) {
     const record = item.post.record as any;
-    
+
     // リンクチェック (facets または embed.external)
-    const hasFacetLink = record.facets?.some((f: any) => 
+    const hasFacetLink = record.facets?.some((f: any) =>
       f.features?.some((feat: any) => feat.$type === 'app.bsky.richtext.facet#link')
     );
     const hasExternalLink = record.embed?.$type === 'app.bsky.embed.external' || !!record.embed?.external;
-    
+
     if (hasFacetLink || hasExternalLink) {
       linkCount++;
     }
@@ -209,8 +226,8 @@ async function isBot(did: string, agent: AtpAgent): Promise<boolean> {
   }
 
   const isDetected = linkCount >= 8 && !hasReplyToOthers;
-  // if (isDetected) {
-  //   console.log(`[INFO][${did}] Bot detected: ${linkCount} links found and no external replies in last 20 posts`);
-  // }
+  if (isDetected) {
+    console.log(`[INFO][${did}] Bot detected: ${linkCount} links in last 20 posts`);
+  }
   return isDetected;
 }

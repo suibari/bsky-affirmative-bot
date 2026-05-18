@@ -1,14 +1,15 @@
+import { ProfileView } from "@atproto/api/dist/client/types/app/bsky/actor/defs.js";
 import { getConcatFollowers } from "./getConcatFollowers.js";
 
 // Follower Cache
-export const followerMap = new Map<string, any>();
+export const followerMap = new Map<string, ProfileView>();
 
 let isUpdating = false;
 
 export async function updateFollowers() {
   if (isUpdating) return;
   isUpdating = true;
-  
+
   console.log("[INFO] Fetching followers...");
   const actor = process.env.BSKY_IDENTIFIER!;
   try {
