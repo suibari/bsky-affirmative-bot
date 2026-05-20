@@ -11,6 +11,8 @@ import retry from 'async-retry';
 import { ProfileView } from "@atproto/api/dist/client/types/app/bsky/actor/defs.js";
 import { getSubscribersFromSheet } from "@bsky-affirmative-bot/bot-brain";
 
+import { FeatureContext } from "../features/types.js";
+
 export async function onPost(event: any) {
   const authorDid = event.did;
   const record = event.commit.record as AppBskyFeedPost.Record;
@@ -61,7 +63,7 @@ export async function onPost(event: any) {
           }
         }        
 
-        const context = {};
+        const context: FeatureContext = { isSubscriber };
 
         for (const feature of features) {
           try {

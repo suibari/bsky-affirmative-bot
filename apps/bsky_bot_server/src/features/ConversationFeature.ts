@@ -3,7 +3,6 @@ import { AppBskyActorDefs } from "@atproto/api"; type ProfileView = AppBskyActor
 import { BotFeature, FeatureContext } from "./types.js";
 import { MemoryService } from "@bsky-affirmative-bot/clients";
 import { followerMap } from "../bsky/followerManagement.js";
-import { getSubscribersFromSheet } from "@bsky-affirmative-bot/bot-brain";
 import { isReplyOrMentionToMe, uniteDidNsidRkey, getImageUrl, getLangStr } from "../bsky/util.js";
 import { AppBskyFeedPost } from "@atproto/api"; type Record = AppBskyFeedPost.Record;
 import { Content } from "@google/genai";
@@ -60,8 +59,7 @@ export class ConversationFeature implements BotFeature {
         }
 
         // サブスクライバー限定で会話機能発動する
-        const subscribers = await getSubscribersFromSheet();
-        if (subscribers.includes(follower.did)) {
+        if (context.isSubscriber) {
             if (await this.handleConversation(event, follower)) {
                 await MemoryService.logUsage('conversation', follower.did);
                 return;

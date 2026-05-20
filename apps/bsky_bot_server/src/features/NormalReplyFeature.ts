@@ -2,7 +2,6 @@ import { CommitCreateEvent } from "@skyware/jetstream";
 import { AppBskyActorDefs } from "@atproto/api"; type ProfileView = AppBskyActorDefs.ProfileView;
 import { BotFeature, FeatureContext } from "./types.js";
 import { botBiothythmManager } from "@bsky-affirmative-bot/clients";
-import { getSubscribersFromSheet } from "@bsky-affirmative-bot/bot-brain";
 import { isMention, getLangStr, hasNGWord } from "../bsky/util.js";
 import { EXEC_PER_COUNTS } from "@bsky-affirmative-bot/shared-configs";
 import { replyAI } from "./replyai.js";
@@ -25,8 +24,7 @@ export class NormalReplyFeature implements BotFeature {
     async handle(event: CommitCreateEvent<"app.bsky.feed.post">, follower: ProfileView, context: FeatureContext): Promise<void> {
         const record = event.commit.record as any;
         const did = follower.did;
-        const subscribers = await getSubscribersFromSheet();
-        const isSubscriber = subscribers.includes(did);
+        const isSubscriber = context.isSubscriber;
         const row = await MemoryService.getFollower(did);
 
         let relatedPosts: string[] = [];

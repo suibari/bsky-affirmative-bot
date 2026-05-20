@@ -3,7 +3,6 @@ import { AppBskyActorDefs } from "@atproto/api"; type ProfileView = AppBskyActor
 import { BotFeature, FeatureContext } from "./types.js";
 import { MemoryService } from "@bsky-affirmative-bot/clients";
 import { botBiothythmManager } from "@bsky-affirmative-bot/clients";
-import { getSubscribersFromSheet } from "@bsky-affirmative-bot/bot-brain";
 import { CHEER_TRIGGER } from "@bsky-affirmative-bot/shared-configs";
 import { AppBskyFeedPost } from "@atproto/api"; type Record = AppBskyFeedPost.Record;
 import { handleMode, isPast } from "./utils.js";
@@ -21,8 +20,7 @@ export class CheerFeature implements BotFeature {
         const text = (record.text || "").toLowerCase();
 
         // Check if subscriber
-        const subscribers = await getSubscribersFromSheet();
-        if (!subscribers.includes(follower.did)) return false;
+        if (!context.isSubscriber) return false;
 
         // Check trigger
         if (!CHEER_TRIGGER.some(trigger => text.includes(trigger.toLowerCase()))) return false;

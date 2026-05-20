@@ -33,8 +33,7 @@ export class DiaryFeature implements BotFeature {
         const record = event.commit.record as any;
         const text = (record.text || "").toLowerCase();
 
-        const subscribers = await getSubscribersFromSheet();
-        if (!subscribers.includes(follower.did)) return false;
+        if (!context.isSubscriber) return false;
 
         return (
             DIARY_REGISTER_TRIGGER.some(trigger => text.includes(trigger.toLowerCase())) ||

@@ -1,6 +1,7 @@
 import { CommitCreateEvent } from "@skyware/jetstream";
 import { AppBskyActorDefs } from "@atproto/api"; type ProfileView = AppBskyActorDefs.ProfileView;
 export interface FeatureContext {
+    isSubscriber: boolean;
 }
 
 export interface BotFeature {
