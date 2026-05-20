@@ -2,9 +2,10 @@ import { CommitCreateEvent } from "@skyware/jetstream";
 import { AppBskyActorDefs } from "@atproto/api"; type ProfileView = AppBskyActorDefs.ProfileView;
 import { BotFeature, FeatureContext } from "./types.js";
 import { botBiothythmManager } from "@bsky-affirmative-bot/clients";
-import { isMention, getLangStr, hasNGWord } from "../bsky/util.js";
+import { isMention, getLangStr, hasNGWord, uniteDidNsidRkey } from "../bsky/util.js";
 import { EXEC_PER_COUNTS } from "@bsky-affirmative-bot/shared-configs";
 import { replyAI } from "./replyai.js";
+import { getConcatAuthorFeed } from "../bsky/getConcatAuthorFeed.js";
 import { replyRandom } from "./replyrandom.js";
 import { MemoryService } from "@bsky-affirmative-bot/clients";
 
@@ -98,6 +99,14 @@ export class NormalReplyFeature implements BotFeature {
 
         if (replyType === "ai") {
             if (await MemoryService.checkRPD()) {
+                try {
+                    const recentPosts = await getConcatAuthorFeed(follower.did, 11);
+                    const currentUri = uniteDidNsidRkey(follower.did, event.commit.collection, event.commit.rkey);
+                    const filtered = recentPosts.filter(item => item.post.uri !== currentUri);
+                    relatedPosts = filtered.slice(0, 10).map(item => (item.post.record as any).text).filter(Boolean);
+                } catch (err) {
+                    console.warn(`[WARN][${did}] Failed to fetch recent posts for relatedPosts context:`, err);
+                }
                 await replyAI(follower, event, relatedPosts);
             } else {
                 console.log(`[INFO][${did}] Ignored post, REASON: rpd over`);
