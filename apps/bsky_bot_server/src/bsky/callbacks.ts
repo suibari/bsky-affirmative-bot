@@ -9,11 +9,13 @@ import { follow } from "./follow.js";
 import { replyGreets } from "./replyGreets.js";
 import retry from 'async-retry';
 import { ProfileView } from "@atproto/api/dist/client/types/app/bsky/actor/defs.js";
+import { getSubscribersFromSheet } from "@bsky-affirmative-bot/bot-brain";
 
 export async function onPost(event: any) {
   const authorDid = event.did;
   const record = event.commit.record as AppBskyFeedPost.Record;
   const follower = followerMap.get(authorDid);
+  const text = record.text || "";
   if (!follower) return; // Only handle followers for most features
 
   try {
@@ -22,39 +24,42 @@ export async function onPost(event: any) {
         // Self filter
         if (authorDid === process.env.BSKY_DID) return;
 
-        // Label filter
-        if (isIgnoreTarget(follower.labels)) {
-          console.log(`[INFO][${authorDid}] Ignored due to author labels`);
-          return;
-        }
-
-        // External & Self Label filter via AppView
-        // 外部ラベラー（Official Moderation等）の反映を待つため少し待機
-        await new Promise(resolve => setTimeout(resolve, 3000));
-        const uri = `at://${authorDid}/${event.commit.collection}/${event.commit.rkey}`;
-        const response = await agent.app.bsky.feed.getPosts({ uris: [uri] });
-        const postView = response.data.posts[0];
-        if (postView && isIgnorePost(postView)) {
-          console.log(`[INFO][${authorDid}] Ignored due to post labels (fetched from AppView)`);
-          return;
-        }
-
-        // Spam filter
-        const text = record.text || "";
-        if (hasNGWord(text)) {
-          console.log(`[INFO][${authorDid}] Ignored due to NG word`);
-          if (isReplyOrMentionToMe(record)) {
-            console.log(`[INFO][${authorDid}] Saving NG word to replies table for blacklisting`);
-            await MemoryService.upsertReply(authorDid, { reply: text, uri: uri, isRead: 0 });
+        const subscribers = await getSubscribersFromSheet();
+        const isSubscriber = subscribers.includes(authorDid);
+        if (!isSubscriber) {
+          // Label filter
+          if (isIgnoreTarget(follower.labels)) {
+            console.log(`[INFO][${authorDid}] Ignored due to author labels`);
+            return;
           }
-          return;
-        }
 
-        // Bot check
-        if (await isBot(authorDid, agent)) {
-          console.log(`[INFO][${authorDid}] Ignored as bot account`);
-          return;
-        }
+          // External & Self Label filter via AppView
+          // 外部ラベラー（Official Moderation等）の反映を待つため少し待機
+          await new Promise(resolve => setTimeout(resolve, 3000));
+          const uri = `at://${authorDid}/${event.commit.collection}/${event.commit.rkey}`;
+          const response = await agent.app.bsky.feed.getPosts({ uris: [uri] });
+          const postView = response.data.posts[0];
+          if (postView && isIgnorePost(postView)) {
+            console.log(`[INFO][${authorDid}] Ignored due to post labels (fetched from AppView)`);
+            return;
+          }
+
+          // Spam filter
+          if (hasNGWord(text)) {
+            console.log(`[INFO][${authorDid}] Ignored due to NG word`);
+            if (isReplyOrMentionToMe(record)) {
+              console.log(`[INFO][${authorDid}] Saving NG word to replies table for blacklisting`);
+              await MemoryService.upsertReply(authorDid, { reply: text, uri: uri, isRead: 0 });
+            }
+            return;
+          }
+
+          // Bot check
+          if (await isBot(authorDid, agent)) {
+            console.log(`[INFO][${authorDid}] Ignored as bot account`);
+            return;
+          }
+        }        
 
         const context = {};
 
