@@ -77,19 +77,49 @@ export class ConversationFeature implements BotFeature {
         // 添付画像取得
         const image = await getImageUrl(follower.did, record.embed);
 
-        // 引用
+        // 引用ポスト・リンク解析
         let embed: Embed | undefined = undefined;
         const embed_tmp = await parseEmbedPost(record);
-        if (embed_tmp && embed_tmp.profile_embed &&
-            (
-                followerMap.has(embed_tmp.profile_embed?.did) ||
-                process.env.BSKY_DID === embed_tmp.profile_embed?.did // botの投稿を引用でも反応する
-            )
-        ) {
-            // フォロワーに引用先が含まれるならセット
-            embed = embed_tmp;
-            if (embed.image_embed) {
-                image.push(...embed.image_embed);
+        if (embed_tmp) {
+            if (embed_tmp.profile_embed) {
+                // 引用ポストの場合、フォロワーに含まれるかbot自身の投稿ならセット
+                if (
+                    followerMap.has(embed_tmp.profile_embed?.did) ||
+                    process.env.BSKY_DID === embed_tmp.profile_embed?.did // botの投稿を引用でも反応する
+                ) {
+                    embed = embed_tmp;
+                    if (embed.image_embed) {
+                        image.push(...embed.image_embed);
+                    }
+                }
+            } else if (embed_tmp.uri_embed) {
+                // 外部リンクカードの場合、そのままセット
+                embed = embed_tmp;
+            }
+        }
+
+        // ポストテキストからURLを抽出（リンクカードがない場合）
+        if (!embed?.uri_embed) {
+            let textLinkUri: string | undefined;
+
+            // facetsからリンクを抽出
+            if (record.facets) {
+                for (const facet of record.facets) {
+                    if (facet.features) {
+                        for (const feature of facet.features) {
+                            if (feature.$type === 'app.bsky.richtext.facet#link' && typeof (feature as any).uri === 'string') {
+                                textLinkUri = (feature as any).uri;
+                                break;
+                            }
+                        }
+                    }
+                    if (textLinkUri) break;
+                }
+            }
+
+            if (textLinkUri) {
+                if (!embed) embed = {};
+                embed.uri_embed = textLinkUri;
             }
         }
 
