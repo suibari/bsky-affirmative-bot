@@ -3,6 +3,7 @@ import dotenv from "dotenv";
 import { agent, initAgent } from "./bsky/agent.js";
 import { startWebSocket } from "./bsky/jetstream.js";
 import { scheduleAllUserDiaries } from "./features/DiaryFeature.js";
+import { scheduleSubscriberLabelSync } from "./features/SubscriberLabelFeature.js";
 import { updateFollowers } from "./bsky/followerManagement.js";
 import { onPost, onFollow, onLike } from "./bsky/callbacks.js";
 import { router } from "./routes.js";
@@ -35,6 +36,11 @@ app.listen(PORT, async () => {
     // Run diary scheduling in the background
     scheduleAllUserDiaries().catch(e => {
       console.error("[ERROR] Failed to schedule diaries:", e);
+    });
+
+    // Run subscriber label synchronization in the background
+    scheduleSubscriberLabelSync().catch(e => {
+      console.error("[ERROR] Failed to schedule subscriber labels:", e);
     });
 
     startWebSocket(onPost, onFollow, onLike);

@@ -6,3 +6,6 @@ log.*
 output.png
 service-account.json
 *.tsbuildinfo
+*.db
+*.db-shm
+*.db-wal

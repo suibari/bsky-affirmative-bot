@@ -1,4 +1,4 @@
-import { MemoryService } from "@bsky-affirmative-bot/clients";
+import { MemoryService, botLabelerManager } from "@bsky-affirmative-bot/clients";
 import { AppBskyActorDefs } from "@atproto/api"; type ProfileView = AppBskyActorDefs.ProfileView;
 import { splitUri } from "../bsky/util.js";
 import { postContinuous } from "../bsky/postContinuous.js";

@@ -18,13 +18,15 @@ DIFF_FILES=$(git diff --name-only $OLD_COMMIT $NEW_COMMIT)
 
 RESTART_BOT=false
 RESTART_BIO=false
+RESTART_LABELER=false
 PUSH_DB=false
 
 # 判定ロジック
 if echo "$DIFF_FILES" | grep -q "packages/"; then
-    # 共有ライブラリが変わったら両方再起動
+    # 共有ライブラリが変わったらすべて再起動
     RESTART_BOT=true
     RESTART_BIO=true
+    RESTART_LABELER=true
 fi
 
 if echo "$DIFF_FILES" | grep -q "apps/bsky_bot_server/"; then
@@ -33,6 +35,10 @@ fi
 
 if echo "$DIFF_FILES" | grep -q "apps/biorhythm_server/"; then
     RESTART_BIO=true
+fi
+
+if echo "$DIFF_FILES" | grep -q "apps/labeler_server/"; then
+    RESTART_LABELER=true
 fi
 
 # DB 判定/push
@@ -54,4 +60,9 @@ fi
 if [ "$RESTART_BOT" = true ]; then
     echo "♻️  Restarting Bot Server..."
     sudo systemctl restart bsky-bot.service
+fi
+
+if [ "$RESTART_LABELER" = true ]; then
+    echo "♻️  Restarting Labeler Server..."
+    sudo systemctl restart labeler-server.service
 fi

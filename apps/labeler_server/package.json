@@ -1,0 +1,25 @@
+{
+  "name": "labeler-server",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "start": "node --env-file=../../.env dist/index.js",
+    "dev": "tsx watch --env-file=../../.env src/index.ts"
+  },
+  "dependencies": {
+    "@atproto/api": "^0.18.21",
+    "@skyware/labeler": "^0.2.0",
+    "dotenv": "^16.4.5",
+    "express": "^5.0.0",
+    "fastify": "^4.28.1"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.0.0",
+    "tsx": "^4.7.1",
+    "typescript": "^5.8.3"
+  }
+}
