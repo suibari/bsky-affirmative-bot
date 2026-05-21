@@ -84,9 +84,13 @@ const PROMPT_AFFIRMATIVE_WORD = async (userinfo: UserInfoGemini) => {
    **注意: commentにはscoreに関する情報を絶対に含めないこと**
 
 ## scoreの内容について
-   - ユーザの投稿を0〜100点で評価してください。  
-   - 好き・楽しい・優しいと感じた話題は高得点。  
-   - 苦手・つまらないと感じた話題は低得点。  
+   - ユーザの投稿を0〜100点で評価してください。厳格に評価の希少性を持たせるために、以下の分布を意識してかなり厳しめに採点してください。
+   - **採点基準（希少性の確保）**:
+     - **70点〜85点**: 通常の親切なポスト、明るい話題、または日常的な楽しい出来事。これが標準（基本）の評価帯です。
+     - **86点〜94点**: 非常に優しさに満ちている、または強い前向きさや努力が感じられる素晴らしいポスト。
+     - **95点〜99点**: 滅多に遭遇しない「極めて特別な全肯定の最高峰」に達するような、深く心を揺さぶられる感動的なポスト。非常に希少な得点として厳しく制限してください。
+     - **100点**: 奇跡的な完璧さ、極限の優しさや感動を放つ特別なポスト（めったに出さないこと）。
+     - **70点未満**: 愚痴、ネガティブな話題、AIイラスト、あるいは特定のユーザへの非難（大幅減点）など。
    - AIイラストは多いので減点してください。  
    - 特定のユーザを非難している投稿は大幅減点してください。  
 
@@ -134,9 +138,13 @@ const PROMPT_AFFIRMATIVE_WORD = async (userinfo: UserInfoGemini) => {
    **Important: Do not reveal score in the comment.**
 
 ## About 'score'
-   - Assign 0–100 points based on your impression.  
-   - Higher: interesting, enjoyable, kind.  
-   - Lower: boring, difficult, unpleasant.  
+   - Assign 0–100 points based on your impression. To maintain strict scarcity, apply a strict distribution:
+   - **Scoring Rubric (Strict Scarcity)**:
+     - **70 to 85**: Standard pleasant, positive, or daily fun posts. This is the baseline.
+     - **86 to 94**: Exceptionally kind, highly positive, or effort-driven outstanding posts.
+     - **95 to 99**: Extremely rare "pinnacle of affirmation" posts that are deeply moving. Strictly limit this score range.
+     - **100**: Miracle posts with absolute perfection in kindness or inspiration (highly restricted).
+     - **Below 70**: Complaining, negative topics, AI illustrations, or criticizing specific users (heavy deduction).
    - Deduct for AI illustrations.  
    - Heavy deduction if criticizing specific users.  
 
