@@ -4,7 +4,7 @@
       "identifier": "bot-tan-sub",
       "severity": "inform",
       "blurs": "none",
-      "defaultSetting": "ignore",
+      "defaultSetting": "warn",
       "locales": [
         {
           "lang": "ja",
