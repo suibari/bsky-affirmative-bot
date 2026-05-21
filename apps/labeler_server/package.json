@@ -7,7 +7,8 @@
   "scripts": {
     "build": "tsc",
     "start": "node --env-file=../../.env dist/index.js",
-    "dev": "tsx watch --env-file=../../.env src/index.ts"
+    "dev": "tsx watch --env-file=../../.env src/index.ts",
+    "publish-labels": "tsx src/publish-labels.ts"
   },
   "dependencies": {
     "@atproto/api": "^0.18.21",

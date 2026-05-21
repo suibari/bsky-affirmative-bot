@@ -1,0 +1,22 @@
+{
+  "labelValueDefinitions": [
+    {
+      "identifier": "bot-tan-sub",
+      "severity": "inform",
+      "blurs": "none",
+      "defaultSetting": "ignore",
+      "locales": [
+        {
+          "lang": "ja",
+          "name": "サブスクライバー",
+          "description": "botたんのサブスクライバーの証"
+        },
+        {
+          "lang": "en",
+          "name": "Subscribers",
+          "description": "Proof of bot-tan's subscribers."
+        }
+      ]
+    }
+  ]
+}
