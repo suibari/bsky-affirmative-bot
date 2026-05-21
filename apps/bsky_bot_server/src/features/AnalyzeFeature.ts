@@ -1,7 +1,7 @@
 import { CommitCreateEvent } from "@skyware/jetstream";
 import { AppBskyActorDefs } from "@atproto/api"; type ProfileView = AppBskyActorDefs.ProfileView;
 import { BotFeature, FeatureContext } from "./types.js";
-import { MemoryService } from "@bsky-affirmative-bot/clients";
+import { MemoryService, botLabelerManager } from "@bsky-affirmative-bot/clients";
 import { botBiothythmManager } from "@bsky-affirmative-bot/clients";
 import { ANALYZE_TRIGGER, NICKNAMES_BOT } from "@bsky-affirmative-bot/shared-configs";
 import retry from 'async-retry';
@@ -12,7 +12,7 @@ import { agent } from '../bsky/agent.js';
 import { getLangStr, isReplyOrMentionToMe } from "../bsky/util.js";
 import { handleMode, isPast } from "./utils.js";
 import { GeminiResponseResult, UserInfoGemini } from '@bsky-affirmative-bot/shared-configs';
-import { generateAnalyzeResult } from "@bsky-affirmative-bot/bot-brain";
+import { generateAnalyzeResult, AnalyzeResult } from "@bsky-affirmative-bot/bot-brain";
 import { textToImageBufferWithBackground } from '../util/canvas.js';
 import { getConcatPosts } from '../bsky/getConcatPosts.js';
 import { AtpAgent } from "@atproto/api";
@@ -84,7 +84,7 @@ export class AnalyzeFeature implements BotFeature {
             .map(like => (like.record as RecordPost).text);
         userinfo.likedByFollower = likes;
 
-        const result = await retry(async () => {
+        const analyzeResult = await retry(async () => {
             const res = await generateAnalyzeResult(userinfo);
             if (!res) {
                 throw new Error("API result is empty, retrying...");
@@ -102,14 +102,46 @@ export class AnalyzeFeature implements BotFeature {
         });
 
         // if (process.env.NODE_ENV === "development") {
-        //     console.log("[DEBUG] bot>>> " + result);
+        //     console.log("[DEBUG] bot>>> " + analyzeResult.analysis);
         // }
 
         // 画像生成
-        const buffer = await textToImageBufferWithBackground(result, "./img/bot-tan-analyze.png");
+        const buffer = await textToImageBufferWithBackground(analyzeResult.analysis, "./img/bot-tan-analyze.png");
 
         // uploadBlod
         const { blob } = (await agent.uploadBlob(buffer, { encoding: "image/png" })).data;
+
+        // 称号バッジ (分析) 適用処理 (日記称号を上書きするため同じIDを使用)
+        try {
+            const userDid = userinfo.follower.did;
+            await MemoryService.ensureFollower(userDid);
+            const badgeId = `title-${userDid.replace(/:/g, "-")}`;
+            console.log(`[INFO][BADGE][ANALYZE] Upserting title badge definition for ${userDid}: ${analyzeResult.title_ja} / ${analyzeResult.title_en}`);
+
+            // 1. レーベラーに定義を upsert
+            await botLabelerManager.upsertLabelDefinition(badgeId, [
+                {
+                    lang: "ja",
+                    name: `称号: ${analyzeResult.title_ja}`,
+                    description: `性格分析で獲得した称号：${analyzeResult.title_ja}`
+                },
+                {
+                    lang: "en",
+                    name: `Title: ${analyzeResult.title_en}`,
+                    description: `Personality Analysis Summary: ${analyzeResult.title_en}`
+                }
+            ]);
+
+            // 2. ユーザーにバッジを適用
+            await botLabelerManager.applyLabel(userDid, badgeId, false);
+
+            // 3. DB 更新
+            await MemoryService.updateFollower(userDid, "current_title_ja", analyzeResult.title_ja);
+            await MemoryService.updateFollower(userDid, "current_title_en", analyzeResult.title_en);
+            console.log(`[INFO][BADGE][ANALYZE] Successfully applied title badge ${badgeId} to ${userDid}`);
+        } catch (badgeErr: any) {
+            console.error(`[ERROR][BADGE][ANALYZE] Failed to apply title badge for ${userinfo.follower.did}:`, badgeErr.message);
+        }
 
         return {
             text: TEXT_INTRO_ANALYZE,

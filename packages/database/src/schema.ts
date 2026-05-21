@@ -27,6 +27,9 @@ export const followers = affirmativeBotSchema.table("followers", {
   is_diary: integer("is_diary").default(0),
   is_anniv: integer("is_anniv").default(1),
   last_whimsical_responded_uri: text("last_whimsical_responded_uri"),
+  positivity_level: integer("positivity_level").default(0),
+  current_title_ja: text("current_title_ja"),
+  current_title_en: text("current_title_en"),
 });
 
 export const posts = affirmativeBotSchema.table("posts", {

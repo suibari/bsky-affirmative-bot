@@ -6,12 +6,12 @@ import { DIARY_REGISTER_TRIGGER, DIARY_RELEASE_TRIGGER } from "@bsky-affirmative
 import { AppBskyFeedPost } from "@atproto/api"; type Record = AppBskyFeedPost.Record;
 import { handleMode } from "./utils.js";
 import { getLangStr, getTimezoneFromLang } from "../bsky/util.js";
-import { MemoryService } from "@bsky-affirmative-bot/clients";
+import { MemoryService, botLabelerManager } from "@bsky-affirmative-bot/clients";
 import { LanguageName } from "@bsky-affirmative-bot/shared-configs";
 import { DateTime } from "luxon";
 import { getConcatProfiles } from "../bsky/getConcatProfiles.js";
 import { getDaysAuthorFeed } from "../bsky/getDaysAuthorFeed.js";
-import { generateDiary } from "@bsky-affirmative-bot/bot-brain";
+import { generateDiary, DiaryResult } from "@bsky-affirmative-bot/bot-brain";
 import { textToImageBufferWithBackground } from "../util/canvas.js";
 import { agent } from "../bsky/agent.js";
 import { postContinuous } from "../bsky/postContinuous.js";
@@ -127,17 +127,17 @@ async function processUserDiary(userDid: string) {
         console.log(`[INFO][${userDid}] generating diary...`);
 
         // 日記が空文字のことがあるので、リトライ処理を入れてみる
-        let text_bot = "";
+        let diaryResult: DiaryResult | undefined;
         const maxRetries = 3;
         let retries = 0;
         while (retries < maxRetries) {
-            text_bot = await generateDiary({
+            diaryResult = await generateDiary({
                 follower: profile as ProfileView,
                 posts: posts.reverse(),
                 langStr,
             });
 
-            if (text_bot !== "") {
+            if (diaryResult && diaryResult.diary !== "") {
                 break;
             }
 
@@ -146,10 +146,12 @@ async function processUserDiary(userDid: string) {
             await new Promise(resolve => setTimeout(resolve, 1000 * retries));
         }
 
-        if (text_bot === "") {
+        if (!diaryResult || diaryResult.diary === "") {
             console.error(`[ERROR][${userDid}][DIARY] Failed to generate diary after ${maxRetries} retries.`);
             return; // Exit if still empty after retries
         }
+
+        const text_bot = diaryResult.diary;
 
         console.log(`[INFO][${userDid}] generating image...`);
         const imageGenerationDate = new Date(); // Use a new Date object for image generation context
@@ -166,6 +168,37 @@ async function processUserDiary(userDid: string) {
             cid: latestPost.cid,
             record: latestPost.record as Record
         }, { blob, alt: `Dear ${profile.displayName}, From 全肯定botたん` });
+
+        // 称号バッジ (日記) 適用処理
+        try {
+            await MemoryService.ensureFollower(userDid);
+            const badgeId = `title-${userDid.replace(/:/g, "-")}`;
+            console.log(`[INFO][BADGE][DIARY] Upserting title badge definition for ${userDid}: ${diaryResult.title_ja} / ${diaryResult.title_en}`);
+
+            // 1. レーベラーに定義を upsert
+            await botLabelerManager.upsertLabelDefinition(badgeId, [
+                {
+                    lang: "ja",
+                    name: `称号: ${diaryResult.title_ja}`,
+                    description: `前日の日記の総括：${diaryResult.title_ja}`
+                },
+                {
+                    lang: "en",
+                    name: `Title: ${diaryResult.title_en}`,
+                    description: `Daily Summary: ${diaryResult.title_en}`
+                }
+            ]);
+
+            // 2. ユーザーにバッジを適用
+            await botLabelerManager.applyLabel(userDid, badgeId, false);
+
+            // 3. DB 更新
+            await MemoryService.updateFollower(userDid, "current_title_ja", diaryResult.title_ja);
+            await MemoryService.updateFollower(userDid, "current_title_en", diaryResult.title_en);
+            console.log(`[INFO][BADGE][DIARY] Successfully applied title badge ${badgeId} to ${userDid}`);
+        } catch (badgeErr: any) {
+            console.error(`[ERROR][BADGE][DIARY] Failed to apply title badge for ${userDid}:`, badgeErr.message);
+        }
 
         console.log(`[INFO][${userDid}] finish to process diary`);
 

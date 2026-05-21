@@ -1,21 +1,39 @@
 
-import { UserInfoGemini, GeminiScore } from "@bsky-affirmative-bot/shared-configs";
-import { generateSingleResponse } from "./util.js";
+import { UserInfoGemini } from "@bsky-affirmative-bot/shared-configs";
+import { generateSingleResponse, extractJSON } from "./util.js";
 
-export async function generateAnalyzeResult(userinfo: UserInfoGemini) {
+export interface AnalyzeResult {
+  analysis: string;
+  title_ja: string;
+  title_en: string;
+}
+
+export async function generateAnalyzeResult(userinfo: UserInfoGemini): Promise<AnalyzeResult> {
   const prompt = PROMPT_ANALYZE(userinfo);
   const response = await generateSingleResponse(prompt, userinfo);
 
-  // Geminiリクエスト数加算
-  
-
-  return response ?? "";
+  try {
+    const json = extractJSON(response || "{}") as AnalyzeResult;
+    return {
+      analysis: json.analysis || "",
+      title_ja: json.title_ja || "全肯定の賢者",
+      title_en: json.title_en || "Affirmative Sage"
+    };
+  } catch (e) {
+    console.error("[ERROR] Failed to parse generateAnalyzeResult JSON, falling back to plaintext:", e);
+    // フォールバック
+    return {
+      analysis: response || "",
+      title_ja: "全肯定 of 賢者",
+      title_en: "Affirmative Sage"
+    };
+  }
 }
 
 const PROMPT_ANALYZE = (userinfo: UserInfoGemini) => {
   return userinfo.langStr === "日本語" ?
     `ユーザ自身のポストとユーザがいいねしたポストを基に、性格分析をしてください。
-出力する文字数は最大500文字までです。
+出力する性格分析の本文の文字数は最大500文字までです。
 空の行は入れないでください。
 分析結果は以下の要素に基づいて生成してください。具体的なポスト内容やいいね内容に言及してください。
 * ポジティブなポストの割合
@@ -26,6 +44,21 @@ const PROMPT_ANALYZE = (userinfo: UserInfoGemini) => {
 * 悪い内容は含まず、全肯定のスタンスで分析してください。
 * ユーザがいいねしたポストは、ユーザ自身のポストではありません。趣味の参考としてのみ参照してください。
 
+また、ユーザの性格やポストの様子から、ユーザにふさわしい「称号」を考えてください。
+称号は、日本語（20字以内）と、その英語訳（30字以内）の両方を考えてください。
+例：
+- 日本語: 「癒やしの哲学者」, 英語: 「Philosopher of Healing」
+- 日本語: 「趣味の探求者」, 英語: 「Explorer of Hobbies」
+
+出力は、必ず以下のJSONフォーマットの構造にしてください。余計な説明文は含めず、Markdownのjsonコードブロック（\`\`\`json ... \`\`\`）のみで出力してください。
+\`\`\`json
+{
+  "analysis": "性格分析の本文...",
+  "title_ja": "日本語の称号",
+  "title_en": "英語の称号"
+}
+\`\`\`
+
 以下がユーザ名およびポスト、いいねしたポストです。
 -----
 ユーザ名: ${userinfo.follower.displayName}
@@ -34,7 +67,7 @@ const PROMPT_ANALYZE = (userinfo: UserInfoGemini) => {
 ` :
     `Please analyze the user's personality based on their own posts and the posts they have liked.
 The output should be in ${userinfo.langStr}.
-The maximum number of characters that can be output is 1000.
+The maximum number of characters that can be output for the analysis body is 1000.
 Do not include any blank lines.
 
 The personality analysis should be based on the following aspects, and should include references to the content of their posts and likes:
@@ -47,8 +80,25 @@ Rules:
 * Keep the tone fully positive and affirming. Do **not** include anything negative or critical.
 * Liked posts by user are not the user's own posts. Please use it as reference only for hobbies.
 
+Also, based on their personality and posts, award them a fitting "title".
+Provide the title in both Japanese (within 20 characters) and English (within 30 characters).
+Examples:
+- Japanese: 「癒やしの哲学者」, English: 「Philosopher of Healing」
+- Japanese: 「趣味の探求者」, English: 「Explorer of Hobbies」
+
+You MUST output strictly in the following JSON format. Wrap it in a markdown json code block:
+\`\`\`json
+{
+  "analysis": "The content of the personality analysis...",
+  "title_ja": "Japanese Title",
+  "title_en": "English Title"
+}
+\`\`\`
+
 -----Below is the username, user's posts and likes-----  
 Username: ${userinfo.follower.displayName}  
 Posts: ${userinfo.posts || ""}  
 Liked posts by user: ${userinfo.likedByFollower || ""}
-`};
+`;
+};
+

@@ -7,6 +7,27 @@ const getLabelerPublicUrl = () => process.env.LABELER_PUBLIC_URL || process.env.
 const getLabelerInternalUrl = () => process.env.LABELER_INTERNAL_URL || "http://127.0.0.1:3401";
 export const botLabelerManager = {
   /**
+   * Upsert a label definition dynamically by calling the internal API (port 3401).
+   * @param identifier The label's identifier (e.g. super-positive-lv.1, title-did-plc-...)
+   * @param locales Localization strings containing ja/en name and description
+   */
+  upsertLabelDefinition: async (
+    identifier: string,
+    locales: Array<{ lang: string; name: string; description: string }>
+  ) => {
+    const url = `${getLabelerInternalUrl()}/upsert-definition`;
+    try {
+      const res = await axios.post(
+        url,
+        { identifier, locales }
+      );
+      return res.data;
+    } catch (e: any) {
+      console.error(`[ERROR] Failed to upsert label definition ${identifier}:`, e.response?.data || e.message);
+      throw e;
+    }
+  },
+  /**
    * Apply (create or negate) a label for a given DID using the internal loopback API (port 3401).
    * @param did The subject's DID (e.g. did:plc:...)
    * @param val The label value (e.g. bot-tan-sub, super-positive-l1)
