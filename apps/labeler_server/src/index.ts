@@ -2,8 +2,14 @@ import { LabelerServer } from "@skyware/labeler";
 import dotenv from "dotenv";
 import { AtpAgent } from "@atproto/api";
 
-// Load workspace root .env file
-dotenv.config({ path: '../../.env' });
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Load workspace root .env file relative to this script
+dotenv.config({ path: path.resolve(__dirname, "../../../.env") });
 
 const PORT = Number(process.env.LABELER_SERVER_PORT || 3400);
 const DID = process.env.LABELER_DID;
@@ -27,10 +33,10 @@ let loggedIn = false;
 
 async function getAgent() {
   if (!loggedIn) {
-    const identifier = process.env.LABELER_IDENTIFIER || process.env.BSKY_IDENTIFIER;
-    const password = process.env.LABELER_PASSWORD || process.env.BSKY_APP_PASSWORD;
+    const identifier = process.env.LABELER_IDENTIFIER;
+    const password = process.env.LABELER_PASSWORD;
     if (!identifier || !password) {
-      throw new Error("Missing LABELER_IDENTIFIER or BSKY_IDENTIFIER/PASSWORD in env");
+      throw new Error("Missing LABELER_IDENTIFIER or LABELER_PASSWORD in env");
     }
     await agent.login({ identifier, password });
     loggedIn = true;
