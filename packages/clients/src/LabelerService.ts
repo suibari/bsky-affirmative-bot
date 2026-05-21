@@ -3,8 +3,8 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const getLabelerPublicUrl = () => process.env.LABELER_PUBLIC_URL || process.env.LABELER_SERVER_URL || "http://localhost:3400";
-const getLabelerInternalUrl = () => process.env.LABELER_INTERNAL_URL || "http://localhost:3401";
+const getLabelerPublicUrl = () => process.env.LABELER_PUBLIC_URL || process.env.LABELER_SERVER_URL || "http://127.0.0.1:3400";
+const getLabelerInternalUrl = () => process.env.LABELER_INTERNAL_URL || "http://127.0.0.1:3401";
 export const botLabelerManager = {
   /**
    * Apply (create or negate) a label for a given DID using the internal loopback API (port 3401).
