@@ -111,6 +111,8 @@ export class AnalyzeFeature implements BotFeature {
         // uploadBlod
         const { blob } = (await agent.uploadBlob(buffer, { encoding: "image/png" })).data;
 
+        let replyText = TEXT_INTRO_ANALYZE;
+
         // 称号バッジ (分析) 適用処理 (日記称号を上書きするため同じIDを使用)
         try {
             const userDid = userinfo.follower.did;
@@ -139,12 +141,19 @@ export class AnalyzeFeature implements BotFeature {
             await MemoryService.updateFollower(userDid, "current_title_ja", analyzeResult.title_ja);
             await MemoryService.updateFollower(userDid, "current_title_en", analyzeResult.title_en);
             console.log(`[INFO][BADGE][ANALYZE] Successfully applied title badge ${badgeId} to ${userDid}`);
+
+            // 成功メッセージの追加
+            if (userinfo.langStr === "日本語") {
+                replyText += `\n\n🎉「${analyzeResult.title_ja}」の称号バッジをプレゼントしたよ！\n※バッジを表示するにはラベラー（ https://bsky.app/profile/labeler-bot-tan.suibari.com ）を購読してね`;
+            } else {
+                replyText += `\n\n🎉 I've gifted you the title badge "${analyzeResult.title_en}"!\n*To show the badge, please subscribe to the labeler ( https://bsky.app/profile/labeler-bot-tan.suibari.com ).`;
+            }
         } catch (badgeErr: any) {
             console.error(`[ERROR][BADGE][ANALYZE] Failed to apply title badge for ${userinfo.follower.did}:`, badgeErr.message);
         }
 
         return {
-            text: TEXT_INTRO_ANALYZE,
+            text: replyText,
             imageBlob: blob,
         };
     }

@@ -159,15 +159,9 @@ async function processUserDiary(userDid: string) {
         const buffer = await textToImageBufferWithBackground(text_bot + `\n\n${formattedDate}`);
         const { blob } = (await agent.uploadBlob(buffer, { encoding: "image/png" })).data;
 
-        const TEXT_DIARY = (langStr === "日本語") ?
+        let replyText = (langStr === "日本語") ?
             `${profile.displayName}さんへ、今日の日記をまとめたよ! 画像を貼るので見てみてね。おやすみ～!` :
             `${profile.displayName}, I summarized your diary for today! Check the image. Good night!`;
-
-        await postContinuous(TEXT_DIARY, {
-            uri: latestPost.uri,
-            cid: latestPost.cid,
-            record: latestPost.record as Record
-        }, { blob, alt: `Dear ${profile.displayName}, From 全肯定botたん` });
 
         // 称号バッジ (日記) 適用処理
         try {
@@ -196,9 +190,23 @@ async function processUserDiary(userDid: string) {
             await MemoryService.updateFollower(userDid, "current_title_ja", diaryResult.title_ja);
             await MemoryService.updateFollower(userDid, "current_title_en", diaryResult.title_en);
             console.log(`[INFO][BADGE][DIARY] Successfully applied title badge ${badgeId} to ${userDid}`);
+
+            // 成功メッセージの追加
+            if (langStr === "日本語") {
+                replyText += `\n\n🎉「${diaryResult.title_ja}」の称号バッジをプレゼントしたよ！\n※バッジを表示するにはラベラー（ https://bsky.app/profile/labeler-bot-tan.suibari.com ）を購読してね`;
+            } else {
+                replyText += `\n\n🎉 I've gifted you the title badge "${diaryResult.title_en}"!\n*To show the badge, please subscribe to the labeler ( https://bsky.app/profile/labeler-bot-tan.suibari.com ).`;
+            }
         } catch (badgeErr: any) {
             console.error(`[ERROR][BADGE][DIARY] Failed to apply title badge for ${userDid}:`, badgeErr.message);
         }
+
+        // ポスト
+        await postContinuous(replyText, {
+            uri: latestPost.uri,
+            cid: latestPost.cid,
+            record: latestPost.record as Record
+        }, { blob, alt: `Dear ${profile.displayName}, From 全肯定botたん` });
 
         console.log(`[INFO][${userDid}] finish to process diary`);
 
