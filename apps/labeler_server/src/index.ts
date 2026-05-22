@@ -245,7 +245,20 @@ internalApp.post("/label", async (request: FastifyRequest, reply: FastifyReply) 
           if (handleIndex !== -1) {
             const byteStart = handleIndex;
             const byteEnd = handleIndex + Buffer.from(userHandle).length;
-            if (!rt.facets) rt.facets = [];
+
+            // Remove any overlapping facets automatically detected by detectFacets
+            // (e.g. if the handle is a custom domain like chuuni.moe, detectFacets will treat it as a website link)
+            if (rt.facets) {
+              rt.facets = rt.facets.filter(facet => {
+                const fStart = facet.index.byteStart;
+                const fEnd = facet.index.byteEnd;
+                const overlaps = (fStart < byteEnd && fEnd > byteStart);
+                return !overlaps;
+              });
+            } else {
+              rt.facets = [];
+            }
+
             rt.facets.push({
               index: { byteStart, byteEnd },
               features: [
