@@ -140,20 +140,13 @@ export async function doGoodNightPost(mood: string) {
             // リポスト
             await repost(topPostData.uri, topPostData.cid);
 
-            // 上がったレベル: 100フォロワーごとに1レベルアップ
-            const followersCount = (await agent.getProfile({ actor: process.env.BSKY_DID! })).data.followsCount || 0;
-            const currentLevel = Math.floor(followersCount / 100);
-
             const dailyStats = await MemoryService.getDailyStats();
-            const prevLevel = Math.floor((followersCount - dailyStats.followers) / 100);
-            const levelUp = currentLevel - prevLevel;
 
             // Gemini生成
             const text_bot = await generateGoodNight({
                 topFollower: topPostData.topFollower ?? undefined,
                 topPost: topPostData.post,
                 currentMood: mood,
-                levelUp,
                 likes: dailyStats.likes,
                 affirmationCount: dailyStats.affirmationCount
             });

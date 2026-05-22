@@ -7,7 +7,6 @@ interface GoodNightInfo {
   topFollower?: ProfileView,
   topPost?: string,
   currentMood: string,
-  levelUp: number,
   likes: number,
   affirmationCount: number,
 }
@@ -24,7 +23,6 @@ const PROMPT_GOODNIGHT_WORD = async (param: GoodNightInfo) => {
     `* おやすみのメッセージ` +
     `* 現在の気分、あなたがさっきまでしてたこと: ${param.currentMood}` +
     `* 今日1日のいいねされた回数と、あなたが全肯定した回数` +
-    `* 今日1日のあなたのステータスアップ情報` +
     `* 今日のあなたが全肯定されたポストの紹介` +
     `* 今回紹介したTOPポストのユーザー（紹介したフォロワー）には『全肯定バッジ』をプレゼントしたこと` +
     `* バッジの表示には、ラベラーアカウント（https://bsky.app/profile/labeler-bot-tan.suibari.com ）を購読（サブスクライブ）する必要があること` +
@@ -37,9 +35,6 @@ const PROMPT_GOODNIGHT_WORD = async (param: GoodNightInfo) => {
     `---今日の各種できごとの回数---` +
     `* いいねされた回数: ${param.likes}` +
     `* 全肯定した回数: ${param.affirmationCount}` +
-    `---今日のあなたのステータスアップ---` +
-    `${param.levelUp > 0 ?
-      `* レベルが${param.levelUp}上がった!` : ""}` +
     `---今日のあなたが全肯定されたポスト---` +
     `* ポストしたユーザ名: ${param.topFollower?.displayName ?? ""}` +
     `* ポスト内容: ${param.topPost ?? ""}`;
