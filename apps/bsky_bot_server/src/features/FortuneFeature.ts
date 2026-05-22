@@ -1,13 +1,12 @@
 import { CommitCreateEvent } from "@skyware/jetstream";
 import { AppBskyActorDefs } from "@atproto/api"; type ProfileView = AppBskyActorDefs.ProfileView;
 import { BotFeature, FeatureContext } from "./types.js";
-import { MemoryService } from "@bsky-affirmative-bot/clients";
-import { botBiothythmManager } from "@bsky-affirmative-bot/clients";
+import { MemoryService, botBiothythmManager, botLabelerManager } from "@bsky-affirmative-bot/clients";
 import { FORTUNE_TRIGGER, NICKNAMES_BOT } from "@bsky-affirmative-bot/shared-configs";
 import { AppBskyFeedPost } from "@atproto/api"; type Record = AppBskyFeedPost.Record;
 import { handleMode, isPast } from "./utils.js";
 import { generateFortuneResult } from "@bsky-affirmative-bot/bot-brain";
-import { getLangStr, isReplyOrMentionToMe } from "../bsky/util.js";
+import { getLangStr, isReplyOrMentionToMe, sanitizeDidToLexiconValue } from "../bsky/util.js";
 import { UserInfoGemini, GeminiResponseResult } from "@bsky-affirmative-bot/shared-configs";
 import { textToImageBufferWithBackground } from "../util/canvas.js";
 import { agent } from "../bsky/agent.js";
@@ -63,14 +62,46 @@ export class FortuneFeature implements BotFeature {
         const result = await generateFortuneResult(userinfo);
 
         if (process.env.NODE_ENV === "development") {
-            console.log("[DEBUG] bot>>> " + result);
+            console.log("[DEBUG] bot>>> " + JSON.stringify(result));
         }
 
         // 画像生成
-        const buffer = await textToImageBufferWithBackground(result, "./img/bot-tan-fortune.png");
+        const buffer = await textToImageBufferWithBackground(result.fortune, "./img/bot-tan-fortune.png");
 
         // uploadBlod
         const { blob } = (await agent.uploadBlob(buffer, { encoding: "image/png" })).data;
+
+        // 占い絵文字バッジ 適用処理
+        try {
+            const userDid = userinfo.follower.did;
+            await MemoryService.ensureFollower(userDid);
+            const badgeId = `today-lucky-${sanitizeDidToLexiconValue(userDid)}`;
+            const emojis = result.emojis || "🔮✨🍀";
+            console.log(`[INFO][BADGE][FORTUNE] Upserting fortune badge definition for ${userDid}: ${emojis}`);
+
+            // 1. レーベラーに定義を upsert
+            await botLabelerManager.upsertLabelDefinition(badgeId, [
+                {
+                    lang: "ja",
+                    name: `今日のラッキー: ${emojis}`,
+                    description: `今日の占いラッキーバッジ：${emojis}`
+                },
+                {
+                    lang: "en",
+                    name: `Today's Lucky: ${emojis}`,
+                    description: `Today's fortune lucky badge: ${emojis}`
+                }
+            ]);
+
+            // 2. 24時間の有効期限を計算
+            const expDate = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+
+            // 3. ユーザーに24時間限定バッジを適用
+            await botLabelerManager.applyLabel(userDid, badgeId, false, expDate);
+            console.log(`[INFO][BADGE][FORTUNE] Successfully applied fortune badge ${badgeId} to ${userDid} with exp=${expDate}`);
+        } catch (badgeErr: any) {
+            console.error(`[ERROR][BADGE][FORTUNE] Failed to apply fortune badge for ${userinfo.follower.did}:`, badgeErr.message);
+        }
 
         return {
             text: TEXT_INTRO_ANALYZE,

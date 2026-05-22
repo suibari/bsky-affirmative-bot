@@ -1,12 +1,15 @@
+import { generateSingleResponse, extractJSON } from "./util.js";
+import { getRandomItems, UserInfoGemini } from "@bsky-affirmative-bot/shared-configs";
 
-import { UserInfoGemini, GeminiScore } from "@bsky-affirmative-bot/shared-configs";
-import { generateSingleResponse } from "./util.js";
-import { getRandomItems } from "@bsky-affirmative-bot/shared-configs";
+export interface FortuneResult {
+  fortune: string;
+  emojis: string;
+}
 
-export async function generateFortuneResult(userinfo: UserInfoGemini): Promise<string> {
+export async function generateFortuneResult(userinfo: UserInfoGemini): Promise<FortuneResult> {
   const maxLength = userinfo.langStr === "日本語" ?
-    "出力する文字数は最大500文字までです。" :
-    "出力する文字数は最大1000文字までです。"
+    "出力する占い本文의 文字数は最大500文字までです。" :
+    "The maximum character count for the fortune text body is 1000 characters."
 
   const place_language = userinfo.langStr === "日本語" ? "日本" : "世界";
   const part_language = `**${userinfo.langStr}で出力してください**。`;
@@ -32,6 +35,10 @@ export async function generateFortuneResult(userinfo: UserInfoGemini): Promise<s
     `* ラッキーアニマルは、${getRandomItems(category_animal, 2)}の要素をあわせもつ動物の具体的な名称をランダムに選ぶこと。その動物を選んだ理由も合わせて説明してください。`,
   ];
 
+  const part_promo = userinfo.langStr === "日本語" ?
+    `* 占い結果の自然な流れの中で、占い結果を象徴した3つの絵文字でできた「ラッキーバッジ」（例：🔮🍀✨）をプレゼントしたことと、そのバッジを表示するにはラベラー（ https://bsky.app/profile/labeler-bot-tan.suibari.com ）の購読（サブスクライブ）が必要であることを、機械的にならず優しく可愛らしく語りかけるように伝えてください。` :
+    `* Naturally weave into the fortune advice that you have gifted them a "Lucky Badge" made of 3 emojis representing this fortune, and that they need to subscribe to your labeler ( https://bsky.app/profile/labeler-bot-tan.suibari.com ) to show the badge. Convey this in a warm, gentle, and lovely tone.`;
+
   const prompt =
 `占いをしてください。
 ${part_language}
@@ -42,15 +49,36 @@ ${maxLength}
 * 占いテーマは${getRandomItems(category_main, 2)}です。2つのテーマを合わせたアドバイスをしてください。
 * ラッキーアクションは、${getRandomItems(category_action_attr, 1)}の${getRandomItems(category_action_place, 1)}の場所で、${getRandomItems(category_action_subject, 1)}を${getRandomItems(category_action_act, 1)}する指示を出してください。自然な文章にしてください。
 ${getRandomItems(part_prompt_luckys, 3)}
+${part_promo}
 悪い内容が一切含まれないようにしてください。
+
+また、この占い結果を総括（サマリー）する絵文字を【必ずちょうど3つ】考えてください。
+
+出力は、必ず以下のJSONフォーマットの構造にしてください。余計な説明文は含めず、Markdownのjsonコードブロック（\`\`\`json ... \`\`\`）のみで出力してください。
+\`\`\`json
+{
+  "fortune": "占いのアドバイス本文（空の行は含めないこと。バッジのプレゼントやラベラーの購読案内を自然に含めること）",
+  "emojis": "絵文字3つのみ（スペースや区切り文字等は含めず、例: 🔮✨🍀）"
+}
+\`\`\`
+
 以下がユーザ名です。
 -----
 ユーザ名: ${userinfo.follower.displayName}`;
 
   const response = await generateSingleResponse(prompt, userinfo);
-  
-  // Geminiリクエスト数加算
-  
 
-  return response ?? "";
+  try {
+    const json = extractJSON(response || "{}") as FortuneResult;
+    return {
+      fortune: json.fortune || "",
+      emojis: json.emojis || "🔮✨🍀"
+    };
+  } catch (e) {
+    console.error("[ERROR] Failed to parse generateFortuneResult JSON, falling back to plaintext:", e);
+    return {
+      fortune: response || "",
+      emojis: "🔮✨🍀"
+    };
+  }
 }

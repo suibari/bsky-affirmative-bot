@@ -33,13 +33,13 @@ export const botLabelerManager = {
    * @param val The label value (e.g. bot-tan-sub, super-positive-l1)
    * @param negate Whether to remove/negate this label
    */
-  applyLabel: async (did: string, val: string, negate = false) => {
+  applyLabel: async (did: string, val: string, negate = false, exp?: string) => {
     const url = `${getLabelerInternalUrl()}/label`;
 
     try {
       const res = await axios.post(
         url,
-        { did, val, negate }
+        { did, val, negate, exp }
       );
       return res.data;
     } catch (e: any) {

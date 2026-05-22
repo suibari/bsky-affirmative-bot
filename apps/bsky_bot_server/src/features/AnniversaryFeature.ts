@@ -1,11 +1,11 @@
 import { CommitCreateEvent } from "@skyware/jetstream";
 import { AppBskyActorDefs } from "@atproto/api"; type ProfileView = AppBskyActorDefs.ProfileView;
 import { BotFeature, FeatureContext } from "./types.js";
-import { MemoryService, botBiothythmManager } from "@bsky-affirmative-bot/clients";
+import { MemoryService, botBiothythmManager, botLabelerManager } from "@bsky-affirmative-bot/clients";
 import { ANNIV_REGISTER_TRIGGER, ANNIV_CONFIRM_TRIGGER, ANNIV_ENABLE_TRIGGER, ANNIV_DISABLE_TRIGGER, NICKNAMES_BOT } from "@bsky-affirmative-bot/shared-configs";
 import holidays from "@bsky-affirmative-bot/shared-configs/json/holidays.json" with { type: "json" };
 import { handleMode, isPast } from "./utils.js";
-import { getLangStr, isReplyOrMentionToMe } from "../bsky/util.js";
+import { getLangStr, isReplyOrMentionToMe, sanitizeDidToLexiconValue } from "../bsky/util.js";
 import { AppBskyFeedPost } from "@atproto/api"; type PostRecord = AppBskyFeedPost.Record;
 import { GeminiResponseResult, Holiday, localeToTimezone, UserInfoGemini } from "@bsky-affirmative-bot/shared-configs";
 import { agent } from "../bsky/agent.js";
@@ -210,7 +210,7 @@ export class AnniversaryFeature implements BotFeature {
 
             // 記念日であり、まだその日実行もしていないなら、記念日リプライする
             console.log(`[INFO][${follower.did}] happy ANNIVERSARY!, id: ${todayAnniversary.map(item => item.id).join(", ")}`);
-            return await handleMode(event, {
+            const isSuccess = await handleMode(event, {
                 dbColumn: "last_anniv_execed_at",
                 dbValue: new Date(),
                 generateText: this.getAnnivEmbed.bind(this),
@@ -220,6 +220,49 @@ export class AnniversaryFeature implements BotFeature {
                     langStr: getLangStr(record.langs),
                     anniversary: todayAnniversary,
                 });
+
+            if (isSuccess) {
+                // 「ユーザ登録記念日」限定バッジ適用処理
+                const isRegisteredAnniv = todayAnniversary.some(a => a.id === "user_anniversary");
+                if (isRegisteredAnniv) {
+                    try {
+                        const userDid = follower.did;
+                        await MemoryService.ensureFollower(userDid);
+                        const badgeId = `anniversary-${sanitizeDidToLexiconValue(userDid)}`;
+                        
+                        const anniv = todayAnniversary.find(a => a.id === "user_anniversary")!;
+                        const annivNameJa = anniv.names.ja || "記念日";
+                        const annivNameEn = anniv.names.en || "Anniversary";
+                        
+                        console.log(`[INFO][BADGE][ANNIVERSARY] Upserting anniversary badge definition for ${userDid}: ${annivNameJa}`);
+
+                        // 1. レーベラーに定義を upsert
+                        await botLabelerManager.upsertLabelDefinition(badgeId, [
+                            {
+                                lang: "ja",
+                                name: `記念日: ${annivNameJa}`,
+                                description: `本日の特別な記念日：${annivNameJa}`
+                            },
+                            {
+                                lang: "en",
+                                name: `Anniversary: ${annivNameEn}`,
+                                description: `Today's special anniversary: ${annivNameEn}`
+                            }
+                        ]);
+
+                        // 2. 24時間の有効期限を計算
+                        const expDate = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+
+                        // 3. ユーザーに24時間限定バッジを適用
+                        await botLabelerManager.applyLabel(userDid, badgeId, false, expDate);
+                        console.log(`[INFO][BADGE][ANNIVERSARY] Successfully applied anniversary badge ${badgeId} to ${userDid} with exp=${expDate}`);
+                    } catch (badgeErr: any) {
+                        console.error(`[ERROR][BADGE][ANNIVERSARY] Failed to apply anniversary badge for ${follower.did}:`, badgeErr.message);
+                    }
+                }
+            }
+
+            return isSuccess;
         } finally {
             // Remove user from processing map after operation is complete
             this.processingUsers.delete(follower.did);

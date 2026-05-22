@@ -1,9 +1,9 @@
 import { CommitCreateEvent } from "@skyware/jetstream";
 import { AppBskyActorDefs } from "@atproto/api"; type ProfileView = AppBskyActorDefs.ProfileView;
 import { BotFeature, FeatureContext } from "./types.js";
-import { MemoryService } from "@bsky-affirmative-bot/clients";
+import { MemoryService, botLabelerManager } from "@bsky-affirmative-bot/clients";
 import { followerMap } from "../bsky/followerManagement.js";
-import { isReplyOrMentionToMe, uniteDidNsidRkey, getImageUrl, getLangStr } from "../bsky/util.js";
+import { isReplyOrMentionToMe, uniteDidNsidRkey, getImageUrl, getLangStr, sanitizeDidToLexiconValue } from "../bsky/util.js";
 import { AppBskyFeedPost } from "@atproto/api"; type Record = AppBskyFeedPost.Record;
 import { Content } from "@google/genai";
 import { Embed, GeminiResponseResult, UserInfoGemini } from "@bsky-affirmative-bot/shared-configs";
@@ -274,17 +274,51 @@ export class ConversationFeature implements BotFeature {
         const image = await getImageUrl(follower.did, record.embed);
 
         // 質問への回答
-        const text = await generateQuestionsAnswer({
+        const result = await generateQuestionsAnswer({
             follower,
             posts: [record.text],
             langStr,
             image,
         }, themeQuestion);
-        await postContinuous(text, {
+        
+        await postContinuous(result.reply, {
             uri,
             cid: String(event.commit.cid),
             record,
         });
+
+        // 朝トークバッジ 適用処理
+        try {
+            const userDid = follower.did;
+            await MemoryService.ensureFollower(userDid);
+            const badgeId = `morning-talk-${sanitizeDidToLexiconValue(userDid)}`;
+            const sumJa = result.summary_ja || "朝トーク";
+            const sumEn = result.summary_en || "Morning Talk";
+            console.log(`[INFO][BADGE][MORNING] Upserting morning talk badge definition for ${userDid}: ${sumJa} / ${sumEn}`);
+
+            // 1. レーベラーに定義を upsert
+            await botLabelerManager.upsertLabelDefinition(badgeId, [
+                {
+                    lang: "ja",
+                    name: `朝トーク: ${sumJa}`,
+                    description: `朝の質問への回答要約バッジ：${sumJa}`
+                },
+                {
+                    lang: "en",
+                    name: `Morning Talk: ${sumEn}`,
+                    description: `Morning question answer summary badge: ${sumEn}`
+                }
+            ]);
+
+            // 2. 24時間の有効期限を計算
+            const expDate = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+
+            // 3. ユーザーに24時間限定バッジを適用
+            await botLabelerManager.applyLabel(userDid, badgeId, false, expDate);
+            console.log(`[INFO][BADGE][MORNING] Successfully applied morning talk badge ${badgeId} to ${userDid} with exp=${expDate}`);
+        } catch (badgeErr: any) {
+            console.error(`[ERROR][BADGE][MORNING] Failed to apply morning talk badge for ${follower.did}:`, badgeErr.message);
+        }
 
         // DB更新
         await MemoryService.updateFollower(follower.did, "question_root_uri", uriQuestionRoot);

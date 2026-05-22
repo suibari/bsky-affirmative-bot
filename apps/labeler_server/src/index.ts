@@ -180,6 +180,7 @@ internalApp.post("/label", async (request: FastifyRequest, reply: FastifyReply) 
       did?: string;
       val?: string;
       negate?: boolean;
+      exp?: string;
     } | null;
 
     if (!body || !body.did || !body.val) {
@@ -187,14 +188,15 @@ internalApp.post("/label", async (request: FastifyRequest, reply: FastifyReply) 
       return;
     }
 
-    const { did, val, negate } = body;
-    console.log(`[INFO][INTERNAL] Received label request: did=${did}, val=${val}, negate=${!!negate}`);
+    const { did, val, negate, exp } = body;
+    console.log(`[INFO][INTERNAL] Received label request: did=${did}, val=${val}, negate=${!!negate}, exp=${exp}`);
 
     // Create the label via @skyware/labeler (negating previous label if negate=true)
     const result = await labeler.createLabel({
       uri: did,
       val: val,
       neg: negate,
+      exp: exp,
     });
 
     // Post notification using the labeler account on successful creation
