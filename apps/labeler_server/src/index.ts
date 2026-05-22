@@ -1,6 +1,6 @@
 import { LabelerServer } from "@skyware/labeler";
 import dotenv from "dotenv";
-import { AtpAgent } from "@atproto/api";
+import { AtpAgent, RichText } from "@atproto/api";
 
 import path from "path";
 import { fileURLToPath } from "url";
@@ -196,6 +196,86 @@ internalApp.post("/label", async (request: FastifyRequest, reply: FastifyReply) 
       val: val,
       neg: negate,
     });
+
+    // Post notification using the labeler account on successful creation
+    if (!negate) {
+      (async () => {
+        try {
+          console.log(`[INFO][LABEL_POST] Preparing to post notification for label "${val}" applied to ${did}`);
+          const activeAgent = await getAgent();
+
+          // 1. Resolve target profile to get their handle
+          const { data: profile } = await activeAgent.getProfile({ actor: did });
+          const userHandle = profile.handle;
+
+          // 2. Fetch current labeler record to find the label definition details (name, description)
+          let labelName = val;
+          let labelDesc = "";
+          try {
+            const repo = activeAgent.session!.did;
+            const res = await activeAgent.api.com.atproto.repo.getRecord({
+              repo,
+              collection: "app.bsky.labeler.service",
+              rkey: "self"
+            });
+            const currentRecord = res.data.value as any;
+            const definitions = currentRecord?.policies?.labelValueDefinitions || [];
+            const definition = definitions.find((d: any) => d.identifier === val);
+            if (definition && definition.locales) {
+              const locale = definition.locales.find((l: any) => l.lang === "ja") || definition.locales[0];
+              if (locale) {
+                labelName = locale.name;
+                labelDesc = locale.description || "";
+              }
+            }
+          } catch (e: any) {
+            console.warn(`[WARN][LABEL_POST] Failed to fetch label definition for "${val}":`, e.message);
+          }
+
+          // 3. Compose post text (concise English one-liner without @ prefix to prevent mention notifications)
+          const text = `🏷️ Labeled "${labelName}" to ${userHandle} #BottanLabeler #botたんラベラー`;
+
+          // 4. Handle RichText facets detection (mentions, hashtags, etc.)
+          const rt = new RichText({ text });
+          await rt.detectFacets(activeAgent);
+
+          // Add a link facet for the user handle to make it clickable without triggering mention notifications
+          const utf8Text = Buffer.from(text);
+          const handleIndex = utf8Text.indexOf(userHandle);
+          if (handleIndex !== -1) {
+            const byteStart = handleIndex;
+            const byteEnd = handleIndex + Buffer.from(userHandle).length;
+            if (!rt.facets) rt.facets = [];
+            rt.facets.push({
+              index: { byteStart, byteEnd },
+              features: [
+                {
+                  $type: "app.bsky.richtext.facet#link",
+                  uri: `https://bsky.app/profile/${userHandle}`
+                }
+              ]
+            });
+          }
+
+          const record = {
+            $type: "app.bsky.feed.post",
+            text: rt.text,
+            facets: rt.facets,
+            createdAt: new Date().toISOString(),
+          };
+
+          // 5. Post to Bluesky if in production, otherwise log to console
+          if (process.env.NODE_ENV === "production") {
+            const response = await activeAgent.post(record as any);
+            console.log(`[INFO][LABEL_POST] Successfully posted notification post: uri=${response.uri}`);
+          } else {
+            console.log(`[DEBUG][LABEL_POST] (Development mode - not posted)\n${record.text}`);
+          }
+        } catch (postErr: any) {
+          console.error("[ERROR][LABEL_POST] Failed to post label notification:", postErr.message || postErr);
+        }
+      })();
+    }
 
     reply.send({ success: true, label: result });
   } catch (error: any) {
