@@ -5,7 +5,7 @@ import { getSubscribersFromSheet } from "@bsky-affirmative-bot/bot-brain";
 import { DIARY_REGISTER_TRIGGER, DIARY_RELEASE_TRIGGER } from "@bsky-affirmative-bot/shared-configs";
 import { AppBskyFeedPost } from "@atproto/api"; type Record = AppBskyFeedPost.Record;
 import { handleMode } from "./utils.js";
-import { getLangStr, getTimezoneFromLang } from "../bsky/util.js";
+import { getLangStr, getTimezoneFromLang, sanitizeDidToLexiconValue } from "../bsky/util.js";
 import { MemoryService, botLabelerManager } from "@bsky-affirmative-bot/clients";
 import { LanguageName } from "@bsky-affirmative-bot/shared-configs";
 import { DateTime } from "luxon";
@@ -172,7 +172,7 @@ async function processUserDiary(userDid: string) {
         // 称号バッジ (日記) 適用処理
         try {
             await MemoryService.ensureFollower(userDid);
-            const badgeId = `title-${userDid.replace(/:/g, "-")}`;
+            const badgeId = `title-${sanitizeDidToLexiconValue(userDid)}`;
             console.log(`[INFO][BADGE][DIARY] Upserting title badge definition for ${userDid}: ${diaryResult.title_ja} / ${diaryResult.title_en}`);
 
             // 1. レーベラーに定義を upsert

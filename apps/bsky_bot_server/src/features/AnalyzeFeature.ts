@@ -9,7 +9,7 @@ import { AppBskyFeedPost, ComAtprotoRepoListRecords } from '@atproto/api';
 type RecordPost = AppBskyFeedPost.Record;
 type RecordList = ComAtprotoRepoListRecords.Record;
 import { agent } from '../bsky/agent.js';
-import { getLangStr, isReplyOrMentionToMe } from "../bsky/util.js";
+import { getLangStr, isReplyOrMentionToMe, sanitizeDidToLexiconValue } from "../bsky/util.js";
 import { handleMode, isPast } from "./utils.js";
 import { GeminiResponseResult, UserInfoGemini } from '@bsky-affirmative-bot/shared-configs';
 import { generateAnalyzeResult, AnalyzeResult } from "@bsky-affirmative-bot/bot-brain";
@@ -115,7 +115,7 @@ export class AnalyzeFeature implements BotFeature {
         try {
             const userDid = userinfo.follower.did;
             await MemoryService.ensureFollower(userDid);
-            const badgeId = `title-${userDid.replace(/:/g, "-")}`;
+            const badgeId = `title-${sanitizeDidToLexiconValue(userDid)}`;
             console.log(`[INFO][BADGE][ANALYZE] Upserting title badge definition for ${userDid}: ${analyzeResult.title_ja} / ${analyzeResult.title_en}`);
 
             // 1. レーベラーに定義を upsert

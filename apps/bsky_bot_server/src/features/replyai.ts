@@ -144,14 +144,14 @@ export async function replyAI(
 
                 console.log(`[INFO][BADGE] User ${follower.did} achieved score ${result.score}! Positivity Level Up: ${currentLevel} -> ${nextLevel}`);
 
-                const nextBadgeId = `super-positive-lv.${nextLevel}`;
+                const nextBadgeId = `super-positive-lv-${numberToEnglishWord(nextLevel)}`;
 
                 // 2. 新しいレベルのバッジ定義をレーベラーに upsert
                 await botLabelerManager.upsertLabelDefinition(nextBadgeId, [
                     {
                         lang: "ja",
                         name: `超ポジティブ Lv.${nextLevel}`,
-                        description: `全肯定あふれるポストを${nextLevel}回投稿した証！`
+                        description: `全肯定あふれるポストを${nextLevel}回達成した証！`
                     },
                     {
                         lang: "en",
@@ -165,7 +165,7 @@ export async function replyAI(
 
                 // 4. 古いバッジがあれば剥奪
                 if (currentLevel > 0) {
-                    const prevBadgeId = `super-positive-lv.${currentLevel}`;
+                    const prevBadgeId = `super-positive-lv-${numberToEnglishWord(currentLevel)}`;
                     await botLabelerManager.applyLabel(follower.did, prevBadgeId, true).catch(err => {
                         console.error(`[WARN][BADGE] Failed to negate previous badge ${prevBadgeId} for ${follower.did}:`, err.message);
                     });
@@ -270,3 +270,21 @@ async function getFollowersFriend(
         }
         : undefined;
 }
+
+function numberToEnglishWord(num: number): string {
+    const words = [
+        "zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
+        "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen"
+    ];
+    if (num < 20) {
+        return words[num] || "unknown";
+    }
+    const tens = ["", "", "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety"];
+    if (num < 100) {
+        const tenVal = Math.floor(num / 10);
+        const rest = num % 10;
+        return tens[tenVal] + (rest > 0 ? `-${words[rest]}` : "");
+    }
+    return `lv-${num}`;
+}
+
