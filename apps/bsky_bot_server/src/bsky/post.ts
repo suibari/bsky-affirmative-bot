@@ -25,8 +25,8 @@ export async function post(record: Record, embedRecord?: Record): Promise<{
     // embed: 引用ポスト付与
     if (embedRecord) {
       record.embed = embedRecord;
-      // embed: リンクカード付与
-    } else if (urlMatch) {
+      // embed: リンクカード付与 (すでに画像などのembedがある場合は上書きしない)
+    } else if (urlMatch && !record.embed) {
       const url = urlMatch;
 
       const { result } = await ogs({ url });
