@@ -49,8 +49,6 @@ fi
 if [ "$PUSH_DB" = true ]; then
     echo "♻️  Pushing DB..."
     pnpm --filter database exec drizzle-kit push --config=drizzle.config.cjs
-    echo "⚡  Running legacy subscriber migration..."
-    npx tsx scripts/migrate-subscribers.ts
 fi
 
 # 実際の再起動処理
