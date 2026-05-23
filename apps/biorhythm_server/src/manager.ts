@@ -190,12 +190,19 @@ export class BiorhythmManager extends EventEmitter {
     const unreadReply = await MemoryService.getUnreadReplies();
 
     // 新しいステータス候補を決定
-    this.status = UtilityAI.selectAction({
+    const nextStatus = UtilityAI.selectAction({
       hour,
       isWeekend,
       energy: this.getEnergy,
       currentAction: this.moodPrev
     });
+
+    // 朝の時間帯（4時〜10時）にSleepから他の状態に遷移する場合、必ずWakeUpを経由させる
+    if (this.status === "Sleep" && nextStatus !== "Sleep" && (hour >= 4 && hour <= 10)) {
+      this.status = "WakeUp";
+    } else {
+      this.status = nextStatus;
+    }
 
     // 天候取得
     const weather = await getYokohamaWeather();
@@ -249,7 +256,7 @@ export class BiorhythmManager extends EventEmitter {
 
       // おはようポスト
       if (this.firstStepDone) {
-        if (this.status !== this.statusPrev && this.status === "WakeUp" && (hour >= 4 || hour <= 10)) {
+        if (this.status !== this.statusPrev && this.status === "WakeUp" && (hour >= 4 && hour <= 10)) {
           if (this.canPostGoodMorning()) {
             console.log(`[INFO][BIORHYTHM] post goodmorning!`);
             await BskyService.postQuestion();
@@ -263,12 +270,16 @@ export class BiorhythmManager extends EventEmitter {
       this.firstStepDone = true;
 
       // 定期つぶやきポスト
-      if (((this.getEnergy >= 60) && (this.status !== "Sleep") || process.env.NODE_ENV === "development")) {
-        const probability = Math.random() * 100;
-        if (probability < this.getEnergy || process.env.NODE_ENV === "development") {
-          console.log(`[INFO][BIORHYTHM] post and decrease energy!`);
-          await BskyService.postWhimsical(this.getMood);
-          this.changeEnergy(-6000);
+      const today = this.getAdjustedDateString();
+      const isSleepingPeriod = this.lastGoodNightPostDate === today && this.lastGoodMorningPostDate !== today;
+      if (!isSleepingPeriod) {
+        if (((this.getEnergy >= 60) && (this.status !== "Sleep") || process.env.NODE_ENV === "development")) {
+          const probability = Math.random() * 100;
+          if (probability < this.getEnergy || process.env.NODE_ENV === "development") {
+            console.log(`[INFO][BIORHYTHM] post and decrease energy!`);
+            await BskyService.postWhimsical(this.getMood);
+            this.changeEnergy(-6000);
+          }
         }
       }
 
