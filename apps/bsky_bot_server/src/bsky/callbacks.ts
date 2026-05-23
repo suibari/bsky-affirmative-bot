@@ -9,7 +9,6 @@ import { follow } from "./follow.js";
 import { replyGreets } from "./replyGreets.js";
 import retry from 'async-retry';
 import { ProfileView } from "@atproto/api/dist/client/types/app/bsky/actor/defs.js";
-import { getSubscribersFromSheet } from "@bsky-affirmative-bot/bot-brain";
 
 import { FeatureContext } from "../features/types.js";
 
@@ -26,7 +25,7 @@ export async function onPost(event: any) {
         // Self filter
         if (authorDid === process.env.BSKY_DID) return;
 
-        const subscribers = await getSubscribersFromSheet();
+        const subscribers = await MemoryService.getSubscribers();
         const isSubscriber = subscribers.includes(authorDid);
         if (!isSubscriber) {
           // Label filter

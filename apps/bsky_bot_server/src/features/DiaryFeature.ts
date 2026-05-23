@@ -1,7 +1,7 @@
 import { CommitCreateEvent } from "@skyware/jetstream";
 import { AppBskyActorDefs } from "@atproto/api"; type ProfileView = AppBskyActorDefs.ProfileView;
 import { BotFeature, FeatureContext } from "./types.js";
-import { getSubscribersFromSheet } from "@bsky-affirmative-bot/bot-brain";
+
 import { DIARY_REGISTER_TRIGGER, DIARY_RELEASE_TRIGGER } from "@bsky-affirmative-bot/shared-configs";
 import { AppBskyFeedPost } from "@atproto/api"; type Record = AppBskyFeedPost.Record;
 import { handleMode } from "./utils.js";
@@ -253,8 +253,8 @@ async function manageUserDiarySchedules() {
     }
     console.log(`[INFO][DIARY] is_diary: ${usersWithDiaryMode.length}`);
 
-    // Fetch subscribers from the sheet
-    const subscribers = await getSubscribersFromSheet();
+    // Fetch subscribers from the database
+    const subscribers = await MemoryService.getSubscribers();
     const subscriberSet = new Set(subscribers);
 
     // Filter users to include only those who are subscribers

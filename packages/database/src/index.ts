@@ -1,4 +1,4 @@
-import { db, initializeDatabases, bot_state, followers, posts, likes, replies, affirmations, interaction } from './db.js';
+import { db, initializeDatabases, bot_state, followers, posts, likes, replies, affirmations, interaction, subscribers } from './db.js';
 import { eq, desc, sql, gte, and } from 'drizzle-orm';
 import { LanguageName, LIMIT_REQUEST_PER_DAY_GEMINI } from '@bsky-affirmative-bot/shared-configs';
 
@@ -436,6 +436,75 @@ export class MemoryService {
     } catch (e) {
       console.error("Error in checkRPD:", e);
       return true; // Default to true on error
+    }
+  }
+
+  static async getSubscribers(): Promise<string[]> {
+    try {
+      const result = await db.select({ did: subscribers.did })
+        .from(subscribers)
+        .where(eq(subscribers.status, 'active'));
+      return result.map(row => row.did);
+    } catch (e) {
+      console.error("Failed to get subscribers from database:", e);
+      return [];
+    }
+  }
+
+  static async addSubscriber(did: string, discordId?: string) {
+    try {
+      const data = {
+        did,
+        discord_id: discordId || null,
+        status: 'active',
+        updated_at: new Date()
+      };
+      await db.insert(subscribers)
+        .values(data)
+        .onConflictDoUpdate({
+          target: subscribers.did,
+          set: data
+        });
+      console.log(`[INFO] Subscriber added/updated in DB: ${did} (Discord: ${discordId || 'N/A'})`);
+    } catch (e) {
+      console.error(`Failed to add subscriber for ${did}:`, e);
+      throw e;
+    }
+  }
+
+  static async removeSubscriberByDid(did: string) {
+    try {
+      await db.update(subscribers)
+        .set({ status: 'inactive', updated_at: new Date() })
+        .where(eq(subscribers.did, did));
+      console.log(`[INFO] Subscriber deactivated in DB by DID: ${did}`);
+    } catch (e) {
+      console.error(`Failed to deactivate subscriber by DID ${did}:`, e);
+      throw e;
+    }
+  }
+
+  static async removeSubscriberByDiscordId(discordId: string) {
+    try {
+      await db.update(subscribers)
+        .set({ status: 'inactive', updated_at: new Date() })
+        .where(eq(subscribers.discord_id, discordId));
+      console.log(`[INFO] Subscriber deactivated in DB by Discord ID: ${discordId}`);
+    } catch (e) {
+      console.error(`Failed to deactivate subscriber by Discord ID ${discordId}:`, e);
+      throw e;
+    }
+  }
+
+  static async updateSubscriberStatus(did: string, status: 'active' | 'inactive') {
+    try {
+      await db.update(subscribers)
+        .set({ status, updated_at: new Date() })
+        .where(eq(subscribers.did, did));
+      console.log(`[INFO] Subscriber status updated to ${status} for DID: ${did}`);
+    } catch (e) {
+      console.error(`Failed to update subscriber status for ${did}:`, e);
+      throw e;
     }
   }
 }
