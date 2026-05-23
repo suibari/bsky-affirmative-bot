@@ -1,6 +1,7 @@
-
-import { UserInfoGemini } from "@bsky-affirmative-bot/shared-configs";
-import { generateSingleResponse, extractJSON } from "./util.js";
+import { Type } from "@google/genai";
+import { gemini } from "./index.js";
+import { generateContentWithRetry } from "./util.js";
+import { UserInfoGemini, MODEL_GEMINI, SYSTEM_INSTRUCTION } from "@bsky-affirmative-bot/shared-configs";
 
 export interface DiaryResult {
   diary: string;
@@ -30,15 +31,6 @@ ${maxLength}
 - 日本語: 「努力の守護者」, 英語: 「Guardian of Effort」
 - 日本語: 「癒やしの案内人」, 英語: 「Guide of Healing」
 
-出力は、必ず以下のJSONフォーマットの構造にしてください。余計な説明文は含めず、Markdownのjsonコードブロック（\`\`\`json ... \`\`\`）のみで出力してください。
-\`\`\`json
-{
-  "diary": "日記の本文...",
-  "title_ja": "日本語の称号",
-  "title_en": "英語の称号"
-}
-\`\`\`
-
 以下がユーザ名およびポストです。
 -----
 ユーザ名: ${userinfo.follower.displayName}
@@ -60,37 +52,78 @@ Examples:
 - Japanese: 「努力の守護者」, English: 「Guardian of Effort」
 - Japanese: 「全肯定の達人」, English: 「Master of Affirmation」
 
-You MUST output strictly in the following JSON format. Wrap it in a markdown json code block:
-\`\`\`json
-{
-  "diary": "The content of the diary...",
-  "title_ja": "Japanese Title",
-  "title_en": "English Title"
-}
-\`\`\`
-
 -----
 Username: ${userinfo.follower.displayName}
 Today's posts: ${userinfo.posts || ""}
 `;
 
-  const response = await generateSingleResponse(prompt, userinfo);
-  
+  const contents: any[] = [prompt];
+
+  if (userinfo?.image) {
+    for (const img of userinfo.image) {
+      try {
+        const response = await fetch(img.image_url);
+        if (!response.ok) {
+          console.warn(`[WARN] Failed to fetch image: ${img.image_url} (Status: ${response.status})`);
+          continue;
+        }
+        const imageArrayBuffer = await response.arrayBuffer();
+        const base64ImageData = Buffer.from(imageArrayBuffer).toString("base64");
+        contents.push({
+          inlineData: {
+            mimeType: img.mimeType,
+            data: base64ImageData,
+          }
+        });
+      } catch (e) {
+        console.warn(`[WARN] Error fetching image: ${img.image_url}`, e);
+        continue;
+      }
+    }
+  }
+
+  const response = await generateContentWithRetry({
+    model: MODEL_GEMINI,
+    contents,
+    config: {
+      systemInstruction: SYSTEM_INSTRUCTION,
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          diary: {
+            type: Type.STRING,
+            description: "今日1日の日記本文（今日失敗したこと、今日一番よかったこと、明日の目標を含め、全肯定のスタンスで書くこと）"
+          },
+          title_ja: {
+            type: Type.STRING,
+            description: "今日1日を象徴するユーザーにふさわしい日本語の称号（20字以内、例: 努力の守護者）"
+          },
+          title_en: {
+            type: Type.STRING,
+            description: "同じ称号の英語訳（30字以内、例: Guardian of Effort）"
+          }
+        },
+        required: ["diary", "title_ja", "title_en"]
+      }
+    }
+  });
+
   try {
-    const json = extractJSON(response || "{}") as DiaryResult;
+    const responseText = response.text || "{}";
+    const cleanedText = responseText.replace(/\[.*?\]/gs, '');
+    const json = JSON.parse(cleanedText) as DiaryResult;
     return {
       diary: json.diary || "",
       title_ja: json.title_ja || "全肯定の旅人",
       title_en: json.title_en || "Affirmative Traveler"
     };
   } catch (e) {
-    console.error("[ERROR] Failed to parse generateDiary JSON, falling back to plaintext:", e);
-    // フォールバック
+    console.error("[ERROR] Failed to parse Structured Outputs JSON in generateDiary:", e);
     return {
-      diary: response || "",
+      diary: response.text || "",
       title_ja: "全肯定の旅人",
       title_en: "Affirmative Traveler"
     };
   }
 }
-

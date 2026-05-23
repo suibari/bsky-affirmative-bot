@@ -1,9 +1,5 @@
-import { PartListUnion, Type } from "@google/genai";
-import { MODEL_GEMINI, SYSTEM_INSTRUCTION } from "@bsky-affirmative-bot/shared-configs";
-import { UserInfoGemini, GeminiScore } from "@bsky-affirmative-bot/shared-configs";
-import { gemini } from "./index.js";
-
-import { extractJSON } from "./util.js";
+import { UserInfoGemini } from "@bsky-affirmative-bot/shared-configs";
+import { extractJSON, generateSingleResponseJSON } from "./util.js";
 
 type GeminiRecommendation = [
   {
@@ -14,31 +10,33 @@ type GeminiRecommendation = [
 ]
 
 export async function generateRecommendedSong(userinfo: UserInfoGemini) {
-  // const SCHEMA_DJBOT = { ... } // Removed due to conflict with Google Search
-
   const prompt = PROMPT_DJ(userinfo);
-  const contents: PartListUnion = [prompt]; // Fix: content should be array
-  const response = await gemini.models.generateContent({
-    model: MODEL_GEMINI,
-    contents,
-    config: {
-      systemInstruction: SYSTEM_INSTRUCTION,
-      // responseMimeType: "application/json", // Removed
-      // responseSchema: SCHEMA_DJBOT, // Removed
-      tools: [
-        {
-          googleSearch: {},
+
+  try {
+    return await generateSingleResponseJSON<{ title: string; artist: string; comment: string }>(
+      prompt,
+      userinfo,
+      (text) => {
+        const result = extractJSON(text) as GeminiRecommendation;
+        const song = Array.isArray(result) ? result[0] : (result as any);
+        if (!song || !song.title || !song.artist) {
+          throw new Error("Invalid DJ song recommendation JSON structure");
         }
-      ]
-    }
-  });
-
-  const result = extractJSON(response.text || "") as GeminiRecommendation;
-
-  // Geminiリクエスト数加算
-  
-
-  return result[0];
+        return {
+          title: song.title,
+          artist: song.artist,
+          comment: song.comment || "お気に入りの曲を選んだよ！"
+        };
+      }
+    );
+  } catch (e) {
+    console.error("[ERROR] Failed to generate recommended song after retries:", e);
+    return {
+      title: "青空のシンフォニー",
+      artist: "全肯定応援団",
+      comment: "ごめんね、うまく選曲できなかったみたい…！でも、この曲を聴いて元気を出してね！"
+    };
+  }
 }
 
 const PROMPT_DJ = (userinfo: UserInfoGemini) => {

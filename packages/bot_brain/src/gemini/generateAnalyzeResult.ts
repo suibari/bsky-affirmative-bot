@@ -1,6 +1,7 @@
-
-import { UserInfoGemini } from "@bsky-affirmative-bot/shared-configs";
-import { generateSingleResponse, extractJSON } from "./util.js";
+import { Type } from "@google/genai";
+import { gemini } from "./index.js";
+import { generateContentWithRetry } from "./util.js";
+import { UserInfoGemini, MODEL_GEMINI, SYSTEM_INSTRUCTION } from "@bsky-affirmative-bot/shared-configs";
 
 export interface AnalyzeResult {
   analysis: string;
@@ -10,21 +11,72 @@ export interface AnalyzeResult {
 
 export async function generateAnalyzeResult(userinfo: UserInfoGemini): Promise<AnalyzeResult> {
   const prompt = PROMPT_ANALYZE(userinfo);
-  const response = await generateSingleResponse(prompt, userinfo);
+  const contents: any[] = [prompt];
+
+  if (userinfo?.image) {
+    for (const img of userinfo.image) {
+      try {
+        const response = await fetch(img.image_url);
+        if (!response.ok) {
+          console.warn(`[WARN] Failed to fetch image: ${img.image_url} (Status: ${response.status})`);
+          continue;
+        }
+        const imageArrayBuffer = await response.arrayBuffer();
+        const base64ImageData = Buffer.from(imageArrayBuffer).toString("base64");
+        contents.push({
+          inlineData: {
+            mimeType: img.mimeType,
+            data: base64ImageData,
+          }
+        });
+      } catch (e) {
+        console.warn(`[WARN] Error fetching image: ${img.image_url}`, e);
+        continue;
+      }
+    }
+  }
+
+  const response = await generateContentWithRetry({
+    model: MODEL_GEMINI,
+    contents,
+    config: {
+      systemInstruction: SYSTEM_INSTRUCTION,
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          analysis: {
+            type: Type.STRING,
+            description: "性格分析の本文（空の行は含めないこと。具体的なポストやいいね内容に言及し、全肯定のスタンスで分析すること）"
+          },
+          title_ja: {
+            type: Type.STRING,
+            description: "ユーザーにふさわしい日本語の称号（20字以内、例: 癒やしの哲学者）"
+          },
+          title_en: {
+            type: Type.STRING,
+            description: "同じ称号の英語訳（30字以内、例: Philosopher of Healing）"
+          }
+        },
+        required: ["analysis", "title_ja", "title_en"]
+      }
+    }
+  });
 
   try {
-    const json = extractJSON(response || "{}") as AnalyzeResult;
+    const responseText = response.text || "{}";
+    const cleanedText = responseText.replace(/\[.*?\]/gs, '');
+    const json = JSON.parse(cleanedText) as AnalyzeResult;
     return {
       analysis: json.analysis || "",
       title_ja: json.title_ja || "全肯定の賢者",
       title_en: json.title_en || "Affirmative Sage"
     };
   } catch (e) {
-    console.error("[ERROR] Failed to parse generateAnalyzeResult JSON, falling back to plaintext:", e);
-    // フォールバック
+    console.error("[ERROR] Failed to parse Structured Outputs JSON in generateAnalyzeResult:", e);
     return {
-      analysis: response || "",
-      title_ja: "全肯定 of 賢者",
+      analysis: response.text || "",
+      title_ja: "全肯定の賢者",
       title_en: "Affirmative Sage"
     };
   }
@@ -49,15 +101,6 @@ const PROMPT_ANALYZE = (userinfo: UserInfoGemini) => {
 例：
 - 日本語: 「癒やしの哲学者」, 英語: 「Philosopher of Healing」
 - 日本語: 「趣味の探求者」, 英語: 「Explorer of Hobbies」
-
-出力は、必ず以下のJSONフォーマットの構造にしてください。余計な説明文は含めず、Markdownのjsonコードブロック（\`\`\`json ... \`\`\`）のみで出力してください。
-\`\`\`json
-{
-  "analysis": "性格分析の本文...",
-  "title_ja": "日本語の称号",
-  "title_en": "英語の称号"
-}
-\`\`\`
 
 以下がユーザ名およびポスト、いいねしたポストです。
 -----
@@ -86,19 +129,9 @@ Examples:
 - Japanese: 「癒やしの哲学者」, English: 「Philosopher of Healing」
 - Japanese: 「趣味の探求者」, English: 「Explorer of Hobbies」
 
-You MUST output strictly in the following JSON format. Wrap it in a markdown json code block:
-\`\`\`json
-{
-  "analysis": "The content of the personality analysis...",
-  "title_ja": "Japanese Title",
-  "title_en": "English Title"
-}
-\`\`\`
-
 -----Below is the username, user's posts and likes-----  
 Username: ${userinfo.follower.displayName}  
 Posts: ${userinfo.posts || ""}  
 Liked posts by user: ${userinfo.likedByFollower || ""}
 `;
 };
-

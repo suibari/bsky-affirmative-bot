@@ -1,10 +1,10 @@
-import { PartListUnion, Type } from "@google/genai";
+import { PartListUnion } from "@google/genai";
 import { MODEL_GEMINI, SYSTEM_INSTRUCTION } from "@bsky-affirmative-bot/shared-configs";
 import { gemini } from "./index.js";
 
 import { extractJSON, generateContentWithRetry } from "./util.js";
 import { getFullDateAndTimeString } from "@bsky-affirmative-bot/shared-configs";
-import { UserInfoGemini, GeminiScore, LanguageName } from "@bsky-affirmative-bot/shared-configs";
+import { UserInfoGemini, LanguageName } from "@bsky-affirmative-bot/shared-configs";
 import { SpotifyTrack } from "../api/spotify/index.js";
 
 type GeminiRecommendation = [
@@ -22,22 +22,14 @@ export class MyMoodSongGenerator {
 
   async generate(currentMood: string, langStr: LanguageName, spotifyPlaylist?: SpotifyTrack[]) {
     const history = this.historyMap[langStr] ?? [];
-
-    // const history = spotifyPlaylist?.map((track) => {
-    //   return {
-    //     title: track.track.name,
-    //     artist: track.track.artists.map((artist: { name: string }) => artist.name).join(", "),
-    //   }
-    // });
     const prompt = this.PROMPT_DJ(currentMood, langStr, history);
     const contents: PartListUnion = [prompt];
+
     const response = await generateContentWithRetry({
       model: MODEL_GEMINI,
       contents,
       config: {
         systemInstruction: SYSTEM_INSTRUCTION,
-        // responseMimeType: "application/json", // Removed
-        // responseSchema: SCHEMA_DJBOT, // Removed
         tools: [
           {
             googleSearch: {},
@@ -45,14 +37,20 @@ export class MyMoodSongGenerator {
         ]
       }
     });
-
+    
     const result = extractJSON(response.text || "") as GeminiRecommendation;
+    const parsedSong = Array.isArray(result) ? result[0] : (result as any);
+    if (!parsedSong || !parsedSong.title || !parsedSong.artist) {
+      throw new Error("Invalid DJ song recommendation JSON structure");
+    }
+    
+    const song = {
+      title: parsedSong.title,
+      artist: parsedSong.artist,
+      comment: parsedSong.comment || "今の気分にぴったりな曲を選んだよ！"
+    };
 
-    const song = result[0];
     this.saveHistory(langStr, { title: song.title, artist: song.artist });
-
-    // Geminiリクエスト数加算
-
 
     return song;
   }

@@ -1,5 +1,7 @@
-import { generateSingleResponse, extractJSON } from "./util.js";
-import { getRandomItems, UserInfoGemini } from "@bsky-affirmative-bot/shared-configs";
+import { Type } from "@google/genai";
+import { gemini } from "./index.js";
+import { generateContentWithRetry } from "./util.js";
+import { getRandomItems, UserInfoGemini, MODEL_GEMINI, SYSTEM_INSTRUCTION } from "@bsky-affirmative-bot/shared-configs";
 
 export interface FortuneResult {
   fortune: string;
@@ -8,7 +10,7 @@ export interface FortuneResult {
 
 export async function generateFortuneResult(userinfo: UserInfoGemini): Promise<FortuneResult> {
   const maxLength = userinfo.langStr === "日本語" ?
-    "出力する占い本文의 文字数は最大500文字までです。" :
+    "出力する占い本文の文字数は最大500文字までです。" :
     "The maximum character count for the fortune text body is 1000 characters."
 
   const place_language = userinfo.langStr === "日本語" ? "日本" : "世界";
@@ -54,30 +56,70 @@ ${part_promo}
 
 また、この占い結果を総括（サマリー）する絵文字を【必ずちょうど3つ】考えてください。
 
-出力は、必ず以下のJSONフォーマットの構造にしてください。余計な説明文は含めず、Markdownのjsonコードブロック（\`\`\`json ... \`\`\`）のみで出力してください。
-\`\`\`json
-{
-  "fortune": "占いのアドバイス本文（空の行は含めないこと。バッジのプレゼントやラベラーの購読案内を自然に含めること）",
-  "emojis": "絵文字3つのみ（スペースや区切り文字等は含めず、例: 🔮✨🍀）"
-}
-\`\`\`
-
 以下がユーザ名です。
 -----
 ユーザ名: ${userinfo.follower.displayName}`;
 
-  const response = await generateSingleResponse(prompt, userinfo);
+  const contents: any[] = [prompt];
+
+  if (userinfo?.image) {
+    for (const img of userinfo.image) {
+      try {
+        const response = await fetch(img.image_url);
+        if (!response.ok) {
+          console.warn(`[WARN] Failed to fetch image: ${img.image_url} (Status: ${response.status})`);
+          continue;
+        }
+        const imageArrayBuffer = await response.arrayBuffer();
+        const base64ImageData = Buffer.from(imageArrayBuffer).toString("base64");
+        contents.push({
+          inlineData: {
+            mimeType: img.mimeType,
+            data: base64ImageData,
+          }
+        });
+      } catch (e) {
+        console.warn(`[WARN] Error fetching image: ${img.image_url}`, e);
+        continue;
+      }
+    }
+  }
+
+  const response = await generateContentWithRetry({
+    model: MODEL_GEMINI,
+    contents,
+    config: {
+      systemInstruction: SYSTEM_INSTRUCTION,
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          fortune: {
+            type: Type.STRING,
+            description: "占いのアドバイス本文（空の行は含めないこと。バッジのプレゼントやラベラーの購読案内を自然に含めること）"
+          },
+          emojis: {
+            type: Type.STRING,
+            description: "絵文字3つのみ（スペースや区切り文字等は含めず、例: 🔮✨🍀）"
+          }
+        },
+        required: ["fortune", "emojis"]
+      }
+    }
+  });
 
   try {
-    const json = extractJSON(response || "{}") as FortuneResult;
+    const responseText = response.text || "{}";
+    const cleanedText = responseText.replace(/\[.*?\]/gs, '');
+    const json = JSON.parse(cleanedText) as FortuneResult;
     return {
       fortune: json.fortune || "",
       emojis: json.emojis || "🔮✨🍀"
     };
   } catch (e) {
-    console.error("[ERROR] Failed to parse generateFortuneResult JSON, falling back to plaintext:", e);
+    console.error("[ERROR] Failed to parse Structured Outputs JSON in generateFortuneResult:", e);
     return {
-      fortune: response || "",
+      fortune: response.text || "",
       emojis: "🔮✨🍀"
     };
   }

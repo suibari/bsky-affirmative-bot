@@ -174,3 +174,16 @@ export async function generateSingleResponseWithScore(prompt: string, userinfo?:
 }
 
 // Extracted to shared-configs
+
+/**
+ * JSONレスポンスの生成とパースを行う共通ヘルパー
+ * パースに失敗した場合は例外を投げ、callbacks.tsの共通リトライ機構に処理を委ねます。
+ */
+export async function generateSingleResponseJSON<T>(
+  prompt: string,
+  userinfo: UserInfoGemini | undefined,
+  parser: (text: string) => T
+): Promise<T> {
+  const responseText = await generateSingleResponse(prompt, userinfo);
+  return parser(responseText);
+}

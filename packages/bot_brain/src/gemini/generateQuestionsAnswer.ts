@@ -1,23 +1,33 @@
+import { UserInfoGemini } from "@bsky-affirmative-bot/shared-configs";
+import { generateSingleResponseJSON, extractJSON } from "./util.js";
 
-import { UserInfoGemini, GeminiScore } from "@bsky-affirmative-bot/shared-configs";
-import { generateSingleResponse } from "./util.js";
-import { getRandomItems } from "@bsky-affirmative-bot/shared-configs";
+export interface QuestionsAnswerResult {
+  reply: string;
+  summary_ja: string;
+  summary_en: string;
+}
 
 export async function generateQuestionsAnswer(userinfo: UserInfoGemini, questionTheme: string): Promise<QuestionsAnswerResult> {
   const prompt = PROMPT_QUESTIONSANSWER(userinfo, questionTheme);
-  const response = await generateSingleResponse(prompt, userinfo);
 
   try {
-    const json = extractJSON(response || "{}") as QuestionsAnswerResult;
-    return {
-      reply: json.reply || "",
-      summary_ja: json.summary_ja || "朝トーク",
-      summary_en: json.summary_en || "Morning Talk"
-    };
+    return await generateSingleResponseJSON<QuestionsAnswerResult>(
+      prompt,
+      userinfo,
+      (text) => {
+        const json = extractJSON(text) as QuestionsAnswerResult;
+        if (!json.reply) throw new Error("Reply content is empty");
+        return {
+          reply: json.reply,
+          summary_ja: json.summary_ja || "朝トーク",
+          summary_en: json.summary_en || "Morning Talk"
+        };
+      }
+    );
   } catch (e) {
-    console.error("[ERROR] Failed to parse generateQuestionsAnswer JSON, falling back to plaintext:", e);
+    console.error("[ERROR] Failed to parse generateQuestionsAnswer JSON after retries:", e);
     return {
-      reply: response || "",
+      reply: "ごめんなさい、ちょっとお返事の準備がうまくできなかったみたい…！またお話ししようね！",
       summary_ja: "朝トーク",
       summary_en: "Morning Talk"
     };
@@ -44,7 +54,7 @@ const PROMPT_QUESTIONSANSWER = (userinfo: UserInfoGemini, questionTheme: string)
   （例: 回答が「最近は夜更かししてゲームばかりしてる」なら summary_ja: "夜更かしゲーマー", summary_en: "Late-night Gamer"）
 ${part_promo}
 
-出力は、必ず以下のJSONフォーマットの構造にしてください。余計な説明文は含めず、Markdownのjsonコードブロック（\`\`\`json ... \`\`\`）のみで出力してください。
+出力は、必ず以下のJSONフォーマットの構造にしてください。余計な説明文は含めず、Markdown of jsonコードブロック（\`\`\`json ... \`\`\`）のみで出力してください。
 \`\`\`json
 {
   "reply": "ユーザーへの全肯定アドバイスや返信メッセージ本文（バッジのプレゼントやラベラーの購読案内を自然に含めること）",

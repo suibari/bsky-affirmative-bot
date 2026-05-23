@@ -69,13 +69,26 @@ export async function onPost(event: any) {
           try {
             if (await feature.shouldHandle(event, follower, context)) {
               console.log(`[INFO][${authorDid}] Feature matched: ${feature.name}`);
-              await feature.handle(event, follower, context);
-              await MemoryService.logUsage(feature.name, authorDid, { text });
+              
+              // 統一した3回リトライ機構で該当の handle を実行する
+              await retry(
+                async () => {
+                  await feature.handle(event, follower, context);
+                  await MemoryService.logUsage(feature.name, authorDid, { text });
+                },
+                {
+                  retries: 2, // 初回 + リトライ2回 = 計3回
+                  onRetry: (err: any, attempt) => {
+                    console.warn(`[WARN][${authorDid}] Retry attempt ${attempt} for Feature ${feature.name} failed:`, err.message);
+                  }
+                }
+              );
 
               break;
             }
           } catch (e) {
-            console.error(`[ERROR][${authorDid}] Feature ${feature.name} failed:`, e);
+            console.error(`[ERROR][${authorDid}] Feature ${feature.name} failed after all retries:`, e);
+            // 3回リトライしても失敗した場合は、次の機能（会話機能など）にフォールスルーさせるため、あえて break しない
           }
         }
       },
