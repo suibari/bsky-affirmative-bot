@@ -180,14 +180,12 @@ export async function replyAI(
     } catch (e: any) {
         if (e.message === "HighMatchNum") {
             console.log(`[INFO][${follower.did}] Switched to replyRandom due to HighMatchNum (>= 10)`);
+            await replyRandom(follower, event);
+            return null;
         } else {
-            // Gemini生成が3回失敗した場合、ランダムワード返信する
-            console.warn(`[WARN][${follower.did}] Gemini fetch failed after multiple retries: `, e);
+            console.warn(`[WARN][${follower.did}] replyAI failed, throwing to upper handler. Error:`, e.message);
+            throw e;
         }
-
-        await replyRandom(follower, event);
-
-        return null
     }
 }
 

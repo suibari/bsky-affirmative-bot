@@ -8,6 +8,7 @@ import { replyAI } from "./replyai.js";
 import { getConcatAuthorFeed } from "../bsky/getConcatAuthorFeed.js";
 import { replyRandom } from "./replyrandom.js";
 import { MemoryService } from "@bsky-affirmative-bot/clients";
+import retry from 'async-retry';
 
 const MINUTES_THRD_RESPONSE = 10 * 60 * 1000;
 
@@ -107,7 +108,25 @@ export class NormalReplyFeature implements BotFeature {
                 } catch (err) {
                     console.warn(`[WARN][${did}] Failed to fetch recent posts for relatedPosts context:`, err);
                 }
-                await replyAI(follower, event, relatedPosts);
+
+                try {
+                    await retry(
+                        async () => {
+                            await replyAI(follower, event, relatedPosts);
+                        },
+                        {
+                            retries: 2, // 計3回 (初回 + 2回リトライ)
+                            factor: 1,
+                            minTimeout: 1000,
+                            onRetry: (err: any, attempt: number) => {
+                                console.warn(`[WARN][${did}] replyAI attempt ${attempt} failed. Retrying... Error: ${err.message}`);
+                            }
+                        }
+                    );
+                } catch (err: any) {
+                    console.error(`[ERROR][${did}] Gemini reply failed after all retries. Falling back to replyRandom. Error:`, err.message);
+                    await replyRandom(follower, event);
+                }
             } else {
                 console.log(`[INFO][${did}] Ignored post, REASON: rpd over`);
                 return;
