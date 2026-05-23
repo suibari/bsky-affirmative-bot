@@ -10,21 +10,18 @@ import { MemoryService } from "@bsky-affirmative-bot/database";
 export async function generateContentWithRetry(params: any, retryCount = 3): Promise<any> {
   let response;
   for (let i = 0; i <= retryCount; i++) {
-    try {
-      response = await gemini.models.generateContent(params);
-      const text = response.text || "";
+    // APIの接続や高負荷エラー（503等）は内部リトライせず、上位関数（callbacks.ts）の一元リトライに即座に委ねる
+    response = await gemini.models.generateContent(params);
+    const text = response.text || "";
 
-      // Increment RPD on success
-      MemoryService.incrementStats('rpd', 1).catch((e: any) => console.error("Failed to increment RPD:", e));
+    // Increment RPD on success
+    MemoryService.incrementStats('rpd', 1).catch((e: any) => console.error("Failed to increment RPD:", e));
 
-      if (text.length <= POST_TEXT_LIMIT) {
-        return response;
-      }
-      console.warn(`[WARN] Generated content exceeded ${POST_TEXT_LIMIT} characters (${text.length}). Retrying... (${i + 1}/${retryCount})`);
-    } catch (e) {
-      console.error(`[ERROR] generateContent failed. Retrying... (${i + 1}/${retryCount})`, e);
-      if (i === retryCount) throw e;
+    // 文字数制限チェック（文字数超過時のみ、モデル生成のやり直しとして内部リトライを許容）
+    if (text.length <= POST_TEXT_LIMIT) {
+      return response;
     }
+    console.warn(`[WARN] Generated content exceeded ${POST_TEXT_LIMIT} characters (${text.length}). Retrying... (${i + 1}/${retryCount})`);
   }
   console.warn(`[WARN] Failed to generate content under 2000 characters after ${retryCount} retries. Returning last response.`);
   return response;
@@ -134,6 +131,19 @@ export async function generateSingleResponseWithScore(prompt: string, userinfo?:
     }
   }
 
+  const tools: any[] = [
+    {
+      googleSearch: {},
+    }
+  ];
+
+  if (userinfo?.embed?.uri_embed) {
+    tools.push({
+      urlContext: {},
+    });
+    console.log(`[INFO][GEMINI] URL Context tool enabled for URL: ${userinfo.embed.uri_embed}`);
+  }
+
   const response = await generateContentWithRetry({
     model: MODEL_GEMINI,
     contents,
@@ -141,14 +151,7 @@ export async function generateSingleResponseWithScore(prompt: string, userinfo?:
       systemInstruction: SYSTEM_INSTRUCTION,
       // responseMimeType: "application/json", // Removed
       // responseSchema, // Removed
-      tools: [
-        {
-          googleSearch: {},
-        },
-        {
-          urlContext: {},
-        },
-      ]
+      tools
     }
   });
 

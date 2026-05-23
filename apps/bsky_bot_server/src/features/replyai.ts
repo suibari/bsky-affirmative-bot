@@ -97,21 +97,14 @@ export async function replyAI(
         followersFriend = await getFollowersFriend(text_user, follower.did, NOUN_MATCH_NUM);
 
         // Gemini生成
-        result = await retry(async () => {
-            return await generateAffirmativeWord({
-                follower,
-                langStr,
-                posts: [text_user, ...relatedPosts],
-                likedByFollower: likedPost,
-                image,
-                followersFriend: followersFriend ? [followersFriend] : undefined,
-                embed,
-            });
-        }, {
-            retries: 3,
-            onRetry: (error: Error, attempt: number) => {
-                console.warn(`[WARN][${follower.did}] Attempt ${attempt} to generateAffirmativeWord failed. Retrying... Error: ${error.message}`);
-            }
+        result = await generateAffirmativeWord({
+            follower,
+            langStr,
+            posts: [text_user, ...relatedPosts],
+            likedByFollower: likedPost,
+            image,
+            followersFriend: followersFriend ? [followersFriend] : undefined,
+            embed,
         });
 
         // お気に入りポスト登録
@@ -121,7 +114,7 @@ export async function replyAI(
         const prevPost = await MemoryService.getPost(follower.did);
         const prevScore = prevPost?.score || 0;
 
-        if (result.score && prevScore < result.score && text_user.length > 0) { // 空ポスト除外
+        if (result && result.score && prevScore < result.score && text_user.length > 0) { // 空ポスト除外
             await MemoryService.upsertPost({
                 did: follower.did,
                 post: record.text,
@@ -132,7 +125,7 @@ export async function replyAI(
         }
 
         // 超ポジティブバッジ適用判定 (スコア 95 以上)
-        if (result.score && result.score >= 95) {
+        if (result && result.score && result.score >= 95) {
             try {
                 // Ensure follower exists in DB first
                 await MemoryService.ensureFollower(follower.did);
