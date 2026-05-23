@@ -19,6 +19,7 @@ DIFF_FILES=$(git diff --name-only $OLD_COMMIT $NEW_COMMIT)
 RESTART_BOT=false
 RESTART_BIO=false
 RESTART_LABELER=false
+RESTART_DISCORD=false
 PUSH_DB=false
 
 # 判定ロジック
@@ -27,6 +28,7 @@ if echo "$DIFF_FILES" | grep -q "packages/"; then
     RESTART_BOT=true
     RESTART_BIO=true
     RESTART_LABELER=true
+    RESTART_DISCORD=true
 fi
 
 if echo "$DIFF_FILES" | grep -q "apps/bsky_bot_server/"; then
@@ -39,6 +41,10 @@ fi
 
 if echo "$DIFF_FILES" | grep -q "apps/labeler_server/"; then
     RESTART_LABELER=true
+fi
+
+if echo "$DIFF_FILES" | grep -q "apps/discord_bot/"; then
+    RESTART_DISCORD=true
 fi
 
 # DB 判定/push
@@ -65,4 +71,9 @@ fi
 if [ "$RESTART_LABELER" = true ]; then
     echo "♻️  Restarting Labeler Server..."
     sudo systemctl restart labeler-server.service
+fi
+
+if [ "$RESTART_DISCORD" = true ]; then
+    echo "♻️  Restarting Discord Bot..."
+    sudo systemctl restart discord-bot.service
 fi

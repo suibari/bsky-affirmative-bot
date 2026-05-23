@@ -2,7 +2,7 @@ import { db, initializeDatabases, bot_state, followers, posts, likes, replies, a
 import { eq, desc, sql, gte, and } from 'drizzle-orm';
 import { LanguageName, LIMIT_REQUEST_PER_DAY_GEMINI } from '@bsky-affirmative-bot/shared-configs';
 
-export { initializeDatabases };
+export { initializeDatabases, db, subscribers };
 
 export interface DailyReport {
   followers: number;

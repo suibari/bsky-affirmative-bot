@@ -18,6 +18,9 @@
     },
     {
       "path": "./packages/clients"
+    },
+    {
+      "path": "./apps/discord_bot"
     }
   ]
 }
