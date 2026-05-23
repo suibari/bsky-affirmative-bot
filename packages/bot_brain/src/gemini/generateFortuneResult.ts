@@ -37,10 +37,6 @@ export async function generateFortuneResult(userinfo: UserInfoGemini): Promise<F
     `* ラッキーアニマルは、${getRandomItems(category_animal, 2)}の要素をあわせもつ動物の具体的な名称をランダムに選ぶこと。その動物を選んだ理由も合わせて説明してください。`,
   ];
 
-  const part_promo = userinfo.langStr === "日本語" ?
-    `* 占い結果の自然な流れの中で、占い結果を象徴した3つの絵文字でできた「ラッキーバッジ」（例：🔮🍀✨）をプレゼントしたことと、そのバッジを表示するにはラベラー（ https://bsky.app/profile/labeler-bot-tan.suibari.com ）の購読（サブスクライブ）が必要であることを、機械的にならず優しく可愛らしく語りかけるように伝えてください。` :
-    `* Naturally weave into the fortune advice that you have gifted them a "Lucky Badge" made of 3 emojis representing this fortune, and that they need to subscribe to your labeler ( https://bsky.app/profile/labeler-bot-tan.suibari.com ) to show the badge. Convey this in a warm, gentle, and lovely tone.`;
-
   const prompt =
 `占いをしてください。
 ${part_language}
@@ -51,7 +47,6 @@ ${maxLength}
 * 占いテーマは${getRandomItems(category_main, 2)}です。2つのテーマを合わせたアドバイスをしてください。
 * ラッキーアクションは、${getRandomItems(category_action_attr, 1)}の${getRandomItems(category_action_place, 1)}の場所で、${getRandomItems(category_action_subject, 1)}を${getRandomItems(category_action_act, 1)}する指示を出してください。自然な文章にしてください。
 ${getRandomItems(part_prompt_luckys, 3)}
-${part_promo}
 悪い内容が一切含まれないようにしてください。
 
 また、この占い結果を総括（サマリー）する絵文字を【必ずちょうど3つ】考えてください。
@@ -96,7 +91,7 @@ ${part_promo}
         properties: {
           fortune: {
             type: Type.STRING,
-            description: "占いのアドバイス本文（空の行は含めないこと。バッジのプレゼントやラベラーの購読案内を自然に含めること）"
+            description: "占いのアドバイス本文（空の行は含めないこと）"
           },
           emojis: {
             type: Type.STRING,

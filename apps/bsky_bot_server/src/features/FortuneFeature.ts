@@ -71,6 +71,8 @@ export class FortuneFeature implements BotFeature {
         // uploadBlod
         const { blob } = (await agent.uploadBlob(buffer, { encoding: "image/png" })).data;
 
+        let replyText = TEXT_INTRO_ANALYZE;
+
         // 占い絵文字バッジ 適用処理
         try {
             const userDid = userinfo.follower.did;
@@ -99,12 +101,19 @@ export class FortuneFeature implements BotFeature {
             // 3. ユーザーに24時間限定バッジを適用
             await botLabelerManager.applyLabel(userDid, badgeId, false, expDate);
             console.log(`[INFO][BADGE][FORTUNE] Successfully applied fortune badge ${badgeId} to ${userDid} with exp=${expDate}`);
+
+            // 成功メッセージ（ラベラーの宣伝）の追加
+            if (userinfo.langStr === "日本語") {
+                replyText += `\n\n🎉「今日のラッキー: ${emojis}」のラッキーバッジをプレゼントしたよ！\n※バッジを表示するにはラベラー（ https://bsky.app/profile/labeler-bot-tan.suibari.com ）を購読してね`;
+            } else {
+                replyText += `\n\n🎉 I've gifted you the "Today's Lucky: ${emojis}" badge!\n*To show the badge, please subscribe to the labeler ( https://bsky.app/profile/labeler-bot-tan.suibari.com ).`;
+            }
         } catch (badgeErr: any) {
             console.error(`[ERROR][BADGE][FORTUNE] Failed to apply fortune badge for ${userinfo.follower.did}:`, badgeErr.message);
         }
 
         return {
-            text: TEXT_INTRO_ANALYZE,
+            text: replyText,
             imageBlob: blob,
         };
     }
