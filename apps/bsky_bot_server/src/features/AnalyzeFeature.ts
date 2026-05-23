@@ -134,13 +134,16 @@ export class AnalyzeFeature implements BotFeature {
                 }
             ]);
 
-            // 2. ユーザーにバッジを適用
-            await botLabelerManager.applyLabel(userDid, badgeId, false);
+            // 2. 1週間の有効期限を計算
+            const expDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
 
-            // 3. DB 更新
+            // 3. ユーザーに1週間限定バッジを適用
+            await botLabelerManager.applyLabel(userDid, badgeId, false, expDate);
+
+            // 4. DB 更新
             await MemoryService.updateFollower(userDid, "current_title_ja", analyzeResult.title_ja);
             await MemoryService.updateFollower(userDid, "current_title_en", analyzeResult.title_en);
-            console.log(`[INFO][BADGE][ANALYZE] Successfully applied title badge ${badgeId} to ${userDid}`);
+            console.log(`[INFO][BADGE][ANALYZE] Successfully applied title badge ${badgeId} to ${userDid} with exp=${expDate}`);
 
             // 成功メッセージの追加
             if (userinfo.langStr === "日本語") {

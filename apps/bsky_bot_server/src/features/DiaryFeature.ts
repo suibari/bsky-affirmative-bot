@@ -183,13 +183,16 @@ async function processUserDiary(userDid: string) {
                 }
             ]);
 
-            // 2. ユーザーにバッジを適用
-            await botLabelerManager.applyLabel(userDid, badgeId, false);
+            // 2. 24時間の有効期限を計算
+            const expDate = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 
-            // 3. DB 更新
+            // 3. ユーザーに24時間限定バッジを適用
+            await botLabelerManager.applyLabel(userDid, badgeId, false, expDate);
+
+            // 4. DB 更新
             await MemoryService.updateFollower(userDid, "current_title_ja", diaryResult.title_ja);
             await MemoryService.updateFollower(userDid, "current_title_en", diaryResult.title_en);
-            console.log(`[INFO][BADGE][DIARY] Successfully applied title badge ${badgeId} to ${userDid}`);
+            console.log(`[INFO][BADGE][DIARY] Successfully applied title badge ${badgeId} to ${userDid} with exp=${expDate}`);
 
             // 成功メッセージの追加
             if (langStr === "日本語") {
