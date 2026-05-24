@@ -7,7 +7,7 @@ export async function syncSubscriberLabels() {
   console.log("[INFO][LABEL-SYNC] Starting subscriber label synchronization...");
   try {
     // 1. Fetch current subscribers from the Database
-    const dbSubscribers = await MemoryService.getSubscribers();
+    const dbSubscribers = await MemoryService.getSubscribersOrDeveloper();
     const sheetSubSet = new Set(dbSubscribers);
 
     // 2. Fetch currently active "bot-tan-sub" labeled DIDs from SQLite via the Labeler Server

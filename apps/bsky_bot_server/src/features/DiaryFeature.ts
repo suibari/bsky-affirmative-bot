@@ -254,7 +254,7 @@ async function manageUserDiarySchedules() {
     console.log(`[INFO][DIARY] is_diary: ${usersWithDiaryMode.length}`);
 
     // Fetch subscribers from the database
-    const subscribers = await MemoryService.getSubscribers();
+    const subscribers = await MemoryService.getSubscribersOrDeveloper();
     const subscriberSet = new Set(subscribers);
 
     // Filter users to include only those who are subscribers

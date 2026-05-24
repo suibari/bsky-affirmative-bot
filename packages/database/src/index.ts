@@ -439,14 +439,25 @@ export class MemoryService {
     }
   }
 
-  static async getSubscribers(): Promise<string[]> {
+  static async getSubscribersOrDeveloper(): Promise<string[]> {
     try {
       const result = await db.select({ did: subscribers.did })
         .from(subscribers)
         .where(eq(subscribers.status, 'active'));
-      return result.map(row => row.did);
+      const list = result.map(row => row.did);
+
+      const devDid = process.env.DEVELOPER_DID;
+      if (devDid) {
+        const devDids = devDid.split(',').map(d => d.trim()).filter(Boolean);
+        for (const did of devDids) {
+          if (!list.includes(did)) {
+            list.push(did);
+          }
+        }
+      }
+      return list;
     } catch (e) {
-      console.error("Failed to get subscribers from database:", e);
+      console.error("Failed to get subscribers or developer from database:", e);
       return [];
     }
   }
