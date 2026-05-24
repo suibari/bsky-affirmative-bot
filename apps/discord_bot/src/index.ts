@@ -1,6 +1,7 @@
 import { Client, GatewayIntentBits, Events } from 'discord.js';
 import { BskyAgent } from '@atproto/api';
 import { db, subscribers, initializeDatabases } from '@bsky-affirmative-bot/database';
+import { botLabelerManager } from '@bsky-affirmative-bot/clients';
 import { eq } from 'drizzle-orm';
 import dotenv from 'dotenv';
 import path from 'path';
@@ -78,6 +79,16 @@ async function startBot() {
             .set({ status: 'active', updated_at: new Date() })
             .where(eq(subscribers.discord_id, discordId));
           console.log(`✔ [DISCORD] Reactivated existing subscriber record for ${username} (DID: ${existing[0].did})`);
+          
+          // Instantly sync label to Bluesky
+          if (existing[0].did) {
+            try {
+              console.log(`[INFO][DISCORD] Instantly applying bot-tan-sub label to ${existing[0].did}`);
+              await botLabelerManager.applyLabel(existing[0].did, "bot-tan-sub", false);
+            } catch (labelErr) {
+              console.error(`[ERROR][DISCORD] Failed to apply label instantly to ${existing[0].did}:`, labelErr);
+            }
+          }
         } else {
           // New subscriber, wait for them to link their handle in the designated channel
           console.log(`[INFO][DISCORD] New subscriber ${username} has no linked DID yet. Waiting for channel registration.`);
@@ -91,6 +102,17 @@ async function startBot() {
           .set({ status: 'inactive', updated_at: new Date() })
           .where(eq(subscribers.discord_id, discordId));
         console.log(`✔ [DISCORD] Deactivated subscriber record for Discord ID: ${discordId}`);
+        
+        // Instantly negate label on Bluesky
+        const existing = await db.select().from(subscribers).where(eq(subscribers.discord_id, discordId)).limit(1);
+        if (existing.length > 0 && existing[0].did) {
+          try {
+            console.log(`[INFO][DISCORD] Instantly negating bot-tan-sub label for ${existing[0].did}`);
+            await botLabelerManager.applyLabel(existing[0].did, "bot-tan-sub", true);
+          } catch (labelErr) {
+            console.error(`[ERROR][DISCORD] Failed to negate label instantly for ${existing[0].did}:`, labelErr);
+          }
+        }
       }
     } catch (err) {
       console.error(`❌ [DISCORD] Error processing role update for user ${username}:`, err);
@@ -169,7 +191,15 @@ async function startBot() {
           console.log(`✔ [DISCORD] Created new subscriber record: Discord ${discordId} ↔ DID ${did}`);
         }
 
-        await message.reply(`🎉 **Your Bluesky account has been successfully registered to the Bot-tan server!**\n\n*   **Registered Account**: \`@${handle}\`\n*   **DID**: \`${did}\`\n\n※ Your custom subscriber badge (bot-tan-sub) will be automatically synchronized and applied to your Bluesky profile within an hour. Enjoy!`);
+        // Instantly sync label to Bluesky
+        try {
+          console.log(`[INFO][DISCORD] Instantly applying bot-tan-sub label to ${did}`);
+          await botLabelerManager.applyLabel(did, "bot-tan-sub", false);
+        } catch (labelErr) {
+          console.error(`[ERROR][DISCORD] Failed to apply label instantly to ${did}:`, labelErr);
+        }
+
+        await message.reply(`🎉 **Your Bluesky account has been successfully registered to the Bot-tan server!**\n\n*   **Registered Account**: \`@${handle}\`\n*   **DID**: \`${did}\`\n\n※ Your custom subscriber badge (bot-tan-sub) has been successfully synchronized and applied to your Bluesky profile instantly! Enjoy!`);
 
       } catch (err: any) {
         console.error(`❌ [DISCORD] Database error while linking handle @${handle} for user ${username}:`, err.message || err);
