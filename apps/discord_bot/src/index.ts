@@ -129,12 +129,19 @@ async function startBot() {
 
     // C. Resolve Bluesky handle to DID
     const agent = new BskyAgent({ service: 'https://bsky.social' });
+    let did: string;
     try {
       const response = await agent.resolveHandle({ handle });
-      const did = response.data.did;
+      did = response.data.did;
       console.log(`✔ [DISCORD] Resolved handle ${handle} to DID: ${did}`);
+    } catch (err: any) {
+      console.error(`❌ [DISCORD] Failed to resolve handle @${handle}:`, err.message || err);
+      await message.reply(`❌ Failed to resolve Bluesky account \`@${handle}\`. Please verify that your handle is spelled correctly.`);
+      return;
+    }
 
-      // D. Link/Upsert the subscriber record in PostgreSQL
+    // D. Link/Upsert the subscriber record in PostgreSQL
+    try {
       const existingByDiscord = await db.select().from(subscribers).where(eq(subscribers.discord_id, discordId)).limit(1);
       const existingByDid = await db.select().from(subscribers).where(eq(subscribers.did, did)).limit(1);
 
@@ -164,8 +171,14 @@ async function startBot() {
       await message.reply(`🎉 **Your Bluesky account has been successfully registered to the Bot-tan server!**\n\n*   **Registered Account**: \`@${handle}\`\n*   **DID**: \`${did}\`\n\n※ Your custom subscriber badge (bot-tan-sub) will be automatically synchronized and applied to your Bluesky profile within an hour. Enjoy!`);
 
     } catch (err: any) {
-      console.error(`❌ [DISCORD] Failed to resolve handle @${handle}:`, err.message || err);
-      await message.reply(`❌ Failed to resolve Bluesky account \`@${handle}\`. Please verify that your handle is spelled correctly.\n(Error: ${err.message || 'Unknown'})`);
+      console.error(`❌ [DISCORD] Database error while linking handle @${handle} for user ${username}:`, err.message || err);
+      // Check for PostgreSQL unique constraint violation (SQLState 23505)
+      if (err.code === '23505' || (err.message && err.message.includes('unique constraint'))) {
+        await message.reply(`❌ The Bluesky account \`@${handle}\` is already registered in the system under another record. If you believe this is an error, please contact an administrator.`);
+      } else {
+        // Generic safe error message for other errors, hiding database internals
+        await message.reply(`❌ An internal database/server error occurred while registering your account. Please try again later or contact an administrator.`);
+      }
     }
   });
 
