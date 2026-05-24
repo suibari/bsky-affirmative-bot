@@ -72,19 +72,24 @@ export const botLabelerManager = {
         uri: string;
         val: string;
         neg?: boolean;
+        cts?: string;
       }>;
 
-      // Group by subject (uri) and get the latest negated status
-      const latestStatus = new Map<string, boolean>();
+      // Group by subject (uri) and get the latest negated status using creation timestamp (cts)
+      const latestStatus = new Map<string, { neg: boolean; cts: number }>();
       for (const label of labels) {
         if (label.val === val) {
-          latestStatus.set(label.uri, !!label.neg);
+          const cts = label.cts ? new Date(label.cts).getTime() : 0;
+          const existing = latestStatus.get(label.uri);
+          if (!existing || cts > existing.cts) {
+            latestStatus.set(label.uri, { neg: !!label.neg, cts });
+          }
         }
       }
 
       const activeDids: string[] = [];
-      for (const [uri, isNegated] of latestStatus.entries()) {
-        if (!isNegated) {
+      for (const [uri, status] of latestStatus.entries()) {
+        if (!status.neg) {
           activeDids.push(uri);
         }
       }
