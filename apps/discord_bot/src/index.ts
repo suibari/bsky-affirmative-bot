@@ -99,86 +99,90 @@ async function startBot() {
 
   // 5. Handle Linking on Message (messageCreate)
   client.on(Events.MessageCreate, async (message) => {
-    // Filter messages to only look in the designated channel and ignore other bots
-    if (message.channelId !== CHANNEL_ID || message.author.bot) return;
-
-    const member = message.member;
-    if (!member) return;
-
-    const discordId = message.author.id;
-    const username = message.author.tag;
-
-    // A. Verify if the sender has the required premium subscriber role
-    if (!member.roles.cache.has(ROLE_ID)) {
-      await message.reply("❌ This feature is only available to premium subscribers (e.g. Patreon/FANBOX members with the verified role). Please make sure you have the synchronized role!");
-      return;
-    }
-
-    // B. Parse handle from message content (e.g. "@Bot suibari.bsky.social" -> "suibari.bsky.social")
-    const text = message.content.replace(/<@!?\d+>/g, '').trim(); // Remove bot mentions
-    const handleRegex = /([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/;
-    const match = text.match(handleRegex);
-
-    if (!match) {
-      await message.reply("❌ Please provide a valid Bluesky handle (e.g., `yourname.bsky.social`).");
-      return;
-    }
-
-    const handle = match[1].toLowerCase();
-    console.log(`[INFO][DISCORD] Link request from ${username} for handle: ${handle}`);
-
-    // C. Resolve Bluesky handle to DID
-    const agent = new BskyAgent({ service: 'https://bsky.social' });
-    let did: string;
     try {
-      const response = await agent.resolveHandle({ handle });
-      did = response.data.did;
-      console.log(`✔ [DISCORD] Resolved handle ${handle} to DID: ${did}`);
-    } catch (err: any) {
-      console.error(`❌ [DISCORD] Failed to resolve handle @${handle}:`, err.message || err);
-      await message.reply(`❌ Failed to resolve Bluesky account \`@${handle}\`. Please verify that your handle is spelled correctly.`);
-      return;
-    }
+      // Filter messages to only look in the designated channel and ignore other bots and system messages
+      if (message.channelId !== CHANNEL_ID || message.author.bot || message.system) return;
 
-    // D. Link/Upsert the subscriber record in PostgreSQL
-    try {
-      const existingByDiscord = await db.select().from(subscribers).where(eq(subscribers.discord_id, discordId)).limit(1);
-      const existingByDid = await db.select().from(subscribers).where(eq(subscribers.did, did)).limit(1);
+      const member = message.member;
+      if (!member) return;
 
-      if (existingByDiscord.length > 0) {
-        // Update existing record for this Discord ID
-        await db.update(subscribers)
-          .set({ did: did, status: 'active', updated_at: new Date() })
-          .where(eq(subscribers.discord_id, discordId));
-        console.log(`✔ [DISCORD] Updated DID for Discord ID ${discordId} to ${did}`);
-      } else if (existingByDid.length > 0) {
-        // Link Discord ID to a legacy DID record (imported from Google Sheets)
-        await db.update(subscribers)
-          .set({ discord_id: discordId, status: 'active', updated_at: new Date() })
-          .where(eq(subscribers.did, did));
-        console.log(`✔ [DISCORD] Linked Discord ID ${discordId} to existing DID record: ${did}`);
-      } else {
-        // Create a completely new subscriber record
-        await db.insert(subscribers).values({
-          discord_id: discordId,
-          did: did,
-          status: 'active',
-          updated_at: new Date()
-        });
-        console.log(`✔ [DISCORD] Created new subscriber record: Discord ${discordId} ↔ DID ${did}`);
+      const discordId = message.author.id;
+      const username = message.author.tag;
+
+      // A. Verify if the sender has the required premium subscriber role
+      if (!member.roles.cache.has(ROLE_ID)) {
+        await message.reply("❌ This feature is only available to premium subscribers (e.g. Patreon/FANBOX members with the verified role). Please make sure you have the synchronized role!");
+        return;
       }
 
-      await message.reply(`🎉 **Your Bluesky account has been successfully registered to the Bot-tan server!**\n\n*   **Registered Account**: \`@${handle}\`\n*   **DID**: \`${did}\`\n\n※ Your custom subscriber badge (bot-tan-sub) will be automatically synchronized and applied to your Bluesky profile within an hour. Enjoy!`);
+      // B. Parse handle from message content (e.g. "@Bot suibari.bsky.social" -> "suibari.bsky.social")
+      const text = message.content.replace(/<@!?\d+>/g, '').trim(); // Remove bot mentions
+      const handleRegex = /([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/;
+      const match = text.match(handleRegex);
 
-    } catch (err: any) {
-      console.error(`❌ [DISCORD] Database error while linking handle @${handle} for user ${username}:`, err.message || err);
-      // Check for PostgreSQL unique constraint violation (SQLState 23505)
-      if (err.code === '23505' || (err.message && err.message.includes('unique constraint'))) {
-        await message.reply(`❌ The Bluesky account \`@${handle}\` is already registered in the system under another record. If you believe this is an error, please contact an administrator.`);
-      } else {
-        // Generic safe error message for other errors, hiding database internals
-        await message.reply(`❌ An internal database/server error occurred while registering your account. Please try again later or contact an administrator.`);
+      if (!match) {
+        await message.reply("❌ Please provide a valid Bluesky handle (e.g., `yourname.bsky.social`).");
+        return;
       }
+
+      const handle = match[1].toLowerCase();
+      console.log(`[INFO][DISCORD] Link request from ${username} for handle: ${handle}`);
+
+      // C. Resolve Bluesky handle to DID
+      const agent = new BskyAgent({ service: 'https://bsky.social' });
+      let did: string;
+      try {
+        const response = await agent.resolveHandle({ handle });
+        did = response.data.did;
+        console.log(`✔ [DISCORD] Resolved handle ${handle} to DID: ${did}`);
+      } catch (err: any) {
+        console.error(`❌ [DISCORD] Failed to resolve handle @${handle}:`, err.message || err);
+        await message.reply(`❌ Failed to resolve Bluesky account \`@${handle}\`. Please verify that your handle is spelled correctly.`);
+        return;
+      }
+
+      // D. Link/Upsert the subscriber record in PostgreSQL
+      try {
+        const existingByDiscord = await db.select().from(subscribers).where(eq(subscribers.discord_id, discordId)).limit(1);
+        const existingByDid = await db.select().from(subscribers).where(eq(subscribers.did, did)).limit(1);
+
+        if (existingByDiscord.length > 0) {
+          // Update existing record for this Discord ID
+          await db.update(subscribers)
+            .set({ did: did, status: 'active', updated_at: new Date() })
+            .where(eq(subscribers.discord_id, discordId));
+          console.log(`✔ [DISCORD] Updated DID for Discord ID ${discordId} to ${did}`);
+        } else if (existingByDid.length > 0) {
+          // Link Discord ID to a legacy DID record (imported from Google Sheets)
+          await db.update(subscribers)
+            .set({ discord_id: discordId, status: 'active', updated_at: new Date() })
+            .where(eq(subscribers.did, did));
+          console.log(`✔ [DISCORD] Linked Discord ID ${discordId} to existing DID record: ${did}`);
+        } else {
+          // Create a completely new subscriber record
+          await db.insert(subscribers).values({
+            discord_id: discordId,
+            did: did,
+            status: 'active',
+            updated_at: new Date()
+          });
+          console.log(`✔ [DISCORD] Created new subscriber record: Discord ${discordId} ↔ DID ${did}`);
+        }
+
+        await message.reply(`🎉 **Your Bluesky account has been successfully registered to the Bot-tan server!**\n\n*   **Registered Account**: \`@${handle}\`\n*   **DID**: \`${did}\`\n\n※ Your custom subscriber badge (bot-tan-sub) will be automatically synchronized and applied to your Bluesky profile within an hour. Enjoy!`);
+
+      } catch (err: any) {
+        console.error(`❌ [DISCORD] Database error while linking handle @${handle} for user ${username}:`, err.message || err);
+        // Check for PostgreSQL unique constraint violation (SQLState 23505)
+        if (err.code === '23505' || (err.message && err.message.includes('unique constraint'))) {
+          await message.reply(`❌ The Bluesky account \`@${handle}\` is already registered in the system under another record. If you believe this is an error, please contact an administrator.`);
+        } else {
+          // Generic safe error message for other errors, hiding database internals
+          await message.reply(`❌ An internal database/server error occurred while registering your account. Please try again later or contact an administrator.`);
+        }
+      }
+    } catch (globalErr) {
+      console.error("❌ [DISCORD] Error processing messageCreate event:", globalErr);
     }
   });
 
