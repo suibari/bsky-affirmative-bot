@@ -126,47 +126,100 @@ export async function postContinuous(
   return firstPostResult!;
 }
 
+type Token = {
+  type: 'url' | 'text';
+  content: string;
+};
+
+type Element =
+  | { type: 'url'; text: string }
+  | { type: 'char'; text: string };
+
 function splitTextSmart(text: string, MAX_LENGTH: number): string[] {
-  const segmenter = new Intl.Segmenter('ja', { granularity: 'grapheme' });
-  const graphemes = Array.from(segmenter.segment(text), s => s.segment);
+  // 1. URLs and normal text tokenization
+  const tokens: Token[] = [];
+  const URL_REGEX = /https?:\/\/[^\s]+/g;
+  const matches = [...text.matchAll(URL_REGEX)];
 
-  const parts: string[] = [];
-  let buffer = '';
+  let lastIndex = 0;
+  for (const match of matches) {
+    const index = match.index!;
+    const url = match[0];
 
-  for (let i = 0; i < graphemes.length; i++) {
-    const nextChar = graphemes[i];
-
-    // 追加してもMAX_LENGTH以内ならバッファに追加
-    if ((buffer + nextChar).length <= MAX_LENGTH) {
-      buffer += nextChar;
-      continue;
+    if (index > lastIndex) {
+      tokens.push({ type: 'text', content: text.slice(lastIndex, index) });
     }
 
-    // MAX_LENGTHを超えるのでここで分割を検討
-    let safeEnd = buffer.length;
+    tokens.push({ type: 'url', content: url });
+    lastIndex = index + url.length;
+  }
 
-    // 直前のバッファの末尾を確認して、「途中切り」のケースを避ける
-    const match = buffer.match(/(https?:\/\/[^\s]+|[a-zA-Z0-9_]+|@[^\s]+|#[^\s]+)$/);
+  if (lastIndex < text.length) {
+    tokens.push({ type: 'text', content: text.slice(lastIndex) });
+  }
 
-    if (match) {
-      const unsafeLen = match[0].length;
-      safeEnd -= unsafeLen;
+  // 2. Fragment plain text into graphemes, keeping URLs as single elements
+  const segmenter = new Intl.Segmenter('ja', { granularity: 'grapheme' });
+  const elements: Element[] = [];
 
-      if (safeEnd <= 0) {
-        // 英単語 or @/＃が全部bufferにある場合は、無理に切らず、強制的に切る（次に送る）
-        parts.push(buffer);
-        buffer = '';
-      } else {
-        parts.push(buffer.slice(0, safeEnd));
-        buffer = buffer.slice(safeEnd) + nextChar;
-      }
+  for (const token of tokens) {
+    if (token.type === 'url') {
+      elements.push({ type: 'url', text: token.content });
     } else {
-      // 通常分割
-      parts.push(buffer);
-      buffer = nextChar;
+      const graphemes = Array.from(segmenter.segment(token.content), s => s.segment);
+      for (const g of graphemes) {
+        elements.push({ type: 'char', text: g });
+      }
     }
   }
 
-  if (buffer) parts.push(buffer);
+  // 3. Reconstruct the parts while respecting the length constraint and URL integrity
+  const parts: string[] = [];
+  let buffer = '';
+
+  for (let i = 0; i < elements.length; i++) {
+    const el = elements[i];
+
+    if ((buffer + el.text).length <= MAX_LENGTH) {
+      buffer += el.text;
+      continue;
+    }
+
+    if (el.type === 'url') {
+      // Never cut a URL. Flush current buffer and start next post with the URL
+      if (buffer.length > 0) {
+        parts.push(buffer);
+        buffer = el.text;
+      } else {
+        // Failsafe: if a single URL exceeds MAX_LENGTH, keep it whole
+        buffer = el.text;
+      }
+    } else {
+      // Normal character splitting. Avoid splitting in the middle of words, tags, or mentions.
+      let safeEnd = buffer.length;
+      const match = buffer.match(/(https?:\/\/[^\s]+|[a-zA-Z0-9_]+|@[^\s]+|#[^\s]+)$/);
+
+      if (match) {
+        const unsafeLen = match[0].length;
+        safeEnd -= unsafeLen;
+
+        if (safeEnd <= 0) {
+          parts.push(buffer);
+          buffer = el.text;
+        } else {
+          parts.push(buffer.slice(0, safeEnd));
+          buffer = buffer.slice(safeEnd) + el.text;
+        }
+      } else {
+        parts.push(buffer);
+        buffer = el.text;
+      }
+    }
+  }
+
+  if (buffer) {
+    parts.push(buffer);
+  }
+
   return parts;
 }
