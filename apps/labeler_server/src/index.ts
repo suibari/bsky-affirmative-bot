@@ -299,6 +299,35 @@ internalApp.post("/label", async (request: FastifyRequest, reply: FastifyReply) 
   }
 });
 
+internalApp.get("/active-dids", async (request: FastifyRequest, reply: FastifyReply) => {
+  try {
+    const query = request.query as { val?: string } | null;
+    const val = query?.val;
+
+    if (!val) {
+      reply.status(400).send({ error: "Missing val in query parameters" });
+      return;
+    }
+
+    console.log(`[INFO][INTERNAL] Fetching active DIDs for label value: ${val}`);
+
+    // Query SQLite directly using labeler.db
+    const sql = `
+      SELECT uri FROM labels
+      WHERE id IN (
+        SELECT MAX(id) FROM labels WHERE val = ? GROUP BY uri
+      ) AND neg = 0
+    `;
+    const result = await labeler.db.execute({ sql, args: [val] });
+    const dids = result.rows.map((row: any) => row.uri);
+
+    reply.send({ success: true, dids });
+  } catch (error: any) {
+    console.error("[ERROR][INTERNAL] Failed to fetch active DIDs:", error);
+    reply.status(500).send({ error: error.message || "Internal Server Error" });
+  }
+});
+
 // Start the public XRPC server (binds to standard port, e.g. 3400)
 labeler.start(PORT, (error: Error | null, address: string) => {
   if (error) {

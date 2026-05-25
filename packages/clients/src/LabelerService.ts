@@ -48,55 +48,19 @@ export const botLabelerManager = {
     }
   },
   /**
-   * Get currently active DIDs for a specific label value from standard XRPC queryLabels (port 3400).
+   * Get currently active DIDs for a specific label value from the internal API (port 3401).
    * @param val The label value (e.g. bot-tan-sub)
    */
   getActiveLabels: async (val: string): Promise<string[]> => {
-    const url = `${getLabelerPublicUrl()}/xrpc/com.atproto.label.queryLabels`;
-    const labelerDid = process.env.LABELER_DID;
-    if (!labelerDid) {
-      console.error("[ERROR] LABELER_DID is not defined in environment");
-      return [];
-    }
+    const url = `${getLabelerInternalUrl()}/active-dids`;
 
     try {
       const res = await axios.get(url, {
-        params: {
-          uriPatterns: "*",
-          sources: labelerDid,
-          limit: 250
-        }
+        params: { val }
       });
-
-      const labels = (res.data.labels || []) as Array<{
-        uri: string;
-        val: string;
-        neg?: boolean;
-        cts?: string;
-      }>;
-
-      // Group by subject (uri) and get the latest negated status using creation timestamp (cts)
-      const latestStatus = new Map<string, { neg: boolean; cts: number }>();
-      for (const label of labels) {
-        if (label.val === val) {
-          const cts = label.cts ? new Date(label.cts).getTime() : 0;
-          const existing = latestStatus.get(label.uri);
-          if (!existing || cts > existing.cts) {
-            latestStatus.set(label.uri, { neg: !!label.neg, cts });
-          }
-        }
-      }
-
-      const activeDids: string[] = [];
-      for (const [uri, status] of latestStatus.entries()) {
-        if (!status.neg) {
-          activeDids.push(uri);
-        }
-      }
-
-      return activeDids;
+      return res.data.dids || [];
     } catch (e: any) {
-      console.error(`[ERROR] Failed to query active labels for ${val} via XRPC:`, e.response?.data || e.message);
+      console.error(`[ERROR] Failed to query active labels for ${val} via internal API:`, e.response?.data || e.message);
       return [];
     }
   }
