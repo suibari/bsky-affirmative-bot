@@ -83,8 +83,13 @@ async function startBot() {
           // Instantly sync label to Bluesky
           if (existing[0].did) {
             try {
-              console.log(`[INFO][DISCORD] Instantly applying bot-tan-sub label to ${existing[0].did}`);
-              await botLabelerManager.applyLabel(existing[0].did, "bot-tan-sub", false);
+              const activeDids = await botLabelerManager.getActiveLabels("bot-tan-sub");
+              if (!activeDids.includes(existing[0].did)) {
+                console.log(`[INFO][DISCORD] Instantly applying bot-tan-sub label to ${existing[0].did}`);
+                await botLabelerManager.applyLabel(existing[0].did, "bot-tan-sub", false);
+              } else {
+                console.log(`[INFO][DISCORD] User ${existing[0].did} already has bot-tan-sub label. Skipping apply to prevent duplicate notifications.`);
+              }
             } catch (labelErr) {
               console.error(`[ERROR][DISCORD] Failed to apply label instantly to ${existing[0].did}:`, labelErr);
             }
@@ -193,8 +198,13 @@ async function startBot() {
 
         // Instantly sync label to Bluesky
         try {
-          console.log(`[INFO][DISCORD] Instantly applying bot-tan-sub label to ${did}`);
-          await botLabelerManager.applyLabel(did, "bot-tan-sub", false);
+          const activeDids = await botLabelerManager.getActiveLabels("bot-tan-sub");
+          if (!activeDids.includes(did)) {
+            console.log(`[INFO][DISCORD] Instantly applying bot-tan-sub label to ${did}`);
+            await botLabelerManager.applyLabel(did, "bot-tan-sub", false);
+          } else {
+            console.log(`[INFO][DISCORD] User ${did} already has bot-tan-sub label. Skipping apply to prevent duplicate notifications.`);
+          }
         } catch (labelErr) {
           console.error(`[ERROR][DISCORD] Failed to apply label instantly to ${did}:`, labelErr);
         }
