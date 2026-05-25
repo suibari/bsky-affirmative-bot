@@ -12,26 +12,30 @@ This repository contains the code and configuration files for Affirmation Bot-ta
 The bot has the following features:
 
 1. **AI-generated replies**: Uses generative AI (Google Gemini) to reply to follower posts (text or images).
-2. **Template replies**: Uses a Japanese sentiment polarity dictionary to analyze follower posts (text) and reply with preset messages.
-3. **Fortune-telling**: Provides fortunes upon user request.
+2. **Template replies**: Uses a sentiment polarity dictionary to analyze follower posts (text) and reply with preset messages.
+3. **Fortune-telling**: Provides fortunes upon user request and presents you with a "Lucky Badge" of the day (valid for 24 hours).
 4. **Reply frequency adjustment**: Users can adjust how often the bot replies (0–100%).
 5. **Conversation mode**: Allows continuous conversation with the bot.
-6. **Personality analysis**: Analyzes and replies with a personality report.
-7. **Cheering**: Reposts user content for promotion.
-8. **DJ mode**: Selects music for the user.
-9. **Diary mode**: Creates a diary based on the user’s posts.
-10. **Anniversary mode**: When an anniversary comes, the bot will celebrate it.
+6. **Personality analysis**: Analyzes your recent posts to generate a personality report image and gifts you a "Title Badge" (valid for 1 week).
+7. **Promotion support (Cheering)**: Reposts user content with cheering messages to promote to all followers.
+8. **DJ mode**: Recommends songs tailored to your mood from your recent posts, complete with YouTube video links.
+9. **Diary mode**: Summarizes your daily posts and replies every evening at around 22:00 with a diary image and a daily "Title Badge" (valid for 24 hours).
+10. **Anniversary mode**: Celebrates preset holidays, your personal registered anniversaries, and your Bluesky registration date. For personal registered anniversaries, it gifts you an "Anniversary Badge" (valid for 24 hours).
+11. **Status Confirmation**: Displays a summary of companionship days, settings, and cooldown states for different features.
+12. **Year Recap**: Collects your posts for the past year (up to 1,000 posts) and analyzes monthly activity, top words, and top interacted users to reply with a yearly summary image.
+13. **Badge (Bluesky Label) Feature**: Gifts special badges and titles directly onto your Bluesky profile under specific conditions.
 
 Additionally, this bot offers a subscription plan to cover operational costs.  
 
 Below is a comparison of available features for regular followers vs. subscribers. Details about subscription are available on [Patreon](https://www.patreon.com/posts/about-enhanced-133404007).
 
-| Subscription | Template Replies | AI Replies | Fortune | Frequency Control | Conversation | Analysis | Cheering | DJ | Diary | Anniversary |
-| ------------ | ---------------- | ---------- | ------- | ---------------- | ------------ | -------- | --------- | -- | ----- | ----------- |
-| Regular      | ✓                | ✓*          | ✓       | ✓                |              | ✓        |           | ✓  |       | ✓     |
-| Subscriber   |                  | ✓          | ✓       | ✓                | ✓            | ✓        | ✓         | ✓  | ✓     | ✓   |
+| Subscription | Template Replies | AI Replies | Fortune | Frequency Control | Conversation | Analysis | Cheering | DJ | Diary | Anniversary | Status | Year Recap | Badges※1 |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| Regular      | ✓                | ✓※2        | ✓       | ✓                 |              | ✓        |           | ✓  |       | ✓           | ✓      | ✓          | ✓        |
+| Subscriber   |                  | ✓          | ✓       | ✓                 | ✓            | ✓        | ✓         | ✓  | ✓     | ✓           | ✓      | ✓          | ✓        |
 
-*: AI-generated replies for regular followers occur randomly.
+※1: Eligible for all badges except the subscriber-only badge.
+※2: AI-generated replies for regular followers occur randomly.
 
 ---
 
@@ -46,59 +50,123 @@ The flowchart below illustrates how the bot responds to your posts:
 ![bot flow](https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:uixgxpiqf4i63p6rgpu7ytmx/bafkreihxgiteyk25cpv3e7lkdsggntpb3jj6ybha4btq5ykf2fzdyq7j6u@jpeg)
 
 ### Fortune-telling
-1. After being followed back by the bot, Mention or reply to the bot with **"fortune"**.  
-2. The bot will reply with your fortune result.  
+1. Make sure you are followed back by the bot.
+2. Mention or reply to the bot with **"fortune"** (or "うらない", "占い", "占って", "うらなって").
+3. The bot will reply with your fortune result. At the same time, you'll receive a **"Lucky Badge of the Day (valid for 24 hours)"** applied directly onto your Bluesky profile.
 
-(*You can only use this once every few hours.*)
+(*You can only use this once every **8 hours**.*)
 
 ### Reply Frequency Control
-1. After being followed back by the bot, mention or reply with **"freqN"** (N = 0–100).  
-2. The bot will confirm your setting.  
+1. Make sure you are followed back by the bot.
+2. Mention or reply with **"freqN"** (N = 0–100).
+3. The bot will confirm your setting and adjust how frequently it replies to your normal posts.
 
 ### Conversation Mode
-1. After being followed back by the bot, start a thread where you are the main poster.  
-2. Reply to the bot in the thread.  
-3. The bot will like your post.  
-4. The bot will reply.  
-5. If you reply to that, the conversation continues (repeat from step 3).  
+*(※Subscriber-Only Feature)*
+1. Make sure you are followed back by the bot.
+2. Reply to the bot within a thread where you are the thread root (main poster).
+3. The bot will like your post.
+4. The bot will reply.
+5. If you reply to that, the conversation continues (repeating from step 3).
+
+The flowchart below illustrates the Conversation Mode:
+
+![Conversation Mode](https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:qcwhrvzx6wmi5hz775uyi6fh/bafkreib5x75mtoy7md2eegafwgl6ug4vr23bwy7wyorqrmlwxbyhppzim4@jpeg)
 
 ### Personality Analysis
-1. After being followed back by the bot, Mention or reply to the bot with **"analyze me"**.  
-2. The bot will reply with an image containing your analysis result.  
+1. Make sure you are followed back by the bot.
+2. Mention or reply to the bot with **"analyze me"** (or "分析して").
+3. The bot will analyze your last 100 posts and 100 liked posts to reply with a personality report image. At the same time, you will receive a unique **"Title Badge (valid for 1 week)"** matching your analyzed personality!
 
-(*You can only use this once every few days.*)
+(*You can only use this once every **6 days**.*)
 
-### Promotion Support
-1. After being followed back by the bot, post with the hashtag **"#SuiBotCheerSquad"** and the content you want promoted (no need to reply directly to the bot).  
-2. The bot will repost your post to promote it to followers.  
+### Promotion Support (Cheering)
+*(※Subscriber-Only Feature)*
+1. Make sure you are followed back by the bot.
+2. Post with the hashtag **"#SuiBotCheerSquad"** (or **"#全肯定応援団"**) containing the text and/or images you want promoted (no need to reply directly to the bot).
+3. The bot will evaluate the content and repost it with a cheering reply to promote it to other followers.
+*Note: If the content is flagged as inappropriate or violates the safety policy, the bot may skip cheering.*
 
-(*You can only use this once every few hours.*)
+(*You can only use this once every **8 hours**.*)
 
 ### DJ Mode
-1. After being followed back by the bot, Mention or reply to the bot with **"DJ please"**.  
-2. The bot will recommend a song.  
+1. Make sure you are followed back by the bot.
+2. Mention or reply to the bot with **"DJ please"** (or "djお願い", "djおねがい", "dj頼む", "djたのむ", "dj, please").
+3. The bot will analyze your recent posts to gauge your mood, recommend a matching song with a comment, and automatically search and provide a **YouTube video link** for the song.
 
-(*You can only use this once every few minutes.*)
+(*You can only use this once every **5 minutes**.*)
 
 ### Diary Mode
-1. After being followed back by the bot, mention or reply with **"keep diary"**.  
-2. The bot will reply with a daily diary every evening, based on your posts.  
-3. To disable, mention or reply with **"stop diary"**.  
+*(※Subscriber-Only Feature)*
+The bot will compile your posts of the day and send you a daily diary **every evening at around 22:00 local time**.
+
+1. Make sure you are followed back by the bot.
+2. Mention or reply to the bot with **"keep diary"** (or "keep a diary", "日記つけて", "日記をつけて", "日記を付けて", "日記付けて").
+3. The bot will reply every evening with your customized diary image. At the same time, you'll be gifted a daily **"Title Badge (valid for 24 hours)"** summarizing your day (this will overwrite any title badge obtained from the Personality Analysis).
+4. To stop the diary, mention or reply with **"stop diary"** (or "stop a diary", "日記やめて", "日記をやめて").
 
 ### Anniversary Mode
 When an anniversary arrives, the bot will celebrate it in reply to the first user post of that day.
-There are two types of anniversaries: **preset anniversaries** and **user-registered anniversaries**.
+There are three types of anniversaries: **preset anniversaries**, **your Bluesky registration date (auto-detected)**, and **user-registered anniversaries**.
 
-* **Preset anniversaries** refer to common holidays such as Christmas or New Year’s Day.
+* **Preset anniversaries** refer to common holidays such as Christmas or New Year’s Day. (New Year's Day triggers a special **Omikuji/Fortune Draw**).
+* **Bluesky registration date** celebrates the day you joined Bluesky.
 * **User-registered anniversaries** are personal anniversaries that each user can set once.
 
-You can register a user anniversary using the following steps:
+During celebration, the bot will search for your posts from the same date in the previous year and quote-repost it (if found) to reflect on old memories. Celebrating a user-registered anniversary also gifts you an **"Anniversary Badge (valid for 24 hours)"**.
 
-1. Follow this bot according to the “How to Use” instructions.
-2. Post a mention or reply to this bot with **"Remember anniversary, MM/DD”** (e.g., "Remember anniversary, 12/31”).
-3. Upon successful registration, the bot will confirm it.
-4. On the anniversary date, the bot will reply to the user’s post to celebrate (if the user doesn’t post that day, no celebration will occur).
-5. To check your registered anniversary, post a mention or reply to this bot with **"Tell me anniversary”**.
+You can register your user anniversary using the following steps:
+
+1. Make sure you are followed back by the bot.
+2. Post a mention or reply to this bot with **"Remember anniversary, MM/DD"** (or "記念日登録、MM/DD") (e.g., "Remember anniversary, 12/31").
+3. Upon successful registration, the bot will confirm it. (Once registered, you cannot change it for **6 days**).
+4. To check your registered anniversary, mention or reply with **"Tell me anniversary"** (or "記念日確認").
+5. You can turn anniversary celebrations on or off at any time by posting **"enable anniversary"** / **"disable anniversary"** (or "記念日オン" / "記念日オフ"). (Default is ON).
+
+### Status Confirmation
+Allows you to check the companionship details and various feature cooldown states between you and bot-tan.
+
+1. Make sure you are followed back by the bot.
+2. Mention or reply to the bot with **"tell me status"** (or "ステータス教えて", "教えてステータス", "おしえてステータス", "ステータスおしえて", "tell me your status").
+3. The bot will reply with a list of details: companionship days, AI/template reply toggles, reply frequency %, various feature cooldown states, conversation count, and registered anniversary.
+
+(*You can only use this once every **8 hours**.*)
+
+### Year Recap
+Extracts a beautiful summary of your entire year's activities on Bluesky!
+
+1. Make sure you are followed back by the bot.
+2. Mention or reply to the bot with **"summarize this year"** (or "一年のまとめ", "1年のまとめ", "１年のまとめ", "summarize year").
+3. The bot collects your posts from the past 365 days (up to 1000 posts), analyzes monthly activity distributions, lists your top 20 nouns used, and finds your top 5 interacted friends. Gemini then generates a yearly recap text and replies with it along with a special image.
+
+(*You can only use this once every **6 days**.*)
+
+---
+
+## Badge (Bluesky Label) Feature
+
+This bot leverages the Bluesky Labeler protocol to gift special emojis and titles directly onto your profile as **"Badges (Bluesky Labels)"** upon triggering specific features.
+
+> [!IMPORTANT]
+> **Prerequisites to show badges on your profile**
+> To make the gifted badges appear on your Bluesky profile, you must subscribe to our official Labeler account:
+>
+> 👉 **[Bot-tan Labeler (labeler-bot-tan.suibari.com)](https://bsky.app/profile/labeler-bot-tan.suibari.com)**
+>
+> Go to the profile link above and click the **"Subscribe"** button. That's it!
+
+### Available Badges
+
+| Badge Type | Label Key | Gift Condition | Duration | Display Example |
+| :--- | :--- | :--- | :--- | :--- |
+| **Subscriber** | `bot-tan-sub` | Become a bot-tan supporter (via Patreon/Fanbox link) | Active Support (Persistent) | `Subscribers` |
+| **Lucky Badge** | `today-lucky-xxx` | Use the Fortune-telling feature | 24 Hours | `Today's Lucky: 🔮✨🍀` |
+| **Title Badge (Analysis)** | `title-xxx` | Use the Personality Analysis feature | 1 Week | `Title: 〇〇` |
+| **Title Badge (Diary)** | `title-xxx` | Use the Daily Diary feature | 24 Hours | `Title: 〇〇` (Overwrites Analysis) |
+| **Morning Talk Badge** | `morning-talk-xxx` | Reply to the bot's morning talk question | 24 Hours | `Morning Talk: 〇〇` (Answer summary) |
+| **Anniversary Badge** | `anniversary-xxx` | Welcome your registered user anniversary day | 24 Hours | `Anniversary: 〇〇` |
+
+When a badge is applied, the bot-tan labeler account will post a public celebration notification to notify you (mention tags are bypassed as clean links to avoid spamming notification feeds). Show off your custom badges on your profile and enjoy chatting with bot-tan!
 
 ---
 
