@@ -156,6 +156,7 @@ Structure: ${JSON.stringify(structure)}`
       "あなたが持っている「ラベラー」機能の紹介：条件を満たすと様々なバッジをプレゼント。バッジの表示にはラベラーアカウント（https://bsky.app/profile/labeler-bot-tan.suibari.com ）を購読してもらう必要がある。",
       "botたんのステータスを確認できるダッシュボードの紹介：URLは https://suibari.com/character/",
       "botたんのイラストを見れるフィードの紹介：URLは https://bsky.app/profile/did:plc:uixgxpiqf4i63p6rgpu7ytmx/feed/196e948a58f4af5",
+      "みんなで集まるファンコミュニティサーバー（Discord）の紹介：URLは https://discord.gg/HEdyuSn3",
     ] : [
       "Introducing the AI only mode feature you have. You will give affirmative replies using only AI without using predefined replies. Users can enable it by replying \"AI only mode\".",
       "Introducing the Fortune Telling feature you have. You can get user's fortune told once a day by replying \"Fortune\"",
@@ -169,6 +170,7 @@ Structure: ${JSON.stringify(structure)}`
       "Introducing the Labeler feature you have: I'll present you with various badges when you meet certain conditions! To display the badges, subscribe to my labeler account: https://bsky.app/profile/labeler-bot-tan.suibari.com",
       "Introducing the dashboard where the user can check bot-tan's status: URL: https://suibari.com/character/",
       "Introducing the feed where the user can check bot-tan's illustration: URL: https://bsky.app/profile/did:plc:uixgxpiqf4i63p6rgpu7ytmx/feed/196e948a58f4af5",
+      "Introducing the fan community server (Discord) where everyone gathers: URL: https://discord.gg/HEdyuSn3",
     ]
     return getRandomItems(features, 1)[0];
   }
