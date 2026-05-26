@@ -78,7 +78,9 @@ export class MemoryService {
   }
 
   static async updateBiorhythmState(state: any) {
-    await this.setBotState('biorhythm', state);
+    const currentState = await this.getBiorhythmState();
+    const newState = { ...currentState, ...state };
+    await this.setBotState('biorhythm', newState);
   }
 
   static async updateTopPost(uri: string, comment?: string) {

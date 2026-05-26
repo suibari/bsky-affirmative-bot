@@ -437,8 +437,8 @@ ${JSON.stringify(unreadReply)}
 
   private getAdjustedDateString(): string {
     const now = new Date();
-    // 0~4時は前日扱いとする
-    if (now.getHours() <= 4) {
+    // 0~3時は前日扱いとする
+    if (now.getHours() < 4) {
       now.setDate(now.getDate() - 1);
     }
     // YYYY-MM-DD形式
