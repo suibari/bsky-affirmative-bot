@@ -25,6 +25,23 @@ export async function onPost(event: any) {
         // Self filter
         if (authorDid === process.env.BSKY_DID) return;
 
+        // 被ブロックチェック＆キャッシュ削除
+        // followerMapはフォロー発生時に更新されるが、それ以外にここでもブロックチェックする
+        try {
+          const { data: profile } = await agent.getProfile({ actor: authorDid });
+          if (profile.viewer?.blockedBy || profile.viewer?.blocking) {
+            console.log(`[INFO][${authorDid}] Block relation detected (blockedBy: ${profile.viewer?.blockedBy}, blocking: ${profile.viewer?.blocking}). Removing from follower cache and skipping.`);
+            followerMap.delete(authorDid);
+            return;
+          }
+        } catch (profileErr: any) {
+          console.warn(`[WARN][${authorDid}] Failed to fetch profile for block check. Skipping. Error:`, profileErr.message);
+          if (profileErr.status === 400 || profileErr.message?.includes('not found') || profileErr.message?.includes('Could not find')) {
+            followerMap.delete(authorDid);
+          }
+          return;
+        }
+
         const subscribers = await MemoryService.getSubscribersOrDeveloper();
         const isSubscriber = subscribers.includes(authorDid);
         if (!isSubscriber) {
@@ -60,7 +77,7 @@ export async function onPost(event: any) {
             console.log(`[INFO][${authorDid}] Ignored as bot account`);
             return;
           }
-        }        
+        }
 
         const context: FeatureContext = { isSubscriber };
 
@@ -68,7 +85,7 @@ export async function onPost(event: any) {
           try {
             if (await feature.shouldHandle(event, follower, context)) {
               console.log(`[INFO][${authorDid}] Feature matched: ${feature.name}`);
-              
+
               // 統一した3回リトライ機構で該当の handle を実行する
               await retry(
                 async () => {
