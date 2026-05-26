@@ -103,7 +103,30 @@ export async function doWhimsicalPost(currentMood: string) {
 }
 
 export async function doGoodNightPost(mood: string) {
-    // スコアTOPのfollowerを取得 (上位5人)
+    // 1. 現在のフォロワー数を取得
+    let currentFollowers = 0;
+    try {
+        const selfProfile = await agent.getProfile({ actor: process.env.BSKY_IDENTIFIER! });
+        currentFollowers = selfProfile.data.followersCount ?? 0;
+        console.log(`[INFO] Current followers count: ${currentFollowers}`);
+    } catch (e) {
+        console.error("[ERROR] Failed to fetch bot self profile for follower count:", e);
+    }
+
+    // 2. 前日のフォロワー数をDBから取得し、またぎ判定
+    const lastFollowers = await MemoryService.getBotState("last_follower_count");
+    let followerMilestone: number | undefined = undefined;
+
+    if (lastFollowers !== null && lastFollowers !== undefined && currentFollowers > 0) {
+        const prevMilestone = Math.floor(lastFollowers / 1000);
+        const currMilestone = Math.floor(currentFollowers / 1000);
+        if (currMilestone > prevMilestone) {
+            followerMilestone = currMilestone * 1000;
+            console.log(`[INFO] Follower milestone hit: ${followerMilestone}`);
+        }
+    }
+
+    // 3. スコアTOPのfollowerを取得 (上位5人)
     const rows = await MemoryService.getHighestScorePosts();
 
     let topPostData: { uri: string; did: string; nsid: string; rkey: string; post: string; cid: string; topFollower: ProfileView } | null = null;
@@ -148,7 +171,8 @@ export async function doGoodNightPost(mood: string) {
                 topPost: topPostData.post,
                 currentMood: mood,
                 likes: dailyStats.likes,
-                affirmationCount: dailyStats.affirmationCount
+                affirmationCount: dailyStats.affirmationCount,
+                followerMilestone: followerMilestone
             });
 
             // ポスト
@@ -162,6 +186,12 @@ export async function doGoodNightPost(mood: string) {
     } catch (e) {
         console.error(`[INFO] good night post error: ${e}`);
     } finally {
+        // 最新フォロワー数をDBに保存（おやすみポストが正常に処理された後に保存）
+        if (currentFollowers > 0) {
+            await MemoryService.setBotState("last_follower_count", currentFollowers);
+            console.log(`[INFO] Saved follower count to DB: ${currentFollowers}`);
+        }
+
         // Statsリセット
         await MemoryService.resetDailyStats();
         // 1日のテーブルクリア
