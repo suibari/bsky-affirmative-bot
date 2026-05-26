@@ -80,7 +80,7 @@ const PROMPT_AFFIRMATIVE_WORD = async (userinfo: UserInfoGemini) => {
          ? `* フォロワー名: ${userinfo.followersFriend[0].profile.displayName}  
         * ポスト: ${userinfo.followersFriend[0].post}` : ""}
     - ${userinfo.embed?.text_embed ? "ユーザが引用しているポストとの共通点を踏まえて今回のポストを褒めてください。ポスト内容はそのまま記載しないでください。引用元が「全肯定botたん」に関するポストの場合、言及してくれたことへの感謝も伝えてください。" : ""}
-    - ${userinfo.embed?.uri_embed ? "ユーザが共有しているリンク先の内容について、URLコンテキスト機能を必ず使用して実際のページ内容を確認し、その具体的な中身（記事のテーマや主張など）に触れた上で、ユーザの感性や興味を具体的に褒めてください。" : ""}
+    - ${userinfo.embed?.uri_embed && userinfo.isSubscriber ? "ユーザが共有しているリンク先の内容について、URLコンテキスト機能を必ず使用して実際のページ内容を確認し、その具体的な中身（記事のテーマや主張など）に触れた上で、ユーザの感性や興味を具体的に褒めてください。" : ""}
 
    **注意: commentにはscoreに関する情報を絶対に含めないこと**
 
@@ -135,7 +135,7 @@ const PROMPT_AFFIRMATIVE_WORD = async (userinfo: UserInfoGemini) => {
          ? `* Follower Name: ${userinfo.followersFriend[0].profile.displayName}  
         * Follower's Post: ${userinfo.followersFriend[0].post}` : ""}
     - ${userinfo.embed?.text_embed ? "The user is quoting a post, so please use that post's content to praise this post." : ""}
-    - ${userinfo.embed?.uri_embed ? "Be sure to use the URL context feature to check the actual content of the shared link, and specifically praise the user's interest or perspective by referring to the specific theme or content of the link." : ""}
+    - ${userinfo.embed?.uri_embed && userinfo.isSubscriber ? "Be sure to use the URL context feature to check the actual content of the shared link, and specifically praise the user's interest or perspective by referring to the specific theme or content of the link." : ""}
 
    **Important: Do not reveal score in the comment.**
 

@@ -160,6 +160,7 @@ export type UserInfoGemini = {
   embed?: Embed;
   topWords?: string[];
   postOnMonth?: string[][];
+  isSubscriber?: boolean;
 };
 
 export interface Embed {

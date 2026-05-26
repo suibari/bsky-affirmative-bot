@@ -112,7 +112,7 @@ export class NormalReplyFeature implements BotFeature {
                 try {
                     await retry(
                         async () => {
-                            await replyAI(follower, event, relatedPosts);
+                            await replyAI(follower, event, relatedPosts, isSubscriber);
                         },
                         {
                             retries: 2, // 計3回 (初回 + 2回リトライ)

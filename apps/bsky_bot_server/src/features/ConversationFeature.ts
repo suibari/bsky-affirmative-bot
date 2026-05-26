@@ -178,6 +178,7 @@ export class ConversationFeature implements BotFeature {
                 image,
                 history,
                 embed,
+                isSubscriber: true,
             });
     }
 

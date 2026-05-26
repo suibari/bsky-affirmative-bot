@@ -137,7 +137,7 @@ export async function generateSingleResponseWithScore(prompt: string, userinfo?:
     }
   ];
 
-  if (userinfo?.embed?.uri_embed) {
+  if (userinfo?.embed?.uri_embed && userinfo.isSubscriber) {
     tools.push({
       urlContext: {},
     });

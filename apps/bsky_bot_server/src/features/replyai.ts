@@ -19,6 +19,7 @@ export async function replyAI(
     follower: ProfileView,
     event: CommitCreateEvent<"app.bsky.feed.post">,
     relatedPosts: string[],
+    isSubscriber?: boolean,
 ) {
     const record = event.commit.record as Record;
     const uri = uniteDidNsidRkey(follower.did, event.commit.collection, event.commit.rkey);
@@ -105,6 +106,7 @@ export async function replyAI(
             image,
             followersFriend: followersFriend ? [followersFriend] : undefined,
             embed,
+            isSubscriber,
         });
 
         // お気に入りポスト登録
