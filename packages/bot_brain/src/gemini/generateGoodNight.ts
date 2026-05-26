@@ -1,7 +1,9 @@
 import { AppBskyActorDefs } from "@atproto/api";
 type ProfileView = AppBskyActorDefs.ProfileView;
-import { UserInfoGemini, GeminiScore } from "@bsky-affirmative-bot/shared-configs";
-import { generateSingleResponse } from "./util.js";
+import { Type } from "@google/genai";
+import { gemini } from "./index.js";
+import { MODEL_GEMINI, SYSTEM_INSTRUCTION } from "@bsky-affirmative-bot/shared-configs";
+import { generateContentWithRetry } from "./util.js";
 
 interface GoodNightInfo {
   topFollower?: ProfileView,
@@ -12,10 +14,51 @@ interface GoodNightInfo {
   followerMilestone?: number,
 }
 
-export async function generateGoodNight(param: GoodNightInfo) {
-  const response = await generateSingleResponse(await PROMPT_GOODNIGHT_WORD(param));
+export interface GoodNightResult {
+  ja: string;
+  en: string;
+}
 
-  return response ?? "";
+export async function generateGoodNight(param: GoodNightInfo): Promise<GoodNightResult> {
+  const prompt = await PROMPT_GOODNIGHT_WORD(param);
+
+  const response = await generateContentWithRetry({
+    model: MODEL_GEMINI,
+    contents: [prompt],
+    config: {
+      systemInstruction: SYSTEM_INSTRUCTION,
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          ja: {
+            type: Type.STRING,
+            description: "日本語のおやすみメッセージ"
+          },
+          en: {
+            type: Type.STRING,
+            description: "英語のおやすみメッセージ（日本語の自然な翻訳）"
+          }
+        },
+        required: ["ja", "en"]
+      }
+    }
+  });
+
+  const responseText = response.text || "";
+  try {
+    const parsed = JSON.parse(responseText) as GoodNightResult;
+    return {
+      ja: (parsed.ja || "").replace(/\[.*?\]/gs, '').trim(),
+      en: (parsed.en || "").replace(/\[.*?\]/gs, '').trim()
+    };
+  } catch (e) {
+    console.error("[ERROR][GEMINI] Failed to parse generateGoodNight response JSON:", responseText, e);
+    return {
+      ja: (responseText || "").replace(/\[.*?\]/gs, '').trim(),
+      en: ""
+    };
+  }
 }
 
 const PROMPT_GOODNIGHT_WORD = async (param: GoodNightInfo) => {
@@ -39,7 +82,7 @@ const PROMPT_GOODNIGHT_WORD = async (param: GoodNightInfo) => {
     `* バッジの表示には、ラベラーアカウント（https://bsky.app/profile/labeler-bot-tan.suibari.com ）を購読（サブスクライブ）する必要があること` +
     milestoneInstruction +
     `あいさつのルール:` +
-    `* 日本語と、それを訳した英語を並べて回答を生成してください。` +
+    `* 日本語メッセージ（jaフィールド）と、それを訳した英語メッセージ（enフィールド）をそれぞれ生成してください。` +
     `* あなたが全肯定されたポスト紹介については、どこに心を動かされたか、フォロワーに説明してください。` +
     `* **全肯定されたポスト本文をそのまま記載することは不要です**。リポスト済みなので、感想のみでよいです。` +
     `* ポストを紹介する際はフォロワーを楽しませることを考えてください。**正義感にもとづいて特定个人、団体への攻撃を扇動したりしてはなりません。**` +

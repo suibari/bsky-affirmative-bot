@@ -90,7 +90,7 @@ export async function doWhimsicalPost(currentMood: string) {
     const { uri, cid } = await postContinuous(text_bot);
 
     // 投稿URIを保存 (リプライに反応するようにするため)
-    await MemoryService.setWhimsicalPostRoot(uri);
+    await MemoryService.setWhimsicalPostRoots([uri]);
 
     // リプライ記憶をクリア
     await MemoryService.clearReplies();
@@ -166,7 +166,7 @@ export async function doGoodNightPost(mood: string) {
             const dailyStats = await MemoryService.getDailyStats();
 
             // Gemini生成
-            const text_bot = await generateGoodNight({
+            const goodNightResult = await generateGoodNight({
                 topFollower: topPostData.topFollower ?? undefined,
                 topPost: topPostData.post,
                 currentMood: mood,
@@ -175,11 +175,24 @@ export async function doGoodNightPost(mood: string) {
                 followerMilestone: followerMilestone
             });
 
-            // ポスト
-            const { uri, cid } = await postContinuous(text_bot);
+            const uris: string[] = [];
+
+            // 1. 日本語版を投稿
+            if (goodNightResult.ja) {
+                const { uri: jaUri } = await postContinuous(goodNightResult.ja);
+                uris.push(jaUri);
+            }
+
+            // 2. 英語版を投稿（別ポスト）
+            if (goodNightResult.en) {
+                const { uri: enUri } = await postContinuous(goodNightResult.en);
+                uris.push(enUri);
+            }
 
             // 投稿URIを保存 (リプライに反応するようにするため)
-            await MemoryService.setWhimsicalPostRoot(uri);
+            if (uris.length > 0) {
+                await MemoryService.setWhimsicalPostRoots(uris);
+            }
         } else {
             console.log("[INFO] No valid top post found after trying all highest score entries.");
         }

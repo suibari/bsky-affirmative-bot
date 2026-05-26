@@ -336,15 +336,25 @@ export class ConversationFeature implements BotFeature {
         const langStr = getLangStr(record.langs);
 
         // Root URIのチェック
-        const rootUriRef = await MemoryService.getBotState("whimsical_post_root");
+        let rootUriRefs = await MemoryService.getBotState("whimsical_post_roots");
+
+        // 移行期フォールバック（新キーがない場合は旧キーから取得して配列化）
+        if (rootUriRefs === null || rootUriRefs === undefined) {
+            const oldRoot = await MemoryService.getBotState("whimsical_post_root");
+            rootUriRefs = oldRoot ? [oldRoot] : [];
+            console.log(`[INFO][MIGRATION] Read whimsical_post_roots from old whimsical_post_root: ${oldRoot}`);
+        }
+
+        const rootUriRefsArray = Array.isArray(rootUriRefs) ? rootUriRefs : [];
 
         // 最新のつぶやき対象（ツリー内のどのポストでも可）かチェック
         // 1ユーザー1回限りに制限するため last_whimsical_responded_uri を使用
-        if (rootUri === rootUriRef) {
-            // すでにリプライ済み（1ユーザー1回制限）ならスキップ
+        if (rootUriRefsArray.includes(rootUri)) {
+            // すでに最新のつぶやき群（日本語または英語）のいずれかにリプライ済みならスキップ
             const row = await MemoryService.getFollower(follower.did);
-            if (row?.last_whimsical_responded_uri === rootUriRef) {
-                // console.log(`[INFO][${follower.did}][WHIMSICAL] already replied to this whimsical post, skipping`);
+            const lastRespondedUri = row?.last_whimsical_responded_uri;
+            if (lastRespondedUri && rootUriRefsArray.includes(lastRespondedUri)) {
+                // console.log(`[INFO][${follower.did}][WHIMSICAL] already replied to one of the latest whimsical posts, skipping`);
                 return false;
             }
 
@@ -362,14 +372,14 @@ export class ConversationFeature implements BotFeature {
             // ポスト
             await postContinuous(result, { uri, cid: String(event.commit.cid), record });
 
-            // DB更新: リプライ済みURIを記録
-            await MemoryService.updateFollower(follower.did, "last_whimsical_responded_uri", rootUriRef);
+            // DB更新: リプライ済みURIを記録（今回のリプライ先URIを記録）
+            await MemoryService.updateFollower(follower.did, "last_whimsical_responded_uri", rootUri);
 
             console.log(`[INFO][${follower.did}][WHIMSICAL] replied to reply of Whimsical post`);
 
             return true;
         } else {
-            // console.log(`uri: ${uri}, uriRef: ${uriRef}`);
+            // console.log(`uri: ${uri}, uriRefs: ${JSON.stringify(rootUriRefsArray)}`);
             return false;
         }
     }

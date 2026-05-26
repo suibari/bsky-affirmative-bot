@@ -109,6 +109,14 @@ export class MemoryService {
     }
   }
 
+  static async setWhimsicalPostRoots(uris: string[]) {
+    try {
+      await this.setBotState('whimsical_post_roots', uris);
+    } catch (error) {
+      console.error("Failed to set whimsical post roots:", error);
+    }
+  }
+
   static async setQuestionState(uri: string, theme: string) {
     try {
       await Promise.all([
