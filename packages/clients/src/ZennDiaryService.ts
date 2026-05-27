@@ -98,6 +98,7 @@ export class ZennDiaryService {
       activityLogs,
       affirmationPosts,
       receivedReplies,
+      langStr: "日本語",
     });
 
     // 5. Construct Zenn Markdown content with robust Frontmatter and the footer Bluesky link

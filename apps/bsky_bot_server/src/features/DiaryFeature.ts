@@ -11,7 +11,7 @@ import { LanguageName } from "@bsky-affirmative-bot/shared-configs";
 import { DateTime } from "luxon";
 import { getConcatProfiles } from "../bsky/getConcatProfiles.js";
 import { getDaysAuthorFeed } from "../bsky/getDaysAuthorFeed.js";
-import { generateDiary, DiaryResult } from "@bsky-affirmative-bot/bot-brain";
+import { generateUserDiary, DiaryResult } from "@bsky-affirmative-bot/bot-brain";
 import { textToImageBufferWithBackground } from "../util/canvas.js";
 import { agent } from "../bsky/agent.js";
 import { postContinuous } from "../bsky/postContinuous.js";
@@ -131,7 +131,7 @@ async function processUserDiary(userDid: string) {
         const maxRetries = 3;
         let retries = 0;
         while (retries < maxRetries) {
-            diaryResult = await generateDiary({
+            diaryResult = await generateUserDiary({
                 follower: profile as ProfileView,
                 posts: posts.reverse(),
                 langStr,
@@ -142,7 +142,7 @@ async function processUserDiary(userDid: string) {
             }
 
             retries++;
-            console.log(`[WARN][${userDid}][DIARY] generateDiary returned empty, retrying (${retries}/${maxRetries})...`);
+            console.log(`[WARN][${userDid}][DIARY] generateUserDiary returned empty, retrying (${retries}/${maxRetries})...`);
             await new Promise(resolve => setTimeout(resolve, 1000 * retries));
         }
 

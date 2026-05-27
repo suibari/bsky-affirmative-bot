@@ -13,6 +13,7 @@ interface GoodNightInfo {
   affirmationCount: number,
   followerMilestone?: number,
   diaryUrl?: string,
+  diaryUrlEn?: string,
 }
 
 export interface GoodNightResult {
@@ -22,7 +23,7 @@ export interface GoodNightResult {
 
 export async function generateGoodNight(param: GoodNightInfo): Promise<GoodNightResult> {
   const prompt = await PROMPT_GOODNIGHT_WORD(param);
-
+  
   const response = await generateContentWithRetry({
     model: MODEL_GEMINI,
     contents: [prompt],
@@ -73,9 +74,14 @@ const PROMPT_GOODNIGHT_WORD = async (param: GoodNightInfo) => {
     }
   }
 
-  let diaryInstruction = "";
+  let diaryInstructionJa = "";
   if (param.diaryUrl) {
-    diaryInstruction = `* **超重要**: 今日はZennに日記を投稿しました！日記のURLは「${param.diaryUrl}」です。おやすみメッセージの中で、今日1日の出来事をまとめた日記を書いたことを優しく可愛らしく伝え、このURLを必ず含めて紹介してください。日本語と英語の両方のメッセージにそれぞれ日記URLを含めてください。\n`;
+    diaryInstructionJa = `* **日本語メッセージ（ja）への重要指示**: 今日は日本語の日記をZennに投稿しました！日記のURLは「${param.diaryUrl}」です。日本語のおやすみメッセージの中で、今日1日の出来事をまとめた日記を書いたことを優しく可愛らしく伝え、このURLを必ず含めて紹介してください。\n`;
+  }
+
+  let diaryInstructionEn = "";
+  if (param.diaryUrlEn) {
+    diaryInstructionEn = `* **英語メッセージ（en）への重要指示**: 今日は英語の日記をLeaflet.pubに投稿しました！日記のURLは「${param.diaryUrlEn}」です。英語のおやすみメッセージの中で、今日1日の出来事をまとめた日記を書いたことを優しく可愛らしく伝え、このURLを必ず含めて紹介してください。\n`;
   }
 
   return `あなたはこれから就寝します。フォロワーへのおやすみのあいさつをしてください。` +
@@ -87,7 +93,8 @@ const PROMPT_GOODNIGHT_WORD = async (param: GoodNightInfo) => {
     `* 今回紹介したTOPポストのユーザー（紹介したフォロワー）には『全肯定バッジ』をプレゼントしたこと` +
     `* バッジの表示には、ラベラーアカウント（https://bsky.app/profile/labeler-bot-tan.suibari.com ）を購読（サブスクライブ）する必要があること` +
     milestoneInstruction +
-    diaryInstruction +
+    diaryInstructionJa +
+    diaryInstructionEn +
     `あいさつのルール:` +
     `* 日本語メッセージ（jaフィールド）と、それを訳した英語メッセージ（enフィールド）をそれぞれ生成してください。` +
     `* あなたが全肯定されたポスト紹介については、どこに心を動かされたか、フォロワーに説明してください。` +

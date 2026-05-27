@@ -9,7 +9,7 @@ export interface DiaryResult {
   title_en: string;
 }
 
-export async function generateDiary(userinfo: UserInfoGemini): Promise<DiaryResult> {
+export async function generateUserDiary(userinfo: UserInfoGemini): Promise<DiaryResult> {
   const maxLength = userinfo.langStr === "日本語" ?
     "出力する日記本文の文字数は最大500文字までです。" :
     "The diary body content can be up to 1000 characters.";
@@ -119,7 +119,7 @@ Today's posts: ${userinfo.posts || ""}
       title_en: json.title_en || "Affirmative Traveler"
     };
   } catch (e) {
-    console.error("[ERROR] Failed to parse Structured Outputs JSON in generateDiary:", e);
+    console.error("[ERROR] Failed to parse Structured Outputs JSON in generateUserDiary:", e);
     return {
       diary: response.text || "",
       title_ja: "全肯定の旅人",

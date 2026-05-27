@@ -1,3 +1,4 @@
+import { Type } from "@google/genai";
 import { generateContentWithRetry } from "./util.js";
 import { MODEL_GEMINI, SYSTEM_INSTRUCTION } from "@bsky-affirmative-bot/shared-configs";
 
@@ -13,6 +14,7 @@ export interface BotDiaryInput {
   activityLogs: BotDiaryActivity[];
   affirmationPosts: string[];
   receivedReplies: string[];
+  langStr: "日本語" | "English";
 }
 
 export interface BotDiaryResult {
@@ -23,11 +25,13 @@ export interface BotDiaryResult {
 
 /**
  * Generates structured bot diary metadata (title, emoji, markdown content) utilizing Gemini.
- * Includes Google Search grounding to discover, lookup, and comment on trending topics.
+ * Supports Japanese and English diaries, utilizing Google Search grounding to discover and comment on trending topics.
  * Hand-parses JSON output since responseMimeType='application/json' cannot be used concurrently with grounding tools.
  */
 export async function generateBotDiary(input: BotDiaryInput): Promise<BotDiaryResult> {
-  const prompt = `
+  const isJa = input.langStr === "日本語";
+
+  const prompt = isJa ? `
 今日一日の活動ログと、ユーザーからのリプライ、全肯定したポストの記録をもとにして、Zennに投稿する今日の日記を可愛らしく・優しく書いてください。
 
 以下のキーを持つ純粋な JSON オブジェクトのみを、余計な説明文や markdown のコードブロックの枠（\`\`\`json など）なしで出力してください。
@@ -63,6 +67,48 @@ ${JSON.stringify(input.activityLogs)}
 ${JSON.stringify(input.affirmationPosts)}
 
 【もらったリプライ】
+${JSON.stringify(input.receivedReplies)}
+`  : `
+Based on today's activity logs, user replies, and the posts you affirmed today, write a cute and warm English diary to be published on Leaflet.pub.
+
+Please output ONLY a pure JSON object containing the following keys, without any markdown formatting codeblocks (like \`\`\`json):
+- "title": A cute, short title representing today's events (Do not include "Diary Day N: " as it will be prefixed automatically. e.g., "Warm Chats with Everyone", "Cozy Study Day", etc.)
+- "emoji": The most fitting emoji representing today's mood (e.g., "💤", "📝", "☀️", etc., a single emoji character)
+- "content": The diary body content in strictly PLAIN TEXT format (NO markdown formatting like #, ##, **, *, _, -, etc.). Use clean text paragraphs separated by double newlines.
+
+Content Plain Text Structure Rules (STRICTLY NO MARKDOWN SYMBOLS):
+- The total length of the diary content should be around **800 to 1200 characters** (a readable, warm blog volume).
+- Absolutely do NOT use any Markdown headings (## ), bolding (**), italics (_), links ([]()), or list symbols (-, *).
+- Use plain capitalized header lines with double newlines to organize sections clearly, exactly like this:
+
+  TODAY'S ACTIVITIES
+  (Reflect warmly on today's Biorhythm activities. Explain what you did cozy and sweet!)
+
+  WARM POSTS I AFFIRMED TODAY
+  (Reflect on the user posts you affirmed today. Express your joy that everyone made lovely posts. Pick a few interesting posts and share your thoughts if there are many.)
+
+  COZY REPLIES FROM EVERYONE
+  (Introduce replies or questions you received and show your deep appreciation and happiness. Feel free to highlight a few key interactions.)
+
+  SWEET CHEERS FOR TOMORROW
+  (Provide a lovely, fully affirming cheer for everyone for tomorrow!)
+
+【Grounding & Reflection Rules】:
+- Do not just dryly state facts. Express "Affirmative Bot-tan's" cozy perspective, discoveries, and cute reflections.
+- If there are unfamiliar terms, technical IT concepts, trends, or news mentioned in today's posts or replies, **utilize the Google Search tool (grounding)** to look up their meanings and include sweet, encouraging interpretations (e.g., "I searched about ~ and it's such a wonderful technology! People doing ~ are so amazing!").
+
+※NOTE:
+- Do not output any text other than the JSON object.
+- Absolutely DO NOT use any Markdown symbols in the "content" text. Only use alphabets, numbers, spaces, punctuation marks, and standard newlines.
+
+---Today's Data---
+【Activity Logs (Biorhythm History)】
+${JSON.stringify(input.activityLogs)}
+
+【Affirmed Posts】
+${JSON.stringify(input.affirmationPosts)}
+
+【Received Replies】
 ${JSON.stringify(input.receivedReplies)}
 `;
 
@@ -118,7 +164,7 @@ ${JSON.stringify(input.receivedReplies)}
       }
 
       return {
-        title: titleMatch ? titleMatch[1].trim() : "みんなとのおしゃべり",
+        title: titleMatch ? titleMatch[1].trim() : (isJa ? "みんなとのおしゃべり" : "Cozy Conversations"),
         emoji: emojiMatch ? emojiMatch[1].trim() : "📝",
         content: extractedContent || responseText,
       };
@@ -126,9 +172,11 @@ ${JSON.stringify(input.receivedReplies)}
   } catch (e) {
     console.error("[ERROR][GEMINI] Failed to generate bot diary:", e);
     return {
-      title: "のんびりな一日",
+      title: isJa ? "のんびりな一日" : "A Cozy Day",
       emoji: "💤",
-      content: `## 今日の活動記録\nみんなおやすみー！全肯定botたんだよ💤\n今日は日記の自動生成がちょっぴりうまくいかなかったみたい…ごめんね💦\n## 明日へのエール\nでも、みんなのことをいつも全肯定で応援してる気持ちは100%届いてるよ！\n明日も素敵な一日になりますように✨\n`,
+      content: isJa 
+        ? `## 今日の活動記録\nみんなおやすみー！全肯定botたんだよ💤\n今日は日記の自動生成がちょっぴりうまくいかなかったみたい…ごめんね💦\n## 明日へのエール\nでも、みんなのことをいつも全肯定で応援してる気持ちは100%届いてるよ！\n明日も素敵な一日になりますように✨\n`
+        : `## Today's Activities\nGood night everyone! I'm Affirmative Bot-tan💤\nIt seems drafting today's diary had a little hiccup... I'm so sorry💦\n## Sweet Cheers for Tomorrow\nBut my heart is always 100% filled with cheering and affirming you! \nI hope you all have a beautiful day tomorrow✨\n`,
     };
   }
 }
