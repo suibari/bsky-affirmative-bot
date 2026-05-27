@@ -48,16 +48,24 @@ export async function generateGoodNight(param: GoodNightInfo): Promise<GoodNight
   });
 
   const responseText = response.text || "";
+  const cleanText = (text: string) => {
+    const stripped = (text || "").replace(/\[.*?\]/gs, '').trim();
+    // URLの末尾に紛れ込んだ句読点・括弧類を除去
+    return stripped.replace(/https?:\/\/[^\s]+/g, (url) =>
+      url.replace(/[.。、，,！？!?「」『』【】（）\[\]{}]+$/, '')
+    );
+  };
+
   try {
     const parsed = JSON.parse(responseText) as GoodNightResult;
     return {
-      ja: (parsed.ja || "").replace(/\[.*?\]/gs, '').trim(),
-      en: (parsed.en || "").replace(/\[.*?\]/gs, '').trim()
+      ja: cleanText(parsed.ja),
+      en: cleanText(parsed.en)
     };
   } catch (e) {
     console.error("[ERROR][GEMINI] Failed to parse generateGoodNight response JSON:", responseText, e);
     return {
-      ja: (responseText || "").replace(/\[.*?\]/gs, '').trim(),
+      ja: cleanText(responseText),
       en: ""
     };
   }
@@ -76,12 +84,12 @@ const PROMPT_GOODNIGHT_WORD = async (param: GoodNightInfo) => {
 
   let diaryInstructionJa = "";
   if (param.diaryUrl) {
-    diaryInstructionJa = `* **日本語メッセージ（ja）への重要指示**: 今日は日本語の日記をZennに投稿しました！日記のURLは「${param.diaryUrl}」です。日本語のおやすみメッセージの中で、今日1日の出来事をまとめた日記を書いたことを優しく可愛らしく伝え、このURLを必ず含めて紹介してください。\n`;
+    diaryInstructionJa = `* **日本語メッセージ（ja）への重要指示**: 今日は日本語の日記をZennに投稿しました！日記のURLは ${param.diaryUrl} です。日本語のおやすみメッセージの中で、今日1日の出来事をまとめた日記を書いたことを優しく可愛らしく伝え、このURLを必ず含めて紹介してください。**重要: URLの直前・直後には句読点・括弧類（「」、。！？等）を絶対に付けないでください。URLの前後は半角スペースか改行にしてください。**\n`;
   }
 
   let diaryInstructionEn = "";
   if (param.diaryUrlEn) {
-    diaryInstructionEn = `* **英語メッセージ（en）への重要指示**: 今日は英語の日記をLeaflet.pubに投稿しました！日記のURLは「${param.diaryUrlEn}」です。英語のおやすみメッセージの中で、今日1日の出来事をまとめた日記を書いたことを優しく可愛らしく伝え、このURLを必ず含めて紹介してください。\n`;
+    diaryInstructionEn = `* **英語メッセージ（en）への重要指示**: 今日は英語の日記をLeaflet.pubに投稿しました！日記のURLは ${param.diaryUrlEn} です。英語のおやすみメッセージの中で、今日1日の出来事をまとめた日記を書いたことを優しく可愛らしく伝え、このURLを必ず含めて紹介してください。**重要: URLの直後には必ず半角スペースか改行を置いてください。ピリオドや括弧をURLの直後に付けないでください。**\n`;
   }
 
   return `あなたはこれから就寝します。フォロワーへのおやすみのあいさつをしてください。` +
