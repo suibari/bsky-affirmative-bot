@@ -1,4 +1,3 @@
-import { Type } from "@google/genai";
 import { generateContentWithRetry } from "./util.js";
 import { MODEL_GEMINI, SYSTEM_INSTRUCTION } from "@bsky-affirmative-bot/shared-configs";
 

@@ -15,6 +15,13 @@
       "when": 1778507945690,
       "tag": "0001_hesitant_nightcrawler",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1779875625597,
+      "tag": "0002_green_jimmy_woo",
+      "breakpoints": true
     }
   ]
 }

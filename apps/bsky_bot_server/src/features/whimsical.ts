@@ -165,12 +165,22 @@ export async function doGoodNightPost(mood: string) {
 
             const dailyStats = await MemoryService.getDailyStats();
 
+            // diary_count を1回インクリメント（日英共通）
+            let diaryCount = 1;
+            try {
+                const current = await MemoryService.getBotState("diary_count") || 0;
+                diaryCount = current + 1;
+                await MemoryService.setBotState("diary_count", diaryCount);
+            } catch (err) {
+                console.error("[ERROR][DIARY] Failed to manage diary_count:", err);
+            }
+
             // Zenn日記を生成してプッシュ (日本語)
             let diaryUrl: string | undefined = undefined;
             if (process.env.GITHUB_PAT && process.env.GITHUB_DIARY_REPO && process.env.ZENN_USERNAME) {
                 try {
                     console.log("[INFO][DIARY] Generating and posting Zenn diary (Japanese)...");
-                    diaryUrl = await ZennDiaryService.generateAndPostDiary();
+                    diaryUrl = await ZennDiaryService.generateAndPostDiary(diaryCount);
                     console.log(`[INFO][DIARY] Zenn diary posted successfully: ${diaryUrl}`);
                 } catch (e: any) {
                     console.error("[ERROR][DIARY] Failed to generate and post Zenn diary:", e.message);
@@ -184,7 +194,7 @@ export async function doGoodNightPost(mood: string) {
             if (process.env.LEAFLET_USERNAME) {
                 try {
                     console.log("[INFO][DIARY] Generating and publishing Leaflet diary (English)...");
-                    diaryUrlEn = await LeafletDiaryService.generateAndPostDiary(agent as any);
+                    diaryUrlEn = await LeafletDiaryService.generateAndPostDiary(agent, diaryCount);
                     console.log(`[INFO][DIARY] Leaflet diary published successfully: ${diaryUrlEn}`);
                 } catch (e: any) {
                     console.error("[ERROR][DIARY] Failed to generate and publish Leaflet diary:", e.message);
