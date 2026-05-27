@@ -7,7 +7,8 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
     }
   },
   "scripts": {
@@ -16,6 +17,7 @@
   "dependencies": {
     "@bsky-affirmative-bot/shared-configs": "workspace:*",
     "@bsky-affirmative-bot/database": "workspace:*",
+    "@bsky-affirmative-bot/bot-brain": "workspace:*",
     "axios": "^1.13.5",
     "dotenv": "^16.4.5"
   },

@@ -241,6 +241,9 @@ export class BiorhythmManager extends EventEmitter {
 
       await this.setOutput(status_text);
 
+      // 活動ログをDBに保存
+      await MemoryService.addBiorhythmHistory(this.status, status_text, this.getEnergy);
+
       // おやすみポスト
       if (this.firstStepDone) {
         if (this.status !== this.statusPrev && this.status === "Sleep" && (hour >= 21 || hour <= 3)) {

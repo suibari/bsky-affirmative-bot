@@ -23,4 +23,5 @@ export * from './generateWhimsicalPost.js';
 export * from './generateWhimsicalReply.js';
 export * from './judgeCheerSubject.js';
 export * from './judgeReplySubject.js';
+export * from './generateBotDiary.js';
 export * from './util.js';

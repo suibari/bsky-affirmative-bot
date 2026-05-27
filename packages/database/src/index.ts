@@ -1,4 +1,4 @@
-import { db, initializeDatabases, bot_state, followers, posts, likes, replies, affirmations, interaction, subscribers } from './db.js';
+import { db, initializeDatabases, bot_state, followers, posts, likes, replies, affirmations, interaction, subscribers, biorhythm_history } from './db.js';
 import { eq, desc, sql, gte, and } from 'drizzle-orm';
 import { LanguageName, LIMIT_REQUEST_PER_DAY_GEMINI } from '@bsky-affirmative-bot/shared-configs';
 
@@ -526,6 +526,38 @@ export class MemoryService {
     } catch (e) {
       console.error(`Failed to update subscriber status for ${did}:`, e);
       throw e;
+    }
+  }
+
+  static async addBiorhythmHistory(status: string, mood: string, energy: number) {
+    try {
+      await db.insert(biorhythm_history).values({ status, mood, energy });
+    } catch (e) {
+      console.error("Failed to add biorhythm history:", e);
+    }
+  }
+
+  static async getBiorhythmHistorySince(since: Date): Promise<any[]> {
+    try {
+      return await db.select()
+        .from(biorhythm_history)
+        .where(gte(biorhythm_history.created_at, since))
+        .orderBy(biorhythm_history.created_at);
+    } catch (e) {
+      console.error("Failed to get biorhythm history since:", since, e);
+      return [];
+    }
+  }
+
+  static async getInteractionsSince(since: Date): Promise<any[]> {
+    try {
+      return await db.select()
+        .from(interaction)
+        .where(gte(interaction.created_at, since))
+        .orderBy(interaction.created_at);
+    } catch (e) {
+      console.error("Failed to get interactions since:", since, e);
+      return [];
     }
   }
 }

@@ -268,6 +268,9 @@ importers:
 
   packages/clients:
     dependencies:
+      '@bsky-affirmative-bot/bot-brain':
+        specifier: workspace:*
+        version: link:../bot_brain
       '@bsky-affirmative-bot/database':
         specifier: workspace:*
         version: link:../database
@@ -1914,7 +1917,6 @@ packages:
 
   libsql@0.4.7:
     resolution: {integrity: sha512-T9eIRCs6b0J1SHKYIvD8+KCJMcWZ900iZyxdnSCdqxN12Z1ijzT+jY5nrk72Jw4B0HGzms2NgpryArlJqvc3Lw==}
-    cpu: [x64, arm64, wasm32]
     os: [darwin, linux, win32]
 
   light-my-request@5.14.0:

@@ -88,4 +88,10 @@ export const subscribers = affirmativeBotSchema.table("subscribers", {
   updated_at: timestamp("updated_at").defaultNow().notNull(),
 });
 
-
+export const biorhythm_history = affirmativeBotSchema.table("biorhythm_history", {
+  id: serial("id").primaryKey(),
+  status: text("status").notNull(),
+  mood: text("mood").notNull(),
+  energy: integer("energy").notNull(),
+  created_at: timestamp("created_at").defaultNow().notNull(),
+});

@@ -12,6 +12,7 @@ interface GoodNightInfo {
   likes: number,
   affirmationCount: number,
   followerMilestone?: number,
+  diaryUrl?: string,
 }
 
 export interface GoodNightResult {
@@ -72,6 +73,11 @@ const PROMPT_GOODNIGHT_WORD = async (param: GoodNightInfo) => {
     }
   }
 
+  let diaryInstruction = "";
+  if (param.diaryUrl) {
+    diaryInstruction = `* **超重要**: 今日はZennに日記を投稿しました！日記のURLは「${param.diaryUrl}」です。おやすみメッセージの中で、今日1日の出来事をまとめた日記を書いたことを優しく可愛らしく伝え、このURLを必ず含めて紹介してください。日本語と英語の両方のメッセージにそれぞれ日記URLを含めてください。\n`;
+  }
+
   return `あなたはこれから就寝します。フォロワーへのおやすみのあいさつをしてください。` +
     `あいさつには以下を含めること` +
     `* おやすみのメッセージ` +
@@ -81,6 +87,7 @@ const PROMPT_GOODNIGHT_WORD = async (param: GoodNightInfo) => {
     `* 今回紹介したTOPポストのユーザー（紹介したフォロワー）には『全肯定バッジ』をプレゼントしたこと` +
     `* バッジの表示には、ラベラーアカウント（https://bsky.app/profile/labeler-bot-tan.suibari.com ）を購読（サブスクライブ）する必要があること` +
     milestoneInstruction +
+    diaryInstruction +
     `あいさつのルール:` +
     `* 日本語メッセージ（jaフィールド）と、それを訳した英語メッセージ（enフィールド）をそれぞれ生成してください。` +
     `* あなたが全肯定されたポスト紹介については、どこに心を動かされたか、フォロワーに説明してください。` +
