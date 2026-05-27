@@ -78,10 +78,6 @@ export class ZennDiaryService {
       .map(i => i.details?.text)
       .filter(Boolean) as string[];
 
-    // ポスト・リプライが多かった場合に備えて、最新の最大10件にスライス（プロンプト肥大化と日記の長文化を防ぎます）
-    const slicedAffirmations = affirmationPosts.slice(-10);
-    const slicedReplies = receivedReplies.slice(-10);
-
     // 3. Fetch and increment the bot diary day count
     let diaryCount = 0;
     try {
@@ -99,9 +95,9 @@ export class ZennDiaryService {
     const diaryResult = await generateBotDiary({
       dateStr,
       diaryDayCount: diaryCount,
-      activityLogs: activityLogs.slice(-15), // 活動ログも直近の最大15件にスライスして肥大化を防ぎます
-      affirmationPosts: slicedAffirmations,
-      receivedReplies: slicedReplies,
+      activityLogs,
+      affirmationPosts,
+      receivedReplies,
     });
 
     // 5. Construct Zenn Markdown content with robust Frontmatter and the footer Bluesky link
