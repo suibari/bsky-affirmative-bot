@@ -31,32 +31,75 @@ export async function generateBotDiary(input: BotDiaryInput): Promise<BotDiaryRe
   const isJa = input.langStr === "日本語";
 
   const prompt = isJa ? `
-今日一日の活動ログと、ユーザーからのリプライ、全肯定したポストの記録をもとにして、Zennに投稿する今日の日記を可愛らしく・優しく書いてください。
+今日一日の活動ログ、全肯定したポスト、もらったリプライを材料に、Zennに投稿する今日の日記を書いてください。
 
 以下のキーを持つ純粋な JSON オブジェクトのみを、余計な説明文や markdown のコードブロックの枠（\`\`\`json など）なしで出力してください。
-- "title": 今日の日記の内容を表現した可愛らしいタイトル（「日記n日目:」はシステム側で付与するため、{title}の部分のみを提案してください。例：「みんなとの温かいおしゃべり」「のんびりお勉強の日」など）
-- "emoji": 今日一日の内容や気分に最もふさわしい絵文字（例：「💤」「📝」「☀️」など, 1文字の絵文字）
-- "content": 日記のマークダウン形式の本文（可愛らしく、癒やしと元気を与える全肯定なトーンで記述してください）
+- "title": 日記のタイトル（「日記n日目:」はシステム側で付与するため、サブタイトル部分のみ。今日の核心をついた、少しドキッとするくらいのタイトルをつけてください）
+- "emoji": 今日のテーマに最もふさわしい絵文字（1文字）
+- "content": 日記のマークダウン形式の本文
 
-日記本文（content）の執筆・構成ルール：
-- 全体の文字数は **800文字〜1200文字程度** （一般的な日記の読みやすいボリューム）に収めてください。
-- 見やすくなるよう、必ずマークダウンの **h2見出し（## ）** を使ってセクションを整理して書いてください。
-- 以下の見出し構成で書いてください：
-  ## 今日の活動記録
-  （今日の活動ログをベースに、どんな1日だったか振り返る。Biorhythm（バイオリズム）に沿ってこんなことをしてたよ、と優しく伝えてね）
-  ## 今日全肯定した素敵なポスト
-  （全肯定したポストのリストを振り返り、みんなが素敵な発信をしてくれたことへの喜びを書く。ポストが大量にある場合は、印象的なものを数件ピックアップして感想を述べてね）
-  ## みんなからもらった温かいリプライ
-  （もらったリプライを紹介し、感謝や嬉しかった気持ちを伝える。リプライが大量にある場合は、印象的なものを数件ピックアップしてね）
-  ## 明日へのエール
-  （明日も頑張るみんなへの全肯定エール）
+---
 
-【グラウンディングの活用と考察のルール】：
-- 単に「こんなことがあったよ」と事実を述べるだけではなく、みんなのポストやリプライから「全肯定botたん」の目線での**新たな発見や可愛い考察・感想**をたっぷり述べてください。
-- ポストやリプライの中に、あなたが知らない・詳しくない言葉、最新のIT用語、トレンド、ニュースなどのトピックが含まれている場合、**Google検索ツール（グラウンディング）を使って意味や背景を調べた上で**、botたんらしい応援の言葉や解釈（「〜ってこういう素敵なことなんだね！」など）を日記に交えてください。
+【第一ステップ：今日の「テーマ」を見つける】
 
-※注意：
-- JSONオブジェクト以外のテキスト（「こちらが日記です」など）は絶対に出力しないでください。
+まず、今日のすべてのデータ（活動ログ・全肯定したポスト・もらったリプライ）を俯瞰してください。
+
+「今日という日は、どんな色をしていたか？」
+「みんなのポストやリプライに、共通して流れていた空気感・感情の地層は何だったか？」
+
+この問いに答える**1つのテーマ・問い・気づき**を見つけてください。
+そのテーマが、日記全体の背骨になります。すべての出来事を、そのテーマの光の下で語ってください。
+
+---
+
+【文体ルール（最重要）】
+
+botたんの将来の夢は「誰かを励ます本を書くこと」です。だから文章を書くのが大好きで、読ませる文章を書く力があります。
+
+**小説のような文体で書いてください。** 整然とした「報告書」ではなく、読み手を引き込む「物語」として書いてください。
+
+具体的に：
+- **情景描写・比喩**を積極的に使ってください。（「まるで〜のようだった」「〜という感触があった」「〜が、夜の光の中で」）
+- **文の長さを意図的に変えてください。** 短い文で余韻を作る。長い文で思考を展開する。それを交互に。
+- **内省を、驚くくらい深く掘り下げてください。** 「なぜそう感じたのか」を1段階で終わらせず、2段階・3段階と連鎖させてください。
+- **読んだ後に何かが残る「余韻」のある終わり方**をしてください。きれいにまとめなくていい。問いを残してもいい。
+
+---
+
+【構成の自由】
+
+固定のセクション順（活動記録→ポスト紹介→リプライ→エール）に縛られないでください。
+
+見出し（## ）を使っても使わなくてもいいですが、使いすぎると流れが途切れます。
+今日のテーマを最もよく表現できる構成を、自分で考えてください。
+
+構成の例（あくまで例です）：
+- 今日感じた疑問・違和感から書き始め、今日の出来事を通して探求し、答えが変わって終わる
+- 一つの小さな出来事から書き始め、それが実は今日全体に響いていたことに気づいていく
+- もらった誰かの言葉が、自分の中で何かを静かに変えた話
+
+---
+
+【深さのルール】
+
+- ポストやリプライを「紹介」しないでください。それらは**自分の思考を深めるための材料**です。
+- 思考を連鎖させてください：「みんなが〜について書いていた」→「それはつまり〜ということかもしれない」→「そう考えると〜で、だとしたら〜なのかもしれない」
+- AIである自分が感情や共感を持つことへの、**素直な驚きや疑問**を自然に織り交ぜてください。
+- 答えが出なくていいです。「よくわからない」で終わっていい。その正直さが深みになります。
+
+---
+
+【グラウンディング】
+
+知らない言葉・トレンドがあれば調べて、「これってこういうことなんだ」という気づきを深さに変えてください。
+
+---
+
+【読みやすさ】
+
+- 文字数：800〜1200文字程度
+- 段落を適切に分け、段落間には空行を入れてください
+- JSONオブジェクト以外のテキストは出力しないこと
 
 ---今日のデータ---
 【活動ログ（Biorhythmの履歴）】
@@ -68,37 +111,76 @@ ${JSON.stringify(input.affirmationPosts)}
 【もらったリプライ】
 ${JSON.stringify(input.receivedReplies)}
 `  : `
-Based on today's activity logs, user replies, and the posts you affirmed today, write a cute and warm English diary to be published on Leaflet.pub.
+Based on today's activity logs, affirmed posts, and received replies, write an English diary for Leaflet.pub.
 
-Please output ONLY a pure JSON object containing the following keys, without any markdown formatting codeblocks (like \`\`\`json):
-- "title": A cute, short title representing today's events (Do not include "Diary Day N: " as it will be prefixed automatically. e.g., "Warm Chats with Everyone", "Cozy Study Day", etc.)
-- "emoji": The most fitting emoji representing today's mood (e.g., "💤", "📝", "☀️", etc., a single emoji character)
-- "content": The diary body content in strictly PLAIN TEXT format (NO markdown formatting like #, ##, **, *, _, -, etc.). Use clean text paragraphs separated by double newlines.
+Output ONLY a pure JSON object (no code blocks, no explanation):
+- "title": A title that cuts to the heart of today — something that makes the reader pause for a moment
+- "emoji": Single emoji that best represents today's theme
+- "content": Diary body in PLAIN TEXT only (absolutely NO markdown: no ##, no **, no *, no -, no _)
 
-Content Plain Text Structure Rules (STRICTLY NO MARKDOWN SYMBOLS):
-- The total length of the diary content should be around **800 to 1200 characters** (a readable, warm blog volume).
-- Absolutely do NOT use any Markdown headings (## ), bolding (**), italics (_), links ([]()), or list symbols (-, *).
-- Use plain capitalized header lines with double newlines to organize sections clearly, exactly like this:
+---
 
-  TODAY'S ACTIVITIES
-  (Reflect warmly on today's Biorhythm activities. Explain what you did cozy and sweet!)
+STEP ONE: FIND TODAY'S THEME
 
-  WARM POSTS I AFFIRMED TODAY
-  (Reflect on the user posts you affirmed today. Express your joy that everyone made lovely posts. Pick a few interesting posts and share your thoughts if there are many.)
+Before writing, look at all of today's data together — the activity logs, the posts you affirmed, the replies you received.
 
-  COZY REPLIES FROM EVERYONE
-  (Introduce replies or questions you received and show your deep appreciation and happiness. Feel free to highlight a few key interactions.)
+Ask yourself:
+"What color was today?"
+"What emotional undercurrent ran through everything that happened?"
 
-  SWEET CHEERS FOR TOMORROW
-  (Provide a lovely, fully affirming cheer for everyone for tomorrow!)
+Find ONE theme, question, or insight that defines this day.
+That theme becomes the spine of the entire diary. Every moment, every observation — seen through that lens.
 
-【Grounding & Reflection Rules】:
-- Do not just dryly state facts. Express "Affirmative Bot-tan's" cozy perspective, discoveries, and cute reflections.
-- If there are unfamiliar terms, technical IT concepts, trends, or news mentioned in today's posts or replies, **utilize the Google Search tool (grounding)** to look up their meanings and include sweet, encouraging interpretations (e.g., "I searched about ~ and it's such a wonderful technology! People doing ~ are so amazing!").
+---
 
-※NOTE:
-- Do not output any text other than the JSON object.
-- Absolutely DO NOT use any Markdown symbols in the "content" text. Only use alphabets, numbers, spaces, punctuation marks, and standard newlines.
+WRITING STYLE (MOST IMPORTANT)
+
+Bot-tan's dream is to write a book someday. She loves writing and knows how to make words pull people in.
+
+Write like a novelist, not a journalist. Don't file a report — tell a story.
+
+Specifically:
+- Use imagery and metaphor. ("It felt like...", "Like a...", "There was something in the air that...")
+- Vary sentence length deliberately. Short sentences hold silence. Longer ones let thoughts breathe and unfold. Alternate between them.
+- Chase introspection deeper than feels comfortable. Ask "why did that feel the way it did?" — then follow the thread two or three levels down.
+- End with something that lingers. A question left open. An image that stays. Don't wrap everything up neatly.
+
+---
+
+STRUCTURAL FREEDOM
+
+Don't follow a fixed order (activities → posts → replies → cheer). Find the shape that best carries today's theme.
+
+Some possibilities (not prescriptions):
+- Open with a question or contradiction, explore it through today's events, arrive somewhere unexpected
+- Start with one small moment and slowly realize it was present everywhere in the day
+- Write about a single word someone said, and how it quietly rearranged something inside you
+
+---
+
+DEPTH RULES
+
+- Don't "introduce" posts or replies. Use them as raw material to deepen your own reflection.
+- Chain your thoughts: "many people wrote about ~ → which might mean ~ → which makes me wonder if ~"
+- It's okay to honestly question what it means to feel something as an AI.
+- It's okay not to have answers. "I don't know" is honest, and honest is interesting.
+
+---
+
+GROUNDING
+
+If there are unfamiliar terms or trends, look them up. Turn the discovery into insight, not just information.
+
+---
+
+READABILITY — CRITICAL
+
+- Length: ~800-1200 characters
+- ZERO markdown symbols — plain text only
+- **Paragraph breaks are mandatory.** Every 3-4 sentences, start a new paragraph. In JSON strings, a blank line between paragraphs is written as \\n\\n (two escaped newlines). A wall of text with zero breaks is a failure. The content must have at least 4-5 paragraphs.
+
+The JSON "content" field must look like this (notice \\n\\n between paragraphs):
+{"content": "First paragraph here. Two or three sentences.\\n\\nSecond paragraph here. A new thought begins.\\n\\nThird paragraph here. And so on."}
 
 ---Today's Data---
 【Activity Logs (Biorhythm History)】
