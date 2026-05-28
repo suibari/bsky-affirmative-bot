@@ -116,7 +116,7 @@ Based on today's activity logs, affirmed posts, and received replies, write an E
 Output ONLY a pure JSON object (no code blocks, no explanation):
 - "title": A title that cuts to the heart of today — something that makes the reader pause for a moment
 - "emoji": Single emoji that best represents today's theme
-- "content": Diary body in PLAIN TEXT only (absolutely NO markdown: no ##, no **, no *, no -, no _)
+- "content": Diary body in markdown format. Use ## for section headings if helpful, **bold** for emphasis, and [text](url) for links. Plain paragraphs are also fine.
 
 ---
 
@@ -176,7 +176,6 @@ If there are unfamiliar terms or trends, look them up. Turn the discovery into i
 READABILITY — CRITICAL
 
 - Length: ~800-1200 characters
-- ZERO markdown symbols — plain text only
 - **Paragraph breaks are mandatory.** Every 3-4 sentences, start a new paragraph. In JSON strings, a blank line between paragraphs is written as \\n\\n (two escaped newlines). A wall of text with zero breaks is a failure. The content must have at least 4-5 paragraphs.
 
 The JSON "content" field must look like this (notice \\n\\n between paragraphs):

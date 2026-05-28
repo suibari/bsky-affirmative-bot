@@ -1,4 +1,4 @@
-import { MemoryService, botLabelerManager, ZennDiaryService, LeafletDiaryService } from "@bsky-affirmative-bot/clients";
+import { MemoryService, botLabelerManager, LeafletDiaryService } from "@bsky-affirmative-bot/clients";
 import { AppBskyActorDefs } from "@atproto/api"; type ProfileView = AppBskyActorDefs.ProfileView;
 import { splitUri } from "../bsky/util.js";
 import { postContinuous } from "../bsky/postContinuous.js";
@@ -175,18 +175,18 @@ export async function doGoodNightPost(mood: string) {
                 console.error("[ERROR][DIARY] Failed to manage diary_count:", err);
             }
 
-            // Zenn日記を生成してプッシュ (日本語)
+            // Leaflet日記を生成してパブリッシュ (日本語)
             let diaryUrl: string | undefined = undefined;
-            if (process.env.GITHUB_PAT && process.env.GITHUB_DIARY_REPO && process.env.ZENN_USERNAME) {
+            if (process.env.LEAFLET_USERNAME) {
                 try {
-                    console.log("[INFO][DIARY] Generating and posting Zenn diary (Japanese)...");
-                    diaryUrl = await ZennDiaryService.generateAndPostDiary(diaryCount);
-                    console.log(`[INFO][DIARY] Zenn diary posted successfully: ${diaryUrl}`);
+                    console.log("[INFO][DIARY] Generating and publishing Leaflet diary (Japanese)...");
+                    diaryUrl = await LeafletDiaryService.generateAndPostDiary(agent, diaryCount, 'ja');
+                    console.log(`[INFO][DIARY] Leaflet diary (Japanese) published successfully: ${diaryUrl}`);
                 } catch (e: any) {
-                    console.error("[ERROR][DIARY] Failed to generate and post Zenn diary:", e.message);
+                    console.error("[ERROR][DIARY] Failed to generate and publish Leaflet diary (Japanese):", e.message);
                 }
             } else {
-                console.log("[INFO][DIARY] GITHUB_PAT, GITHUB_DIARY_REPO, or ZENN_USERNAME is not set. Skipping diary posting.");
+                console.log("[INFO][DIARY] LEAFLET_USERNAME is not set. Skipping diary posting.");
             }
 
             // Leaflet日記を生成してパブリッシュ (英語)
@@ -194,13 +194,11 @@ export async function doGoodNightPost(mood: string) {
             if (process.env.LEAFLET_USERNAME) {
                 try {
                     console.log("[INFO][DIARY] Generating and publishing Leaflet diary (English)...");
-                    diaryUrlEn = await LeafletDiaryService.generateAndPostDiary(agent, diaryCount);
-                    console.log(`[INFO][DIARY] Leaflet diary published successfully: ${diaryUrlEn}`);
+                    diaryUrlEn = await LeafletDiaryService.generateAndPostDiary(agent, diaryCount, 'en');
+                    console.log(`[INFO][DIARY] Leaflet diary (English) published successfully: ${diaryUrlEn}`);
                 } catch (e: any) {
-                    console.error("[ERROR][DIARY] Failed to generate and publish Leaflet diary:", e.message);
+                    console.error("[ERROR][DIARY] Failed to generate and publish Leaflet diary (English):", e.message);
                 }
-            } else {
-                console.log("[INFO][DIARY] LEAFLET_USERNAME is not set. Skipping Leaflet diary publishing.");
             }
 
             // Gemini生成

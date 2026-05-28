@@ -268,6 +268,9 @@ importers:
 
   packages/clients:
     dependencies:
+      '@atcute/leaflet':
+        specifier: ^2.0.1
+        version: 2.0.1(@atcute/lexicons@1.2.8)
       '@atproto/api':
         specifier: ^0.18.21
         version: 0.18.21
@@ -346,6 +349,11 @@ packages:
   '@atcute/atproto@3.1.10':
     resolution: {integrity: sha512-+GKZpOc0PJcdWMQEkTfg/rSNDAAHxmAUGBl60g2az15etqJn5WaUPNGFE2sB7hKpwi5Ue2h/L0OacINcE/JDDQ==}
 
+  '@atcute/atproto@4.0.1':
+    resolution: {integrity: sha512-Ys6SPfsWkSw8+txpF/Ei2r2gUSBtGbo9IVtkgic5skP7cW8+DwMq3DXmGqtNvbr+w2GQU3+J5NG73f82lNcbww==}
+    peerDependencies:
+      '@atcute/lexicons': ^2.0.0
+
   '@atcute/bluesky@1.0.15':
     resolution: {integrity: sha512-+EFiybmKQ97aBAgtaD+cKRJER5AMn3cZMkEwEg/pDdWyzxYJ9m1UgemmLdTgI8VrxPufKqdXS2nl7uO7TY6BPA==}
     peerDependencies:
@@ -362,6 +370,11 @@ packages:
 
   '@atcute/client@2.0.9':
     resolution: {integrity: sha512-QNDm9gMP6x9LY77ArwY+urQOBtQW74/onEAz42c40JxRm6Rl9K9cU4ROvNKJ+5cpVmEm1sthEWVRmDr5CSZENA==}
+
+  '@atcute/leaflet@2.0.1':
+    resolution: {integrity: sha512-8huvXRRWCsSocw6oDygQ4ovr6Ui4W9mxoSVvb8Su4N+i/CttL1eFF6Z0ZbecgMmoMtEslr47sUo4P4IvpZJSKA==}
+    peerDependencies:
+      '@atcute/lexicons': ^2.0.0
 
   '@atcute/lexicons@1.2.8':
     resolution: {integrity: sha512-3WPyU5droiovgVyWYuhsNibFAknna7uuVqvcnCd++oVp7ZPvXtXPFVx1MuAjJV7FspYwkuMh/GlTPsdfIOetBQ==}
@@ -2517,6 +2530,10 @@ snapshots:
     dependencies:
       '@atcute/lexicons': 1.2.8
 
+  '@atcute/atproto@4.0.1(@atcute/lexicons@1.2.8)':
+    dependencies:
+      '@atcute/lexicons': 1.2.8
+
   '@atcute/bluesky@1.0.15(@atcute/client@2.0.9)':
     dependencies:
       '@atcute/client': 2.0.9
@@ -2537,6 +2554,11 @@ snapshots:
       '@atcute/varint': 1.0.4
 
   '@atcute/client@2.0.9': {}
+
+  '@atcute/leaflet@2.0.1(@atcute/lexicons@1.2.8)':
+    dependencies:
+      '@atcute/atproto': 4.0.1(@atcute/lexicons@1.2.8)
+      '@atcute/lexicons': 1.2.8
 
   '@atcute/lexicons@1.2.8':
     dependencies:

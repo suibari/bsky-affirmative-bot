@@ -15,10 +15,11 @@
     "build": "tsc"
   },
   "dependencies": {
+    "@atcute/leaflet": "^2.0.1",
     "@atproto/api": "^0.18.21",
-    "@bsky-affirmative-bot/shared-configs": "workspace:*",
-    "@bsky-affirmative-bot/database": "workspace:*",
     "@bsky-affirmative-bot/bot-brain": "workspace:*",
+    "@bsky-affirmative-bot/database": "workspace:*",
+    "@bsky-affirmative-bot/shared-configs": "workspace:*",
     "axios": "^1.13.5",
     "dotenv": "^16.4.5"
   },

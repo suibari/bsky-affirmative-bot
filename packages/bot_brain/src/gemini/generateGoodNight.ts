@@ -84,7 +84,7 @@ const PROMPT_GOODNIGHT_WORD = async (param: GoodNightInfo) => {
 
   let diaryInstructionJa = "";
   if (param.diaryUrl) {
-    diaryInstructionJa = `* **日本語メッセージ（ja）への重要指示**: 今日は日本語の日記をZennに投稿しました！日記のURLは ${param.diaryUrl} です。日本語のおやすみメッセージの中で、今日1日の出来事をまとめた日記を書いたことを優しく可愛らしく伝え、このURLを必ず含めて紹介してください。**重要: URLの直前・直後には句読点・括弧類（「」、。！？等）を絶対に付けないでください。URLの前後は半角スペースか改行にしてください。**\n`;
+    diaryInstructionJa = `* **日本語メッセージ（ja）への重要指示**: 今日は日本語の日記をLeaflet.pubに投稿しました！日記のURLは ${param.diaryUrl} です。日本語のおやすみメッセージの中で、今日1日の出来事をまとめた日記を書いたことを優しく可愛らしく伝え、このURLを必ず含めて紹介してください。**重要: URLの直前・直後には句読点・括弧類（「」、。！？等）を絶対に付けないでください。URLの前後は半角スペースか改行にしてください。**\n`;
   }
 
   let diaryInstructionEn = "";
