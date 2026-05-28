@@ -29,36 +29,40 @@ export async function post(record: Record, embedRecord?: Record): Promise<{
     } else if (urlMatch && !record.embed) {
       const url = urlMatch;
 
-      const { result } = await ogs({ url });
-      if (result.success) {
-        let thumbBlob: BlobRef | undefined = undefined;
-        const imageUrl = result.ogImage?.[0]?.url;
+      try {
+        const { result } = await ogs({ url });
+        if (result.success) {
+          let thumbBlob: BlobRef | undefined = undefined;
+          const imageUrl = result.ogImage?.[0]?.url;
 
-        if (imageUrl) {
-          try {
-            const imageRes = await fetch(imageUrl);
-            const arrayBuffer = await imageRes.arrayBuffer();
-            const imageBuffer = Buffer.from(arrayBuffer);
-            const contentType = imageRes.headers.get("content-type") || "image/jpeg";
+          if (imageUrl) {
+            try {
+              const imageRes = await fetch(imageUrl);
+              const arrayBuffer = await imageRes.arrayBuffer();
+              const imageBuffer = Buffer.from(arrayBuffer);
+              const contentType = imageRes.headers.get("content-type") || "image/jpeg";
 
-            const response = await agent.uploadBlob(imageBuffer, {
-              encoding: contentType,
-            });
-            thumbBlob = response.data.blob;
-          } catch (err) {
-            console.warn(`[WARN] Failed to upload image: ${imageUrl}`, err);
+              const response = await agent.uploadBlob(imageBuffer, {
+                encoding: contentType,
+              });
+              thumbBlob = response.data.blob;
+            } catch (err) {
+              console.warn(`[WARN] Failed to upload image: ${imageUrl}`, err);
+            }
           }
+
+          record.embed = {
+            $type: 'app.bsky.embed.external',
+            external: {
+              uri: url,
+              title: result.ogTitle || url,
+              description: result.ogDescription || '',
+              thumb: thumbBlob,
+            }
+          };
         }
-
-        record.embed = {
-          $type: 'app.bsky.embed.external',
-          external: {
-            uri: url,
-            title: result.ogTitle || url,
-            description: result.ogDescription || '',
-            thumb: thumbBlob, // undefinedでもOK（画像なし）
-          }
-        };
+      } catch (err) {
+        console.warn(`[WARN] Failed to fetch OGP for ${url}:`, err);
       }
     }
 

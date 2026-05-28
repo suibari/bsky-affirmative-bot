@@ -237,7 +237,7 @@ export async function doGoodNightPost(mood: string) {
             console.log("[INFO] No valid top post found after trying all highest score entries.");
         }
     } catch (e) {
-        console.error(`[INFO] good night post error: ${e}`);
+        console.error("[ERROR] good night post error:", e);
     } finally {
         // 最新フォロワー数をDBに保存（おやすみポストが正常に処理された後に保存）
         if (currentFollowers > 0) {
