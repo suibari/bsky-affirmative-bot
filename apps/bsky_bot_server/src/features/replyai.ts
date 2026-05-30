@@ -6,6 +6,7 @@ import { generateAffirmativeWord } from "@bsky-affirmative-bot/bot-brain";
 import { Embed, GeminiScore } from "@bsky-affirmative-bot/shared-configs";
 import { MemoryService, botLabelerManager } from "@bsky-affirmative-bot/clients";
 import { postContinuous } from "../bsky/postContinuous.js";
+import { checkAndSendRoomInvitation } from "../bsky/roomInvitation.js";
 import { fetchSentiment } from "../util/negaposi.js";
 import retry from 'async-retry';
 import { getConcatProfiles } from "../bsky/getConcatProfiles.js";
@@ -177,6 +178,11 @@ export async function replyAI(
         // ポスト
         const text_bot = result?.comment || "";
         await postContinuous(text_bot, { uri, cid, record }, undefined);
+
+        // AIリプライ送信完了後、お部屋お誘い条件の判定と処理を非同期（バックグラウンド）で実行
+        checkAndSendRoomInvitation(uri, cid, record).catch(err => {
+            console.error(`[ERROR][ROOM_INVITE] checkAndSendRoomInvitation failed:`, err);
+        });
 
         return result;
     } catch (e: any) {

@@ -30,6 +30,8 @@ export const followers = affirmativeBotSchema.table("followers", {
   positivity_level: integer("positivity_level").default(0),
   current_title_ja: text("current_title_ja"),
   current_title_en: text("current_title_en"),
+  last_room_visit_at: timestamp("last_room_visit_at"),
+  room_invite_sent: integer("room_invite_sent").default(0),
 });
 
 export const posts = affirmativeBotSchema.table("posts", {
