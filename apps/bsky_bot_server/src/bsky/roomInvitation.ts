@@ -82,11 +82,11 @@ export async function checkAndSendRoomInvitation(
       console.warn(`[WARN][ROOM_INVITE][${did}] Failed to fetch profile, using fallback:`, err.message);
     }
 
-    // 3. お出迎えメッセージテキストをAI生成
+    // 3. お出迎えメッセージテキストをAI生成（日英同時に1回で生成）
     const langStr = getLangStr(replyToRecord.langs);
-    console.log(`[INFO][ROOM_INVITE][${did}] Generating personalized welcome message...`);
-    const welcomeMessage = await generateRoomWelcomeMessage(displayName, recentPosts, langStr);
-    console.log(`[INFO][ROOM_INVITE][${did}] Generated text (${welcomeMessage.length} chars): ${welcomeMessage}`);
+    console.log(`[INFO][ROOM_INVITE][${did}] Generating personalized welcome messages (JA & EN)...`);
+    const welcomeMessages = await generateRoomWelcomeMessage(displayName, recentPosts);
+    console.log(`[INFO][ROOM_INVITE][${did}] Generated JA (${welcomeMessages.ja.length} chars), EN (${welcomeMessages.en.length} chars)`);
 
     // 4. お部屋サーバーの専用エンドポイントにテキストを送信
     const roomServerUrl = process.env.ROOM_SERVER_URL;
@@ -97,7 +97,8 @@ export async function checkAndSendRoomInvitation(
         console.log(`[INFO][ROOM_INVITE][${did}] Sending welcome message to room server: ${roomServerUrl}`);
         await axios.post(roomServerUrl, {
           did,
-          text: welcomeMessage
+          textJa: welcomeMessages.ja,
+          textEn: welcomeMessages.en
         }, {
           headers: {
             "Authorization": `Bearer ${roomServerSecret}`,
