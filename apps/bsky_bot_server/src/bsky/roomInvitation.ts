@@ -125,17 +125,14 @@ export async function checkAndSendRoomInvitation(
 
     console.log(`[INFO][ROOM_INVITE][${did}] Posting separate invitation reply on Bluesky...`);
     
-    // skipInviteCheck = true (第5引数) を指定して無限ループを防ぎながらお誘いリプライを送信
+    // お誘いリプライを送信
     await postContinuous(
       inviteReplyText,
       {
         uri: replyToUri,
         cid: replyToCid,
         record: replyToRecord
-      },
-      undefined,
-      undefined,
-      true // skipInviteCheck
+      }
     );
     console.log(`[INFO][ROOM_INVITE][${did}] Invitation reply posted successfully.`);
 
