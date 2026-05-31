@@ -1,6 +1,13 @@
-import * as Discord from 'discord.js';
-const { Client, GatewayIntentBits, Events } = Discord;
+import { Client, Events } from 'discord.js';
 import { BskyAgent } from '@atproto/api';
+
+// TS2460エラー（discord.jsのモジュール解決のバグ）を回避するため、インテントフラグを手動で定義します。
+const GatewayIntentBits = {
+  Guilds: 1 << 0,
+  GuildMembers: 1 << 1,
+  GuildMessages: 1 << 9,
+  MessageContent: 1 << 15,
+} as const;
 import { db, subscribers, initializeDatabases } from '@bsky-affirmative-bot/database';
 import { botLabelerManager } from '@bsky-affirmative-bot/clients';
 import { eq } from 'drizzle-orm';
