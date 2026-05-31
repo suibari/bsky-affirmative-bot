@@ -290,9 +290,9 @@ async function isAutoPost(did: string, record: AppBskyFeedPost.Record | any, age
         return true;
       }
 
-      // 5. 直近20件にリプライが1件もない ＋ リンクつき投稿頻度高い → 無視
-      if (replyCount === 0 && anyLinkCount >= feed.length * 0.9) {
-        console.log(`[INFO][${did}] AutoPost detected: 0 replies and ${anyLinkCount} posts have links in last ${feed.length} posts`);
+      // 5. 直近20件にリプライが1件もない ＋ 全リンクつき投稿 → 無視
+      if (replyCount === 0 && anyLinkCount === feed.length) {
+        console.log(`[INFO][${did}] AutoPost detected: 0 replies and all posts have links in last ${feed.length} posts`);
         return true;
       }
     }
