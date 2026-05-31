@@ -1,4 +1,5 @@
-import { Client, GatewayIntentBits, Events } from 'discord.js';
+import * as Discord from 'discord.js';
+const { Client, GatewayIntentBits, Events } = Discord;
 import { BskyAgent } from '@atproto/api';
 import { db, subscribers, initializeDatabases } from '@bsky-affirmative-bot/database';
 import { botLabelerManager } from '@bsky-affirmative-bot/clients';
