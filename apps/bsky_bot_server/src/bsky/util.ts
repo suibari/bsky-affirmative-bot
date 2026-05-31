@@ -376,3 +376,32 @@ export function hasAffiliateDomainLink(record: AppBskyFeedPost.Record | any): bo
   return domains.some(domain => matchesDomainList(domain, AFFILIATE_DOMAINS));
 }
 
+/**
+ * ポストに何らかの外部リンク（facetリンクまたは外部埋め込み）が含まれているか判定する
+ */
+export function hasAnyLink(record: AppBskyFeedPost.Record | any): boolean {
+  if (record?.facets) {
+    for (const facet of record.facets) {
+      if (facet.features) {
+        for (const feature of facet.features) {
+          if (feature.$type === 'app.bsky.richtext.facet#link') {
+            return true;
+          }
+        }
+      }
+    }
+  }
+  if (record?.embed) {
+    const embed = record.embed as any;
+    if (embed.$type === 'app.bsky.embed.external' || !!embed.external) {
+      return true;
+    }
+    if (embed.$type === 'app.bsky.embed.recordWithMedia' && embed.media) {
+      if (embed.media.$type === 'app.bsky.embed.external' || !!embed.media.external) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+

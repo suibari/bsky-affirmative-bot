@@ -4,7 +4,7 @@ import { agent } from "./agent.js";
 import { features } from "../features/index.js";
 import { MemoryService, botBiothythmManager } from "@bsky-affirmative-bot/clients";
 import { followerMap, updateFollowers } from "./followerManagement.js";
-import { isMention, getLangStr, splitUri, isIgnoreTarget, hasNGWord, isIgnorePost, isReplyOrMentionToMe, hasBroadcastDomainLink, hasAffiliateDomainLink } from "./util.js";
+import { isMention, getLangStr, splitUri, isIgnoreTarget, hasNGWord, isIgnorePost, isReplyOrMentionToMe, hasBroadcastDomainLink, hasAffiliateDomainLink, hasAnyLink } from "./util.js";
 import { follow } from "./follow.js";
 import { replyGreets } from "./replyGreets.js";
 import retry from 'async-retry';
@@ -243,36 +243,61 @@ async function isBotUser(did: string): Promise<boolean> {
 }
 
 async function isAutoPost(did: string, record: AppBskyFeedPost.Record | any, agent: AtpAgent): Promise<boolean> {
-  // 配信ドメインリンクありの投稿 → 無視
+  // 2. 配信ドメインリンクありの投稿 → 無視
   if (hasBroadcastDomainLink(record)) {
     console.log(`[INFO][${did}] AutoPost detected: post contains broadcast domain link`);
     return true;
   }
 
-  // アフィドメインリンクありの投稿 → 無視
+  // 3. アフィドメインリンクありの投稿 → 無視
   if (hasAffiliateDomainLink(record)) {
     console.log(`[INFO][${did}] AutoPost detected: post contains affiliate domain link`);
     return true;
   }
 
-  // 直近20件にアフィドメインリンクを8件以上含む → 無視
+  // 直近20件の投稿を取得して判定する
   try {
     const response = await agent.getAuthorFeed({ actor: did, limit: 20 });
-    let affiliateLinkCount = 0;
+    const feed = response.data.feed;
 
-    for (const item of response.data.feed) {
-      const feedRecord = item.post.record as any;
-      if (hasAffiliateDomainLink(feedRecord)) {
-        affiliateLinkCount++;
+    if (feed && feed.length > 0) {
+      let affiliateLinkCount = 0;
+      let replyCount = 0;
+      let anyLinkCount = 0;
+
+      for (const item of feed) {
+        const feedRecord = item.post.record as any;
+
+        // アフィドメインのチェック
+        if (hasAffiliateDomainLink(feedRecord)) {
+          affiliateLinkCount++;
+        }
+
+        // リプライ判定
+        if (feedRecord.reply) {
+          replyCount++;
+        }
+
+        // 何らかの外部リンク判定
+        if (hasAnyLink(feedRecord)) {
+          anyLinkCount++;
+        }
+      }
+
+      // 4. 直近20件にアフィドメインリンクを8件以上含む → 無視
+      if (affiliateLinkCount >= 8) {
+        console.log(`[INFO][${did}] AutoPost detected: ${affiliateLinkCount} affiliate domain links in last 20 posts`);
+        return true;
+      }
+
+      // 5. 直近20件にリプライが1件もない ＋ リンクつき投稿頻度高い → 無視
+      if (replyCount === 0 && anyLinkCount >= feed.length * 0.9) {
+        console.log(`[INFO][${did}] AutoPost detected: 0 replies and ${anyLinkCount} posts have links in last ${feed.length} posts`);
+        return true;
       }
     }
-
-    if (affiliateLinkCount >= 8) {
-      console.log(`[INFO][${did}] AutoPost detected: ${affiliateLinkCount} affiliate domain links in last 20 posts`);
-      return true;
-    }
   } catch (err: any) {
-    console.warn(`[WARN][${did}] Failed to fetch author feed for affiliate check:`, err.message);
+    console.warn(`[WARN][${did}] Failed to fetch author feed for auto-post checks:`, err.message);
   }
 
   return false;
