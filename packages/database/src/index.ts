@@ -472,6 +472,17 @@ export class MemoryService {
     }
   }
 
+  static async getSubscriberDidsIncludingInactive(): Promise<string[]> {
+    try {
+      const result = await db.select({ did: subscribers.did })
+        .from(subscribers);
+      return result.map(row => row.did);
+    } catch (e) {
+      console.error("Failed to get subscriber DIDs including inactive:", e);
+      return [];
+    }
+  }
+
   static async addSubscriber(did: string, discordId?: string) {
     try {
       const data = {

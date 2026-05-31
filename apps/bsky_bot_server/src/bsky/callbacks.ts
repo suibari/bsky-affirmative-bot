@@ -42,9 +42,13 @@ export async function onPost(event: any) {
           return;
         }
 
+        // feature gating 用: active subscriber + developer のみ
         const subscribers = await MemoryService.getSubscribersOrDeveloper();
         const isSubscriber = subscribers.includes(authorDid);
-        if (!isSubscriber) {
+        // ラベル/スパム/botチェックのスキップ用: inactive も含む登録済み subscriber
+        const registeredDids = await MemoryService.getSubscriberDidsIncludingInactive();
+        const isRegisteredSubscriber = registeredDids.includes(authorDid);
+        if (!isSubscriber && !isRegisteredSubscriber) {
           // Label filter
           if (isIgnoreTarget(follower.labels)) {
             console.log(`[INFO][${authorDid}] Ignored due to author labels`);
