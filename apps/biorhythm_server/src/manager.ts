@@ -29,6 +29,7 @@ interface DailyStatsForWebSocket extends Omit<DailyReport, 'lang'> { // DailySta
 interface BotStat {
   energy: number;
   mood: string;
+  mood_en: string;
   status: string;
   dailyStats: DailyStatsForWebSocket; // 型をDailyStatsForWebSocketに変更
   totalStats: Stats; // 追加: totalStatsプロパティ
@@ -47,6 +48,7 @@ export class BiorhythmManager extends EventEmitter {
   private energyPrev: number = 5000;
   private timePrev: string = '';
   private moodPrev: string = "";
+  private moodPrevEn: string = "";
   private nextStepTime: string = "";
   private _generatedImage: Buffer | null = null;
   private firstStepDone = false;
@@ -70,6 +72,9 @@ export class BiorhythmManager extends EventEmitter {
     }
     if (state.mood !== undefined) {
       this.moodPrev = state.mood;
+    }
+    if (state.mood_en !== undefined) {
+      this.moodPrevEn = state.mood_en;
     }
     if (state.status !== undefined) {
       this.status = state.status as Status;
@@ -127,6 +132,7 @@ export class BiorhythmManager extends EventEmitter {
 
   get getEnergy(): number { return this.energy / 100; }
   get getMood(): string { return this.moodPrev; }
+  get getMoodEn(): string { return this.moodPrevEn; }
 
   get generatedImage(): Buffer | null {
     return this._generatedImage;
@@ -156,6 +162,7 @@ export class BiorhythmManager extends EventEmitter {
     return {
       energy: this.getEnergy,
       mood: this.getMood,
+      mood_en: this.getMoodEn,
       status: this.status,
       dailyStats: {
         ...dailyStats,
@@ -231,6 +238,7 @@ export class BiorhythmManager extends EventEmitter {
     try {
       const result = await this.generateStatus(prompt); // LLM出力取得
       const status_text = result.status_text;
+      const status_text_en = result.status_text_en;
       duration_minutes = result.duration_minutes;
 
       // 次回スケジュール（AIが決めた時間、ただし最小5分、最大180分とする）
@@ -239,10 +247,10 @@ export class BiorhythmManager extends EventEmitter {
         duration * 60 * 1000;
       this.nextStepTime = new Date(Date.now() + nextInterval).toISOString();
 
-      await this.setOutput(status_text);
+      await this.setOutput(status_text, status_text_en);
 
       // 活動ログをDBに保存
-      await MemoryService.addBiorhythmHistory(this.status, status_text, this.getEnergy);
+      await MemoryService.addBiorhythmHistory(this.status, status_text, status_text_en, this.getEnergy);
 
       // おやすみポスト
       if (this.firstStepDone) {
@@ -322,6 +330,7 @@ ${SYSTEM_INSTRUCTION}
 * ルール
 - 結果はJSON形式で出力してください。
 - "status_text": 「全肯定たんは～しています」という、AIに入力する平易なプロンプト文（200文字以内）。
+- "status_text_en": status_text の英語訳（plain English, max 200 characters）。
 - "duration_minutes": その行動にかかる時間（分）。行動の内容に合わせて5分から90分の範囲内で適切に決めてください。
 - ステータスについて、WakeUpは起床時、Studyは勉強中、FreeTimeは余暇時間、Relaxは休憩中、Sleepは就寝中(夢の中)を意味します。
 - 行動欲求は、あなたがどの行動をしたいか、です。たとえばSleepが一番高いのに、ステータスがFreeTimeの場合、眠いのに遊んでいる状態です。
@@ -362,7 +371,7 @@ ${JSON.stringify(unreadReply)}
 `;
   }
 
-  private async generateStatus(prompt: string): Promise<{ status_text: string, duration_minutes: number }> {
+  private async generateStatus(prompt: string): Promise<{ status_text: string, status_text_en: string, duration_minutes: number }> {
     const response = await generateContentWithRetry({
       model: MODEL_GEMINI,
       contents: prompt,
@@ -372,9 +381,10 @@ ${JSON.stringify(unreadReply)}
           type: Type.OBJECT,
           properties: {
             status_text: { type: Type.STRING },
+            status_text_en: { type: Type.STRING },
             duration_minutes: { type: Type.INTEGER },
           },
-          required: ["status_text", "duration_minutes"],
+          required: ["status_text", "status_text_en", "duration_minutes"],
         },
       }
     });
@@ -383,7 +393,7 @@ ${JSON.stringify(unreadReply)}
       return JSON.parse(response.text);
     }
 
-    return { status_text: "", duration_minutes: 60 };
+    return { status_text: "", status_text_en: "", duration_minutes: 60 };
   }
 
   private changeEnergy(amount: number) {
@@ -394,15 +404,16 @@ ${JSON.stringify(unreadReply)}
       this.energy = newEnergy;
       // this.emit('statsChange', this.getCurrentState()); // getCurrentState is async
       this.getCurrentState().then(state => this.emit('statsChange', state));
-      MemoryService.updateBiorhythmState({ energy: this.energy, mood: this.moodPrev, status: this.status });
+      MemoryService.updateBiorhythmState({ energy: this.energy, mood: this.moodPrev, mood_en: this.moodPrevEn, status: this.status });
     }
   }
 
-  private async setOutput(newOutput: string) {
+  private async setOutput(newOutput: string, newOutputEn: string) {
     if (newOutput !== this.moodPrev) {
       this.moodPrev = newOutput;
+      this.moodPrevEn = newOutputEn;
       this.getCurrentState().then(state => this.emit('statsChange', state));
-      MemoryService.updateBiorhythmState({ energy: this.energy, mood: this.moodPrev, status: this.status });
+      MemoryService.updateBiorhythmState({ energy: this.energy, mood: this.moodPrev, mood_en: this.moodPrevEn, status: this.status });
 
       // Generate image and store it
       // try {
@@ -434,7 +445,7 @@ ${JSON.stringify(unreadReply)}
     const newEnergy = Math.max(0, Math.min(ENERGY_MAXIMUM, this.energy));
     if (newEnergy !== this.energy) {
       this.energy = newEnergy;
-      MemoryService.updateBiorhythmState({ energy: this.energy, mood: this.moodPrev, status: this.status });
+      MemoryService.updateBiorhythmState({ energy: this.energy, mood: this.moodPrev, mood_en: this.moodPrevEn, status: this.status });
     }
   }
 

@@ -94,6 +94,7 @@ export const biorhythm_history = affirmativeBotSchema.table("biorhythm_history",
   id: serial("id").primaryKey(),
   status: text("status").notNull(),
   mood: text("mood").notNull(),
+  mood_en: text("mood_en"),
   energy: integer("energy").notNull(),
   created_at: timestamp("created_at").defaultNow().notNull(),
 });

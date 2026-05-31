@@ -5,6 +5,7 @@ export interface BotDiaryActivity {
   time: string;
   status: string;
   mood: string;
+  mood_en?: string;
 }
 
 export interface BotDiaryInput {

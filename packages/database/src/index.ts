@@ -529,9 +529,9 @@ export class MemoryService {
     }
   }
 
-  static async addBiorhythmHistory(status: string, mood: string, energy: number) {
+  static async addBiorhythmHistory(status: string, mood: string, mood_en: string, energy: number) {
     try {
-      await db.insert(biorhythm_history).values({ status, mood, energy });
+      await db.insert(biorhythm_history).values({ status, mood, mood_en, energy });
     } catch (e) {
       console.error("Failed to add biorhythm history:", e);
     }

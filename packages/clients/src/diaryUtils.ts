@@ -36,7 +36,7 @@ export async function fetchDiaryData(locale: string): Promise<DiaryData> {
     } catch {
       timeStr = String(a.created_at);
     }
-    return { time: timeStr, status: a.status, mood: a.mood };
+    return { time: timeStr, status: a.status, mood: a.mood, mood_en: a.mood_en ?? undefined };
   });
 
   let rawInteractions: any[] = [];
