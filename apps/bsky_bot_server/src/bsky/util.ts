@@ -243,6 +243,20 @@ export async function getImageUrl(did: string, embed: any): Promise<ImageRef[]> 
 }
 
 /**
+ * タイムゾーンを考慮した YYYY-MM-DD 形式の日付文字列を返す
+ */
+export function formatYMD(date: Date, lang?: string): string {
+  const tz = localeToTimezone[lang ?? ""] ?? "UTC";
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    year: "numeric", month: "2-digit", day: "2-digit", timeZone: tz,
+  }).formatToParts(date);
+  const y = parts.find(p => p.type === "year")?.value;
+  const m = parts.find(p => p.type === "month")?.value;
+  const d = parts.find(p => p.type === "day")?.value;
+  return `${y}-${m}-${d}`;
+}
+
+/**
  * AT Protocolのラベル val レキシコン制約 (^[a-z-]+$) に適合させるため、
  * DID文字列内のコロンをハイフンに置換し、数字を英小文字 a-j に1対1マッピング変換します。
  */

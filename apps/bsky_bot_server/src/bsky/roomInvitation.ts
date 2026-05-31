@@ -3,8 +3,9 @@ import { getConcatAuthorFeed } from "./getConcatAuthorFeed.js";
 import { generateRoomWelcomeMessage } from "@bsky-affirmative-bot/bot-brain";
 import axios from "axios";
 import { postContinuous } from "./postContinuous.js";
-import { splitUri, getLangStr } from "./util.js";
+import { splitUri, getLangStr, formatYMD } from "./util.js";
 import { agent } from "./agent.js";
+import { parseMonthDay, toMonthDayIso } from "@bsky-affirmative-bot/shared-configs";
 
 /**
  * ユーザーがお部屋（お誘い）対象であるかを判定し、対象であれば
@@ -73,22 +74,49 @@ export async function checkAndSendRoomInvitation(
       console.error(`[ERROR][ROOM_INVITE][${did}] Failed to fetch recent posts:`, err.message);
     }
 
-    // 2. ユーザーのプロフィールを取得して表示名を特定
+    // 2. ユーザーのプロフィールを取得して表示名と登録日を特定
     let displayName = "ちゃん";
+    let createdAtBsky: string | undefined;
     try {
       const profileResponse = await agent.getProfile({ actor: did });
       displayName = profileResponse.data.displayName || profileResponse.data.handle || "ちゃん";
+      createdAtBsky = profileResponse.data.createdAt;
     } catch (err: any) {
       console.warn(`[WARN][ROOM_INVITE][${did}] Failed to fetch profile, using fallback:`, err.message);
     }
 
-    // 3. お出迎えメッセージテキストをAI生成（日英同時に1回で生成）
+    // 3. 今日がBluesky登録記念日 / ユーザー登録記念日かチェック
+    const lang = replyToRecord.langs?.[0];
+    const todayIso = formatYMD(new Date(), lang);
+    const todayMD = "--" + todayIso.slice(5);
+    const annivNames: { ja: string; en: string }[] = [];
+    if (createdAtBsky) {
+      const d = new Date(createdAtBsky);
+      if (!isNaN(d.getTime()) && formatYMD(d, lang) !== todayIso && toMonthDayIso(d) === todayMD) {
+        annivNames.push({ ja: "Bluesky登録日", en: "The Day You Registered With Bluesky" });
+      }
+    }
+    const { user_anniv_name, user_anniv_date } = followerRow;
+    if (user_anniv_name && user_anniv_date) {
+      const d = parseMonthDay(user_anniv_date);
+      if (d && toMonthDayIso(d) === todayMD) {
+        annivNames.push({ ja: user_anniv_name, en: user_anniv_name });
+      }
+    }
+    const anniversary = annivNames.length > 0
+      ? { ja: annivNames.map(a => a.ja).join("・"), en: annivNames.map(a => a.en).join(" & ") }
+      : undefined;
+    if (anniversary) {
+      console.log(`[INFO][ROOM_INVITE][${did}] Today is anniversary: ${anniversary.ja}`);
+    }
+
+    // 4. お出迎えメッセージテキストをAI生成（日英同時に1回で生成）
     const langStr = getLangStr(replyToRecord.langs);
     console.log(`[INFO][ROOM_INVITE][${did}] Generating personalized welcome messages (JA & EN)...`);
-    const welcomeMessages = await generateRoomWelcomeMessage(displayName, recentPosts);
+    const welcomeMessages = await generateRoomWelcomeMessage(displayName, recentPosts, anniversary);
     console.log(`[INFO][ROOM_INVITE][${did}] Generated JA (${welcomeMessages.ja.length} chars), EN (${welcomeMessages.en.length} chars)`);
 
-    // 4. お部屋サーバーの専用エンドポイントにテキストを送信
+    // 5. お部屋サーバーの専用エンドポイントにテキストを送信
     const roomServerUrl = process.env.ROOM_SERVER_URL;
     const roomServerSecret = process.env.ROOM_SERVER_SECRET;
 
@@ -114,11 +142,17 @@ export async function checkAndSendRoomInvitation(
       console.warn(`[WARN][ROOM_INVITE] ROOM_SERVER_URL or ROOM_SERVER_SECRET is not configured in .env. Skipping API call.`);
     }
 
-    // 5. Blueskyにお誘いリプライを別投稿として送信
+    // 6. Blueskyにお誘いリプライを別投稿として送信
     const roomPageUrl = process.env.ROOM_PAGE_URL || "https://affirmative-room.vercel.app";
     let inviteReplyText = "";
-    
-    if (langStr === "日本語") {
+
+    if (anniversary) {
+      if (langStr === "日本語") {
+        inviteReplyText = `${displayName}ちゃん、今日は${anniversary.ja}だね！お部屋に特別なお祝いボイスメッセージを用意したよ♪\n${roomPageUrl}`;
+      } else {
+        inviteReplyText = `Dear ${displayName}, today is ${anniversary.en}! I've prepared a special celebration message in my room♪\n${roomPageUrl}`;
+      }
+    } else if (langStr === "日本語") {
       inviteReplyText = `${displayName}ちゃん、お部屋にbotたんからの特別なボイスメッセージを用意したよ！\nよかったら聴きに来てね♪\n${roomPageUrl}`;
     } else {
       inviteReplyText = `Dear ${displayName}, I've prepared a special voice message for you in my room!\nPlease come and listen to it♪\n${roomPageUrl}`;

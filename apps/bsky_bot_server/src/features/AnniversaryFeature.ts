@@ -5,9 +5,10 @@ import { MemoryService, botBiothythmManager, botLabelerManager } from "@bsky-aff
 import { ANNIV_REGISTER_TRIGGER, ANNIV_CONFIRM_TRIGGER, ANNIV_ENABLE_TRIGGER, ANNIV_DISABLE_TRIGGER, NICKNAMES_BOT } from "@bsky-affirmative-bot/shared-configs";
 import holidays from "@bsky-affirmative-bot/shared-configs/json/holidays.json" with { type: "json" };
 import { handleMode, isPast } from "./utils.js";
-import { getLangStr, isReplyOrMentionToMe, sanitizeDidToLexiconValue } from "../bsky/util.js";
+import { getLangStr, isReplyOrMentionToMe, sanitizeDidToLexiconValue, formatYMD } from "../bsky/util.js";
 import { AppBskyFeedPost } from "@atproto/api"; type PostRecord = AppBskyFeedPost.Record;
-import { GeminiResponseResult, Holiday, localeToTimezone, UserInfoGemini } from "@bsky-affirmative-bot/shared-configs";
+import { GeminiResponseResult, Holiday, UserInfoGemini } from "@bsky-affirmative-bot/shared-configs";
+import { checkAndSendRoomInvitation } from "../bsky/roomInvitation.js";
 import { agent } from "../bsky/agent.js";
 import { dateForHoliday, parseMonthDay, toMonthDayIso } from "@bsky-affirmative-bot/shared-configs";
 import { generateAnniversary } from "@bsky-affirmative-bot/bot-brain";
@@ -132,9 +133,9 @@ export class AnniversaryFeature implements BotFeature {
         const todayAnniversary = await this.getTodayAnniversary(follower, lang);
         if (todayAnniversary.length === 0) return false;
 
-        const todayStr = this.formatYMD(new Date(), lang);
+        const todayStr = formatYMD(new Date(), lang);
         const lastAnnivExeced = followerRow?.last_anniv_execed_at;
-        const lastStr = this.formatYMD(new Date(lastAnnivExeced || 0), lang);
+        const lastStr = formatYMD(new Date(lastAnnivExeced || 0), lang);
 
         return todayStr !== lastStr;
     }
@@ -202,10 +203,10 @@ export class AnniversaryFeature implements BotFeature {
 
             // 今日は記念日であるので、
             // その日の記念日リプライ記録がなければ通過させる
-            const todayStr = this.formatYMD(new Date(), lang);
+            const todayStr = formatYMD(new Date(), lang);
             const followerRow = await MemoryService.getFollower(follower.did);
             const lastAnnivExeced = followerRow?.last_anniv_execed_at;
-            const lastStr = this.formatYMD(new Date(lastAnnivExeced || 0), lang);
+            const lastStr = formatYMD(new Date(lastAnnivExeced || 0), lang);
             if (todayStr === lastStr) return false;
 
             // 記念日であり、まだその日実行もしていないなら、記念日リプライする
@@ -260,6 +261,12 @@ export class AnniversaryFeature implements BotFeature {
                         console.error(`[ERROR][BADGE][ANNIVERSARY] Failed to apply anniversary badge for ${follower.did}:`, badgeErr.message);
                     }
                 }
+
+                // タイミング懸念の対策: botへのメンションなしの記念日投稿でも来訪お誘いチェックを実行
+                const eventUri = `at://${event.did}/app.bsky.feed.post/${event.commit.rkey}`;
+                checkAndSendRoomInvitation(eventUri, event.commit.cid, event.commit.record).catch(err => {
+                    console.error(`[ERROR][ANNIVERSARY][ROOM_INVITE]`, err);
+                });
             }
 
             return isSuccess;
@@ -314,7 +321,7 @@ export class AnniversaryFeature implements BotFeature {
         let todayAnniversary: Holiday[] = [];
 
         const today = new Date();
-        const todayIso = this.formatYMD(new Date(), lang); // 2025-08-29
+        const todayIso = formatYMD(new Date(), lang); // 2025-08-29
         const todayMD = "--" + todayIso.slice(5);     //    --08-29
 
         // プリセット記念日判定
@@ -328,7 +335,7 @@ export class AnniversaryFeature implements BotFeature {
         const createdAtBluesky = follower.createdAt
         if (createdAtBluesky) {
             const createdAtBskyDate = new Date(createdAtBluesky);
-            const createdAtBskyYMD = this.formatYMD(createdAtBskyDate, lang);
+            const createdAtBskyYMD = formatYMD(createdAtBskyDate, lang);
             // 今日登録した場合は除外
             if (createdAtBskyYMD !== todayIso && !isNaN(createdAtBskyDate.getTime()) && toMonthDayIso(createdAtBskyDate) === todayMD) {
                 todayAnniversary = todayAnniversary.concat({
@@ -413,20 +420,4 @@ export class AnniversaryFeature implements BotFeature {
         return `${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
     }
 
-    private formatYMD(date: Date, lang?: string): string {
-        const tz = localeToTimezone[lang ?? ""] ?? "UTC";
-
-        const parts = new Intl.DateTimeFormat("en-CA", {
-            year: "numeric",
-            month: "2-digit",
-            day: "2-digit",
-            timeZone: tz,
-        }).formatToParts(date);
-
-        const y = parts.find(p => p.type === "year")?.value;
-        const m = parts.find(p => p.type === "month")?.value;
-        const d = parts.find(p => p.type === "day")?.value;
-
-        return `${y}-${m}-${d}`;
-    }
 }
