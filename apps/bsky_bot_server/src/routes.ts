@@ -1,7 +1,7 @@
 import express from "express";
 import { doGoodNightPost, doWhimsicalPost, doQuestionPost } from "./features/whimsical.js";
 
-export const router: express.Router = express.Router();
+export const router = express.Router();
 
 router.post("/features/good-night", async (req, res) => {
   try {

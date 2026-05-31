@@ -196,7 +196,7 @@ async function processUserDiary(userDid: string) {
 
             // 成功メッセージの追加
             if (langStr === "日本語") {
-                replyText += `\n\n🎉「${diaryResult.title_ja}」の称号バッジをプレゼントしたよ！\n※バッジを表示するにはラベラー（ https://bsky.app/profile/labeler-bot-tan.suibari.com ）を購読してね`;
+                replyText += `\n\n🎉「${diaryResult.title_ja}」の称号バッジをプレゼントしたよ！\n※バッジを表示するにはラベラー（ https://bsky.app/profile/labeler-bot-tan.suibari.com ）を登録してね`;
             } else {
                 replyText += `\n\n🎉 I've gifted you the title badge "${diaryResult.title_en}"!\n*To show the badge, please subscribe to the labeler ( https://bsky.app/profile/labeler-bot-tan.suibari.com ).`;
             }

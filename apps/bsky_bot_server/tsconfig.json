@@ -8,7 +8,8 @@
     "moduleResolution": "NodeNext",
     "target": "ES2023",
     "lib": [
-      "ES2023"
+      "ES2023",
+      "DOM"
     ],
     "noImplicitAny": false
   },
