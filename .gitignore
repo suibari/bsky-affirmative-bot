@@ -9,3 +9,4 @@ service-account.json
 *.db
 *.db-shm
 *.db-wal
+*_cache.json

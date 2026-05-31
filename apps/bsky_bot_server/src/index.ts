@@ -4,7 +4,7 @@ import { agent, initAgent } from "./bsky/agent.js";
 import { startWebSocket } from "./bsky/jetstream.js";
 import { scheduleAllUserDiaries } from "./features/DiaryFeature.js";
 import { scheduleSubscriberLabelSync } from "./features/SubscriberLabelFeature.js";
-import { updateFollowers } from "./bsky/followerManagement.js";
+import { updateFollowers, loadFollowersFromCache } from "./bsky/followerManagement.js";
 import { onPost, onFollow, onLike } from "./bsky/callbacks.js";
 import { router } from "./routes.js";
 import axios from "axios";
@@ -27,6 +27,9 @@ app.listen(PORT, async () => {
     await initializeDatabases();
 
     await initAgent();
+    
+    // 起動時にまずファイルキャッシュからフォロワー情報を復元（一瞬で完了）
+    await loadFollowersFromCache();
     
     // フォロワー取得は時間がかかるため非同期で実行し、ブロックしない
     updateFollowers().catch(e => {
