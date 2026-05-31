@@ -13,7 +13,9 @@ export async function getPds(did: string): Promise<string> {
 
   if (did.startsWith("did:plc:")) {
     doc = await fetch(`https://plc.directory/${did}`, {
-      cache: "no-store",
+      headers: {
+        "Cache-Control": "no-cache",
+      },
     }).then((res: any) => {
       if (!res.ok) throw new Error(`Failed to fetch PLC document: ${res.statusText}`);
       return res.json() as Promise<DidDocument>;
@@ -21,7 +23,9 @@ export async function getPds(did: string): Promise<string> {
   } else if (did.startsWith("did:web:")) {
     const didDomain = did.split(":")[2];
     doc = await fetch(`https://${didDomain}/.well-known/did.json`, {
-      cache: "no-store",
+      headers: {
+        "Cache-Control": "no-cache",
+      },
     }).then((res: any) => {
       if (!res.ok) throw new Error(`Failed to fetch DID document: ${res.statusText}`);
       return res.json() as Promise<DidDocument>;

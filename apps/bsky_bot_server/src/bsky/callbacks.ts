@@ -4,7 +4,7 @@ import { agent } from "./agent.js";
 import { features } from "../features/index.js";
 import { MemoryService, botBiothythmManager } from "@bsky-affirmative-bot/clients";
 import { followerMap, updateFollowers } from "./followerManagement.js";
-import { isMention, getLangStr, splitUri, isIgnoreTarget, hasNGWord, isIgnorePost, isReplyOrMentionToMe } from "./util.js";
+import { isMention, getLangStr, splitUri, isIgnoreTarget, hasNGWord, isIgnorePost, isReplyOrMentionToMe, hasBroadcastDomainLink, hasAffiliateDomainLink } from "./util.js";
 import { follow } from "./follow.js";
 import { replyGreets } from "./replyGreets.js";
 import retry from 'async-retry';
@@ -73,8 +73,13 @@ export async function onPost(event: any) {
           }
 
           // Bot check
-          if (await isBot(authorDid, agent)) {
-            console.log(`[INFO][${authorDid}] Ignored as bot account`);
+          if (await isBotUser(authorDid)) {
+            console.log(`[INFO][${authorDid}] Ignored as bot user`);
+            return;
+          }
+
+          if (await isAutoPost(authorDid, record, agent)) {
+            console.log(`[INFO][${authorDid}] Ignored as auto-post`);
             return;
           }
         }
@@ -218,8 +223,8 @@ export async function onLike(event: any) {
   }
 }
 
-async function isBot(did: string, agent: AtpAgent): Promise<boolean> {
-  let follower = followerMap.get(did);
+async function isBotUser(did: string): Promise<boolean> {
+  const follower = followerMap.get(did);
 
   if (follower) {
     // handle に "bot" が含まれているか（大文字小文字を区別しない）
@@ -234,36 +239,41 @@ async function isBot(did: string, agent: AtpAgent): Promise<boolean> {
     }
   }
 
-  // アフィリエイトbot検出
-  const response = await agent.getAuthorFeed({ actor: did, limit: 20 });
-  let linkCount = 0;
-  let hasReplyToOthers = false;
+  return false;
+}
 
-  for (const item of response.data.feed) {
-    const record = item.post.record as any;
+async function isAutoPost(did: string, record: AppBskyFeedPost.Record | any, agent: AtpAgent): Promise<boolean> {
+  // 配信ドメインリンクありの投稿 → 無視
+  if (hasBroadcastDomainLink(record)) {
+    console.log(`[INFO][${did}] AutoPost detected: post contains broadcast domain link`);
+    return true;
+  }
 
-    // リンクチェック (facets または embed.external)
-    const hasFacetLink = record.facets?.some((f: any) =>
-      f.features?.some((feat: any) => feat.$type === 'app.bsky.richtext.facet#link')
-    );
-    const hasExternalLink = record.embed?.$type === 'app.bsky.embed.external' || !!record.embed?.external;
+  // アフィドメインリンクありの投稿 → 無視
+  if (hasAffiliateDomainLink(record)) {
+    console.log(`[INFO][${did}] AutoPost detected: post contains affiliate domain link`);
+    return true;
+  }
 
-    if (hasFacetLink || hasExternalLink) {
-      linkCount++;
-    }
+  // 直近20件にアフィドメインリンクを8件以上含む → 無視
+  try {
+    const response = await agent.getAuthorFeed({ actor: did, limit: 20 });
+    let affiliateLinkCount = 0;
 
-    // リプライチェック (自分以外へのリプライがあるか)
-    if (record.reply) {
-      const parentAuthorDid = splitUri(record.reply.parent.uri).did;
-      if (parentAuthorDid !== did) {
-        hasReplyToOthers = true;
+    for (const item of response.data.feed) {
+      const feedRecord = item.post.record as any;
+      if (hasAffiliateDomainLink(feedRecord)) {
+        affiliateLinkCount++;
       }
     }
+
+    if (affiliateLinkCount >= 8) {
+      console.log(`[INFO][${did}] AutoPost detected: ${affiliateLinkCount} affiliate domain links in last 20 posts`);
+      return true;
+    }
+  } catch (err: any) {
+    console.warn(`[WARN][${did}] Failed to fetch author feed for affiliate check:`, err.message);
   }
 
-  const isDetected = linkCount >= 8 && !hasReplyToOthers;
-  if (isDetected) {
-    console.log(`[INFO][${did}] Bot detected: ${linkCount} links in last 20 posts`);
-  }
-  return isDetected;
+  return false;
 }

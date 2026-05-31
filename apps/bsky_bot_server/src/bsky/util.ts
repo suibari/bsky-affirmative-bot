@@ -255,3 +255,124 @@ export function sanitizeDidToLexiconValue(did: string): string {
   return sanitized.replace(/[0-9]/g, (m) => numMap[m]);
 }
 
+/**
+ * アフィリエイトドメインリスト
+ */
+export const AFFILIATE_DOMAINS = [
+  // 国内
+  'a8.net', 'px.a8.net',
+  'afl.rakuten.co.jp', 'hb.afl.rakuten.co.jp',
+  'af.moshimo.com',
+  'ck.jp.ap.valuecommerce.com',
+  'amzn.to',
+  // 海外
+  'shareasale.com',
+  'awin1.com', 'awinmid.com',
+  'pjatr.com',
+  'anrdoezrs.net', 'dpbolvw.net', 'jdoqocy.com', 'kqzyfj.com', 'tkqlhce.com', // CJ
+  'clkbank.com', 'hop.clickbank.net',
+  'impactradius-go.com',
+  'go.skimresources.com',
+  'rstyle.me',
+  'linksynergy.com'
+];
+
+/**
+ * 配信ドメインリスト
+ */
+export const BROADCAST_DOMAINS = [
+  'twitch.tv', 'www.twitch.tv',
+  'youtube.com', 'www.youtube.com', 'youtu.be',
+  'nba.com', 'www.nba.com',
+  'nba.smart.link',
+  'espn.com', 'www.espn.com',
+  'stream.place',
+  'skylight.social',
+  'bluecast.app', 'www.bluecast.app'
+];
+
+/**
+ * ポスト（およびその外部埋め込み）からドメインの一覧を取得する
+ * @param record ポストのレコード
+ */
+export function getDomainsFromPost(record: AppBskyFeedPost.Record | any): string[] {
+  const urls: string[] = [];
+  if (record?.facets) {
+    for (const facet of record.facets) {
+      if (facet.features) {
+        for (const feature of facet.features) {
+          if (feature.$type === 'app.bsky.richtext.facet#link' && typeof feature.uri === 'string') {
+            urls.push(feature.uri);
+          }
+        }
+      }
+    }
+  }
+  if (record?.embed) {
+    const embed = record.embed as any;
+    
+    // 外部埋め込みのリンクを抽出するヘルパー
+    const extractFromExternal = (ext: any) => {
+      if (ext && typeof ext.uri === 'string') {
+        urls.push(ext.uri);
+      }
+    };
+
+    if (embed.$type === 'app.bsky.embed.external') {
+      extractFromExternal(embed.external);
+    } else if (embed.$type === 'app.bsky.embed.recordWithMedia' && embed.media) {
+      if (embed.media.$type === 'app.bsky.embed.external') {
+        extractFromExternal(embed.media.external);
+      } else if (embed.media.external) {
+        extractFromExternal(embed.media.external);
+      }
+    } else if (embed.external) {
+      extractFromExternal(embed.external);
+    }
+  }
+
+  const domains = urls.map(url => {
+    try {
+      let formattedUrl = url;
+      if (!/^https?:\/\//i.test(url)) {
+        formattedUrl = 'https://' + url;
+      }
+      const parsed = new URL(formattedUrl);
+      return parsed.hostname.toLowerCase();
+    } catch {
+      return '';
+    }
+  }).filter(domain => domain !== '');
+
+  return domains;
+}
+
+/**
+ * ドメインが指定されたリスト内のいずれかに一致するか判定する
+ * @param domain 対象ドメイン
+ * @param list ドメインリスト
+ */
+export function matchesDomainList(domain: string, list: string[]): boolean {
+  const normalizedDomain = domain.toLowerCase();
+  return list.some(item => {
+    const normalizedItem = item.toLowerCase();
+    return normalizedDomain === normalizedItem || normalizedDomain.endsWith('.' + normalizedItem);
+  });
+}
+
+/**
+ * 配信ドメインリンクが含まれているか判定する
+ */
+export function hasBroadcastDomainLink(record: AppBskyFeedPost.Record | any): boolean {
+  const domains = getDomainsFromPost(record);
+  return domains.some(domain => matchesDomainList(domain, BROADCAST_DOMAINS));
+}
+
+/**
+ * アフィリエイトドメインリンクが含まれているか判定する
+ */
+export function hasAffiliateDomainLink(record: AppBskyFeedPost.Record | any): boolean {
+  const domains = getDomainsFromPost(record);
+  return domains.some(domain => matchesDomainList(domain, AFFILIATE_DOMAINS));
+}
+
