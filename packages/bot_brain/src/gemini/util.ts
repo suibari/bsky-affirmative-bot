@@ -1,4 +1,4 @@
-import { PartListUnion, Type } from "@google/genai";
+import { PartListUnion, Type, ServiceTier } from "@google/genai";
 import { gemini } from "./index.js";
 import { MODEL_GEMINI, SYSTEM_INSTRUCTION, POST_TEXT_LIMIT } from "@bsky-affirmative-bot/shared-configs";
 import { UserInfoGemini, GeminiScore } from "@bsky-affirmative-bot/shared-configs";
@@ -61,6 +61,7 @@ export async function generateSingleResponse(prompt: string, userinfo?: UserInfo
     contents,
     config: {
       systemInstruction: SYSTEM_INSTRUCTION,
+      serviceTier: userinfo?.isSubscriber ? ServiceTier.STANDARD : ServiceTier.FLEX,
       tools: [
         {
           googleSearch: {},
@@ -149,6 +150,7 @@ export async function generateSingleResponseWithScore(prompt: string, userinfo?:
     contents,
     config: {
       systemInstruction: SYSTEM_INSTRUCTION,
+      serviceTier: userinfo?.isSubscriber ? ServiceTier.STANDARD : ServiceTier.FLEX,
       // responseMimeType: "application/json", // Removed
       // responseSchema, // Removed
       tools

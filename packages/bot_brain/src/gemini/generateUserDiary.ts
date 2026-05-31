@@ -1,4 +1,4 @@
-import { Type } from "@google/genai";
+import { Type, ServiceTier } from "@google/genai";
 import { generateContentWithRetry } from "./util.js";
 import { UserInfoGemini, MODEL_GEMINI, SYSTEM_INSTRUCTION } from "@bsky-affirmative-bot/shared-configs";
 
@@ -86,6 +86,7 @@ Today's posts: ${userinfo.posts || ""}
     contents,
     config: {
       systemInstruction: SYSTEM_INSTRUCTION,
+      serviceTier: userinfo.isSubscriber ? ServiceTier.STANDARD : ServiceTier.FLEX,
       responseMimeType: "application/json",
       responseSchema: {
         type: Type.OBJECT,

@@ -1,4 +1,4 @@
-import { Type } from "@google/genai";
+import { Type, ServiceTier } from "@google/genai";
 import { gemini } from "./index.js";
 import { generateContentWithRetry } from "./util.js";
 import { getRandomItems, UserInfoGemini, MODEL_GEMINI, SYSTEM_INSTRUCTION } from "@bsky-affirmative-bot/shared-configs";
@@ -85,6 +85,7 @@ ${getRandomItems(part_prompt_luckys, 3)}
     contents,
     config: {
       systemInstruction: SYSTEM_INSTRUCTION,
+      serviceTier: userinfo.isSubscriber ? ServiceTier.STANDARD : ServiceTier.FLEX,
       responseMimeType: "application/json",
       responseSchema: {
         type: Type.OBJECT,

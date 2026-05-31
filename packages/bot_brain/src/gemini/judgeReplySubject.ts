@@ -1,4 +1,4 @@
-import { PartListUnion, Type } from "@google/genai";
+import { PartListUnion, Type, ServiceTier } from "@google/genai";
 import { MODEL_GEMINI, SYSTEM_INSTRUCTION, MODEL_GEMINI_LITE } from "@bsky-affirmative-bot/shared-configs";
 import { UserInfoGemini, GeminiScore } from "@bsky-affirmative-bot/shared-configs";
 import { gemini } from "./index.js";
@@ -61,6 +61,7 @@ commentには、そう判断した理由を出力してください。
     config: {
       responseMimeType: "application/json",
       responseSchema: SCHEMA_CHECKCHEER,
+      serviceTier: userinfo.isSubscriber ? ServiceTier.STANDARD : ServiceTier.FLEX,
     }
   });
   const result = JSON.parse(response.text || "") as GeminiJudgeResult[];
