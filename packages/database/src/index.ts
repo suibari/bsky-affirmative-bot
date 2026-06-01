@@ -1,4 +1,4 @@
-import { db, initializeDatabases, bot_state, followers, posts, likes, replies, affirmations, interaction, subscribers, biorhythm_history } from './db.js';
+import { db, initializeDatabases, bot_state, followers, posts, likes, replies, affirmations, interaction, subscribers, biorhythm_history, gifts } from './db.js';
 import { eq, desc, sql, gte, and } from 'drizzle-orm';
 import { LanguageName, LIMIT_REQUEST_PER_DAY_GEMINI } from '@bsky-affirmative-bot/shared-configs';
 
@@ -569,6 +569,41 @@ export class MemoryService {
     } catch (e) {
       console.error("Failed to get interactions since:", since, e);
       return [];
+    }
+  }
+
+  static async getNewGifts(): Promise<any[]> {
+    try {
+      return await db.select()
+        .from(gifts)
+        .where(eq(gifts.status, 'new'))
+        .orderBy(gifts.created_at);
+    } catch (e) {
+      console.error("Failed to get new gifts:", e);
+      return [];
+    }
+  }
+
+  static async getRandomGift(): Promise<any | null> {
+    try {
+      const result = await db.select()
+        .from(gifts)
+        .orderBy(sql`RANDOM()`)
+        .limit(1);
+      return result[0] ?? null;
+    } catch (e) {
+      console.error("Failed to get random gift:", e);
+      return null;
+    }
+  }
+
+  static async updateGiftStatus(id: number, status: "introduced" | "used"): Promise<void> {
+    try {
+      await db.update(gifts)
+        .set({ status })
+        .where(eq(gifts.id, id));
+    } catch (e) {
+      console.error(`Failed to update gift status for id ${id}:`, e);
     }
   }
 }

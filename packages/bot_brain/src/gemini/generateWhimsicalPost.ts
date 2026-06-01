@@ -24,6 +24,7 @@ export class WhimsicalPostGenerator {
     langStr: LanguageName,
     currentMood: string,
     userReplies?: string[],
+    giftContext?: { content: string; displayName: string; type: "introduced" | "used" },
   }) {
     const lang = params.langStr;
     const history = this.historyMap[lang] ?? [];
@@ -57,6 +58,10 @@ export class WhimsicalPostGenerator {
   What day is Today: ${wantElement.whatDay}
   All news: ${wantElement.positiveNews ?? "none"}
   BotFunction: ${botFunction}
+  ${params.giftContext ? `Gift: ${params.giftContext.type === "introduced"
+    ? `You just received a gift from ${params.giftContext.displayName}: "${params.giftContext.content}". Mention how happy you are to have received it.`
+    : `You used a past gift you received from ${params.giftContext.displayName}: "${params.giftContext.content}". Share how you enjoyed using it.`
+  }` : ""}
 
   Return a function call to composePostStructure.`
           }]
@@ -190,7 +195,8 @@ Structure: ${JSON.stringify(structure)}`
               replyAction: { type: Type.STRING },
               whatDay: { type: Type.STRING },
               positiveNews: { type: Type.STRING },
-              botFunction: { type: Type.STRING }
+              botFunction: { type: Type.STRING },
+              giftMention: { type: Type.STRING },
             },
             required: ["greeting", "currentMood", "whatDay", "botFunction"],
           },

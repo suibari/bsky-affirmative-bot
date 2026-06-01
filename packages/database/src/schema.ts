@@ -98,3 +98,12 @@ export const biorhythm_history = affirmativeBotSchema.table("biorhythm_history",
   energy: integer("energy").notNull(),
   created_at: timestamp("created_at").defaultNow().notNull(),
 });
+
+export const gifts = affirmativeBotSchema.table("gifts", {
+  id: serial("id").primaryKey(),
+  did: text("did").notNull(),
+  content: text("content").notNull(),
+  created_at: timestamp("created_at").defaultNow().notNull(),
+  status: text("status").default("new").notNull(),
+  // "new": 未言及, "introduced": 新着紹介済み, "used": 使用報告済み（再選択あり）
+});

@@ -28,6 +28,24 @@ export async function doWhimsicalPost(currentMood: string) {
         console.error("Failed to get unread replied", e);
     }
 
+    // ギフトコンテキストを決定
+    let giftContext: { content: string; displayName: string; type: "introduced" | "used" } | undefined;
+    let giftIdToUpdate: number | undefined;
+
+    const newGifts = await MemoryService.getNewGifts();
+    if (newGifts.length > 0) {
+        const gift = newGifts[0];
+        const displayName = await fetchDisplayName(gift.did);
+        giftContext = { content: gift.content, displayName, type: "introduced" };
+        giftIdToUpdate = gift.id;
+    } else if (Math.random() < 0.5) {
+        const randomGift = await MemoryService.getRandomGift();
+        if (randomGift) {
+            const displayName = await fetchDisplayName(randomGift.did);
+            giftContext = { content: randomGift.content, displayName, type: "used" };
+            giftIdToUpdate = randomGift.id;
+        }
+    }
 
     // Step1: ポスト文生成
     // const currentMood = botBiothythmManager.getMood; // Removed, using arg
@@ -37,6 +55,7 @@ export async function doWhimsicalPost(currentMood: string) {
                 langStr: langStr,
                 currentMood,
                 userReplies: userReplies ?? undefined,
+                giftContext,
             });
             if (!generatedText) {
                 throw new Error("Whimsical post generation failed, retrying...");
@@ -88,6 +107,11 @@ export async function doWhimsicalPost(currentMood: string) {
     text_bot += songInfo;
 
     const { uri, cid } = await postContinuous(text_bot);
+
+    // ギフトのstatusを更新
+    if (giftIdToUpdate !== undefined && giftContext) {
+        await MemoryService.updateGiftStatus(giftIdToUpdate, giftContext.type);
+    }
 
     // 投稿URIを保存 (リプライに反応するようにするため)
     await MemoryService.setWhimsicalPostRoots([uri]);
@@ -247,6 +271,18 @@ export async function doGoodNightPost(mood: string) {
         await MemoryService.resetDailyStats();
         // 1日のテーブルクリア
         await MemoryService.clearPosts();
+    }
+}
+
+async function fetchDisplayName(did: string): Promise<string> {
+    try {
+        const res = await fetch(`https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile?actor=${encodeURIComponent(did)}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const profile = await res.json() as { displayName?: string; handle?: string };
+        return profile.displayName || profile.handle || did;
+    } catch (e) {
+        console.error(`[WARN] Failed to fetch display name for ${did}:`, e);
+        return did;
     }
 }
 
