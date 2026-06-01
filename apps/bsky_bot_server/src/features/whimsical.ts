@@ -219,18 +219,20 @@ export async function doGoodNightPost(mood: string) {
                 }
             }
 
-            // 当日の新着ギフット確認
-            let goodNightGiftContext: { content: string; displayName: string } | undefined;
-            let goodNightGiftId: number | undefined;
+            // 当日の新着ギフット確認（全候補のdisplayNameを取得してGeminiに渡す）
+            let giftCandidates: { id: number; content: string; displayName: string }[] | undefined;
             const todayGifts = await MemoryService.getTodayNewGifts();
             if (todayGifts.length > 0) {
-                const gift = todayGifts[0];
-                const displayName = await fetchDisplayName(gift.did);
-                goodNightGiftContext = { content: gift.content, displayName };
-                goodNightGiftId = gift.id;
+                giftCandidates = await Promise.all(
+                    todayGifts.map(async (g: any) => ({
+                        id: g.id,
+                        content: g.content,
+                        displayName: await fetchDisplayName(g.did),
+                    }))
+                );
             }
 
-            // Gemini生成
+            // Gemini生成（プレゼント候補を渡し、感性で選択しつつあいさつ生成）
             const goodNightResult = await generateGoodNight({
                 topFollower: topPostData.topFollower ?? undefined,
                 topPost: topPostData.post,
@@ -240,7 +242,7 @@ export async function doGoodNightPost(mood: string) {
                 followerMilestone: followerMilestone,
                 diaryUrl: diaryUrl,
                 diaryUrlEn: diaryUrlEn,
-                giftContext: goodNightGiftContext,
+                giftCandidates,
             });
 
             const uris: string[] = [];
@@ -262,9 +264,11 @@ export async function doGoodNightPost(mood: string) {
                 await MemoryService.setWhimsicalPostRoots(uris);
             }
 
-            // ギフットのstatusを更新
-            if (goodNightGiftId !== undefined) {
-                await MemoryService.updateGiftStatus(goodNightGiftId, "introduced");
+            // ギフットのstatusを更新（Geminiが選んだプレゼントのみ）
+            if (giftCandidates && giftCandidates.length > 0) {
+                const idx = goodNightResult.selectedGiftIndex ?? 0;
+                const selectedGift = giftCandidates[idx] ?? giftCandidates[0];
+                await MemoryService.updateGiftStatus(selectedGift.id, "introduced");
             }
         } else {
             console.log("[INFO] No valid top post found after trying all highest score entries.");

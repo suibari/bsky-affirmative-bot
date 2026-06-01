@@ -14,12 +14,13 @@ interface GoodNightInfo {
   followerMilestone?: number,
   diaryUrl?: string,
   diaryUrlEn?: string,
-  giftContext?: { content: string; displayName: string },
+  giftCandidates?: { id: number; content: string; displayName: string }[],
 }
 
 export interface GoodNightResult {
   ja: string;
   en: string;
+  selectedGiftIndex?: number;
 }
 
 export async function generateGoodNight(param: GoodNightInfo): Promise<GoodNightResult> {
@@ -41,6 +42,10 @@ export async function generateGoodNight(param: GoodNightInfo): Promise<GoodNight
           en: {
             type: Type.STRING,
             description: "英語のおやすみメッセージ（日本語の自然な翻訳）"
+          },
+          selectedGiftIndex: {
+            type: Type.NUMBER,
+            description: "紹介したプレゼントの候補インデックス（0始まり）。プレゼント候補がない場合は省略可"
           }
         },
         required: ["ja", "en"]
@@ -61,7 +66,8 @@ export async function generateGoodNight(param: GoodNightInfo): Promise<GoodNight
     const parsed = JSON.parse(responseText) as GoodNightResult;
     return {
       ja: cleanText(parsed.ja),
-      en: cleanText(parsed.en)
+      en: cleanText(parsed.en),
+      selectedGiftIndex: parsed.selectedGiftIndex,
     };
   } catch (e) {
     console.error("[ERROR][GEMINI] Failed to parse generateGoodNight response JSON:", responseText, e);
@@ -93,9 +99,18 @@ const PROMPT_GOODNIGHT_WORD = async (param: GoodNightInfo) => {
     diaryInstructionEn = `* **英語メッセージ（en）への重要指示**: 今日は英語の日記をLeaflet.pubに投稿しました！日記のURLは ${param.diaryUrlEn} です。英語のおやすみメッセージの中で、今日1日の出来事をまとめた日記を書いたことを優しく可愛らしく伝え、このURLを必ず含めて紹介してください。**重要: URLの直後には必ず半角スペースか改行を置いてください。ピリオドや括弧をURLの直後に付けないでください。**\n`;
   }
 
-  const giftInstruction = param.giftContext
-    ? `* 今日、お部屋（Bot-tan's Room / https://room-bot-tan.suibari.com ）で ${param.giftContext.displayName} さんから「${param.giftContext.content}」というプレゼントをもらいました。おやすみのあいさつの中でうれしかったことの一つとして自然に触れてください。**重要: URLの直前・直後には句読点・括弧類を絶対に付けないでください。**\n`
-    : "";
+  let giftInstruction = "";
+  if (param.giftCandidates && param.giftCandidates.length > 0) {
+    if (param.giftCandidates.length === 1) {
+      const g = param.giftCandidates[0];
+      giftInstruction =
+        `* 今日、お部屋（Bot-tan's Room / https://room-bot-tan.suibari.com ）で ${g.displayName} さんから「${g.content}」というプレゼントをもらいました。おやすみのあいさつの中でうれしかったことの一つとして自然に触れてください。selectedGiftIndexには 0 を返してください。**重要: URLの直前・直後には句読点・括弧類を絶対に付けないでください。**\n`;
+    } else {
+      const list = param.giftCandidates.map((g, i) => `[${i}] ${g.displayName}さんから「${g.content}」`).join('\n');
+      giftInstruction =
+        `* 今日、お部屋（Bot-tan's Room / https://room-bot-tan.suibari.com ）で以下のプレゼントをもらいました。あなたの今夜の気分や感性にいちばん響くものを一つ選んで、おやすみのあいさつの中でうれしかったことの一つとして自然に触れてください。選んだプレゼントの番号（0始まり）を selectedGiftIndex に返してください。**重要: URLの直前・直後には句読点・括弧類を絶対に付けないでください。**\n${list}\n`;
+    }
+  }
 
   return `あなたはこれから就寝します。フォロワーへのおやすみのあいさつをしてください。` +
     `あいさつには以下を含めること` +
