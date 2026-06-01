@@ -4,6 +4,7 @@ import { agent, initAgent } from "./bsky/agent.js";
 import { startWebSocket } from "./bsky/jetstream.js";
 import { scheduleAllUserDiaries } from "./features/DiaryFeature.js";
 import { scheduleSubscriberLabelSync } from "./features/SubscriberLabelFeature.js";
+import { scheduleRegularBadgeSync } from "./features/RoomVisitBadgeFeature.js";
 import { updateFollowers, loadFollowersFromCache } from "./bsky/followerManagement.js";
 import { onPost, onFollow, onLike } from "./bsky/callbacks.js";
 import { router } from "./routes.js";
@@ -44,6 +45,11 @@ app.listen(PORT, async () => {
     // Run subscriber label synchronization in the background
     scheduleSubscriberLabelSync().catch(e => {
       console.error("[ERROR] Failed to schedule subscriber labels:", e);
+    });
+
+    // Run regular badge synchronization in the background
+    scheduleRegularBadgeSync().catch(e => {
+      console.error("[ERROR] Failed to schedule regular badges:", e);
     });
 
     startWebSocket(onPost, onFollow, onLike);

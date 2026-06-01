@@ -210,6 +210,10 @@ export class MemoryService {
     return await db.select().from(followers).where(sql`${sql.identifier(column)} = ${value}`);
   }
 
+  static async getPendingBadgeFollowers(): Promise<any[]> {
+    return await db.select().from(followers).where(eq(followers.room_badge_pending, 1));
+  }
+
   static async updateFollower(did: string, column: string, value: any) {
     await db.update(followers)
       .set({ [column]: value, updated_at: new Date() })
