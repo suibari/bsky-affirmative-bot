@@ -28,22 +28,16 @@ export async function doWhimsicalPost(currentMood: string) {
         console.error("Failed to get unread replied", e);
     }
 
-    // ギフトコンテキストを決定
-    let giftContext: { content: string; displayName: string; type: "introduced" | "used" } | undefined;
+    // ギフトコンテキストを決定（3日以上前のギフット、50%確率）
+    let giftContext: { content: string; displayName: string; type: "used" } | undefined;
     let giftIdToUpdate: number | undefined;
 
-    const newGifts = await MemoryService.getNewGifts();
-    if (newGifts.length > 0) {
-        const gift = newGifts[0];
-        const displayName = await fetchDisplayName(gift.did);
-        giftContext = { content: gift.content, displayName, type: "introduced" };
-        giftIdToUpdate = gift.id;
-    } else if (Math.random() < 0.5) {
-        const randomGift = await MemoryService.getRandomGift();
-        if (randomGift) {
-            const displayName = await fetchDisplayName(randomGift.did);
-            giftContext = { content: randomGift.content, displayName, type: "used" };
-            giftIdToUpdate = randomGift.id;
+    if (Math.random() < 0.5) {
+        const oldGift = await MemoryService.getRandomOldGift();
+        if (oldGift) {
+            const displayName = await fetchDisplayName(oldGift.did);
+            giftContext = { content: oldGift.content, displayName, type: "used" };
+            giftIdToUpdate = oldGift.id;
         }
     }
 
@@ -225,6 +219,17 @@ export async function doGoodNightPost(mood: string) {
                 }
             }
 
+            // 当日の新着ギフット確認
+            let goodNightGiftContext: { content: string; displayName: string } | undefined;
+            let goodNightGiftId: number | undefined;
+            const todayGifts = await MemoryService.getTodayNewGifts();
+            if (todayGifts.length > 0) {
+                const gift = todayGifts[0];
+                const displayName = await fetchDisplayName(gift.did);
+                goodNightGiftContext = { content: gift.content, displayName };
+                goodNightGiftId = gift.id;
+            }
+
             // Gemini生成
             const goodNightResult = await generateGoodNight({
                 topFollower: topPostData.topFollower ?? undefined,
@@ -235,6 +240,7 @@ export async function doGoodNightPost(mood: string) {
                 followerMilestone: followerMilestone,
                 diaryUrl: diaryUrl,
                 diaryUrlEn: diaryUrlEn,
+                giftContext: goodNightGiftContext,
             });
 
             const uris: string[] = [];
@@ -254,6 +260,11 @@ export async function doGoodNightPost(mood: string) {
             // 投稿URIを保存 (リプライに反応するようにするため)
             if (uris.length > 0) {
                 await MemoryService.setWhimsicalPostRoots(uris);
+            }
+
+            // ギフットのstatusを更新
+            if (goodNightGiftId !== undefined) {
+                await MemoryService.updateGiftStatus(goodNightGiftId, "introduced");
             }
         } else {
             console.log("[INFO] No valid top post found after trying all highest score entries.");

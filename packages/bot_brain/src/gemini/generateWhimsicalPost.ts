@@ -24,7 +24,7 @@ export class WhimsicalPostGenerator {
     langStr: LanguageName,
     currentMood: string,
     userReplies?: string[],
-    giftContext?: { content: string; displayName: string; type: "introduced" | "used" },
+    giftContext?: { content: string; displayName: string; type: "used" },
   }) {
     const lang = params.langStr;
     const history = this.historyMap[lang] ?? [];
@@ -58,10 +58,7 @@ export class WhimsicalPostGenerator {
   What day is Today: ${wantElement.whatDay}
   All news: ${wantElement.positiveNews ?? "none"}
   BotFunction: ${botFunction}
-  ${params.giftContext ? `Gift: ${params.giftContext.type === "introduced"
-    ? `You just received a gift from ${params.giftContext.displayName}: "${params.giftContext.content}". Mention how happy you are to have received it.`
-    : `You used a past gift you received from ${params.giftContext.displayName}: "${params.giftContext.content}". Share how you enjoyed using it.`
-  }` : ""}
+  ${params.giftContext ? `Gift: You used a past gift you received from ${params.giftContext.displayName} in your room service (Bot-tan's Room / https://room-bot-tan.suibari.com): "${params.giftContext.content}". Share how you enjoyed using it, and note that you originally received it in your room.` : ""}
 
   Return a function call to composePostStructure.`
           }]

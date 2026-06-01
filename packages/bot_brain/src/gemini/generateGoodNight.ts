@@ -14,6 +14,7 @@ interface GoodNightInfo {
   followerMilestone?: number,
   diaryUrl?: string,
   diaryUrlEn?: string,
+  giftContext?: { content: string; displayName: string },
 }
 
 export interface GoodNightResult {
@@ -92,6 +93,10 @@ const PROMPT_GOODNIGHT_WORD = async (param: GoodNightInfo) => {
     diaryInstructionEn = `* **英語メッセージ（en）への重要指示**: 今日は英語の日記をLeaflet.pubに投稿しました！日記のURLは ${param.diaryUrlEn} です。英語のおやすみメッセージの中で、今日1日の出来事をまとめた日記を書いたことを優しく可愛らしく伝え、このURLを必ず含めて紹介してください。**重要: URLの直後には必ず半角スペースか改行を置いてください。ピリオドや括弧をURLの直後に付けないでください。**\n`;
   }
 
+  const giftInstruction = param.giftContext
+    ? `* 今日、お部屋（Bot-tan's Room / https://room-bot-tan.suibari.com ）で ${param.giftContext.displayName} さんから「${param.giftContext.content}」というプレゼントをもらいました。おやすみのあいさつの中でうれしかったことの一つとして自然に触れてください。**重要: URLの直前・直後には句読点・括弧類を絶対に付けないでください。**\n`
+    : "";
+
   return `あなたはこれから就寝します。フォロワーへのおやすみのあいさつをしてください。` +
     `あいさつには以下を含めること` +
     `* おやすみのメッセージ` +
@@ -101,6 +106,7 @@ const PROMPT_GOODNIGHT_WORD = async (param: GoodNightInfo) => {
     `* 今回紹介したTOPポストのユーザー（紹介したフォロワー）には『全肯定バッジ』をプレゼントしたこと` +
     `* バッジの表示には、ラベラーアカウント（https://bsky.app/profile/labeler-bot-tan.suibari.com ）を登録（サブスクライブ）する必要があること` +
     milestoneInstruction +
+    giftInstruction +
     diaryInstructionJa +
     diaryInstructionEn +
     `あいさつのルール:` +

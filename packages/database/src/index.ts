@@ -1,5 +1,5 @@
 import { db, initializeDatabases, bot_state, followers, posts, likes, replies, affirmations, interaction, subscribers, biorhythm_history, gifts } from './db.js';
-import { eq, desc, sql, gte, and } from 'drizzle-orm';
+import { eq, desc, sql, gte, lte, and } from 'drizzle-orm';
 import { LanguageName, LIMIT_REQUEST_PER_DAY_GEMINI } from '@bsky-affirmative-bot/shared-configs';
 
 export { initializeDatabases, db, subscribers };
@@ -572,27 +572,32 @@ export class MemoryService {
     }
   }
 
-  static async getNewGifts(): Promise<any[]> {
+  static async getTodayNewGifts(): Promise<any[]> {
     try {
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
       return await db.select()
         .from(gifts)
-        .where(eq(gifts.status, 'new'))
+        .where(and(eq(gifts.status, 'new'), gte(gifts.created_at, todayStart)))
         .orderBy(gifts.created_at);
     } catch (e) {
-      console.error("Failed to get new gifts:", e);
+      console.error("Failed to get today's new gifts:", e);
       return [];
     }
   }
 
-  static async getRandomGift(): Promise<any | null> {
+  static async getRandomOldGift(): Promise<any | null> {
     try {
+      const threeDaysAgo = new Date();
+      threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
       const result = await db.select()
         .from(gifts)
+        .where(lte(gifts.updated_at, threeDaysAgo))
         .orderBy(sql`RANDOM()`)
         .limit(1);
       return result[0] ?? null;
     } catch (e) {
-      console.error("Failed to get random gift:", e);
+      console.error("Failed to get random old gift:", e);
       return null;
     }
   }
@@ -600,7 +605,7 @@ export class MemoryService {
   static async updateGiftStatus(id: number, status: "introduced" | "used"): Promise<void> {
     try {
       await db.update(gifts)
-        .set({ status })
+        .set({ status, updated_at: new Date() })
         .where(eq(gifts.id, id));
     } catch (e) {
       console.error(`Failed to update gift status for id ${id}:`, e);
