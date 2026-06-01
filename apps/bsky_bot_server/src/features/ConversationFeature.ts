@@ -211,6 +211,15 @@ export class ConversationFeature implements BotFeature {
 
         const final_text_bot = text_bot || "";
 
+        // 最後のユーザーターンをプロンプト全文から純粋な入力テキストのみに置換
+        const pureUserText = userinfo.posts?.[0] || "";
+        for (let i = new_history.length - 1; i >= 0; i--) {
+            if (new_history[i].role === "user") {
+                new_history[i] = { role: "user", parts: [{ text: pureUserText }] };
+                break;
+            }
+        }
+
         // イイネ応答
         const uri = uniteDidNsidRkey(event.did, event.commit.collection, event.commit.rkey);
         await like(uri, event.commit.cid);

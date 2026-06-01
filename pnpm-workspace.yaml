@@ -1,3 +1,8 @@
 packages:
   - 'apps/*'
   - 'packages/*'
+allowBuilds:
+  '@google/genai': true
+  canvas: true
+  esbuild: true
+  protobufjs: true
