@@ -579,6 +579,9 @@ export class MemoryService {
   static async getTodayNewGifts(): Promise<any[]> {
     try {
       const todayStart = new Date();
+      if (todayStart.getHours() < 4) {
+        todayStart.setDate(todayStart.getDate() - 1);
+      }
       todayStart.setHours(0, 0, 0, 0);
       return await db.select()
         .from(gifts)
