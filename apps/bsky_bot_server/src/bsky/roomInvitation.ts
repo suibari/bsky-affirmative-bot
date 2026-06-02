@@ -52,9 +52,9 @@ export async function checkAndSendRoomInvitation(
     const diffHours = diffMs / (1000 * 60 * 60);
     const diffDays = diffHours / 24;
 
-    // 条件判定: 最終来訪から24時間以上経過 かつ 7日以内
-    if (diffHours < 24 || diffDays > 7) {
-      console.log(`[INFO][ROOM_INVITE][${did}] Visit timing mismatch. Visit was ${diffHours.toFixed(1)}h ago (Requires 24h to 7d). Skipping.`);
+    // 条件判定: 最終来訪から5日以上経過 かつ 7日以内
+    if (diffDays < 5 || diffDays > 7) {
+      console.log(`[INFO][ROOM_INVITE][${did}] Visit timing mismatch. Visit was ${diffHours.toFixed(1)}h ago (Requires 5d to 7d). Skipping.`);
       return;
     }
 
