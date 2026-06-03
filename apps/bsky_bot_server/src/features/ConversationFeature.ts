@@ -6,7 +6,7 @@ import { followerMap } from "../bsky/followerManagement.js";
 import { isReplyOrMentionToMe, uniteDidNsidRkey, getImageUrl, getLangStr, sanitizeDidToLexiconValue } from "../bsky/util.js";
 import { AppBskyFeedPost } from "@atproto/api"; type Record = AppBskyFeedPost.Record;
 import { Content } from "@google/genai";
-import { Embed, GeminiResponseResult, UserInfoGemini, MAX_BOT_MEMORY } from "@bsky-affirmative-bot/shared-configs";
+import { Embed, GeminiResponseResult, UserInfoGemini } from "@bsky-affirmative-bot/shared-configs";
 import { parseEmbedPost } from '../bsky/parseEmbedPost.js';
 import { parseThread, ParsedThreadResult } from "../bsky/parseThread.js";
 import { handleMode } from "./utils.js";
@@ -221,14 +221,6 @@ export class ConversationFeature implements BotFeature {
         // イイネ応答
         const uri = uniteDidNsidRkey(event.did, event.commit.collection, event.commit.rkey);
         await like(uri, event.commit.cid);
-
-        // historyのクリップ処理
-        while (new_history.length > MAX_BOT_MEMORY) {
-            new_history.shift(); // 先頭から削除
-            if (new_history[0].role === "model") {
-                new_history.shift();
-            }
-        }
 
         // 初回の呼びかけまたは呼びかけし直しならreplyがないのでそのポストのcidを取得
         const rootCid = record.reply?.root.cid || String(event.commit.cid);

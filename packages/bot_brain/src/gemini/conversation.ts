@@ -4,11 +4,27 @@ import { MODEL_GEMINI, SYSTEM_INSTRUCTION, MODEL_GEMINI_HIGH } from "@bsky-affir
 import { UserInfoGemini, GeminiScore } from "@bsky-affirmative-bot/shared-configs";
 
 
+const MAX_GEMINI_TURNS = 50;
+
 export async function conversation(userinfo: UserInfoGemini) {
   const prompt = PROMPT_CONVERSATION(userinfo);
+
+  let historyForGemini = userinfo.history ? [...userinfo.history] : [];
+  if (historyForGemini.length > 0) {
+    while (historyForGemini.length > 0 && historyForGemini[historyForGemini.length - 1].role !== "model") {
+      historyForGemini.pop();
+    }
+    if (historyForGemini.length > MAX_GEMINI_TURNS * 2) {
+      historyForGemini = historyForGemini.slice(-MAX_GEMINI_TURNS * 2);
+    }
+    while (historyForGemini.length > 0 && historyForGemini[0].role !== "user") {
+      historyForGemini.shift();
+    }
+  }
+
   const chat = gemini.chats.create({
     model: MODEL_GEMINI_HIGH,
-    history: userinfo.history || undefined,
+    history: historyForGemini.length > 0 ? historyForGemini : undefined,
     config: {
       systemInstruction: SYSTEM_INSTRUCTION,
     }
