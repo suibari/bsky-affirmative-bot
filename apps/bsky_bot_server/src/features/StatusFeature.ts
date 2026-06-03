@@ -1,7 +1,7 @@
 import { CommitCreateEvent } from "@skyware/jetstream";
 import { AppBskyActorDefs } from "@atproto/api"; type ProfileView = AppBskyActorDefs.ProfileView;
 import { BotFeature, FeatureContext } from "./types.js";
-import { STATUS_CONFIRM_TRIGGER, NICKNAMES_BOT } from "@bsky-affirmative-bot/shared-configs";
+import { STATUS_CONFIRM_TRIGGER, NICKNAMES_BOT, MAX_BOT_MEMORY } from "@bsky-affirmative-bot/shared-configs";
 import { AppBskyFeedPost } from "@atproto/api"; type Record = AppBskyFeedPost.Record;
 import { handleMode, isPast } from "./utils.js";
 import { getLangStr, isReplyOrMentionToMe } from "../bsky/util.js";
@@ -68,7 +68,7 @@ export class StatusFeature implements BotFeature {
                 `占い: ${result.hoursFortune === null || result.hoursFortune >= 8 ? "enable" : "disable (クールタイム中)"}\n` +
                 `分析: ${result.daysAnalyze === null || result.daysAnalyze >= 1 ? "enable" : "disable (クールタイム中)"}\n` +
                 `応援: ${result.hoursCheer === null || result.hoursCheer >= 8 ? "enable" : "disable (クールタイム中)"}\n` +
-                `会話: ${result.convHistory} /100回\n` +
+                `会話: ${result.convHistory} /${MAX_BOT_MEMORY}回\n` +
                 `ユーザ記念日: ${result.userAnnivName && result.userAnnivDate ? `${result.userAnnivName} on ${result.userAnnivDate}` : ""}\n` :
                 `This is the status with ${userinfo.follower.displayName} and me!\n` +
                 `\n` +
@@ -79,7 +79,7 @@ export class StatusFeature implements BotFeature {
                 `Fortune: ${result.hoursFortune === null || result.hoursFortune >= 8 ? "enable" : "disable (on cooldown)"}\n` +
                 `Analyze: ${result.daysAnalyze === null || result.daysAnalyze >= 1 ? "enable" : "disable (on cooldown)"}\n` +
                 `Cheer: ${result.hoursCheer === null || result.hoursCheer >= 8 ? "enable" : "disable (on cooldown)"}\n` +
-                `Conversation: ${result.convHistory} /100times\n` +
+                `Conversation: ${result.convHistory} /${MAX_BOT_MEMORY}times\n` +
                 `User Anniversary: ${result.userAnnivName && result.userAnnivDate ? `${result.userAnnivName} on ${result.userAnnivDate}` : ""}\n`;
         }
         return undefined

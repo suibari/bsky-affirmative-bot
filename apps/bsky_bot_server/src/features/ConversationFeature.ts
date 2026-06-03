@@ -6,7 +6,7 @@ import { followerMap } from "../bsky/followerManagement.js";
 import { isReplyOrMentionToMe, uniteDidNsidRkey, getImageUrl, getLangStr, sanitizeDidToLexiconValue } from "../bsky/util.js";
 import { AppBskyFeedPost } from "@atproto/api"; type Record = AppBskyFeedPost.Record;
 import { Content } from "@google/genai";
-import { Embed, GeminiResponseResult, UserInfoGemini } from "@bsky-affirmative-bot/shared-configs";
+import { Embed, GeminiResponseResult, UserInfoGemini, MAX_BOT_MEMORY } from "@bsky-affirmative-bot/shared-configs";
 import { parseEmbedPost } from '../bsky/parseEmbedPost.js';
 import { parseThread, ParsedThreadResult } from "../bsky/parseThread.js";
 import { handleMode } from "./utils.js";
@@ -17,8 +17,6 @@ import { generateQuestionsAnswer } from "@bsky-affirmative-bot/bot-brain";
 import { postContinuous } from "../bsky/postContinuous.js";
 import { generateWhimsicalReply } from "@bsky-affirmative-bot/bot-brain";
 import { like } from "../bsky/like.js";
-
-const MAX_BOT_MEMORY = 100;
 
 export class ConversationFeature implements BotFeature {
     name = "Conversation";
