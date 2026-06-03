@@ -107,6 +107,8 @@ server.listen(PORT, async () => {
     await initializeDatabases();
 
     await manager.init();
+    const { scheduleRoomInteractionSync } = await import("./roomInteractionSync.js");
+    scheduleRoomInteractionSync(manager);
     await manager.step();
     console.log("[INFO] Biorhythm loop started.");
   } catch (e) {

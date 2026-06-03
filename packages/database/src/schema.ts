@@ -35,6 +35,7 @@ export const followers = affirmativeBotSchema.table("followers", {
   room_badge_pending: integer("room_badge_pending").default(0),
   regular_level: integer("regular_level").default(0),
   last_regular_badge_at: timestamp("last_regular_badge_at"),
+  room_interaction_count: integer("room_interaction_count").default(0),
 });
 
 export const posts = affirmativeBotSchema.table("posts", {

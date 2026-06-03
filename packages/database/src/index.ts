@@ -1,5 +1,5 @@
 import { db, initializeDatabases, bot_state, followers, posts, likes, replies, affirmations, interaction, subscribers, biorhythm_history, gifts } from './db.js';
-import { eq, desc, sql, gte, lte, and } from 'drizzle-orm';
+import { eq, desc, sql, gte, lte, and, gt } from 'drizzle-orm';
 import { LanguageName, LIMIT_REQUEST_PER_DAY_GEMINI } from '@bsky-affirmative-bot/shared-configs';
 
 export { initializeDatabases, db, subscribers };
@@ -212,6 +212,13 @@ export class MemoryService {
 
   static async getPendingBadgeFollowers(): Promise<any[]> {
     return await db.select().from(followers).where(eq(followers.room_badge_pending, 1));
+  }
+
+  static async getPendingInteractionFollowers(): Promise<{ did: string; room_interaction_count: number | null }[]> {
+    return await db
+      .select({ did: followers.did, room_interaction_count: followers.room_interaction_count })
+      .from(followers)
+      .where(gt(followers.room_interaction_count, 0));
   }
 
   static async updateFollower(did: string, column: string, value: any) {

@@ -130,6 +130,10 @@ export class BiorhythmManager extends EventEmitter {
     this.changeEnergy(200);
   }
 
+  addRoomInteraction(amount: number) {
+    this.changeEnergy(amount);
+  }
+
   get getEnergy(): number { return this.energy / 100; }
   get getMood(): string { return this.moodPrev; }
   get getMoodEn(): string { return this.moodPrevEn; }
