@@ -254,7 +254,7 @@ export class BiorhythmManager extends EventEmitter {
       await this.setOutput(status_text, status_text_en);
 
       // 活動ログをDBに保存
-      await MemoryService.addBiorhythmHistory(this.status, status_text, status_text_en, this.getEnergy);
+      await MemoryService.addBiorhythmHistory(this.status, status_text, status_text_en, Math.round(this.getEnergy));
 
       // おやすみポスト
       if (this.firstStepDone) {
