@@ -43,7 +43,9 @@ export class WhimsicalPostGenerator {
             text: `
   Create a structured SNS whimsical post.
   * "greeting": A cheerful greeting to start the post. **Take into consideration the "Date" below when greeting**. (Don't say "Good morning" at night.)
-  * "currentMood": Your current mood. Output the following "Mood" as is.
+  * ${params.giftContext
+    ? `"currentMood": You are currently enjoying a gift you received from ${params.giftContext.displayName}: "${params.giftContext.content}" in your room (Bot-tan's Room / https://room-bot-tan.suibari.com). Output this as your current mood/activity.`
+    : `"currentMood": Your current mood. Output the following "Mood" as is.`}
   * "replyAction": If your followers mention an object or place in "Follower replies", describe it as your activity. (If Follower replies is None, output "None".)
   * "whatDay": What day is it today? Please choose one that interests you and explain what kind of day it is.
   * "positiveNews": Positive news. Pick one thing that you think is positive. (If None, output "None".)
@@ -58,7 +60,6 @@ export class WhimsicalPostGenerator {
   What day is Today: ${wantElement.whatDay}
   All news: ${wantElement.positiveNews ?? "none"}
   BotFunction: ${botFunction}
-  ${params.giftContext ? `Gift: You used a past gift you received from ${params.giftContext.displayName} in your room service (Bot-tan's Room / https://room-bot-tan.suibari.com): "${params.giftContext.content}". Share how you enjoyed using it, and note that you originally received it in your room.` : ""}
 
   Return a function call to composePostStructure.`
           }]
@@ -158,6 +159,7 @@ Structure: ${JSON.stringify(structure)}`
       "botたんのイラストを見れるフィードの紹介：URLは https://bsky.app/profile/did:plc:uixgxpiqf4i63p6rgpu7ytmx/feed/196e948a58f4af5",
       "みんなで集まるファンコミュニティサーバー（Discord）の紹介：URLは https://discord.gg/hshXWQEMgu",
       "botたんのお部屋（Bot-tan's Room）というサービスがあり、たまに遊びに来てほしいことの紹介。URLは https://room-bot-tan.suibari.com",
+      "実はLeafletに日記を書いてるんだ、気が向いたら読んでねということの紹介。URLは https://leaflet.pub/p/bot-tan.suibari.com",
     ] : [
       "Introducing the AI only mode feature you have. You will give affirmative replies using only AI without using predefined replies. Users can enable it by replying \"AI only mode\".",
       "Introducing the Fortune Telling feature you have. You can get your fortune told once a day and receive a Today's Lucky Badge by replying \"Fortune\".",
@@ -171,6 +173,7 @@ Structure: ${JSON.stringify(structure)}`
       "Introducing the feed where the user can check bot-tan's illustration: URL: https://bsky.app/profile/did:plc:uixgxpiqf4i63p6rgpu7ytmx/feed/196e948a58f4af5",
       "Introducing the fan community server (Discord) where everyone gathers: URL: https://discord.gg/hshXWQEMgu",
       "Introducing Bot-tan's Room, a service where you can hang out. We'd love it if you came to visit occasionally! URL: https://room-bot-tan.suibari.com",
+      "Introducing bot-tan's Leaflet diary! I've been writing a diary there — feel free to read it when you're in the mood. URL: https://leaflet.pub/p/bot-tan.suibari.com",
     ]
     return getRandomItems(features, 1)[0];
   }

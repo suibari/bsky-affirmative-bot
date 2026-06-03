@@ -181,8 +181,6 @@ export async function doGoodNightPost(mood: string) {
             // リポスト
             await repost(topPostData.uri, topPostData.cid);
 
-            const dailyStats = await MemoryService.getDailyStats();
-
             // diary_count を1回インクリメント（日英共通）
             let diaryCount = 1;
             try {
@@ -237,26 +235,16 @@ export async function doGoodNightPost(mood: string) {
                 topFollower: topPostData.topFollower ?? undefined,
                 topPost: topPostData.post,
                 currentMood: mood,
-                likes: dailyStats.likes,
-                affirmationCount: dailyStats.affirmationCount,
                 followerMilestone: followerMilestone,
-                diaryUrl: diaryUrl,
-                diaryUrlEn: diaryUrlEn,
                 giftCandidates,
             });
 
             const uris: string[] = [];
 
-            // 1. 日本語版を投稿
-            if (goodNightResult.ja) {
-                const { uri: jaUri } = await postContinuous(goodNightResult.ja);
-                uris.push(jaUri);
-            }
-
-            // 2. 英語版を投稿（別ポスト）
-            if (goodNightResult.en) {
-                const { uri: enUri } = await postContinuous(goodNightResult.en);
-                uris.push(enUri);
+            // 日英1テキストをそのまま投稿（postContinuous が自動でスレッド分割）
+            if (goodNightResult.text) {
+                const { uri } = await postContinuous(goodNightResult.text);
+                uris.push(uri);
             }
 
             // 投稿URIを保存 (リプライに反応するようにするため)
