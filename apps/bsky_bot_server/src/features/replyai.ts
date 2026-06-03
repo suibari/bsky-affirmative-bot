@@ -8,7 +8,7 @@ import { MemoryService, botLabelerManager } from "@bsky-affirmative-bot/clients"
 import { postContinuous } from "../bsky/postContinuous.js";
 import { checkAndSendRoomInvitation } from "../bsky/roomInvitation.js";
 import { fetchSentiment } from "../util/negaposi.js";
-import { numberToEnglishWord } from "../util/index.js";
+import { numberToEnglishWord, MAX_LEVEL } from "../util/index.js";
 import retry from 'async-retry';
 import { getConcatProfiles } from "../bsky/getConcatProfiles.js";
 import { parseEmbedPost } from "../bsky/parseEmbedPost.js";
@@ -129,6 +129,7 @@ export async function replyAI(
         }
 
         // 超ポジティブバッジ適用判定 (スコア 95 以上)
+        let isNewMaxPositivityLevel = false;
         if (result && result.score && result.score >= 95) {
             try {
                 // Ensure follower exists in DB first
@@ -137,40 +138,49 @@ export async function replyAI(
                 // 1. ユーザーの現在の positivity_level を取得
                 const followerData = await MemoryService.getFollower(follower.did);
                 const currentLevel = followerData?.positivity_level || 0;
-                const nextLevel = currentLevel + 1;
 
-                console.log(`[INFO][BADGE] User ${follower.did} achieved score ${result.score}! Positivity Level Up: ${currentLevel} -> ${nextLevel}`);
+                if (currentLevel >= MAX_LEVEL) {
+                    console.log(`[INFO][BADGE] User ${follower.did} already at MAX level, skipping badge update`);
+                } else {
+                    const nextLevel = currentLevel + 1;
+                    const isNewMax = nextLevel === MAX_LEVEL;
+                    const levelLabel = isNewMax ? 'Lv. MAX' : `Lv.${nextLevel}`;
 
-                const nextBadgeId = `super-positive-lv-${numberToEnglishWord(nextLevel)}`;
+                    console.log(`[INFO][BADGE] User ${follower.did} achieved score ${result.score}! Positivity Level Up: ${currentLevel} -> ${nextLevel}`);
 
-                // 2. 新しいレベルのバッジ定義をレーベラーに upsert
-                await botLabelerManager.upsertLabelDefinition(nextBadgeId, [
-                    {
-                        lang: "ja",
-                        name: `超ポジティブ Lv.${nextLevel}`,
-                        description: `全肯定あふれるポストを${nextLevel}回達成した証！`
-                    },
-                    {
-                        lang: "en",
-                        name: `Super-Positive Lv.${nextLevel}`,
-                        description: `Proof of posting super affirmative posts ${nextLevel} time(s)!`
+                    const nextBadgeId = `super-positive-lv-${numberToEnglishWord(nextLevel)}`;
+
+                    // 2. 新しいレベルのバッジ定義をレーベラーに upsert
+                    await botLabelerManager.upsertLabelDefinition(nextBadgeId, [
+                        {
+                            lang: "ja",
+                            name: `超ポジティブ ${levelLabel}`,
+                            description: `全肯定あふれるポストを${nextLevel}回達成した証！`
+                        },
+                        {
+                            lang: "en",
+                            name: `Super-Positive ${levelLabel}`,
+                            description: `Proof of posting super affirmative posts ${nextLevel} time(s)!`
+                        }
+                    ]);
+
+                    // 3. 新しいバッジを付与
+                    await botLabelerManager.applyLabel(follower.did, nextBadgeId, false);
+
+                    // 4. 古いバッジがあれば剥奪
+                    if (currentLevel > 0) {
+                        const prevBadgeId = `super-positive-lv-${numberToEnglishWord(currentLevel)}`;
+                        await botLabelerManager.applyLabel(follower.did, prevBadgeId, true).catch(err => {
+                            console.error(`[WARN][BADGE] Failed to negate previous badge ${prevBadgeId} for ${follower.did}:`, err.message);
+                        });
                     }
-                ]);
 
-                // 3. 新しいバッジを付与
-                await botLabelerManager.applyLabel(follower.did, nextBadgeId, false);
+                    // 5. DB の positivity_level を更新
+                    await MemoryService.updateFollower(follower.did, "positivity_level", nextLevel);
+                    console.log(`[INFO][BADGE] Successfully applied badge ${nextBadgeId} to ${follower.did}`);
 
-                // 4. 古いバッジがあれば剥奪
-                if (currentLevel > 0) {
-                    const prevBadgeId = `super-positive-lv-${numberToEnglishWord(currentLevel)}`;
-                    await botLabelerManager.applyLabel(follower.did, prevBadgeId, true).catch(err => {
-                        console.error(`[WARN][BADGE] Failed to negate previous badge ${prevBadgeId} for ${follower.did}:`, err.message);
-                    });
+                    if (isNewMax) isNewMaxPositivityLevel = true;
                 }
-
-                // 5. DB の positivity_level を更新
-                await MemoryService.updateFollower(follower.did, "positivity_level", nextLevel);
-                console.log(`[INFO][BADGE] Successfully applied badge ${nextBadgeId} to ${follower.did}`);
             } catch (badgeErr: any) {
                 console.error(`[ERROR][BADGE] Failed to apply positivity level badge for ${follower.did}:`, badgeErr.message);
             }
@@ -179,6 +189,15 @@ export async function replyAI(
         // ポスト
         const text_bot = result?.comment || "";
         await postContinuous(text_bot, { uri, cid, record }, undefined);
+
+        // Lv. MAX 到達時の祝福リプライ
+        if (isNewMaxPositivityLevel) {
+            const displayName = follower.displayName || follower.handle;
+            const maxText = langStr === "日本語"
+                ? `${displayName}ちゃん、超ポジティブ Lv. MAXに到達したよ！🎉\n心からおめでとう！これからもよろしくね💖`
+                : `Dear ${displayName}, you've reached Super-Positive Lv. MAX! 🎉\nCongratulations from the bottom of my heart! Let's keep going together💖`;
+            await postContinuous(maxText, { uri, cid, record }, undefined);
+        }
 
         // AIリプライ送信完了後、お部屋お誘い条件の判定と処理を非同期（バックグラウンド）で実行
         checkAndSendRoomInvitation(uri, cid, record).catch(err => {

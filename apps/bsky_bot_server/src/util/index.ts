@@ -1,4 +1,7 @@
+export const MAX_LEVEL = 100;
+
 export function numberToEnglishWord(num: number): string {
+    if (num === MAX_LEVEL) return "max";
     const words = [
         "zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
         "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen"

@@ -4,7 +4,7 @@ import { agent } from "./agent.js";
 import { features } from "../features/index.js";
 import { MemoryService, botBiothythmManager } from "@bsky-affirmative-bot/clients";
 import { followerMap, updateFollowers } from "./followerManagement.js";
-import { isMention, getLangStr, splitUri, isIgnoreTarget, hasNGWord, isIgnorePost, isReplyOrMentionToMe, hasBroadcastDomainLink, hasAffiliateDomainLink, hasAnyLink } from "./util.js";
+import { getLangStr, splitUri, isIgnoreTarget, hasNGWord, isIgnorePost, isReplyOrMentionToMe, hasBroadcastDomainLink, hasAffiliateDomainLink, hasAnyLink, getLatestPostOf } from "./util.js";
 import { follow } from "./follow.js";
 import { replyGreets } from "./replyGreets.js";
 import retry from 'async-retry';
@@ -172,15 +172,11 @@ export async function onFollow(event: any) {
     await MemoryService.logUsage('follow', did);
     await follow(did);
 
-    const response = await agent.getAuthorFeed({ actor: did, filter: 'posts_no_replies' });
-    for (const feed of response.data.feed) {
-      // Use util functions for consistency
-      const postRecord = feed.post.record as AppBskyFeedPost.Record;
-      if (isMention(postRecord) && !feed.reason && !isIgnorePost(feed.post) && !hasNGWord(postRecord.text)) {
-        const langStr = getLangStr(postRecord.langs);
-        await replyGreets(feed.post, langStr);
-        break;
-      }
+    const latestFeed = await getLatestPostOf(did);
+    if (latestFeed) {
+      const postRecord = latestFeed.post.record as AppBskyFeedPost.Record;
+      const langStr = getLangStr(postRecord.langs);
+      await replyGreets(latestFeed.post, langStr);
     }
 
     await MemoryService.ensureFollower(did);

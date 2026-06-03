@@ -1,9 +1,10 @@
 import { $Typed, AppBskyEmbedDefs, AppBskyEmbedExternal, AppBskyEmbedImages, AppBskyEmbedNS, AppBskyEmbedRecord, AppBskyEmbedRecordWithMedia, AppBskyEmbedVideo } from "@atproto/api";
-import { AppBskyFeedDefs } from "@atproto/api"; type PostView = AppBskyFeedDefs.PostView;
+import { AppBskyFeedDefs } from "@atproto/api"; type PostView = AppBskyFeedDefs.PostView; type FeedViewPost = AppBskyFeedDefs.FeedViewPost;
 import { AppBskyFeedPost } from "@atproto/api";
 
 import { ImageRef, LangMap, languageData, LanguageName, localeToTimezone } from "@bsky-affirmative-bot/shared-configs";
 import { getPds } from "./getPds.js";
+import { agent } from "./agent.js";
 import e from "express";
 
 const langMap: LangMap = languageData.reduce((acc, lang) => {
@@ -417,5 +418,19 @@ export function hasAnyLink(record: AppBskyFeedPost.Record | any): boolean {
     }
   }
   return false;
+}
+
+/**
+ * ユーザーの最新の通常ポスト（リプライ・リポスト・メンション・NGワード除く）を返す
+ */
+export async function getLatestPostOf(did: string): Promise<FeedViewPost | null> {
+  const response = await agent.getAuthorFeed({ actor: did, filter: 'posts_no_replies' });
+  for (const feed of response.data.feed) {
+    const postRecord = feed.post.record as AppBskyFeedPost.Record;
+    if (!isMention(postRecord) && !feed.reason && !isIgnorePost(feed.post) && !hasNGWord(postRecord.text)) {
+      return feed;
+    }
+  }
+  return null;
 }
 

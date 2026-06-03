@@ -1,5 +1,8 @@
 import { MemoryService, botLabelerManager } from "@bsky-affirmative-bot/clients";
-import { numberToEnglishWord } from "../util/index.js";
+import { numberToEnglishWord, MAX_LEVEL } from "../util/index.js";
+import { postContinuous } from "../bsky/postContinuous.js";
+import { AppBskyFeedPost } from "@atproto/api";
+import { getLatestPostOf, getLangStr } from "../bsky/util.js";
 
 const BADGE_INTERVAL_MS = 3 * 60 * 1000; // 3分おきにポーリング
 const BADGE_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000; // 7日間
@@ -15,14 +18,23 @@ export async function awardRegularBadge(did: string): Promise<void> {
     const withinDeadline = lastBadgeAt && (now.getTime() - lastBadgeAt.getTime()) < BADGE_EXPIRY_MS;
 
     const currentLevel = followerData?.regular_level || 0;
-    const nextLevel = withinDeadline ? currentLevel + 1 : 1;
+
+    // room_badge_pending を先にリセット（付与失敗時もフラグ残留を防ぐ）
+    await MemoryService.updateFollower(did, "room_badge_pending", 0);
+
+    // 既にMAXかつ有効期限内なら更新不要
+    if (currentLevel >= MAX_LEVEL && withinDeadline) {
+        console.log(`[INFO][BADGE][REGULAR] ${did}: already at MAX level, skipping badge update`);
+        return;
+    }
+
+    const nextLevel = withinDeadline ? Math.min(currentLevel + 1, MAX_LEVEL) : 1;
+    const isNewMax = nextLevel === MAX_LEVEL && currentLevel < MAX_LEVEL;
+    const levelLabel = isNewMax ? 'Lv. MAX' : `Lv.${nextLevel}`;
 
     console.log(`[INFO][BADGE][REGULAR] ${did}: level ${currentLevel} -> ${nextLevel} (withinDeadline=${withinDeadline})`);
 
     const nextBadgeId = `regular-lv-${numberToEnglishWord(nextLevel)}`;
-
-    // room_badge_pending を先にリセット（付与失敗時もフラグ残留を防ぐ）
-    await MemoryService.updateFollower(did, "room_badge_pending", 0);
 
     // 旧バッジを negate
     if (currentLevel > 0) {
@@ -36,12 +48,12 @@ export async function awardRegularBadge(did: string): Promise<void> {
     await botLabelerManager.upsertLabelDefinition(nextBadgeId, [
         {
             lang: "ja",
-            name: `常連さん Lv.${nextLevel}`,
+            name: `常連さん ${levelLabel}`,
             description: `botたんからのお誘いに${nextLevel}回連続で応えた証！`
         },
         {
             lang: "en",
-            name: `Regular Visitor Lv.${nextLevel}`,
+            name: `Regular Visitor ${levelLabel}`,
             description: `Proof of accepting bot-tan's invitation ${nextLevel} time(s) in a row!`
         }
     ]);
@@ -55,6 +67,24 @@ export async function awardRegularBadge(did: string): Promise<void> {
     await MemoryService.updateFollower(did, "last_regular_badge_at", now);
 
     console.log(`[INFO][BADGE][REGULAR] Successfully applied badge ${nextBadgeId} to ${did} (exp=${expDate})`);
+
+    // Lv. MAX 到達時の祝福リプライ
+    if (isNewMax) {
+        try {
+            const latestFeed = await getLatestPostOf(did);
+            if (latestFeed) {
+                const postRecord = latestFeed.post.record as AppBskyFeedPost.Record;
+                const displayName = latestFeed.post.author.displayName || latestFeed.post.author.handle;
+                const langStr = getLangStr(postRecord.langs);
+                const maxText = langStr === "日本語"
+                    ? `${displayName}ちゃん、常連さん Lv. MAXに到達したよ！🎉\n心からおめでとう！これからもよろしくね💖`
+                    : `Dear ${displayName}, you've reached Regular Visitor Lv. MAX! 🎉\nCongratulations from the bottom of my heart! Let's keep going together💖`;
+                await postContinuous(maxText, { uri: latestFeed.post.uri, cid: latestFeed.post.cid, record: postRecord });
+            }
+        } catch (err: any) {
+            console.error(`[ERROR][BADGE][REGULAR] Failed to send MAX level congratulatory reply for ${did}:`, err.message);
+        }
+    }
 }
 
 async function syncRegularBadges(): Promise<void> {
