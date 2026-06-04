@@ -1,6 +1,5 @@
 import { BotFeature } from "./types.js";
 import { AnniversaryFeature } from "./AnniversaryFeature.js";
-import { StatusFeature } from "./StatusFeature.js";
 import { LimitedFeature } from "./LimitedFeature.js";
 import { FrequencyFeature } from "./FrequencyFeature.js";
 import { DiaryFeature } from "./DiaryFeature.js";
@@ -14,7 +13,6 @@ import { RecapYearFeature } from "./RecapYearFeatures.js";
 
 export const features: BotFeature[] = [
     new AnniversaryFeature(),
-    new StatusFeature(),
     new LimitedFeature(),
     new FrequencyFeature(),
     new DiaryFeature(),

@@ -113,15 +113,6 @@ export const ANNIV_DISABLE_TRIGGER = [
   "turn off anniversary",
 ];
 
-export const STATUS_CONFIRM_TRIGGER = [
-  "教えてステータス",
-  "おしえてステータス",
-  "ステータス教えて",
-  "ステータスおしえて",
-  "tell me status",
-  "tell me your status",
-];
-
 export const RECAP_TRIGGER = [
   "一年をまとめ",
   "1年をまとめ",
@@ -141,7 +132,6 @@ export const OTSUKARE_WORDS = ["お疲れ", "おつ", "しごおわ"];
 export const EXEC_PER_COUNTS = 10; // 何回に1回AI応答するか
 export const LIMIT_REQUEST_PER_DAY_GEMINI = 2000;
 export const POST_TEXT_LIMIT = 2100;
-export const MAX_BOT_MEMORY = 1000;
 
 // -------------------
 // Prompt系
