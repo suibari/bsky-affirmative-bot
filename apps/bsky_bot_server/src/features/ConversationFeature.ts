@@ -323,6 +323,20 @@ export class ConversationFeature implements BotFeature {
         // DB更新
         await MemoryService.updateFollower(follower.did, "question_root_uri", uriQuestionRoot);
         await MemoryService.updateFollower(follower.did, "last_answered_at", new Date());
+
+        // conv_historyに質問回答の会話ペアを保存
+        const followerRow = await MemoryService.getFollower(follower.did);
+        let history: Content[] = [];
+        if (followerRow?.conv_history) {
+            history = typeof followerRow.conv_history === 'string'
+                ? JSON.parse(followerRow.conv_history)
+                : followerRow.conv_history;
+        }
+        const botReplyText = typeof result.reply === 'string' ? result.reply : '';
+        history.push({ role: "user", parts: [{ text: record.text }] });
+        history.push({ role: "model", parts: [{ text: botReplyText }] });
+        await MemoryService.updateFollower(follower.did, "conv_history", history);
+
         console.log(`[INFO][QUESTION] Replied to answer from ${follower.did}: ${uri}`);
 
         return true;
@@ -374,6 +388,18 @@ export class ConversationFeature implements BotFeature {
 
             // DB更新: リプライ済みURIを記録（今回のリプライ先URIを記録）
             await MemoryService.updateFollower(follower.did, "last_whimsical_responded_uri", rootUri);
+
+            // conv_historyに定期ポスト返信の会話ペアを保存（rowはline 354でフェッチ済み）
+            let history: Content[] = [];
+            if (row?.conv_history) {
+                history = typeof row.conv_history === 'string'
+                    ? JSON.parse(row.conv_history)
+                    : row.conv_history;
+            }
+            const botReplyText = typeof result === 'string' ? result : '';
+            history.push({ role: "user", parts: [{ text: record.text }] });
+            history.push({ role: "model", parts: [{ text: botReplyText }] });
+            await MemoryService.updateFollower(follower.did, "conv_history", history);
 
             console.log(`[INFO][${follower.did}][WHIMSICAL] replied to reply of Whimsical post`);
 
