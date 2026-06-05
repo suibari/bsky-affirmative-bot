@@ -99,7 +99,9 @@ export async function onPost(event: any) {
               await retry(
                 async () => {
                   await feature.handle(event, follower, context);
-                  await MemoryService.logUsage(feature.name, authorDid, { text });
+                  if (!feature.handlesOwnLogging) {
+                    await MemoryService.logUsage(feature.name, authorDid, { text });
+                  }
                 },
                 {
                   retries: 2, // 初回 + リトライ2回 = 計3回

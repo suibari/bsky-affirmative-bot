@@ -6,6 +6,7 @@ export interface FeatureContext {
 
 export interface BotFeature {
     name: string;
+    handlesOwnLogging?: boolean;
     shouldHandle(event: CommitCreateEvent<"app.bsky.feed.post">, follower: ProfileView, context: FeatureContext): Promise<boolean>;
     handle(event: CommitCreateEvent<"app.bsky.feed.post">, follower: ProfileView, context: FeatureContext): Promise<void>;
 }

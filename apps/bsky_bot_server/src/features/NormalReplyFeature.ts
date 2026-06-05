@@ -16,6 +16,7 @@ let globalNonSubPostCount = 0;
 
 export class NormalReplyFeature implements BotFeature {
     name = "NormalReply";
+    handlesOwnLogging = true;
 
     async shouldHandle(event: CommitCreateEvent<"app.bsky.feed.post">, follower: ProfileView, context: FeatureContext): Promise<boolean> {
         const record = event.commit.record as any;
@@ -98,6 +99,9 @@ export class NormalReplyFeature implements BotFeature {
             }
         }
 
+        const text = record.text || "";
+        let score: number | undefined;
+
         if (replyType === "ai") {
             if (await MemoryService.checkRPD()) {
                 try {
@@ -110,9 +114,9 @@ export class NormalReplyFeature implements BotFeature {
                 }
 
                 try {
-                    await retry(
+                    const result = await retry(
                         async () => {
-                            await replyAI(follower, event, relatedPosts, isSubscriber);
+                            return await replyAI(follower, event, relatedPosts, isSubscriber);
                         },
                         {
                             retries: 2, // 計3回 (初回 + 2回リトライ)
@@ -123,6 +127,7 @@ export class NormalReplyFeature implements BotFeature {
                             }
                         }
                     );
+                    score = result?.score ?? undefined;
                 } catch (err: any) {
                     console.error(`[ERROR][${did}] Gemini reply failed after all retries. Falling back to replyRandom. Error:`, err.message);
                     await replyRandom(follower, event);
@@ -143,6 +148,7 @@ export class NormalReplyFeature implements BotFeature {
         await MemoryService.incrementLang(getLangStr(record.langs) as any);
 
         await MemoryService.upsertFollowerInteraction(did);
+        await MemoryService.logUsage(this.name, did, score !== undefined ? { text, score } : { text });
     }
 
     private isJudgeByFreq(probability: number) {
