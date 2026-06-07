@@ -1,5 +1,5 @@
 import { db, initializeDatabases, bot_state, followers, posts, likes, replies, affirmations, interaction, subscribers, biorhythm_history, gifts } from './db.js';
-import { eq, desc, sql, gte, lte, and, gt } from 'drizzle-orm';
+import { eq, desc, sql, gte, lte, and, gt, inArray } from 'drizzle-orm';
 import { LanguageName, LIMIT_REQUEST_PER_DAY_GEMINI } from '@bsky-affirmative-bot/shared-configs';
 
 export { initializeDatabases, db, subscribers };
@@ -464,7 +464,7 @@ export class MemoryService {
     try {
       const result = await db.select({ did: subscribers.did })
         .from(subscribers)
-        .where(eq(subscribers.status, 'active'));
+        .where(inArray(subscribers.status, ['active', 'discord_only']));
       const list = result.map(row => row.did);
 
       const devDid = process.env.DEVELOPER_DID;
@@ -539,7 +539,24 @@ export class MemoryService {
     }
   }
 
-  static async updateSubscriberStatus(did: string, status: 'active' | 'inactive') {
+  static async getDiscordLinkedSubscriberIds(): Promise<string[]> {
+    try {
+      const result = await db.select({ discord_id: subscribers.discord_id })
+        .from(subscribers)
+        .where(
+          and(
+            inArray(subscribers.status, ['active', 'discord_only']),
+            sql`${subscribers.discord_id} IS NOT NULL`
+          )
+        );
+      return result.map(row => row.discord_id as string);
+    } catch (e) {
+      console.error("Failed to get Discord-linked subscriber IDs:", e);
+      return [];
+    }
+  }
+
+  static async updateSubscriberStatus(did: string, status: 'active' | 'inactive' | 'discord_only') {
     try {
       await db.update(subscribers)
         .set({ status, updated_at: new Date() })

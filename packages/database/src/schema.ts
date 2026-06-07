@@ -89,7 +89,7 @@ export const subscribers = affirmativeBotSchema.table("subscribers", {
   id: serial("id").primaryKey(),
   discord_id: text("discord_id").unique(), // Can be null initially for Google Sheet legacy imports
   did: text("did").unique().notNull(),
-  status: text("status").default("active").notNull(), // 'active' | 'inactive'
+  status: text("status").default("active").notNull(), // 'active' | 'inactive' | 'discord_only'
   created_at: timestamp("created_at").defaultNow().notNull(),
   updated_at: timestamp("updated_at").defaultNow().notNull(),
 });
