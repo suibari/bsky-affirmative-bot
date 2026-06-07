@@ -90,48 +90,48 @@ export class BiorhythmManager extends EventEmitter {
   // --------
   // メソッド
   // --------
-  addLike() {
-    this.changeEnergy(10);
+  async addLike() {
+    await this.changeEnergy(10);
   }
 
   addAffirmation(did: string) {
     this.getCurrentState().then(state => this.emit('statsChange', state));
   }
 
-  addFortune() {
-    this.changeEnergy(100);
+  async addFortune() {
+    await this.changeEnergy(100);
   }
 
-  addCheer() {
-    this.changeEnergy(100);
+  async addCheer() {
+    await this.changeEnergy(100);
   }
 
-  addAnalysis() {
-    this.changeEnergy(100);
+  async addAnalysis() {
+    await this.changeEnergy(100);
   }
 
-  addDJ() {
-    this.changeEnergy(50);
+  async addDJ() {
+    await this.changeEnergy(50);
   }
 
-  addConversation() {
-    this.changeEnergy(50);
+  async addConversation() {
+    await this.changeEnergy(50);
   }
 
-  addAnniversary() {
-    this.changeEnergy(10);
+  async addAnniversary() {
+    await this.changeEnergy(10);
   }
 
-  addAnswer() {
-    this.changeEnergy(100);
+  async addAnswer() {
+    await this.changeEnergy(100);
   }
 
-  addFollower() {
-    this.changeEnergy(200);
+  async addFollower() {
+    await this.changeEnergy(200);
   }
 
-  addRoomInteraction(amount: number) {
-    this.changeEnergy(amount);
+  async addRoomInteraction(amount: number) {
+    await this.changeEnergy(amount);
   }
 
   get getEnergy(): number { return this.energy / 100; }
@@ -145,7 +145,7 @@ export class BiorhythmManager extends EventEmitter {
   async updateTopPostUri() {
     const rows = await MemoryService.getHighestScorePosts();
     if (rows && rows.length > 0) {
-      MemoryService.updateTopPost(rows[0].uri, rows[0].comment);
+      await MemoryService.updateTopPost(rows[0].uri, rows[0].comment);
       // this.emit('statsChange', this.getCurrentState()); // getCurrentState is async now? No, but depends on async MemoryService calls.
     }
   }
@@ -262,7 +262,7 @@ export class BiorhythmManager extends EventEmitter {
           if (this.canPostGoodNight()) {
             console.log(`[INFO][BIORHYTHM] post goodnight!`);
             await BskyService.postGoodNight(this.getMood);
-            this.setGoodNightPostDate();
+            await this.setGoodNightPostDate();
           } else {
             console.log(`[INFO][BIORHYTHM] goodnight post already done today, skipping`);
           }
@@ -275,8 +275,8 @@ export class BiorhythmManager extends EventEmitter {
           if (this.canPostGoodMorning()) {
             console.log(`[INFO][BIORHYTHM] post goodmorning!`);
             await BskyService.postQuestion();
-            this.changeEnergy(-6000);
-            this.setGoodMorningPostDate();
+            await this.changeEnergy(-6000);
+            await this.setGoodMorningPostDate();
           } else {
             console.log(`[INFO][BIORHYTHM] goodmorning post already done today, skipping`);
           }
@@ -293,7 +293,7 @@ export class BiorhythmManager extends EventEmitter {
           if (probability < this.getEnergy || process.env.NODE_ENV === "development") {
             console.log(`[INFO][BIORHYTHM] post and decrease energy!`);
             await BskyService.postWhimsical(this.getMood);
-            this.changeEnergy(-6000);
+            await this.changeEnergy(-6000);
           }
         }
       }
@@ -400,7 +400,7 @@ ${JSON.stringify(unreadReply)}
     return { status_text: "", status_text_en: "", duration_minutes: 60 };
   }
 
-  private changeEnergy(amount: number) {
+  private async changeEnergy(amount: number) {
     // 0~100クリップ処理
     const newEnergy = Math.max(Math.min(this.energy + amount, ENERGY_MAXIMUM), 0);
 
@@ -408,7 +408,7 @@ ${JSON.stringify(unreadReply)}
       this.energy = newEnergy;
       // this.emit('statsChange', this.getCurrentState()); // getCurrentState is async
       this.getCurrentState().then(state => this.emit('statsChange', state));
-      MemoryService.updateBiorhythmState({ energy: this.energy, mood: this.moodPrev, mood_en: this.moodPrevEn, status: this.status });
+      await MemoryService.updateBiorhythmState({ energy: this.energy, mood: this.moodPrev, mood_en: this.moodPrevEn, status: this.status });
     }
   }
 
@@ -417,7 +417,7 @@ ${JSON.stringify(unreadReply)}
       this.moodPrev = newOutput;
       this.moodPrevEn = newOutputEn;
       this.getCurrentState().then(state => this.emit('statsChange', state));
-      MemoryService.updateBiorhythmState({ energy: this.energy, mood: this.moodPrev, mood_en: this.moodPrevEn, status: this.status });
+      await MemoryService.updateBiorhythmState({ energy: this.energy, mood: this.moodPrev, mood_en: this.moodPrevEn, status: this.status });
 
       // Generate image and store it
       // try {
@@ -430,7 +430,7 @@ ${JSON.stringify(unreadReply)}
     }
   }
 
-  private handleEnergyByStatus() {
+  private async handleEnergyByStatus() {
     // if (this.status !== this.statusPrev) {
     //   // 遷移した場合だけ処理
     //   if (this.status === 'Sleep') {
@@ -449,7 +449,7 @@ ${JSON.stringify(unreadReply)}
     const newEnergy = Math.max(0, Math.min(ENERGY_MAXIMUM, this.energy));
     if (newEnergy !== this.energy) {
       this.energy = newEnergy;
-      MemoryService.updateBiorhythmState({ energy: this.energy, mood: this.moodPrev, mood_en: this.moodPrevEn, status: this.status });
+      await MemoryService.updateBiorhythmState({ energy: this.energy, mood: this.moodPrev, mood_en: this.moodPrevEn, status: this.status });
     }
   }
 
@@ -471,10 +471,10 @@ ${JSON.stringify(unreadReply)}
     return this.lastGoodNightPostDate !== today;
   }
 
-  private setGoodNightPostDate() {
+  private async setGoodNightPostDate() {
     const today = this.getAdjustedDateString();
     this.lastGoodNightPostDate = today;
-    MemoryService.updateBiorhythmState({ lastGoodNightPostDate: today });
+    await MemoryService.updateBiorhythmState({ lastGoodNightPostDate: today });
   }
 
   private canPostGoodMorning(): boolean {
@@ -482,9 +482,9 @@ ${JSON.stringify(unreadReply)}
     return this.lastGoodMorningPostDate !== today;
   }
 
-  private setGoodMorningPostDate() {
+  private async setGoodMorningPostDate() {
     const today = this.getAdjustedDateString();
     this.lastGoodMorningPostDate = today;
-    MemoryService.updateBiorhythmState({ lastGoodMorningPostDate: today });
+    await MemoryService.updateBiorhythmState({ lastGoodMorningPostDate: today });
   }
 }

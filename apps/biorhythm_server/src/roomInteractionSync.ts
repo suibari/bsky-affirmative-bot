@@ -12,7 +12,7 @@ async function syncRoomInteractions(manager: BiorhythmManager): Promise<void> {
     for (const f of pending) {
       const count = f.room_interaction_count ?? 0;
       try {
-        manager.addRoomInteraction(count);
+        await manager.addRoomInteraction(count);
         await MemoryService.updateFollower(f.did, "room_interaction_count", 0);
         console.log(`[INFO][ROOM_INTERACT] Applied +${count} energy for ${f.did}`);
       } catch (e: any) {

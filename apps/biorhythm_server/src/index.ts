@@ -19,30 +19,34 @@ app.get("/status", async (req, res) => {
   res.json(state);
 });
 
-app.post("/energy", (req, res) => {
+app.post("/energy", async (req, res) => {
   const { amount, type, did } = req.body;
 
-  if (type === "affirmation" && did) {
-    manager.addAffirmation(did);
-  } else if (type === "dj") {
-    manager.addDJ();
-  } else if (type === "fortune") {
-    manager.addFortune();
-  } else if (type === "cheer") {
-    manager.addCheer();
-  } else if (type === "answer") {
-    manager.addAnswer();
-  } else if (type === "conversation") {
-    manager.addConversation();
-  } else if (type === "analysis") {
-    manager.addAnalysis();
-  } else if (type === "anniversary") {
-    manager.addAnniversary();
-  } else if (type === "like") {
-    manager.addLike();
-  } else if (amount) {
-    // Generic energy change
-    (manager as any).changeEnergy(amount);
+  try {
+    if (type === "affirmation" && did) {
+      manager.addAffirmation(did);
+    } else if (type === "dj") {
+      await manager.addDJ();
+    } else if (type === "fortune") {
+      await manager.addFortune();
+    } else if (type === "cheer") {
+      await manager.addCheer();
+    } else if (type === "answer") {
+      await manager.addAnswer();
+    } else if (type === "conversation") {
+      await manager.addConversation();
+    } else if (type === "analysis") {
+      await manager.addAnalysis();
+    } else if (type === "anniversary") {
+      await manager.addAnniversary();
+    } else if (type === "like") {
+      await manager.addLike();
+    } else if (amount) {
+      // Generic energy change
+      await (manager as any).changeEnergy(amount);
+    }
+  } catch (err: any) {
+    console.error("[ERROR][ENERGY] Failed to process energy update:", err.message);
   }
 
   res.json({ success: true, energy: manager.getEnergy });
