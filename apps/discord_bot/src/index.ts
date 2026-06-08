@@ -190,16 +190,17 @@ async function startBot() {
       const username = message.author.tag;
 
       // Parse handle from message content
-      const text = message.content.replace(/<@!?\d+>/g, '').trim();
-      const handleRegex = /([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/;
-      const match = text.match(handleRegex);
+      const rawText = message.content.replace(/<@!?\d+>/g, '').trim();
+      const withoutUrls = rawText.replace(/https?:\/\/\S+/g, '').trim();
+      const handleCandidate = withoutUrls.replace(/^@/, '').trim();
+      const handleRegex = /^[a-zA-Z0-9][a-zA-Z0-9-]*(\.[a-zA-Z0-9][a-zA-Z0-9-]*)+$/;
 
-      if (!match) {
+      if (!handleRegex.test(handleCandidate)) {
         await message.reply("❌ Please provide a valid Bluesky handle (e.g., `yourname.bsky.social`).");
         return;
       }
 
-      const handle = match[1].toLowerCase();
+      const handle = handleCandidate.toLowerCase();
       console.log(`[INFO][DISCORD] Link request from ${username} for handle: ${handle}`);
 
       // Resolve Bluesky handle to DID
