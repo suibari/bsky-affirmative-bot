@@ -2,10 +2,10 @@ import { CommitCreateEvent } from "@skyware/jetstream";
 import { AppBskyActorDefs } from "@atproto/api"; type ProfileView = AppBskyActorDefs.ProfileView;
 import { BotFeature, FeatureContext } from "./types.js";
 import { MemoryService, botBiothythmManager, botLabelerManager } from "@bsky-affirmative-bot/clients";
-import { ANNIV_REGISTER_TRIGGER, ANNIV_CONFIRM_TRIGGER, ANNIV_ENABLE_TRIGGER, ANNIV_DISABLE_TRIGGER, NICKNAMES_BOT } from "@bsky-affirmative-bot/shared-configs";
+import { ANNIV_REGISTER_TRIGGER, ANNIV_CONFIRM_TRIGGER, ANNIV_ENABLE_TRIGGER, ANNIV_DISABLE_TRIGGER, NICKNAMES_BOT, BADGE_DEF } from "@bsky-affirmative-bot/shared-configs";
 import holidays from "@bsky-affirmative-bot/shared-configs/json/holidays.json" with { type: "json" };
 import { handleMode, isPast } from "./utils.js";
-import { getLangStr, isReplyOrMentionToMe, sanitizeDidToLexiconValue, formatYMD } from "../bsky/util.js";
+import { getLangStr, isReplyOrMentionToMe, formatYMD } from "../bsky/util.js";
 import { AppBskyFeedPost } from "@atproto/api"; type PostRecord = AppBskyFeedPost.Record;
 import { GeminiResponseResult, Holiday, UserInfoGemini } from "@bsky-affirmative-bot/shared-configs";
 import { checkAndSendRoomInvitation } from "../bsky/roomInvitation.js";
@@ -229,34 +229,22 @@ export class AnniversaryFeature implements BotFeature {
                     try {
                         const userDid = follower.did;
                         await MemoryService.ensureFollower(userDid);
-                        const badgeId = `anniversary-${sanitizeDidToLexiconValue(userDid)}`;
-                        
                         const anniv = todayAnniversary.find(a => a.id === "user_anniversary")!;
                         const annivNameJa = anniv.names.ja || "記念日";
                         const annivNameEn = anniv.names.en || "Anniversary";
-                        
+                        const def = BADGE_DEF.anniversary(userDid, annivNameJa, annivNameEn);
+
                         console.log(`[INFO][BADGE][ANNIVERSARY] Upserting anniversary badge definition for ${userDid}: ${annivNameJa}`);
 
                         // 1. レーベラーに定義を upsert
-                        await botLabelerManager.upsertLabelDefinition(badgeId, [
-                            {
-                                lang: "ja",
-                                name: `記念日: ${annivNameJa}`,
-                                description: `本日の特別な記念日：${annivNameJa}`
-                            },
-                            {
-                                lang: "en",
-                                name: `Anniversary: ${annivNameEn}`,
-                                description: `Today's special anniversary: ${annivNameEn}`
-                            }
-                        ]);
+                        await botLabelerManager.upsertLabelDefinition(def.id, def.locales);
 
                         // 2. 24時間の有効期限を計算
                         const expDate = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 
                         // 3. ユーザーに24時間限定バッジを適用
-                        await botLabelerManager.applyLabel(userDid, badgeId, false, expDate);
-                        console.log(`[INFO][BADGE][ANNIVERSARY] Successfully applied anniversary badge ${badgeId} to ${userDid} with exp=${expDate}`);
+                        await botLabelerManager.applyLabel(userDid, def.id, false, expDate);
+                        console.log(`[INFO][BADGE][ANNIVERSARY] Successfully applied anniversary badge ${def.id} to ${userDid} with exp=${expDate}`);
                     } catch (badgeErr: any) {
                         console.error(`[ERROR][BADGE][ANNIVERSARY] Failed to apply anniversary badge for ${follower.did}:`, badgeErr.message);
                     }

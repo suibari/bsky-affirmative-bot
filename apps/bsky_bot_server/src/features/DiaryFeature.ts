@@ -2,10 +2,10 @@ import { CommitCreateEvent } from "@skyware/jetstream";
 import { AppBskyActorDefs } from "@atproto/api"; type ProfileView = AppBskyActorDefs.ProfileView;
 import { BotFeature, FeatureContext } from "./types.js";
 
-import { DIARY_REGISTER_TRIGGER, DIARY_RELEASE_TRIGGER } from "@bsky-affirmative-bot/shared-configs";
+import { DIARY_REGISTER_TRIGGER, DIARY_RELEASE_TRIGGER, BADGE_DEF } from "@bsky-affirmative-bot/shared-configs";
 import { AppBskyFeedPost } from "@atproto/api"; type Record = AppBskyFeedPost.Record;
 import { handleMode } from "./utils.js";
-import { getLangStr, getTimezoneFromLang, sanitizeDidToLexiconValue } from "../bsky/util.js";
+import { getLangStr, getTimezoneFromLang } from "../bsky/util.js";
 import { MemoryService, botLabelerManager } from "@bsky-affirmative-bot/clients";
 import { LanguageName } from "@bsky-affirmative-bot/shared-configs";
 import { DateTime } from "luxon";
@@ -166,33 +166,22 @@ async function processUserDiary(userDid: string) {
         // 称号バッジ (日記) 適用処理
         try {
             await MemoryService.ensureFollower(userDid);
-            const badgeId = `title-${sanitizeDidToLexiconValue(userDid)}`;
+            const def = BADGE_DEF.title(userDid, diaryResult.title_ja, diaryResult.title_en);
             console.log(`[INFO][BADGE][DIARY] Upserting title badge definition for ${userDid}: ${diaryResult.title_ja} / ${diaryResult.title_en}`);
 
             // 1. レーベラーに定義を upsert
-            await botLabelerManager.upsertLabelDefinition(badgeId, [
-                {
-                    lang: "ja",
-                    name: `称号: ${diaryResult.title_ja}`,
-                    description: `前日の日記の総括：${diaryResult.title_ja}`
-                },
-                {
-                    lang: "en",
-                    name: `Title: ${diaryResult.title_en}`,
-                    description: `Daily Summary: ${diaryResult.title_en}`
-                }
-            ]);
+            await botLabelerManager.upsertLabelDefinition(def.id, def.locales);
 
             // 2. 24時間の有効期限を計算
             const expDate = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 
             // 3. ユーザーに24時間限定バッジを適用
-            await botLabelerManager.applyLabel(userDid, badgeId, false, expDate);
+            await botLabelerManager.applyLabel(userDid, def.id, false, expDate);
 
             // 4. DB 更新
             await MemoryService.updateFollower(userDid, "current_title_ja", diaryResult.title_ja);
             await MemoryService.updateFollower(userDid, "current_title_en", diaryResult.title_en);
-            console.log(`[INFO][BADGE][DIARY] Successfully applied title badge ${badgeId} to ${userDid} with exp=${expDate}`);
+            console.log(`[INFO][BADGE][DIARY] Successfully applied title badge ${def.id} to ${userDid} with exp=${expDate}`);
 
             // 成功メッセージの追加
             if (langStr === "日本語") {

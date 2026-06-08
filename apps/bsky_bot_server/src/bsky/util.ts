@@ -257,18 +257,7 @@ export function formatYMD(date: Date, lang?: string): string {
   return `${y}-${m}-${d}`;
 }
 
-/**
- * AT Protocolのラベル val レキシコン制約 (^[a-z-]+$) に適合させるため、
- * DID文字列内のコロンをハイフンに置換し、数字を英小文字 a-j に1対1マッピング変換します。
- */
-export function sanitizeDidToLexiconValue(did: string): string {
-  const sanitized = did.toLowerCase().replace(/:/g, "-");
-  const numMap: { [key: string]: string } = {
-    "0": "a", "1": "b", "2": "c", "3": "d", "4": "e",
-    "5": "f", "6": "g", "7": "h", "8": "i", "9": "j"
-  };
-  return sanitized.replace(/[0-9]/g, (m) => numMap[m]);
-}
+export { sanitizeDidToLexiconValue } from '@bsky-affirmative-bot/shared-configs';
 
 /**
  * アフィリエイトドメインリスト

@@ -1,7 +1,8 @@
 import { MemoryService, botLabelerManager } from "@bsky-affirmative-bot/clients";
+import { BADGE_DEF } from "@bsky-affirmative-bot/shared-configs";
 
 /**
- * Synchronizes the "team-affirmation" label between the PostgreSQL subscriber list
+ * Synchronizes the BADGE_DEF.teamAffirmation label between the PostgreSQL subscriber list
  * (status IN 'active' | 'discord_only') and the Labeler SQLite DB.
  */
 export async function syncSubscriberLabels() {
@@ -11,8 +12,8 @@ export async function syncSubscriberLabels() {
     const dbSubscribers = await MemoryService.getSubscribersOrDeveloper();
     const sheetSubSet = new Set(dbSubscribers);
 
-    // 2. Fetch currently active "team-affirmation" labeled DIDs from SQLite via the Labeler Server
-    const activeLabelSubscribers = await botLabelerManager.getActiveLabels("team-affirmation");
+    // 2. Fetch currently active BADGE_DEF.teamAffirmation labeled DIDs from SQLite via the Labeler Server
+    const activeLabelSubscribers = await botLabelerManager.getActiveLabels(BADGE_DEF.teamAffirmation);
     const activeLabelSubSet = new Set(activeLabelSubscribers);
 
     console.log(`[INFO][LABEL-SYNC] Current subscribers in DB: ${sheetSubSet.size}, in SQLite: ${activeLabelSubSet.size}`);
@@ -29,7 +30,7 @@ export async function syncSubscriberLabels() {
     for (const did of toAdd) {
       try {
         console.log(`[INFO][LABEL-SYNC] Applying team-affirmation label to ${did}`);
-        await botLabelerManager.applyLabel(did, "team-affirmation", false);
+        await botLabelerManager.applyLabel(did, BADGE_DEF.teamAffirmation, false);
       } catch (err) {
         console.error(`[ERROR][LABEL-SYNC] Failed to apply label to ${did}:`, err);
       }
@@ -39,7 +40,7 @@ export async function syncSubscriberLabels() {
     for (const did of toRemove) {
       try {
         console.log(`[INFO][LABEL-SYNC] Negating team-affirmation label for ${did}`);
-        await botLabelerManager.applyLabel(did, "team-affirmation", true);
+        await botLabelerManager.applyLabel(did, BADGE_DEF.teamAffirmation, true);
       } catch (err) {
         console.error(`[ERROR][LABEL-SYNC] Failed to negate label for ${did}:`, err);
       }
@@ -55,11 +56,11 @@ export async function syncSubscriberLabels() {
 // bot-tan-sub は永続ラベルのため明示的に negate しなければ残り続ける。
 async function migrateBotTanSubLabels() {
   try {
-    const activeBotTanSubs = await botLabelerManager.getActiveLabels("bot-tan-sub");
+    const activeBotTanSubs = await botLabelerManager.getActiveLabels(BADGE_DEF.botTanSub);
     if (activeBotTanSubs.length === 0) return;
     console.log(`[INFO][LABEL-MIGRATE] Negating ${activeBotTanSubs.length} bot-tan-sub label(s)...`);
     for (const did of activeBotTanSubs) {
-      await botLabelerManager.applyLabel(did, "bot-tan-sub", true);
+      await botLabelerManager.applyLabel(did, BADGE_DEF.botTanSub, true);
     }
     console.log("[INFO][LABEL-MIGRATE] bot-tan-sub migration complete.");
   } catch (error) {

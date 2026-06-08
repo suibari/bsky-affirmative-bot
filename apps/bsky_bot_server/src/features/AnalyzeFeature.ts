@@ -3,13 +3,13 @@ import { AppBskyActorDefs } from "@atproto/api"; type ProfileView = AppBskyActor
 import { BotFeature, FeatureContext } from "./types.js";
 import { MemoryService, botLabelerManager } from "@bsky-affirmative-bot/clients";
 import { botBiothythmManager } from "@bsky-affirmative-bot/clients";
-import { ANALYZE_TRIGGER, NICKNAMES_BOT } from "@bsky-affirmative-bot/shared-configs";
+import { ANALYZE_TRIGGER, NICKNAMES_BOT, BADGE_DEF } from "@bsky-affirmative-bot/shared-configs";
 import retry from 'async-retry';
 import { AppBskyFeedPost, ComAtprotoRepoListRecords } from '@atproto/api';
 type RecordPost = AppBskyFeedPost.Record;
 type RecordList = ComAtprotoRepoListRecords.Record;
 import { agent } from '../bsky/agent.js';
-import { getLangStr, isReplyOrMentionToMe, sanitizeDidToLexiconValue } from "../bsky/util.js";
+import { getLangStr, isReplyOrMentionToMe } from "../bsky/util.js";
 import { handleMode, isPast } from "./utils.js";
 import { GeminiResponseResult, UserInfoGemini } from '@bsky-affirmative-bot/shared-configs';
 import { generateAnalyzeResult, AnalyzeResult } from "@bsky-affirmative-bot/bot-brain";
@@ -117,33 +117,22 @@ export class AnalyzeFeature implements BotFeature {
         try {
             const userDid = userinfo.follower.did;
             await MemoryService.ensureFollower(userDid);
-            const badgeId = `title-${sanitizeDidToLexiconValue(userDid)}`;
+            const def = BADGE_DEF.analyzeTitle(userDid, analyzeResult.title_ja, analyzeResult.title_en);
             console.log(`[INFO][BADGE][ANALYZE] Upserting title badge definition for ${userDid}: ${analyzeResult.title_ja} / ${analyzeResult.title_en}`);
 
             // 1. レーベラーに定義を upsert
-            await botLabelerManager.upsertLabelDefinition(badgeId, [
-                {
-                    lang: "ja",
-                    name: `称号: ${analyzeResult.title_ja}`,
-                    description: `性格分析で獲得した称号：${analyzeResult.title_ja}`
-                },
-                {
-                    lang: "en",
-                    name: `Title: ${analyzeResult.title_en}`,
-                    description: `Personality Analysis Summary: ${analyzeResult.title_en}`
-                }
-            ]);
+            await botLabelerManager.upsertLabelDefinition(def.id, def.locales);
 
             // 2. 1週間の有効期限を計算
             const expDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
 
             // 3. ユーザーに1週間限定バッジを適用
-            await botLabelerManager.applyLabel(userDid, badgeId, false, expDate);
+            await botLabelerManager.applyLabel(userDid, def.id, false, expDate);
 
             // 4. DB 更新
             await MemoryService.updateFollower(userDid, "current_title_ja", analyzeResult.title_ja);
             await MemoryService.updateFollower(userDid, "current_title_en", analyzeResult.title_en);
-            console.log(`[INFO][BADGE][ANALYZE] Successfully applied title badge ${badgeId} to ${userDid} with exp=${expDate}`);
+            console.log(`[INFO][BADGE][ANALYZE] Successfully applied title badge ${def.id} to ${userDid} with exp=${expDate}`);
 
             // 成功メッセージの追加
             if (userinfo.langStr === "日本語") {

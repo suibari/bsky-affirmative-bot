@@ -11,6 +11,7 @@ const GatewayIntentBits = {
 import { db, subscribers, initializeDatabases } from '@bsky-affirmative-bot/database';
 import { botLabelerManager, MemoryService } from '@bsky-affirmative-bot/clients';
 import { eq } from 'drizzle-orm';
+import { BADGE_DEF } from '@bsky-affirmative-bot/shared-configs';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -74,7 +75,7 @@ async function reconcileMembers(guild: Guild) {
         .where(eq(subscribers.discord_id, discordId));
       if (existing.length > 0 && existing[0].did) {
         try {
-          await botLabelerManager.applyLabel(existing[0].did, "team-affirmation", true);
+          await botLabelerManager.applyLabel(existing[0].did, BADGE_DEF.teamAffirmation, true);
         } catch (labelErr) {
           console.error(`[ERROR][DISCORD] Failed to negate label for ${existing[0].did}:`, labelErr);
         }
@@ -143,9 +144,9 @@ async function startBot() {
 
         if (existing[0].did) {
           try {
-            const activeDids = await botLabelerManager.getActiveLabels("team-affirmation");
+            const activeDids = await botLabelerManager.getActiveLabels(BADGE_DEF.teamAffirmation);
             if (!activeDids.includes(existing[0].did)) {
-              await botLabelerManager.applyLabel(existing[0].did, "team-affirmation", false);
+              await botLabelerManager.applyLabel(existing[0].did, BADGE_DEF.teamAffirmation, false);
               console.log(`[INFO][DISCORD] Applied team-affirmation label to ${existing[0].did}`);
             }
           } catch (labelErr) {
@@ -164,7 +165,7 @@ async function startBot() {
 
         if (existing.length > 0 && existing[0].did) {
           try {
-            await botLabelerManager.applyLabel(existing[0].did, "team-affirmation", true);
+            await botLabelerManager.applyLabel(existing[0].did, BADGE_DEF.teamAffirmation, true);
             console.log(`[INFO][DISCORD] Negated team-affirmation label for ${existing[0].did}`);
           } catch (labelErr) {
             console.error(`[ERROR][DISCORD] Failed to negate label for ${existing[0].did}:`, labelErr);
@@ -248,7 +249,7 @@ async function startBot() {
 
             if (oldDid) {
               try {
-                await botLabelerManager.applyLabel(oldDid, "team-affirmation", true);
+                await botLabelerManager.applyLabel(oldDid, BADGE_DEF.teamAffirmation, true);
               } catch (labelErr) {
                 console.error(`[ERROR][DISCORD] Failed to negate old label for ${oldDid}:`, labelErr);
               }
@@ -270,9 +271,9 @@ async function startBot() {
 
         // Apply label instantly
         try {
-          const activeDids = await botLabelerManager.getActiveLabels("team-affirmation");
+          const activeDids = await botLabelerManager.getActiveLabels(BADGE_DEF.teamAffirmation);
           if (!activeDids.includes(did)) {
-            await botLabelerManager.applyLabel(did, "team-affirmation", false);
+            await botLabelerManager.applyLabel(did, BADGE_DEF.teamAffirmation, false);
             console.log(`[INFO][DISCORD] Applied team-affirmation label to ${did}`);
           }
         } catch (labelErr) {
@@ -312,7 +313,7 @@ async function startBot() {
 
       if (existing[0].did) {
         try {
-          await botLabelerManager.applyLabel(existing[0].did, "team-affirmation", true);
+          await botLabelerManager.applyLabel(existing[0].did, BADGE_DEF.teamAffirmation, true);
           console.log(`[INFO][DISCORD] Negated team-affirmation label for ${existing[0].did}`);
         } catch (labelErr) {
           console.error(`[ERROR][DISCORD] Failed to negate label for ${existing[0].did}:`, labelErr);

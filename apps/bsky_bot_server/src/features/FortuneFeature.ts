@@ -2,11 +2,11 @@ import { CommitCreateEvent } from "@skyware/jetstream";
 import { AppBskyActorDefs } from "@atproto/api"; type ProfileView = AppBskyActorDefs.ProfileView;
 import { BotFeature, FeatureContext } from "./types.js";
 import { MemoryService, botBiothythmManager, botLabelerManager } from "@bsky-affirmative-bot/clients";
-import { FORTUNE_TRIGGER, NICKNAMES_BOT } from "@bsky-affirmative-bot/shared-configs";
+import { FORTUNE_TRIGGER, NICKNAMES_BOT, BADGE_DEF } from "@bsky-affirmative-bot/shared-configs";
 import { AppBskyFeedPost } from "@atproto/api"; type Record = AppBskyFeedPost.Record;
 import { handleMode, isPast } from "./utils.js";
 import { generateFortuneResult } from "@bsky-affirmative-bot/bot-brain";
-import { getLangStr, isReplyOrMentionToMe, sanitizeDidToLexiconValue } from "../bsky/util.js";
+import { getLangStr, isReplyOrMentionToMe } from "../bsky/util.js";
 import { UserInfoGemini, GeminiResponseResult } from "@bsky-affirmative-bot/shared-configs";
 import { textToImageBufferWithBackground } from "../util/canvas.js";
 import { agent } from "../bsky/agent.js";
@@ -77,30 +77,19 @@ export class FortuneFeature implements BotFeature {
         try {
             const userDid = userinfo.follower.did;
             await MemoryService.ensureFollower(userDid);
-            const badgeId = `today-lucky-${sanitizeDidToLexiconValue(userDid)}`;
             const emojis = result.emojis || "🔮✨🍀";
+            const def = BADGE_DEF.todayLucky(userDid, emojis);
             console.log(`[INFO][BADGE][FORTUNE] Upserting fortune badge definition for ${userDid}: ${emojis}`);
 
             // 1. レーベラーに定義を upsert
-            await botLabelerManager.upsertLabelDefinition(badgeId, [
-                {
-                    lang: "ja",
-                    name: `今日のラッキー: ${emojis}`,
-                    description: `今日の占いラッキーバッジ：${emojis}`
-                },
-                {
-                    lang: "en",
-                    name: `Today's Lucky: ${emojis}`,
-                    description: `Today's fortune lucky badge: ${emojis}`
-                }
-            ]);
+            await botLabelerManager.upsertLabelDefinition(def.id, def.locales);
 
             // 2. 24時間の有効期限を計算
             const expDate = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 
             // 3. ユーザーに24時間限定バッジを適用
-            await botLabelerManager.applyLabel(userDid, badgeId, false, expDate);
-            console.log(`[INFO][BADGE][FORTUNE] Successfully applied fortune badge ${badgeId} to ${userDid} with exp=${expDate}`);
+            await botLabelerManager.applyLabel(userDid, def.id, false, expDate);
+            console.log(`[INFO][BADGE][FORTUNE] Successfully applied fortune badge ${def.id} to ${userDid} with exp=${expDate}`);
 
             // 成功メッセージ（ラベラーの宣伝）の追加
             if (userinfo.langStr === "日本語") {

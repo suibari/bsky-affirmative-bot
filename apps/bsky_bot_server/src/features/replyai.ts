@@ -3,12 +3,12 @@ import { AppBskyActorDefs } from "@atproto/api"; type ProfileView = AppBskyActor
 import { AppBskyFeedPost } from "@atproto/api"; type Record = AppBskyFeedPost.Record;
 import { getImageUrl, getLangStr, uniteDidNsidRkey } from "../bsky/util.js";
 import { generateAffirmativeWord } from "@bsky-affirmative-bot/bot-brain";
-import { Embed, GeminiScore } from "@bsky-affirmative-bot/shared-configs";
+import { Embed, GeminiScore, BADGE_DEF } from "@bsky-affirmative-bot/shared-configs";
 import { MemoryService, botLabelerManager } from "@bsky-affirmative-bot/clients";
 import { postContinuous } from "../bsky/postContinuous.js";
 import { checkAndSendRoomInvitation } from "../bsky/roomInvitation.js";
 import { fetchSentiment } from "../util/negaposi.js";
-import { numberToEnglishWord, MAX_LEVEL } from "../util/index.js";
+import { MAX_LEVEL } from "../util/index.js";
 import retry from 'async-retry';
 import { getConcatProfiles } from "../bsky/getConcatProfiles.js";
 import { parseEmbedPost } from "../bsky/parseEmbedPost.js";
@@ -148,28 +148,17 @@ export async function replyAI(
 
                     console.log(`[INFO][BADGE] User ${follower.did} achieved score ${result.score}! Positivity Level Up: ${currentLevel} -> ${nextLevel}`);
 
-                    const nextBadgeId = `super-positive-lv-${numberToEnglishWord(nextLevel)}`;
+                    const nextDef = BADGE_DEF.superPositiveLv(nextLevel, levelLabel);
 
                     // 2. 新しいレベルのバッジ定義をレーベラーに upsert
-                    await botLabelerManager.upsertLabelDefinition(nextBadgeId, [
-                        {
-                            lang: "ja",
-                            name: `超ポジティブ ${levelLabel}`,
-                            description: `全肯定あふれるポストを${nextLevel}回達成した証！`
-                        },
-                        {
-                            lang: "en",
-                            name: `Super-Positive ${levelLabel}`,
-                            description: `Proof of posting super affirmative posts ${nextLevel} time(s)!`
-                        }
-                    ]);
+                    await botLabelerManager.upsertLabelDefinition(nextDef.id, nextDef.locales);
 
                     // 3. 新しいバッジを付与
-                    await botLabelerManager.applyLabel(follower.did, nextBadgeId, false);
+                    await botLabelerManager.applyLabel(follower.did, nextDef.id, false);
 
                     // 4. 古いバッジがあれば剥奪
                     if (currentLevel > 0) {
-                        const prevBadgeId = `super-positive-lv-${numberToEnglishWord(currentLevel)}`;
+                        const prevBadgeId = BADGE_DEF.superPositiveLv(currentLevel, '').id;
                         await botLabelerManager.applyLabel(follower.did, prevBadgeId, true).catch(err => {
                             console.error(`[WARN][BADGE] Failed to negate previous badge ${prevBadgeId} for ${follower.did}:`, err.message);
                         });
@@ -177,7 +166,7 @@ export async function replyAI(
 
                     // 5. DB の positivity_level を更新
                     await MemoryService.updateFollower(follower.did, "positivity_level", nextLevel);
-                    console.log(`[INFO][BADGE] Successfully applied badge ${nextBadgeId} to ${follower.did}`);
+                    console.log(`[INFO][BADGE] Successfully applied badge ${nextDef.id} to ${follower.did}`);
 
                     if (isNewMax) isNewMaxPositivityLevel = true;
                 }
