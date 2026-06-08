@@ -33,7 +33,7 @@ export class DiaryFeature implements BotFeature {
         const record = event.commit.record as any;
         const text = (record.text || "").toLowerCase();
 
-        if (!context.isSubscriber) return false;
+        if (!context.isCommunityMember) return false;
 
         return (
             DIARY_REGISTER_TRIGGER.some(trigger => text.includes(trigger.toLowerCase())) ||
@@ -242,12 +242,12 @@ async function manageUserDiarySchedules() {
     }
     console.log(`[INFO][DIARY] is_diary: ${usersWithDiaryMode.length}`);
 
-    // Fetch subscribers from the database
-    const subscribers = await MemoryService.getSubscribersOrDeveloper();
-    const subscriberSet = new Set(subscribers);
+    // Fetch community members (active + discord_only) from the database
+    const communityMembers = await MemoryService.getCommunityMembersOrDeveloper();
+    const communityMemberSet = new Set(communityMembers);
 
-    // Filter users to include only those who are subscribers
-    const eligibleUsers = usersWithDiaryMode.filter(user => subscriberSet.has(user.did));
+    // Filter users to include only those who are community members
+    const eligibleUsers = usersWithDiaryMode.filter(user => communityMemberSet.has(user.did));
     console.log(`[INFO][DIARY] subbed-follower && is_diary: ${eligibleUsers.length}`);
 
     for (const user of eligibleUsers) { // Iterate over eligibleUsers instead of usersWithDiaryMode

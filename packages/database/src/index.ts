@@ -464,7 +464,7 @@ export class MemoryService {
     try {
       const result = await db.select({ did: subscribers.did })
         .from(subscribers)
-        .where(inArray(subscribers.status, ['active', 'discord_only']));
+        .where(eq(subscribers.status, 'active'));
       const list = result.map(row => row.did);
 
       const devDid = process.env.DEVELOPER_DID;
@@ -479,6 +479,29 @@ export class MemoryService {
       return list;
     } catch (e) {
       console.error("Failed to get subscribers or developer from database:", e);
+      return [];
+    }
+  }
+
+  static async getCommunityMembersOrDeveloper(): Promise<string[]> {
+    try {
+      const result = await db.select({ did: subscribers.did })
+        .from(subscribers)
+        .where(inArray(subscribers.status, ['active', 'discord_only']));
+      const list = result.map(row => row.did);
+
+      const devDid = process.env.DEVELOPER_DID;
+      if (devDid) {
+        const devDids = devDid.split(',').map(d => d.trim()).filter(Boolean);
+        for (const did of devDids) {
+          if (!list.includes(did)) {
+            list.push(did);
+          }
+        }
+      }
+      return list;
+    } catch (e) {
+      console.error("Failed to get community members or developer from database:", e);
       return [];
     }
   }

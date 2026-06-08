@@ -20,7 +20,7 @@ export class CheerFeature implements BotFeature {
         const text = (record.text || "").toLowerCase();
 
         // Check if subscriber
-        if (!context.isSubscriber) return false;
+        if (!context.isCommunityMember) return false;
 
         // Check trigger
         if (!CHEER_TRIGGER.some(trigger => text.includes(trigger.toLowerCase()))) return false;

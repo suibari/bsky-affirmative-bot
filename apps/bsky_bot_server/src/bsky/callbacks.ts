@@ -45,6 +45,9 @@ export async function onPost(event: any) {
         // feature gating 用: active subscriber + developer のみ
         const subscribers = await MemoryService.getSubscribersOrDeveloper();
         const isSubscriber = subscribers.includes(authorDid);
+        // 日記・応援など: active + discord_only + developer
+        const communityMembers = await MemoryService.getCommunityMembersOrDeveloper();
+        const isCommunityMember = communityMembers.includes(authorDid);
         // ラベル/スパム/botチェックのスキップ用: inactive も含む登録済み subscriber
         const registeredDids = await MemoryService.getSubscriberDidsIncludingInactive();
         const isRegisteredSubscriber = registeredDids.includes(authorDid);
@@ -88,7 +91,7 @@ export async function onPost(event: any) {
           }
         }
 
-        const context: FeatureContext = { isSubscriber };
+        const context: FeatureContext = { isSubscriber, isCommunityMember };
 
         for (const feature of features) {
           try {

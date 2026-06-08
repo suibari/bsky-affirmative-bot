@@ -8,8 +8,8 @@ import { BADGE_DEF } from "@bsky-affirmative-bot/shared-configs";
 export async function syncSubscriberLabels() {
   console.log("[INFO][LABEL-SYNC] Starting subscriber label synchronization...");
   try {
-    // 1. Fetch current subscribers from the Database
-    const dbSubscribers = await MemoryService.getSubscribersOrDeveloper();
+    // 1. Fetch current community members (active + discord_only) from the Database
+    const dbSubscribers = await MemoryService.getCommunityMembersOrDeveloper();
     const sheetSubSet = new Set(dbSubscribers);
 
     // 2. Fetch currently active BADGE_DEF.teamAffirmation labeled DIDs from SQLite via the Labeler Server
