@@ -21,21 +21,24 @@ The bot has the following features:
 8. **DJ mode**: Recommends songs tailored to your mood from your recent posts, complete with YouTube video links.
 9. **Diary mode**: Summarizes your daily posts and replies every evening at around 22:00 with a diary image and a daily "Title Badge" (valid for 24 hours).
 10. **Anniversary mode**: Celebrates preset holidays, your personal registered anniversaries, and your Bluesky registration date. For personal registered anniversaries, it gifts you an "Anniversary Badge" (valid for 24 hours).
-11. **Status Confirmation**: Displays a summary of companionship days, settings, and cooldown states for different features.
-12. **Year Recap**: Collects your posts for the past year (up to 1,000 posts) and analyzes monthly activity, top words, and top interacted users to reply with a yearly summary image.
-13. **Badge (Bluesky Label) Feature**: Gifts special badges and titles directly onto your Bluesky profile under specific conditions.
+11. **Year Recap**: Collects your posts for the past year (up to 1,000 posts) and analyzes monthly activity, top words, and top interacted users to reply with a yearly summary image.
+12. **Badge (Bluesky Label) Feature**: Gifts special badges and titles directly onto your Bluesky profile under specific conditions.
 
-Additionally, this bot offers a subscription plan to cover operational costs.  
+Joining the bot community unlocks additional features.
 
-Below is a comparison of available features for regular followers vs. subscribers. Details about subscription are available on [Patreon](https://www.patreon.com/posts/about-enhanced-133404007).
+- 🎮 **Discord Community**: Join the [Bot-tan Discord Server](https://discord.gg/hshXWQEMgu) and link your Bluesky account to access the Diary feature, Cheering feature, Anniversary feature, Year Recap feature, and Team Affirmation Badge.
+- 💖 **Subscription (Pixiv Fanbox)**: Support on [Fanbox](https://suibari.fanbox.cc/posts/10174305) to additionally access the Conversation feature and high-quality AI replies.
 
-| Subscription | Template Replies | AI Replies | Fortune | Frequency Control | Conversation | Analysis | Cheering | DJ | Diary | Anniversary | Status | Year Recap | Badges※1 |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| Regular      | ✓                | ✓※2        | ✓       | ✓                 |              | ✓        |           | ✓  |       | ✓           | ✓      | ✓          | ✓        |
-| Subscriber   |                  | ✓          | ✓       | ✓                 | ✓            | ✓        | ✓         | ✓  | ✓     | ✓           | ✓      | ✓          | ✓        |
+Below is a summary of features available at each tier.
 
-※1: Eligible for all badges except the subscriber-only badge.
-※2: AI-generated replies for regular followers occur randomly.
+| Tier | Template Replies | AI Replies | Fortune | Frequency Control | Conversation | Analysis | Cheering | DJ | Diary | Anniversary | Year Recap | Badges※1 |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| Regular Follower | ✓ | ✓※2 | ✓ | ✓ | | ✓ | | ✓ | | | | ✓ |
+| Discord Member   | ✓ | ✓※2 | ✓ | ✓ | | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Subscriber       | ✓ | ✓   | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+
+※1: Regular followers and Discord members can earn all badges except the Team Affirmation Badge. Discord members can also earn the Team Affirmation Badge.
+※2: AI-generated replies for regular followers and Discord members occur randomly.
 
 ---
 
@@ -62,7 +65,7 @@ The flowchart below illustrates how the bot responds to your posts:
 3. The bot will confirm your setting and adjust how frequently it replies to your normal posts.
 
 ### Conversation Mode
-*(※Subscriber-Only Feature)*
+*(※Subscriber Member Only)*
 1. Make sure you are followed back by the bot.
 2. Reply to the bot within a thread where you are the thread root (main poster).
 3. The bot will like your post.
@@ -81,7 +84,7 @@ The flowchart below illustrates the Conversation Mode:
 (*You can only use this once every **6 days**.*)
 
 ### Promotion Support (Cheering)
-*(※Subscriber-Only Feature)*
+*(※Discord Member or Subscriber Member Only)*
 1. Make sure you are followed back by the bot.
 2. Post with the hashtag **"#SuiBotCheerSquad"** (or **"#全肯定応援団"**) containing the text and/or images you want promoted (no need to reply directly to the bot).
 3. The bot will evaluate the content and repost it with a cheering reply to promote it to other followers.
@@ -97,7 +100,7 @@ The flowchart below illustrates the Conversation Mode:
 (*You can only use this once every **5 minutes**.*)
 
 ### Diary Mode
-*(※Subscriber-Only Feature)*
+*(※Discord Member or Subscriber Member Only)*
 The bot will compile your posts of the day and send you a daily diary **every evening at around 22:00 local time**.
 
 1. Make sure you are followed back by the bot.
@@ -106,6 +109,8 @@ The bot will compile your posts of the day and send you a daily diary **every ev
 4. To stop the diary, mention or reply with **"stop diary"** (or "stop a diary", "日記やめて", "日記をやめて").
 
 ### Anniversary Mode
+*(※Discord Member or Subscriber Member Only)*
+
 When an anniversary arrives, the bot will celebrate it in reply to the first user post of that day.
 There are three types of anniversaries: **preset anniversaries**, **your Bluesky registration date (auto-detected)**, and **user-registered anniversaries**.
 
@@ -123,16 +128,9 @@ You can register your user anniversary using the following steps:
 4. To check your registered anniversary, mention or reply with **"Tell me anniversary"** (or "記念日確認").
 5. You can turn anniversary celebrations on or off at any time by posting **"enable anniversary"** / **"disable anniversary"** (or "記念日オン" / "記念日オフ"). (Default is ON).
 
-### Status Confirmation
-Allows you to check the companionship details and various feature cooldown states between you and bot-tan.
-
-1. Make sure you are followed back by the bot.
-2. Mention or reply to the bot with **"tell me status"** (or "ステータス教えて", "教えてステータス", "おしえてステータス", "ステータスおしえて", "tell me your status").
-3. The bot will reply with a list of details: companionship days, AI/template reply toggles, reply frequency %, various feature cooldown states, conversation count, and registered anniversary.
-
-(*You can only use this once every **8 hours**.*)
-
 ### Year Recap
+*(※Discord Member or Subscriber Member Only)*
+
 Extracts a beautiful summary of your entire year's activities on Bluesky!
 
 1. Make sure you are followed back by the bot.
@@ -159,7 +157,7 @@ This bot leverages the Bluesky Labeler protocol to gift special emojis and title
 
 | Badge Type | Label Key | Gift Condition | Duration | Display Example |
 | :--- | :--- | :--- | :--- | :--- |
-| **Subscriber** | `bot-tan-sub` | Become a bot-tan supporter (via Patreon/Fanbox link) | Active Support (Persistent) | `Subscribers` |
+| **Team Affirmation Badge** | `team-affirmation` | Join and link your Bluesky account to the [Bot-tan Discord Server](https://discord.gg/hshXWQEMgu) | During community membership (Persistent) | `Team Affirmation` |
 | **Lucky Badge** | `today-lucky-xxx` | Use the Fortune-telling feature | 24 Hours | `Today's Lucky: 🔮✨🍀` |
 | **Title Badge (Analysis)** | `title-xxx` | Use the Personality Analysis feature | 1 Week | `Title: 〇〇` |
 | **Title Badge (Diary)** | `title-xxx` | Use the Daily Diary feature | 24 Hours | `Title: 〇〇` (Overwrites Analysis) |

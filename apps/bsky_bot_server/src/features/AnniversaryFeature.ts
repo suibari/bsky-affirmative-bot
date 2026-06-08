@@ -41,6 +41,8 @@ export class AnniversaryFeature implements BotFeature {
     private processingUsers = new Map<string, boolean>();
 
     async shouldHandle(event: CommitCreateEvent<"app.bsky.feed.post">, follower: ProfileView, context: FeatureContext): Promise<boolean> {
+        if (!context.isCommunityMember) return false;
+
         const record = event.commit.record as any;
         const text = (record.text || "").toLowerCase();
         const langCode = record.langs?.[0] || "en";
