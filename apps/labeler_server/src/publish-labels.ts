@@ -31,22 +31,65 @@ async function main() {
     process.exit(1);
   }
 
-  const labelValues = labelerServiceRecord.policies.labelValues;
-  console.log(`[INFO] Registering/Updating ${labelValues.length} labels:`, labelValues);
+  const repo = agent.session!.did;
 
-  const record = {
+  // 1. Read existing record
+  let currentRecord: any = { policies: { labelValues: [], labelValueDefinitions: [] } };
+  let cid: string | undefined;
+
+  try {
+    const res = await agent.com.atproto.repo.getRecord({
+      repo,
+      collection: "app.bsky.labeler.service",
+      rkey: "self",
+    });
+    currentRecord = res.data.value;
+    cid = res.data.cid;
+    const existingCount = currentRecord.policies?.labelValueDefinitions?.length ?? 0;
+    console.log(`[INFO] Fetched existing record (${existingCount} definitions).`);
+  } catch (e: any) {
+    if (e.status !== 404 && !e.message?.includes("Could not locate record")) {
+      throw e;
+    }
+    console.log("[INFO] No existing record found. Starting fresh.");
+  }
+
+  // 2. Merge static community badge defs into existing definitions
+  const definitions: any[] = currentRecord.policies?.labelValueDefinitions ?? [];
+
+  for (const staticDef of labelerServiceRecord.policies.labelValueDefinitions) {
+    const idx = definitions.findIndex((d: any) => d.identifier === staticDef.identifier);
+    if (idx >= 0) {
+      definitions[idx] = staticDef;
+      console.log(`[INFO] Updated existing definition: ${staticDef.identifier}`);
+    } else {
+      definitions.push(staticDef);
+      console.log(`[INFO] Added new definition: ${staticDef.identifier}`);
+    }
+  }
+
+  const labelValues = definitions.map((d: any) => d.identifier);
+  console.log(`[INFO] Total definitions after merge: ${definitions.length}`);
+
+  // 3. Write back with optimistic lock
+  const updatedRecord = {
     $type: "app.bsky.labeler.service",
-    ...labelerServiceRecord,
+    policies: { labelValues, labelValueDefinitions: definitions },
     createdAt: new Date().toISOString(),
   };
 
+  const putParams: any = {
+    repo,
+    collection: "app.bsky.labeler.service",
+    rkey: "self",
+    record: updatedRecord,
+  };
+  if (cid) {
+    putParams.swapRecord = cid;
+  }
+
   try {
-    const res = await agent.api.com.atproto.repo.putRecord({
-      repo: agent.session!.did,
-      collection: "app.bsky.labeler.service",
-      rkey: "self",
-      record,
-    });
+    const res = await agent.com.atproto.repo.putRecord(putParams);
     console.log("[INFO] Successfully updated labeler definitions record.");
     console.log("[INFO] Record URI:", res.data.uri);
   } catch (error: any) {
