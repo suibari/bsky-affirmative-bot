@@ -4,12 +4,20 @@ import { MODEL_GEMINI, SYSTEM_INSTRUCTION, POST_TEXT_LIMIT } from "@bsky-affirma
 import { UserInfoGemini, GeminiScore, BotContext, LanguageName } from "@bsky-affirmative-bot/shared-configs";
 import { MemoryService } from "@bsky-affirmative-bot/database";
 
+function energyLabel(energy: number, ja: boolean): string {
+  if (energy >= 80) return ja ? "めちゃくちゃ元気！" : "Super energetic!";
+  if (energy >= 60) return ja ? "元気" : "Energetic";
+  if (energy >= 40) return ja ? "まあまあ" : "So-so";
+  if (energy >= 20) return ja ? "ちょっとお疲れ気味…" : "A bit tired...";
+  return ja ? "ぐったり…" : "Exhausted...";
+}
+
 export function formatBotContext(botContext?: BotContext, langStr?: LanguageName): string {
   if (!botContext) return "";
   if (langStr === "日本語") {
-    return `\n---\n## botたんの現在状況（参考にして返答をパーソナライズしてください）\n- 日時：${botContext.datetime}\n- 天気：${botContext.weather}\n- いまやってること：${botContext.botActivity}\n- 元気度：${botContext.botEnergy}/100\n`;
+    return `\n---\n## botたんの現在状況（参考にして返答をパーソナライズしてください）\n- 日時：${botContext.datetime}\n- 天気：${botContext.weather}\n- いまやってること：${botContext.botActivity}\n- 元気度：${energyLabel(botContext.botEnergy, true)}\n`;
   }
-  return `\n---\n## Bot's current situation (use this to personalize your response)\n- Date/Time: ${botContext.datetime}\n- Weather: ${botContext.weather}\n- Currently: ${botContext.botActivityEn}\n- Energy: ${botContext.botEnergy}/100\n`;
+  return `\n---\n## Bot's current situation (use this to personalize your response)\n- Date/Time: ${botContext.datetime}\n- Weather: ${botContext.weather}\n- Currently: ${botContext.botActivityEn}\n- Energy: ${energyLabel(botContext.botEnergy, false)}\n`;
 }
 
 /**
