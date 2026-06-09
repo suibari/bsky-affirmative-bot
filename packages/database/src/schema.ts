@@ -113,3 +113,13 @@ export const gifts = affirmativeBotSchema.table("gifts", {
   // "new": 未言及, "introduced": 新着紹介済み, "used": 使用報告済み（再選択あり）
   // updated_at から3日経過で再使用可能
 });
+
+export const youtube_shorts = affirmativeBotSchema.table("youtube_shorts", {
+  id: serial("id").primaryKey(),
+  url: text("url").notNull().unique(),
+  title: text("title"),
+  status: text("status").default("new").notNull(),
+  // "new": 未告知, "posted": 告知済み
+  created_at: timestamp("created_at").defaultNow().notNull(),
+  updated_at: timestamp("updated_at").defaultNow().notNull(),
+});

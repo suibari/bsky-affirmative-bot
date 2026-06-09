@@ -1,4 +1,4 @@
-import { db, initializeDatabases, bot_state, followers, posts, likes, replies, affirmations, interaction, subscribers, biorhythm_history, gifts } from './db.js';
+import { db, initializeDatabases, bot_state, followers, posts, likes, replies, affirmations, interaction, subscribers, biorhythm_history, gifts, youtube_shorts } from './db.js';
 import { eq, desc, sql, gte, lte, and, gt, inArray } from 'drizzle-orm';
 import { LanguageName, LIMIT_REQUEST_PER_DAY_GEMINI } from '@bsky-affirmative-bot/shared-configs';
 
@@ -663,6 +663,30 @@ export class MemoryService {
         .where(eq(gifts.id, id));
     } catch (e) {
       console.error(`Failed to update gift status for id ${id}:`, e);
+    }
+  }
+
+  static async getNewYoutubeShort(): Promise<{ id: number; url: string; title: string | null } | null> {
+    try {
+      const result = await db.select()
+        .from(youtube_shorts)
+        .where(eq(youtube_shorts.status, 'new'))
+        .orderBy(desc(youtube_shorts.created_at))
+        .limit(1);
+      return result[0] ?? null;
+    } catch (e) {
+      console.error("Failed to get new YouTube Short:", e);
+      return null;
+    }
+  }
+
+  static async updateYoutubeShortStatus(id: number, status: "posted"): Promise<void> {
+    try {
+      await db.update(youtube_shorts)
+        .set({ status, updated_at: new Date() })
+        .where(eq(youtube_shorts.id, id));
+    } catch (e) {
+      console.error(`Failed to update YouTube Short status for id ${id}:`, e);
     }
   }
 }
