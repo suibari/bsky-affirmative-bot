@@ -181,7 +181,7 @@ async function startBot() {
   // discord_id/did registration only. Status is managed by GuildMemberUpdate.
   client.on(Events.MessageCreate, async (message) => {
     try {
-      if (message.channelId !== CHANNEL_ID || message.author.bot || message.system) return;
+      if (message.channelId !== CHANNEL_ID || message.author.bot || message.system || !message.mentions.has(client.user!.id)) return;
 
       const member = message.member;
       if (!member) return;
