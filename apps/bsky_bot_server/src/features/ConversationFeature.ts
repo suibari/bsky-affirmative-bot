@@ -4,6 +4,7 @@ import { BotFeature, FeatureContext } from "./types.js";
 import { MemoryService, botLabelerManager } from "@bsky-affirmative-bot/clients";
 import { followerMap } from "../bsky/followerManagement.js";
 import { isReplyOrMentionToMe, uniteDidNsidRkey, getImageUrl, getLangStr } from "../bsky/util.js";
+import { getBotContext } from "../util/botContext.js";
 import { AppBskyFeedPost } from "@atproto/api"; type Record = AppBskyFeedPost.Record;
 import { Content } from "@google/genai";
 import { Embed, GeminiResponseResult, UserInfoGemini, BADGE_DEF } from "@bsky-affirmative-bot/shared-configs";
@@ -279,6 +280,7 @@ export class ConversationFeature implements BotFeature {
             posts: [record.text],
             langStr,
             image,
+            botContext: await getBotContext(),
         }, themeQuestion);
         
         await postContinuous(result.reply, {
@@ -362,15 +364,12 @@ export class ConversationFeature implements BotFeature {
             }
 
             // リプライ生成
-            // botBiothythmManagerの代わりにDBから現在のmoodを取得
-            const bioState = await MemoryService.getBiorhythmState();
-            const currentMood = bioState.mood || "のんびりしています";
-
             const result = await generateWhimsicalReply({
                 follower,
                 posts: [record.text],
                 langStr,
-            }, currentMood);
+                botContext: await getBotContext(),
+            });
 
             // ポスト
             await postContinuous(result, { uri, cid: String(event.commit.cid), record });

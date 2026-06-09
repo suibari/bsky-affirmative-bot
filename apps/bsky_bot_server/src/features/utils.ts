@@ -5,6 +5,7 @@ import { getImageUrl, uniteDidNsidRkey } from "../bsky/util.js";
 import { postContinuous } from "../bsky/postContinuous.js";
 import { MemoryService } from "@bsky-affirmative-bot/clients";
 import { GeminiResponseResult, UserInfoGemini } from "@bsky-affirmative-bot/shared-configs";
+import { getBotContext } from "../util/botContext.js";
 
 export type TriggeredReplyHandlerOptions = {
     dbColumn?: string;   // 更新対象DBのカラム名（例: "is_u18"）
@@ -30,7 +31,8 @@ export const handleMode = async (
     // 画像読み出し
     const image = await getImageUrl(did, record.embed);
     if (userinfo) {
-        userinfo.image = image; // userinfoに画像情報をセット
+        userinfo.image = image;
+        userinfo.botContext = await getBotContext();
     }
 
     // ポスト&DB更新
