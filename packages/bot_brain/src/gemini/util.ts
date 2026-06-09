@@ -207,6 +207,18 @@ export async function generateSingleResponseWithScore(prompt: string, userinfo?:
 // Extracted to shared-configs
 
 /**
+ * テキスト内のURLの前後に半角スペースを保証する（Bluesky誤パース防止）
+ * URLの末尾に混入した句読点・括弧類も除去する
+ */
+export const normalizeUrlSpacing = (text: string): string =>
+  text
+    .replace(/https?:\/\/[^\s]+/g, (url) =>
+      url.replace(/[.。、，,！？!?「」『』【】（）\[\]{}]+$/, '')
+    )
+    .replace(/([^\s])(https?:\/\/)/g, '$1 $2')
+    .replace(/(https?:\/\/\S+)([^\s])/g, '$1 $2');
+
+/**
  * JSONレスポンスの生成とパースを行う共通ヘルパー
  * パースに失敗した場合は例外を投げ、callbacks.tsの共通リトライ機構に処理を委ねます。
  */

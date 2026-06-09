@@ -1,5 +1,5 @@
 import { ProfileView } from "@atproto/api/dist/client/types/app/bsky/actor/defs.js";
-import { generateSingleResponse, generateContentWithRetry } from "./util.js";
+import { generateSingleResponse, generateContentWithRetry, normalizeUrlSpacing } from "./util.js";
 import { getFullDateAndTimeString, getRandomItems, getWhatDay } from "@bsky-affirmative-bot/shared-configs";
 import { fetchNews } from "../api/gnews/index.js";
 import { UserInfoGemini, GeminiScore, LanguageName } from "@bsky-affirmative-bot/shared-configs";
@@ -102,7 +102,7 @@ Structure: ${JSON.stringify(structure)}`
       ],
     });
 
-    const finalText = second.text ?? "";
+    const finalText = normalizeUrlSpacing(second.text ?? "");
 
     this.saveHistory(lang, finalText);
 
