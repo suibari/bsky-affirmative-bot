@@ -2,6 +2,7 @@ import { CommitCreateEvent } from "@skyware/jetstream";
 import { AppBskyActorDefs } from "@atproto/api"; type ProfileView = AppBskyActorDefs.ProfileView;
 import { AppBskyFeedPost } from "@atproto/api"; type Record = AppBskyFeedPost.Record;
 import { getImageUrl, getLangStr, uniteDidNsidRkey } from "../bsky/util.js";
+import { getBotContext } from "../util/botContext.js";
 import { generateAffirmativeWord } from "@bsky-affirmative-bot/bot-brain";
 import { Embed, GeminiScore, BADGE_DEF } from "@bsky-affirmative-bot/shared-configs";
 import { MemoryService, botLabelerManager } from "@bsky-affirmative-bot/clients";
@@ -109,6 +110,7 @@ export async function replyAI(
             followersFriend: followersFriend ? [followersFriend] : undefined,
             embed,
             isSubscriber,
+            botContext: await getBotContext(),
         });
 
         // お気に入りポスト登録

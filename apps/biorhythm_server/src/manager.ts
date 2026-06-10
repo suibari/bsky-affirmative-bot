@@ -327,13 +327,17 @@ export class BiorhythmManager extends EventEmitter {
   }
 
   private buildPrompt(timeNow: string, isWeekend: Boolean, weather: string, unreadReply?: string[], utilities?: Record<Status, number>): string {
+    const outfitInstruction = (this.status === "WakeUp" || !this.moodPrev)
+      ? `今日の服装を自由に選んでください（ミント色のカーディガン以外のものも積極的に選ぶこと）。`
+      : `服装は前回から変わっていないため、服装の描写は不要です。`;
+
     return `
 以下のキャラクターの行動を描写してほしいです。
 ${SYSTEM_INSTRUCTION}
 このキャラクターが現在どんな気分でなにをしているか、現在時刻・天候・ステータス・行動欲求・前回した行動をもとにして、具体的に考えてください。
 * ルール
 - 結果はJSON形式で出力してください。
-- "status_text": 「全肯定たんは～しています」という、AIに入力する平易なプロンプト文（200文字以内）。
+- "status_text": 「全肯定たんは～しています」という、AIに入力する平易なプロンプト文（200文字以内）。服装について：${outfitInstruction}
 - "status_text_en": status_text の英語訳（plain English, max 200 characters）。
 - "duration_minutes": その行動にかかる時間（分）。行動の内容に合わせて5分から90分の範囲内で適切に決めてください。
 - ステータスについて、WakeUpは起床時、Studyは勉強中、FreeTimeは余暇時間、Relaxは休憩中、Sleepは就寝中(夢の中)を意味します。

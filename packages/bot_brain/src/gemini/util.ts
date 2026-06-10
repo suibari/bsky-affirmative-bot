@@ -1,13 +1,39 @@
 import { PartListUnion, Type, ServiceTier } from "@google/genai";
 import { gemini } from "./index.js";
 import { MODEL_GEMINI, SYSTEM_INSTRUCTION, POST_TEXT_LIMIT } from "@bsky-affirmative-bot/shared-configs";
-import { UserInfoGemini, GeminiScore } from "@bsky-affirmative-bot/shared-configs";
+import { UserInfoGemini, GeminiScore, BotContext, LanguageName } from "@bsky-affirmative-bot/shared-configs";
 import { MemoryService } from "@bsky-affirmative-bot/database";
+
+function energyLabel(energy: number, ja: boolean): string {
+  if (energy >= 80) return ja ? "めちゃくちゃ元気！" : "Super energetic!";
+  if (energy >= 60) return ja ? "元気" : "Energetic";
+  if (energy >= 40) return ja ? "まあまあ" : "So-so";
+  if (energy >= 20) return ja ? "ちょっとお疲れ気味…" : "A bit tired...";
+  return ja ? "ぐったり…" : "Exhausted...";
+}
+
+export function formatBotContext(botContext?: BotContext, langStr?: LanguageName): string {
+  if (!botContext) return "";
+  if (langStr === "日本語") {
+    return `\n---\n## botたんの現在状況（参考にして返答をパーソナライズしてください）\n- 日時：${botContext.datetime}\n- 天気：${botContext.weather}\n- いまやってること：${botContext.botActivity}\n- 元気度：${energyLabel(botContext.botEnergy, true)}\n`;
+  }
+  return `\n---\n## Bot's current situation (use this to personalize your response)\n- Date/Time: ${botContext.datetime}\n- Weather: ${botContext.weather}\n- Currently: ${botContext.botActivityEn}\n- Energy: ${energyLabel(botContext.botEnergy, false)}\n`;
+}
 
 /**
  * POST_TEXT_LIMITを超える場合はリトライするgenerateContentのラッパー
+ * userinfo が渡された場合、プロンプトの末尾に共通コンテキスト（日時・天気・bot状態）を自動付与する
  */
-export async function generateContentWithRetry(params: any, retryCount = 3): Promise<any> {
+export async function generateContentWithRetry(params: any, retryCount = 3, userinfo?: UserInfoGemini): Promise<any> {
+  if (userinfo?.botContext) {
+    const botCtx = formatBotContext(userinfo.botContext, userinfo.langStr);
+    if (Array.isArray(params.contents) && typeof params.contents[0] === 'string') {
+      params = { ...params, contents: [params.contents[0] + botCtx, ...params.contents.slice(1)] };
+    } else if (typeof params.contents === 'string') {
+      params = { ...params, contents: params.contents + botCtx };
+    }
+  }
+
   let response;
   for (let i = 0; i <= retryCount; i++) {
     // APIの接続や高負荷エラー（503等）は内部リトライせず、上位関数（callbacks.ts）の一元リトライに即座に委ねる
@@ -68,7 +94,7 @@ export async function generateSingleResponse(prompt: string, userinfo?: UserInfo
         }
       ]
     }
-  });
+  }, 3, userinfo);
 
   // Gemini出力の"["から"]"まで囲われたすべての部分を除去
   const responseText = response.text || "";
@@ -155,7 +181,7 @@ export async function generateSingleResponseWithScore(prompt: string, userinfo?:
       // responseSchema, // Removed
       tools
     }
-  });
+  }, 3, userinfo);
 
   const result = extractJSON(response.text || "") as GeminiScore[];
 
@@ -179,6 +205,18 @@ export async function generateSingleResponseWithScore(prompt: string, userinfo?:
 }
 
 // Extracted to shared-configs
+
+/**
+ * テキスト内のURLの前後に半角スペースを保証する（Bluesky誤パース防止）
+ * URLの末尾に混入した句読点・括弧類も除去する
+ */
+export const normalizeUrlSpacing = (text: string): string =>
+  text
+    .replace(/https?:\/\/[^\s]+/g, (url) =>
+      url.replace(/[.。、，,！？!?「」『』【】（）\[\]{}]+$/, '')
+    )
+    .replace(/([^\s])(https?:\/\/)/g, '$1 $2')
+    .replace(/(https?:\/\/\S+)([^\s])/g, '$1 $2');
 
 /**
  * JSONレスポンスの生成とパースを行う共通ヘルパー

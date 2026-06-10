@@ -62,7 +62,7 @@ export async function generateAnalyzeResult(userinfo: UserInfoGemini): Promise<A
         required: ["analysis", "title_ja", "title_en"]
       }
     }
-  });
+  }, 3, userinfo);
 
   try {
     const responseText = response.text || "{}";

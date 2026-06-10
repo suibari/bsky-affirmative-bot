@@ -102,7 +102,7 @@ ${getRandomItems(part_prompt_luckys, 3)}
         required: ["fortune", "emojis"]
       }
     }
-  });
+  }, 3, userinfo);
 
   try {
     const responseText = response.text || "{}";

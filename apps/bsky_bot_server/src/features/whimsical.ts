@@ -41,20 +41,25 @@ export async function doWhimsicalPost(currentMood: string) {
         }
     }
 
+    // 最新未告知YouTube Shortsを取得（BotFunction候補として渡す）
+    const newShort = await MemoryService.getNewYoutubeShort();
+
     // Step1: ポスト文生成
     // const currentMood = botBiothythmManager.getMood; // Removed, using arg
-    let text_bot = await retry(
+    const generateResult = await retry(
         async (bail, attempt) => {
-            const generatedText = await whimsicalPostGen.generate({
+            const result = await whimsicalPostGen.generate({
                 langStr: langStr,
                 currentMood,
                 userReplies: userReplies ?? undefined,
                 giftContext,
+                youtubeShortUrl: newShort?.url,
+                youtubeShortTitle: newShort?.title ?? undefined,
             });
-            if (!generatedText) {
+            if (!result.text) {
                 throw new Error("Whimsical post generation failed, retrying...");
             }
-            return generatedText;
+            return result;
         },
         {
             retries: 3,
@@ -63,6 +68,8 @@ export async function doWhimsicalPost(currentMood: string) {
             },
         }
     );
+    let text_bot = generateResult.text;
+    const usedYoutubeShort = generateResult.usedYoutubeShort;
 
     // Step2: ムードソング
     let songInfo = "";
@@ -105,6 +112,11 @@ export async function doWhimsicalPost(currentMood: string) {
     // ギフトのstatusを更新
     if (giftIdToUpdate !== undefined && giftContext) {
         await MemoryService.updateGiftStatus(giftIdToUpdate, giftContext.type);
+    }
+
+    // YouTube ShortsのStatusを 'posted' に更新（BotFunctionとして選ばれた場合のみ）
+    if (newShort && usedYoutubeShort) {
+        await MemoryService.updateYoutubeShortStatus(newShort.id, "posted");
     }
 
     // 投稿URIを保存 (リプライに反応するようにするため)

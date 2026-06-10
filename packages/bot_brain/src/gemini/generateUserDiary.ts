@@ -107,7 +107,7 @@ Today's posts: ${userinfo.posts || ""}
         required: ["diary", "title_ja", "title_en"]
       }
     }
-  });
+  }, 3, userinfo);
 
   try {
     const responseText = response.text || "{}";

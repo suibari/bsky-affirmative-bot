@@ -144,6 +144,14 @@ export type WhatDayMap = {
   };
 };
 
+export interface BotContext {
+  datetime: string;
+  weather: string;
+  botActivity: string;
+  botActivityEn: string;
+  botEnergy: number;
+}
+
 export type UserInfoGemini = {
   follower: ProfileView;
   langStr?: LanguageName;
@@ -161,6 +169,7 @@ export type UserInfoGemini = {
   topWords?: string[];
   postOnMonth?: string[][];
   isSubscriber?: boolean;
+  botContext?: BotContext;
 };
 
 export interface Embed {

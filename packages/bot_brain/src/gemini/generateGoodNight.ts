@@ -2,7 +2,7 @@ import { AppBskyActorDefs } from "@atproto/api";
 type ProfileView = AppBskyActorDefs.ProfileView;
 import { Type } from "@google/genai";
 import { MODEL_GEMINI, SYSTEM_INSTRUCTION } from "@bsky-affirmative-bot/shared-configs";
-import { generateContentWithRetry } from "./util.js";
+import { generateContentWithRetry, normalizeUrlSpacing } from "./util.js";
 
 interface GoodNightInfo {
   topFollower?: ProfileView,
@@ -44,13 +44,8 @@ export async function generateGoodNight(param: GoodNightInfo): Promise<GoodNight
   });
 
   const responseText = response.text || "";
-  const cleanText = (text: string) => {
-    const stripped = (text || "").replace(/\[.*?\]/gs, '').trim();
-    // URLの末尾に紛れ込んだ句読点・括弧類を除去
-    return stripped.replace(/https?:\/\/[^\s]+/g, (url) =>
-      url.replace(/[.。、，,！？!?「」『』【】（）\[\]{}]+$/, '')
-    );
-  };
+  const cleanText = (text: string) =>
+    normalizeUrlSpacing((text || "").replace(/\[.*?\]/gs, '').trim());
 
   try {
     const parsed = JSON.parse(responseText) as { text: string; selectedGiftIndex?: number };

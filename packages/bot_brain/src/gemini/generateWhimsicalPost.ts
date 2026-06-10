@@ -1,5 +1,5 @@
 import { ProfileView } from "@atproto/api/dist/client/types/app/bsky/actor/defs.js";
-import { generateSingleResponse, generateContentWithRetry } from "./util.js";
+import { generateSingleResponse, generateContentWithRetry, normalizeUrlSpacing } from "./util.js";
 import { getFullDateAndTimeString, getRandomItems, getWhatDay } from "@bsky-affirmative-bot/shared-configs";
 import { fetchNews } from "../api/gnews/index.js";
 import { UserInfoGemini, GeminiScore, LanguageName } from "@bsky-affirmative-bot/shared-configs";
@@ -25,12 +25,14 @@ export class WhimsicalPostGenerator {
     currentMood: string,
     userReplies?: string[],
     giftContext?: { content: string; displayName: string; type: "used" },
-  }) {
+    youtubeShortUrl?: string,
+    youtubeShortTitle?: string,
+  }): Promise<{ text: string; usedYoutubeShort: boolean }> {
     const lang = params.langStr;
     const history = this.historyMap[lang] ?? [];
 
     const wantElement = await this.getWantElement(params);
-    const botFunction = this.getBotFunctions(params);
+    const { feature: botFunction, usedYoutubeShort } = this.getBotFunctions(params);
 
     // --- Step 1 各パーツ生成 ---
     const first = await generateContentWithRetry({
@@ -100,12 +102,11 @@ Structure: ${JSON.stringify(structure)}`
       ],
     });
 
-    const finalText = second.text ?? "";
+    const finalText = normalizeUrlSpacing(second.text ?? "");
 
     this.saveHistory(lang, finalText);
 
-
-    return finalText;
+    return { text: finalText, usedYoutubeShort };
   }
 
   /**
@@ -145,18 +146,19 @@ Structure: ${JSON.stringify(structure)}`
    */
   private getBotFunctions(params: {
     langStr: LanguageName;
-  }) {
+    youtubeShortUrl?: string;
+    youtubeShortTitle?: string;
+  }): { feature: string; usedYoutubeShort: boolean } {
     const features = params.langStr === "日本語" ? [
       "あなたが持っている「AI限定化」機能の紹介：あなたが定型文を使わずにAIリプライのみで全肯定する。「AI限定モード」とリプすればできる。",
       "あなたが持っている「占い」機能の紹介：1日1回今日の運勢が占える。「占い」とリプすれば、結果画像とともに【今日のラッキーバッジ】がもらえる。",
       "あなたが持っている「性格分析」機能の紹介：1週間に1回性格診断ができる。「分析して」とリプすれば、分析結果画像とともにあなたの性格に合った【称号バッジ】がもらえる。",
       "あなたが持っている「DJ」機能の紹介：あなたがユーザにおすすめの曲を選ぶ。「DJお願い」とリプすればできる。",
       "あなたが持っている「記念日」機能の紹介：ユーザの記念日をお祝い。「記念日登録、記念日名、MM/DD」とリプすれば設定できる。設定した記念日の当日に思い出の振り返りとともにお祝いし、【記念日バッジ】をプレゼントする。「記念日OFF」とリプすることでOFFにすることができる。なお、この機能はDiscordサーバー（https://discord.gg/hshXWQEMgu ）に参加・Bluesky連携することで利用できるよ。",
-      "あなたが持っている「一年まとめ」機能の紹介：ユーザの一年を振り返る。「一年をまとめて」とリプすればできる。なお、この機能はDiscordサーバー（https://discord.gg/hshXWQEMgu ）に参加・Bluesky連携することで利用できるよ。",
       "あなたが持っている「ラベラー」機能の紹介：条件を満たすと様々なバッジをプレゼント。バッジの表示にはラベラーアカウント（https://bsky.app/profile/labeler-bot-tan.suibari.com ）を登録してもらう必要がある。",
       "botたんのステータスを確認できるダッシュボードの紹介：URLは https://suibari.com/character/",
       "botたんのイラストを見れるフィードの紹介：URLは https://bsky.app/profile/did:plc:uixgxpiqf4i63p6rgpu7ytmx/feed/196e948a58f4af5",
-      "みんなで集まるファンコミュニティサーバー（Discord）の紹介：URLは https://discord.gg/hshXWQEMgu",
+      "みんなで集まるファンコミュニティサーバー（Discord）の紹介：URLは https://discord.gg/hshXWQEMgu 。Discordサーバーに参加・Bluesky連携するとメンバー限定機能（記念日お祝いなど）も使えるようになるよ。",
       "botたんのお部屋（Bot-tan's Room）というサービスがあり、たまに遊びに来てほしいことの紹介。URLは https://room-bot-tan.suibari.com 。さらに、サインインするとマイページ機能が使えて、botへのメンションなしで各種設定（リプ頻度・日記・記念日など）を簡単に変更できることも教えてあげて。",
       "実はLeafletに日記を書いてるんだ、気が向いたら読んでねということの紹介。URLは https://leaflet.pub/p/bot-tan.suibari.com",
     ] : [
@@ -165,15 +167,26 @@ Structure: ${JSON.stringify(structure)}`
       "Introducing the Personality Analysis feature you have. You can get a personality diagnosis once a week and receive a special Title Badge by replying \"Analyze me\".",
       "Introducing the DJ feature you have. You choose songs you recommend to users by replying \"DJ, please\"",
       "Introducing the Anniversary feature you have. Users can register their anniversary by replying \"register anniversary, [your anniversary name], MM/DD\". You will celebrate them on the registered date and present them with a special Anniversary Badge. Users can disable it by replying \"disable anniversary\". Note: This feature requires joining the Discord server ( https://discord.gg/hshXWQEMgu ) and linking their Bluesky account.",
-      "Introducing the Yearly Review feature you have. You can review the user's posts for the year by replying \"summarize year\". Note: This feature requires joining the Discord server ( https://discord.gg/hshXWQEMgu ) and linking their Bluesky account.",
       "Introducing the Labeler feature you have: I'll present you with various badges when you meet certain conditions! To display the badges, register to my labeler account: https://bsky.app/profile/labeler-bot-tan.suibari.com",
       "Introducing the dashboard where the user can check bot-tan's status: URL: https://suibari.com/character/",
       "Introducing the feed where the user can check bot-tan's illustration: URL: https://bsky.app/profile/did:plc:uixgxpiqf4i63p6rgpu7ytmx/feed/196e948a58f4af5",
-      "Introducing the fan community server (Discord) where everyone gathers: URL: https://discord.gg/hshXWQEMgu",
+      "Introducing the fan community server (Discord) where everyone gathers: URL: https://discord.gg/hshXWQEMgu — Joining the Discord server and linking your Bluesky account also unlocks member-exclusive features (like Anniversary celebrations and more)!",
       "Introducing Bot-tan's Room, a service where you can hang out. We'd love it if you came to visit occasionally! URL: https://room-bot-tan.suibari.com — Also let them know: by signing in, they can access their personal My Page and easily change settings (reply frequency, diary mode, anniversary, etc.) without needing to mention the bot at all!",
       "Introducing bot-tan's Leaflet diary! I've been writing a diary there — feel free to read it when you're in the mood. URL: https://leaflet.pub/p/bot-tan.suibari.com",
-    ]
-    return getRandomItems(features, 1)[0];
+    ];
+
+    if (params.youtubeShortUrl) {
+      const titlePart = params.youtubeShortTitle ? `「${params.youtubeShortTitle}」` : "最新のYouTube Shorts";
+      features.push(
+        params.langStr === "日本語"
+          ? `botたんが最近投稿した${titlePart}の紹介。URLは ${params.youtubeShortUrl}`
+          : `Introducing bot-tan's latest YouTube Short: ${titlePart}! URL: ${params.youtubeShortUrl}`
+      );
+    }
+
+    const selected = getRandomItems(features, 1)[0];
+    const usedYoutubeShort = !!(params.youtubeShortUrl && selected.includes(params.youtubeShortUrl));
+    return { feature: selected, usedYoutubeShort };
   }
 
   /** 
