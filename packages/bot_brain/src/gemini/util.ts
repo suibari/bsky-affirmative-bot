@@ -216,7 +216,7 @@ export const normalizeUrlSpacing = (text: string): string =>
       url.replace(/[.。、，,！？!?「」『』【】（）\[\]{}]+$/, '')
     )
     .replace(/([^\s])(https?:\/\/)/g, '$1 $2')
-    .replace(/(https?:\/\/\S+)([^\s])/g, '$1 $2');
+    .replace(/(https?:\/\/[\x21-\x7E]+)([^\s\x00-\x7F])/g, '$1 $2');
 
 /**
  * JSONレスポンスの生成とパースを行う共通ヘルパー
