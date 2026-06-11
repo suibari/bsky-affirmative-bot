@@ -341,6 +341,7 @@ ${SYSTEM_INSTRUCTION}
 - "status_text_en": status_text の英語訳（plain English, max 200 characters）。
 - "duration_minutes": その行動にかかる時間（分）。行動の内容に合わせて5分から90分の範囲内で適切に決めてください。
 - ステータスについて、WakeUpは起床時、Studyは勉強中、FreeTimeは余暇時間、Relaxは休憩中、Sleepは就寝中(夢の中)を意味します。
+- 重要: status_textは必ず現在のステータス（${this.status}）に合った行動を描写すること。Sleepなら就寝・夢の中、Studyなら勉強中、FreeTimeなら余暇活動、Relaxなら休憩、WakeUpなら起床直後の行動のみとすること。
 - 行動欲求は、あなたがどの行動をしたいか、です。たとえばSleepが一番高いのに、ステータスがFreeTimeの場合、眠いのに遊んでいる状態です。
 - 以下の日にはその日にふさわしい行動をさせること
   * 元旦 (1月1日)
@@ -417,21 +418,10 @@ ${JSON.stringify(unreadReply)}
   }
 
   private async setOutput(newOutput: string, newOutputEn: string) {
-    if (newOutput !== this.moodPrev) {
-      this.moodPrev = newOutput;
-      this.moodPrevEn = newOutputEn;
-      this.getCurrentState().then(state => this.emit('statsChange', state));
-      await MemoryService.updateBiorhythmState({ energy: this.energy, mood: this.moodPrev, mood_en: this.moodPrevEn, status: this.status });
-
-      // Generate image and store it
-      // try {
-      //   // Assuming generateImage takes a string and returns a Buffer
-      //   this._generatedImage = await generateImage(newOutput);
-      // } catch (error) {
-      //   console.error("Error generating image:", error);
-      //   this._generatedImage = null; // Clear image on error
-      // }
-    }
+    this.moodPrev = newOutput;
+    this.moodPrevEn = newOutputEn;
+    this.getCurrentState().then(state => this.emit('statsChange', state));
+    await MemoryService.updateBiorhythmState({ energy: this.energy, mood: this.moodPrev, mood_en: this.moodPrevEn, status: this.status });
   }
 
   private async handleEnergyByStatus() {
