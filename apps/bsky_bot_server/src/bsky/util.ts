@@ -260,6 +260,19 @@ export function formatYMD(date: Date, lang?: string): string {
 export { sanitizeDidToLexiconValue } from '@bsky-affirmative-bot/shared-configs';
 
 /**
+ * 第三者（ボット自身でも投稿者自身でもない）がスレッドルートである返信か判定する
+ * その場合のみ true を返す（機能ブロック対象）
+ */
+export function isReplyInThirdPartyThread(
+  record: AppBskyFeedPost.Record,
+  authorDid: string
+): boolean {
+  if (!record.reply) return false;
+  const { did: rootDid } = splitUri(record.reply.root.uri);
+  return rootDid !== process.env.BSKY_DID && rootDid !== authorDid;
+}
+
+/**
  * アフィリエイトドメインリスト
  */
 export const AFFILIATE_DOMAINS = [

@@ -4,7 +4,7 @@ import { agent } from "./agent.js";
 import { features } from "../features/index.js";
 import { MemoryService, botBiothythmManager } from "@bsky-affirmative-bot/clients";
 import { followerMap, updateFollowers } from "./followerManagement.js";
-import { getLangStr, splitUri, isIgnoreTarget, hasNGWord, isIgnorePost, isReplyOrMentionToMe, hasBroadcastDomainLink, hasAffiliateDomainLink, hasAnyLink, getLatestPostOf } from "./util.js";
+import { getLangStr, splitUri, isIgnoreTarget, hasNGWord, isIgnorePost, isReplyOrMentionToMe, hasBroadcastDomainLink, hasAffiliateDomainLink, hasAnyLink, getLatestPostOf, isReplyInThirdPartyThread } from "./util.js";
 import { follow } from "./follow.js";
 import { replyGreets } from "./replyGreets.js";
 import retry from 'async-retry';
@@ -89,6 +89,12 @@ export async function onPost(event: any) {
             console.log(`[INFO][${authorDid}] Ignored as auto-post`);
             return;
           }
+        }
+
+        // 第三者スレッドへの割り込みメンションは全機能をスキップ
+        if (isReplyInThirdPartyThread(record, authorDid)) {
+          console.log(`[INFO][${authorDid}] Skipping features: third-party thread root`);
+          return;
         }
 
         const context: FeatureContext = { isSubscriber, isCommunityMember };
