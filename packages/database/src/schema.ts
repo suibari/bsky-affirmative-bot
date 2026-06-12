@@ -120,6 +120,12 @@ export const youtube_shorts = affirmativeBotSchema.table("youtube_shorts", {
   title: text("title"),
   status: text("status").default("new").notNull(),
   // "new": 未告知, "posted": 告知済み
+  corners: jsonb("corners"),
+  // corners format:
+  // [
+  //   { "corner_name": "SelfAffirmationCorner", "status": "Sleep" },
+  //   { "corner_name": "BlueskyCorner", "theme": "LGBTQ" }
+  // ]
   created_at: timestamp("created_at").defaultNow().notNull(),
   updated_at: timestamp("updated_at").defaultNow().notNull(),
 });
