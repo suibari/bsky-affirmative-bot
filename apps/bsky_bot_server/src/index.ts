@@ -37,6 +37,11 @@ app.listen(PORT, async () => {
       console.error("[ERROR] Failed to update followers on startup:", e);
     });
 
+    // takedown復活などでキャッシュから漏れたフォロワーを定期的に回復する
+    setInterval(() => {
+      updateFollowers().catch(e => console.error("[ERROR] Periodic follower update failed:", e));
+    }, 60 * 60 * 1000); // 1時間
+
     // Run diary scheduling in the background
     scheduleAllUserDiaries().catch(e => {
       console.error("[ERROR] Failed to schedule diaries:", e);
