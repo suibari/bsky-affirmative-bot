@@ -3,8 +3,7 @@ import { AppBskyActorDefs } from "@atproto/api"; type ProfileView = AppBskyActor
 import { AppBskyFeedPost } from "@atproto/api"; type Record = AppBskyFeedPost.Record;
 import { getLangStr, uniteDidNsidRkey } from "../bsky/util.js";
 import { postContinuous } from "../bsky/postContinuous.js";
-import { fetchSentiment } from "../util/negaposi.js";
-import { HNY_WORDS, OHAYO_WORDS, OYASUMI_WORDS, OTSUKARE_WORDS } from "@bsky-affirmative-bot/shared-configs";
+import { classifySentimentOllama, selectTemplateOllama, translateTemplateOllama } from "../util/ollamaSentiment.js";
 
 // JSON imports
 import wordNeg from "@bsky-affirmative-bot/shared-configs/json/affirmativeword_negative.json" with { type: "json" };
@@ -18,16 +17,7 @@ import wordMorning from "@bsky-affirmative-bot/shared-configs/json/affirmativewo
 import wordNight from "@bsky-affirmative-bot/shared-configs/json/affirmativeword_night.json" with { type: "json" };
 import wordGj from "@bsky-affirmative-bot/shared-configs/json/affirmativeword_gj.json" with { type: "json" };
 
-const CONDITIONS = [
-    { keywords: HNY_WORDS, word: wordHny },
-    { keywords: OHAYO_WORDS, word: wordMorning },
-    { keywords: OYASUMI_WORDS, word: wordNight },
-    { keywords: OTSUKARE_WORDS, word: wordGj },
-];
-
 export async function replyRandom(follower: ProfileView, event: CommitCreateEvent<"app.bsky.feed.post">) {
-    let sentiment = 0;
-    let wordSpecial;
     let wordArray: string[] = [];
 
     const record = event.commit.record as Record;
@@ -41,41 +31,34 @@ export async function replyRandom(follower: ProfileView, event: CommitCreateEven
         console.log("[DEBUG] lang: " + langStr);
     }
 
-    // 単語判定
-    for (const condition of CONDITIONS) {
-        for (const keyword of condition.keywords) {
-            if (posttext.includes(keyword)) {
-                wordSpecial = condition.word; // 一致するpathを返す
-            }
-        }
+    // Step 1: 7カテゴリ分類（おはよう/おやすみ/お疲れ/新年を含む）
+    const label = await classifySentimentOllama(posttext);
+
+    if (process.env.NODE_ENV === "development") {
+        console.log("[DEBUG] label: " + label);
     }
 
-    if (wordSpecial) {
-        // あいさつ判定
-        wordArray = wordSpecial;
-    } else {
-        // ネガポジフェッチ
-        const negaposiData = await fetchSentiment([posttext]);
-        sentiment = negaposiData.average_sentiments[0];
+    // Step 2: カテゴリに応じた定型文セットを選択
+    // 特殊カテゴリは言語問わず共通セット、感情カテゴリは言語別セット
+    let candidateArray: string[];
+    switch (label) {
+        case "morning":  candidateArray = wordMorning; break;
+        case "night":    candidateArray = wordNight;   break;
+        case "gj":       candidateArray = wordGj;      break;
+        case "hny":      candidateArray = wordHny;     break;
+        case "negative": candidateArray = langStr === "日本語" ? wordNeg   : wordNegEn; break;
+        case "positive": candidateArray = langStr === "日本語" ? wordPos   : wordPosEn; break;
+        default:         candidateArray = langStr === "日本語" ? wordNrm   : wordNrmEn;
+    }
 
-        // 感情分析
-        if (langStr == "日本語") {
-            if (sentiment <= -0.2) {
-                wordArray = wordNeg;
-            } else if (sentiment >= 0.2) {
-                wordArray = wordPos;
-            } else {
-                wordArray = wordNrm;
-            };
-        } else {
-            if (sentiment <= -0.05) {
-                wordArray = wordNegEn;
-            } else if (sentiment >= 0.05) {
-                wordArray = wordPosEn;
-            } else {
-                wordArray = wordNrmEn;
-            };
-        }
+    // Step 3: ollama が最適な1件を選択
+    const selectedIdx = await selectTemplateOllama(candidateArray, posttext);
+    wordArray = [candidateArray[selectedIdx]];
+
+    // Step 4: 非日英の場合は選んだ定型文をポストの言語に翻訳
+    if (langStr !== "日本語" && langStr !== "English") {
+        const translated = await translateTemplateOllama(candidateArray[selectedIdx], langStr);
+        wordArray = [translated];
     }
 
     let rand = Math.random();

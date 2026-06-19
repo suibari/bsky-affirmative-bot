@@ -8,15 +8,12 @@ import { Embed, GeminiScore, BADGE_DEF } from "@bsky-affirmative-bot/shared-conf
 import { MemoryService, botLabelerManager } from "@bsky-affirmative-bot/clients";
 import { postContinuous } from "../bsky/postContinuous.js";
 import { checkAndSendRoomInvitation } from "../bsky/roomInvitation.js";
-import { fetchSentiment } from "../util/negaposi.js";
 import { MAX_LEVEL } from "../util/index.js";
-import retry from 'async-retry';
 import { getConcatProfiles } from "../bsky/getConcatProfiles.js";
 import { parseEmbedPost } from "../bsky/parseEmbedPost.js";
 import { followerMap } from "../bsky/followerManagement.js";
 import { replyRandom } from "./replyrandom.js";
 
-const NOUN_MATCH_NUM = 4; // フォロワーの友人を探す際の名詞一致数の閾値
 
 export async function replyAI(
     follower: ProfileView,
@@ -98,7 +95,7 @@ export async function replyAI(
 
         // 共通の趣味を持つフォロワーのポストを取得
         let followersFriend: { profile: ProfileView; post: string; uri: string } | undefined = undefined;
-        followersFriend = await getFollowersFriend(text_user, follower.did, NOUN_MATCH_NUM);
+        followersFriend = await getFollowersFriend(text_user, follower.did);
 
         // Gemini生成
         result = await generateAffirmativeWord({
@@ -208,76 +205,21 @@ export async function replyAI(
     }
 }
 
-async function getFollowersFriend(
-    text_user: string,
-    userDid: string,
-    NOUN_MATCH_NUM: number = 1
-) {
-    const retryOptions = {
-        retries: 3,
-        factor: 2,
-        minTimeout: 1000,
-        onRetry: (error: Error, attempt: number) => {
-            console.warn(`Attempt ${attempt} failed. Retrying... Error: ${error.message}`);
-        }
-    };
+async function getFollowersFriend(text_user: string, userDid: string) {
+    // ベクトル類似検索で投稿者本人を除いた類似ポストを取得
+    const similarPosts = await MemoryService.findSimilarPosts(text_user, userDid);
+    if (similarPosts.length === 0) return undefined;
 
-    // 1. 入力テキストから名詞を抽出
-    const userPostNouns = (await retry(() => fetchSentiment([text_user]), retryOptions)).nouns[0];
-
-    // 2. DBから全ポスト取得 & 名詞抽出
-    // const allPosts = (await dbPosts.selectRows(['did', 'post', 'uri'])) ?? [];
-    const allPosts = await MemoryService.getAllPosts();
-    const validPosts = allPosts.filter(p => p.post && p.post.trim() !== '');
-    if (validPosts.length === 0) {
-        return undefined;
-    }
-    const allNouns = (await retry(() => fetchSentiment(validPosts.map(p => p.post)), retryOptions)).nouns;
-
-    // 3. ポストごとに {did, uri, post, nouns} をまとめる
-    const allPostNouns = validPosts.map((p, i) => ({
-        did: p.did,
-        uri: p.uri,
-        post: p.post,
-        nouns: allNouns[i],
-    }));
-
-    // 4. フォロワーのポストと名詞一致するものを抽出
-    const matchingPosts = allPostNouns.filter(postData => {
-        const commonNouns = postData.nouns.filter(noun => userPostNouns.includes(noun));
-        if (commonNouns.length >= 10 && postData.did !== userDid && !!postData.uri) {
-            throw new Error("HighMatchNum");
-        }
-        if (commonNouns.length >= NOUN_MATCH_NUM && postData.did !== userDid && !!postData.uri) {
-            // デバッグ出力
-            console.log("[DEBUG] ==== Noun Mathing Candidates ====");
-            console.log("[DEBUG] user post:", text_user);
-            console.log("[DEBUG] candidate post:", postData.post);
-            console.log("[DEBUG] matched nouns:", commonNouns);
-            console.log("[DEBUG] match num", commonNouns.length);
-            return true;
-        }
-        return false;
-    });
-
-    if (matchingPosts.length === 0) return undefined;
-
-    // 5. 一致したdidのプロフィールを取得
     const friendsProfiles = await getConcatProfiles({
-        actors: matchingPosts.map(mp => mp.did),
+        actors: similarPosts.map(p => p.did),
     });
     if (!friendsProfiles || friendsProfiles.length === 0) return undefined;
 
-    // 6. 最初の一致したプロフィール＋ポストを返す
     const firstProfile = friendsProfiles[0] as ProfileView;
-    const firstPost = matchingPosts.find(mp => mp.did === firstProfile.did);
+    const firstPost = similarPosts.find(p => p.did === firstProfile.did);
 
-    return firstProfile && firstPost
-        ? {
-            profile: firstProfile,
-            post: firstPost.post,
-            uri: firstPost.uri,
-        }
+    return firstProfile && firstPost && firstPost.post && firstPost.uri
+        ? { profile: firstProfile, post: firstPost.post, uri: firstPost.uri }
         : undefined;
 }
 

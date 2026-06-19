@@ -1,4 +1,16 @@
-import { pgTable, text, integer, timestamp, jsonb, serial, pgSchema } from "drizzle-orm/pg-core";
+import { pgTable, text, integer, timestamp, jsonb, serial, pgSchema, customType } from "drizzle-orm/pg-core";
+
+const vector = customType<{ data: number[]; driverData: string; config: { dimensions: number } }>({
+  dataType(config) {
+    return `vector(${config?.dimensions ?? 1024})`;
+  },
+  toDriver(value: number[]): string {
+    return `[${value.join(",")}]`;
+  },
+  fromDriver(value: string): number[] {
+    return value.replace(/^\[/, "").replace(/\]$/, "").split(",").map(Number);
+  },
+});
 
 export const affirmativeBotSchema = pgSchema("affirmative_bot");
 
@@ -39,13 +51,14 @@ export const followers = affirmativeBotSchema.table("followers", {
 });
 
 export const posts = affirmativeBotSchema.table("posts", {
-  did: text("did").primaryKey(),
-  post: text("post"),
-  score: integer("score"),
+  did:        text("did").primaryKey(),
+  post:       text("post"),
+  score:      integer("score"),
   updated_at: timestamp("updated_at"),
   created_at: timestamp("created_at").defaultNow().notNull(),
-  uri: text("uri"),
-  comment: text("comment"),
+  uri:        text("uri"),
+  comment:    text("comment"),
+  embedding:  vector("embedding", { dimensions: 1024 }),
 });
 
 export const likes = affirmativeBotSchema.table("likes", {

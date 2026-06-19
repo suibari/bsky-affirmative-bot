@@ -1,5 +1,6 @@
 import { db, initializeDatabases, bot_state, followers, posts, likes, replies, affirmations, interaction, subscribers, biorhythm_history, gifts, youtube_shorts } from './db.js';
-import { eq, desc, sql, gte, lte, and, gt, inArray } from 'drizzle-orm';
+import { eq, desc, sql, gte, lte, and, gt, inArray, lt } from 'drizzle-orm';
+import { generateEmbedding } from './ollamaEmbed.js';
 import { LanguageName, LIMIT_REQUEST_PER_DAY_GEMINI } from '@bsky-affirmative-bot/shared-configs';
 
 export { initializeDatabases, db, subscribers };
@@ -97,9 +98,12 @@ export class MemoryService {
 
   static async clearPosts() {
     try {
-      await db.delete(posts);
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      await db.delete(posts).where(lt(posts.created_at, sevenDaysAgo));
+      console.log("[INFO] Pruned posts older than 7 days.");
     } catch (error) {
-      console.error("Failed to clear posts:", error);
+      console.error("Failed to prune old posts:", error);
     }
   }
 
@@ -150,6 +154,41 @@ export class MemoryService {
         target: posts.did,
         set: data
       });
+
+    if (data.post) {
+      generateEmbedding(data.post).then(async (embedding) => {
+        if (embedding) {
+          await db.update(posts).set({ embedding }).where(eq(posts.did, data.did));
+        }
+      }).catch((e) => console.error("[ERROR][upsertPost] embedding failed:", e));
+    }
+  }
+
+  static async findSimilarPosts(
+    text: string,
+    excludeDid?: string,
+    threshold: number = 0.8
+  ): Promise<Array<{ uri: string | null; did: string; post: string | null; score: number | null }>> {
+    const embedding = await generateEmbedding(text);
+    if (!embedding) return [];
+
+    try {
+      const vectorLiteral = `[${embedding.join(",")}]`;
+      const maxDistance = 1 - threshold;
+      const conditions = [
+        sql`"embedding" IS NOT NULL`,
+        sql`"embedding" <=> ${sql.raw(`'${vectorLiteral}'::vector`)} <= ${maxDistance}`,
+        ...(excludeDid ? [sql`did != ${excludeDid}`] : []),
+      ];
+      return await db.select({ uri: posts.uri, did: posts.did, post: posts.post, score: posts.score })
+        .from(posts)
+        .where(sql.join(conditions, sql` AND `))
+        .orderBy(sql`"embedding" <=> ${sql.raw(`'${vectorLiteral}'::vector`)}`)
+        .limit(10);
+    } catch (e) {
+      console.error("[ERROR][findSimilarPosts]", e);
+      return [];
+    }
   }
 
   static async getLike(did: string): Promise<any> {
