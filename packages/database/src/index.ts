@@ -4,6 +4,7 @@ import { generateEmbedding } from './ollamaEmbed.js';
 import { LanguageName, LIMIT_REQUEST_PER_DAY_GEMINI } from '@bsky-affirmative-bot/shared-configs';
 
 export { initializeDatabases, db, subscribers };
+export { filterRelatedHistory } from './ollamaEmbed.js';
 
 export interface DailyReport {
   followers: number;
@@ -138,11 +139,7 @@ export class MemoryService {
     return await db.select().from(posts).orderBy(desc(posts.score)).limit(5);
   }
 
-  static async getAllPosts(): Promise<any[]> {
-    return await db.select().from(posts);
-  }
-
-  static async getPost(did: string): Promise<any> {
+static async getPost(did: string): Promise<any> {
     const result = await db.select().from(posts).where(eq(posts.did, did)).limit(1);
     return result[0] || {};
   }
@@ -164,7 +161,7 @@ export class MemoryService {
     }
   }
 
-  static async findSimilarPosts(
+  static async findFollowersByTopic(
     text: string,
     excludeDid?: string,
     threshold: number = 0.8
@@ -186,7 +183,7 @@ export class MemoryService {
         .orderBy(sql`"embedding" <=> ${sql.raw(`'${vectorLiteral}'::vector`)}`)
         .limit(10);
     } catch (e) {
-      console.error("[ERROR][findSimilarPosts]", e);
+      console.error("[ERROR][findFollowersByTopic]", e);
       return [];
     }
   }

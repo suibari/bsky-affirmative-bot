@@ -13,12 +13,13 @@ import { getConcatProfiles } from "../bsky/getConcatProfiles.js";
 import { parseEmbedPost } from "../bsky/parseEmbedPost.js";
 import { followerMap } from "../bsky/followerManagement.js";
 import { replyRandom } from "./replyrandom.js";
+import { getConcatAuthorFeed } from "../bsky/getConcatAuthorFeed.js";
+import { filterRelatedHistory } from "@bsky-affirmative-bot/database";
 
 
 export async function replyAI(
     follower: ProfileView,
     event: CommitCreateEvent<"app.bsky.feed.post">,
-    relatedPosts: string[],
     isSubscriber?: boolean,
 ) {
     const record = event.commit.record as Record;
@@ -28,6 +29,19 @@ export async function replyAI(
 
     let result: GeminiScore | undefined;
     const text_user = record.text;
+
+    // 関連ポスト取得（直近100件から意味的に近い上位10件）
+    let relatedPosts: string[] = [];
+    try {
+        const recentPosts = await getConcatAuthorFeed(follower.did, 100);
+        const candidateTexts = recentPosts
+            .filter(item => item.post.uri !== uri)
+            .map(item => (item.post.record as any).text as string)
+            .filter(Boolean);
+        relatedPosts = await filterRelatedHistory(text_user, candidateTexts, 10);
+    } catch (err) {
+        console.warn(`[WARN][${follower.did}] Failed to fetch related posts for AI context:`, err);
+    }
     const image = await getImageUrl(follower.did, record.embed);
 
     // 引用ポスト・リンク解析
@@ -207,8 +221,13 @@ export async function replyAI(
 
 async function getFollowersFriend(text_user: string, userDid: string) {
     // ベクトル類似検索で投稿者本人を除いた類似ポストを取得
-    const similarPosts = await MemoryService.findSimilarPosts(text_user, userDid);
+    const similarPosts = await MemoryService.findFollowersByTopic(text_user, userDid);
     if (similarPosts.length === 0) return undefined;
+
+    console.log(`[DEBUG][getFollowersFriend] ${similarPosts.length}件の類似ポストを検出`);
+    similarPosts.forEach((p, i) =>
+        console.log(`  [${i}] did=${p.did} post="${(p.post ?? "").slice(0, 40)}..."`)
+    );
 
     const friendsProfiles = await getConcatProfiles({
         actors: similarPosts.map(p => p.did),

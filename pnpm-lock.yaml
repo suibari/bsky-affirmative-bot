@@ -84,6 +84,9 @@ importers:
       '@bsky-affirmative-bot/clients':
         specifier: workspace:*
         version: link:../../packages/clients
+      '@bsky-affirmative-bot/database':
+        specifier: workspace:*
+        version: link:../../packages/database
       '@bsky-affirmative-bot/shared-configs':
         specifier: workspace:*
         version: link:../../packages/shared-configs
