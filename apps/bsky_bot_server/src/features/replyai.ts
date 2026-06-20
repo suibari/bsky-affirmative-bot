@@ -38,7 +38,7 @@ export async function replyAI(
             .filter(item => item.post.uri !== uri)
             .map(item => (item.post.record as any).text as string)
             .filter(Boolean);
-        relatedPosts = await filterRelatedHistory(text_user, candidateTexts, 10);
+        relatedPosts = await filterRelatedHistory(text_user, candidateTexts, 10, 0.6);
     } catch (err) {
         console.warn(`[WARN][${follower.did}] Failed to fetch related posts for AI context:`, err);
     }

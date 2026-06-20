@@ -55,10 +55,10 @@ function cosineSim(a: number[], b: number[]): number {
 export async function filterRelatedHistory(
   queryText: string,
   candidates: string[],
-  topN: number = 10
+  topN: number = 10,
+  minSim: number = 0,
 ): Promise<string[]> {
   if (candidates.length === 0) return [];
-  if (candidates.length <= topN) return candidates;
 
   const embeddings = await generateEmbeddings([queryText, ...candidates]);
   const queryEmb = embeddings[0];
@@ -70,10 +70,11 @@ export async function filterRelatedHistory(
 
   const ranked = candidates
     .map((text, i) => ({ text, sim: embeddings[i + 1] ? cosineSim(queryEmb, embeddings[i + 1]!) : 0 }))
+    .filter(r => r.sim >= minSim)
     .sort((a, b) => b.sim - a.sim)
     .slice(0, topN);
 
-  console.log(`[DEBUG][filterRelatedHistory] ${candidates.length}件から上位${topN}件を選択`);
+  console.log(`[DEBUG][filterRelatedHistory] ${candidates.length}件中${ranked.length}件が閾値(${minSim})以上、上位${topN}件を選択`);
   ranked.forEach((r, i) => console.log(`  [${i}] sim=${r.sim.toFixed(3)} "${r.text.slice(0, 40)}..."`));
 
   return ranked.map(x => x.text);
