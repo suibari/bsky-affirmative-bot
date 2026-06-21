@@ -150,29 +150,31 @@ Structure: ${JSON.stringify(structure)}`
     youtubeShortTitle?: string;
   }): { feature: string; usedYoutubeShort: boolean } {
     const features = params.langStr === "日本語" ? [
-      "あなたが持っている「AI限定化」機能の紹介：あなたが定型文を使わずにAIリプライのみで全肯定する。「AI限定モード」とリプすればできる。",
       "あなたが持っている「占い」機能の紹介：1日1回今日の運勢が占える。「占い」とリプすれば、結果画像とともに【今日のラッキーバッジ】がもらえる。",
       "あなたが持っている「性格分析」機能の紹介：1週間に1回性格診断ができる。「分析して」とリプすれば、分析結果画像とともにあなたの性格に合った【称号バッジ】がもらえる。",
-      "あなたが持っている「DJ」機能の紹介：あなたがユーザにおすすめの曲を選ぶ。「DJお願い」とリプすればできる。",
-      "あなたが持っている「記念日」機能の紹介：ユーザの記念日をお祝い。「記念日登録、記念日名、MM/DD」とリプすれば設定できる。設定した記念日の当日に思い出の振り返りとともにお祝いし、【記念日バッジ】をプレゼントする。「記念日OFF」とリプすることでOFFにすることができる。なお、この機能はDiscordサーバー（https://discord.gg/hshXWQEMgu ）に参加・Bluesky連携することで利用できるよ。",
       "あなたが持っている「ラベラー」機能の紹介：条件を満たすと様々なバッジをプレゼント。バッジの表示にはラベラーアカウント（https://bsky.app/profile/labeler-bot-tan.suibari.com ）を登録してもらう必要がある。",
       "botたんのステータスを確認できるダッシュボードの紹介：URLは https://suibari.com/character/",
       "botたんのイラストを見れるフィードの紹介：URLは https://bsky.app/profile/did:plc:uixgxpiqf4i63p6rgpu7ytmx/feed/196e948a58f4af5",
-      "みんなで集まるファンコミュニティサーバー（Discord）の紹介：URLは https://discord.gg/hshXWQEMgu 。Discordサーバーに参加・Bluesky連携するとメンバー限定機能（記念日お祝いなど）も使えるようになるよ。",
-      "botたんのお部屋（Bot-tan's Room）というサービスがあり、たまに遊びに来てほしいことの紹介。URLは https://room-bot-tan.suibari.com 。さらに、サインインするとマイページ機能が使えて、botへのメンションなしで各種設定（リプ頻度・日記・記念日など）を簡単に変更できることも教えてあげて。",
+      "みんなで集まるファンコミュニティサーバー（Discord）の紹介：URLは https://discord.gg/hshXWQEMgu 。Discordサーバーに参加・Bluesky連携するとメンバー限定機能も使えるようになるよ。",
       "実はLeafletに日記を書いてるんだ、気が向いたら読んでねということの紹介。URLは https://leaflet.pub/p/bot-tan.suibari.com",
     ] : [
-      "Introducing the AI only mode feature you have. You will give affirmative replies using only AI without using predefined replies. Users can enable it by replying \"AI only mode\".",
       "Introducing the Fortune Telling feature you have. You can get your fortune told once a day and receive a Today's Lucky Badge by replying \"Fortune\".",
       "Introducing the Personality Analysis feature you have. You can get a personality diagnosis once a week and receive a special Title Badge by replying \"Analyze me\".",
-      "Introducing the DJ feature you have. You choose songs you recommend to users by replying \"DJ, please\"",
-      "Introducing the Anniversary feature you have. Users can register their anniversary by replying \"register anniversary, [your anniversary name], MM/DD\". You will celebrate them on the registered date and present them with a special Anniversary Badge. Users can disable it by replying \"disable anniversary\". Note: This feature requires joining the Discord server ( https://discord.gg/hshXWQEMgu ) and linking their Bluesky account.",
       "Introducing the Labeler feature you have: I'll present you with various badges when you meet certain conditions! To display the badges, register to my labeler account: https://bsky.app/profile/labeler-bot-tan.suibari.com",
       "Introducing the dashboard where the user can check bot-tan's status: URL: https://suibari.com/character/",
       "Introducing the feed where the user can check bot-tan's illustration: URL: https://bsky.app/profile/did:plc:uixgxpiqf4i63p6rgpu7ytmx/feed/196e948a58f4af5",
-      "Introducing the fan community server (Discord) where everyone gathers: URL: https://discord.gg/hshXWQEMgu — Joining the Discord server and linking your Bluesky account also unlocks member-exclusive features (like Anniversary celebrations and more)!",
-      "Introducing Bot-tan's Room, a service where you can hang out. We'd love it if you came to visit occasionally! URL: https://room-bot-tan.suibari.com — Also let them know: by signing in, they can access their personal My Page and easily change settings (reply frequency, diary mode, anniversary, etc.) without needing to mention the bot at all!",
+      "Introducing the fan community server (Discord) where everyone gathers: URL: https://discord.gg/hshXWQEMgu — Joining the Discord server and linking your Bluesky account also unlocks member-exclusive features!",
       "Introducing bot-tan's Leaflet diary! I've been writing a diary there — feel free to read it when you're in the mood. URL: https://leaflet.pub/p/bot-tan.suibari.com",
+    ];
+
+    const crossSells = params.langStr === "日本語" ? [
+      "開発者すいばりが作った「TriLinesAt」の紹介：寝る前に3行ポジティブ日記をATprotoに記録できるアプリ。毎日続けると自己肯定感が上がると言われているよ！ぜひ使ってみてね。URLは https://trilinesat.suibari.com/",
+      "開発者すいばりが作った「SkyPutter」の紹介：タイムラインを見ない、投稿と通知だけに特化したBlueskyクライアント。他人のタイムラインで消耗したり集中を邪魔されることなく、アウトプットして頭をクリアにできるよ。URLは https://skyputter.suibari.com",
+      "開発者すいばりが作った「なうぷれあっと」の紹介：ATproto音楽SNS。last[.]fmと連携することで、Spotifyなどで再生した曲をBlueskyに自動投稿できるよ！URLは https://nowplayingat.suibari.com",
+    ] : [
+      "Introducing \"TriLinesAt\" made by suibari, the developer: An ATproto app where you can log a 3-line positive diary before bed. Keeping a daily 3-line diary is said to boost self-affirmation — give it a try! URL: https://trilinesat.suibari.com/",
+      "Introducing \"SkyPutter\" made by suibari, the developer: A Bluesky client focused purely on posting and notifications — no timeline browsing. Stay focused, avoid getting drained by others' feeds, and keep your mind clear by outputting your thoughts. URL: https://skyputter.suibari.com",
+      "Introducing \"NowPlayingAt\" made by suibari, the developer: An ATproto music SNS. By linking with last[.]fm, songs you play on Spotify and other services are automatically posted to Bluesky! URL: https://nowplayingat.suibari.com",
     ];
 
     if (params.youtubeShortUrl) {
@@ -184,7 +186,8 @@ Structure: ${JSON.stringify(structure)}`
       );
     }
 
-    const selected = getRandomItems(features, 1)[0];
+    const pool = [...features, ...crossSells];
+    const selected = getRandomItems(pool, 1)[0];
     const usedYoutubeShort = !!(params.youtubeShortUrl && selected.includes(params.youtubeShortUrl));
     return { feature: selected, usedYoutubeShort };
   }

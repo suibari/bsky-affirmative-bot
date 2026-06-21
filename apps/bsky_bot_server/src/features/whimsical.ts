@@ -28,11 +28,11 @@ export async function doWhimsicalPost(currentMood: string) {
         console.error("Failed to get unread replied", e);
     }
 
-    // ギフトコンテキストを決定（3日以上前のギフット、50%確率）
+    // ギフトコンテキストを決定（3日以上前のギフット、20%確率）
     let giftContext: { content: string; displayName: string; type: "used" } | undefined;
     let giftIdToUpdate: number | undefined;
 
-    if (Math.random() < 0.5) {
+    if (Math.random() < 0.2) {
         const oldGift = await MemoryService.getRandomOldGift();
         if (oldGift) {
             const displayName = await fetchDisplayName(oldGift.did);
