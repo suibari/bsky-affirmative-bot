@@ -15,6 +15,7 @@ import { generateUserDiary, DiaryResult } from "@bsky-affirmative-bot/bot-brain"
 import { textToImageBufferWithBackground } from "../util/canvas.js";
 import { agent } from "../bsky/agent.js";
 import { postContinuous } from "../bsky/postContinuous.js";
+import retry from 'async-retry';
 
 const TEXT_REGISTER_DIARY = (langStr: LanguageName) => (langStr === "日本語") ?
     "日記モードを設定しました! これから毎日、PM10時にあなたの今日のできごとを日記にしてまとめるね!" :
@@ -126,29 +127,30 @@ async function processUserDiary(userDid: string) {
 
         console.log(`[INFO][${userDid}] generating diary...`);
 
-        // 日記が空文字のことがあるので、リトライ処理を入れてみる
-        let diaryResult: DiaryResult | undefined;
-        const maxRetries = 3;
-        let retries = 0;
-        while (retries < maxRetries) {
-            diaryResult = await generateUserDiary({
-                follower: profile as ProfileView,
-                posts: posts.reverse(),
-                langStr,
-            });
-
-            if (diaryResult && diaryResult.diary !== "") {
-                break;
-            }
-
-            retries++;
-            console.log(`[WARN][${userDid}][DIARY] generateUserDiary returned empty, retrying (${retries}/${maxRetries})...`);
-            await new Promise(resolve => setTimeout(resolve, 1000 * retries));
-        }
-
-        if (!diaryResult || diaryResult.diary === "") {
-            console.error(`[ERROR][${userDid}][DIARY] Failed to generate diary after ${maxRetries} retries.`);
-            return; // Exit if still empty after retries
+        let diaryResult: DiaryResult;
+        try {
+            diaryResult = await retry(
+                async (_bail, attempt) => {
+                    const result = await generateUserDiary({
+                        follower: profile as ProfileView,
+                        posts: posts.reverse(),
+                        langStr,
+                    });
+                    if (!result || result.diary === "") {
+                        throw new Error("generateUserDiary returned empty");
+                    }
+                    return result;
+                },
+                {
+                    retries: 3,
+                    onRetry: (err, attempt) => {
+                        console.warn(`[WARN][${userDid}][DIARY] generateUserDiary retry (${attempt}/3): ${String(err)}`);
+                    },
+                }
+            );
+        } catch (e: any) {
+            console.error(`[ERROR][${userDid}][DIARY] Failed to generate diary after 3 retries:`, e.message);
+            return;
         }
 
         const text_bot = diaryResult.diary;
