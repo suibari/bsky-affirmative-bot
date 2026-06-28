@@ -37,7 +37,12 @@ export async function generateContentWithRetry(params: any, retryCount = 3, user
   let response;
   for (let i = 0; i <= retryCount; i++) {
     // APIの接続や高負荷エラー（503等）は内部リトライせず、上位関数（callbacks.ts）の一元リトライに即座に委ねる
-    response = await gemini.models.generateContent(params);
+    try {
+      response = await gemini.models.generateContent(params);
+    } catch (e) {
+      MemoryService.incrementStats('rpdError', 1).catch((err: any) => console.error("Failed to increment rpdError:", err));
+      throw e;
+    }
     const text = response.text || "";
 
     // Increment RPD on success

@@ -1,50 +1,11 @@
 import { db, initializeDatabases, bot_state, followers, posts, likes, replies, affirmations, interaction, subscribers, biorhythm_history, gifts, youtube_shorts } from './db.js';
 import { eq, desc, sql, gte, lte, and, gt, inArray, lt } from 'drizzle-orm';
 import { generateEmbedding } from './ollamaEmbed.js';
-import { LanguageName, LIMIT_REQUEST_PER_DAY_GEMINI } from '@bsky-affirmative-bot/shared-configs';
+import { LanguageName, LIMIT_REQUEST_PER_DAY_GEMINI, DailyReport, Stats } from '@bsky-affirmative-bot/shared-configs';
 
 export { initializeDatabases, db, subscribers };
 export { filterRelatedHistory } from './ollamaEmbed.js';
-
-export interface DailyReport {
-  followers: number;
-  likes: number;
-  reply: number;
-  affirmationCount: number;
-  uniqueAffirmationUserCount: number;
-  conversation: number;
-  fortune: number;
-  cheer: number;
-  analysis: number;
-  dj: number;
-  anniversary: number;
-  answer: number;
-  recap: number;
-  lang: Map<LanguageName, number>;
-  topPost: string;
-  botComment: string;
-  bskyrate: number;
-  rpd: number;
-  lastInitializedDate: string;
-}
-
-export interface Stats {
-  followers: number;
-  likes: number;
-  reply: number;
-  affirmationCount: number;
-  conversation: number;
-  fortune: number;
-  cheer: number;
-  analysis: number;
-  dj: number;
-  anniversary: number;
-  answer: number;
-  recap: number;
-  lang: Map<LanguageName, number>;
-  bskyrate: number;
-  rpd: number;
-}
+export type { DailyReport, Stats };
 
 export class MemoryService {
   static async getBotState(key: string): Promise<any> {
@@ -352,6 +313,7 @@ static async getPost(did: string): Promise<any> {
       else if (type === 'answer') currentStats.answer += amount;
       else if (type === 'recap') currentStats.recap += amount;
       else if (type === 'rpd') currentStats.rpd += amount;
+      else if (type === 'rpdError') currentStats.rpdError += amount;
       else if (type === 'bskyrate') currentStats.bskyrate += amount;
 
       await this.saveStatsWithMap('totalStats', currentStats);
@@ -389,7 +351,8 @@ static async getPost(did: string): Promise<any> {
       recap: 0,
       lang: new Map(),
       bskyrate: 0,
-      rpd: 0
+      rpd: 0,
+      rpdError: 0
     };
   }
 
@@ -459,6 +422,7 @@ static async getPost(did: string): Promise<any> {
       botComment: dailyTopPostData?.comment || "",
       bskyrate: diff('bskyrate'),
       rpd: diff('rpd'),
+      rpdError: diff('rpdError'),
       lastInitializedDate: lastResetAt || new Date().toISOString()
     } as DailyReport;
   }
