@@ -34,7 +34,12 @@ export type ActorView = {
   description?: string;
   avatar?: string;
 };
-export type ReactionView = { emoji: string; count: number; reactedByMe?: boolean };
+export type ReactionView = {
+  emoji: string;
+  count: number;
+  reactedByMe?: boolean;
+  viewerReactionUri?: string;
+};
 export type PostView = {
   uri: string;
   cid: string;
@@ -49,10 +54,20 @@ export type PostView = {
   quote?: PostView;
   reactions: ReactionView[];
   isBot: boolean;
-  isTrend: boolean;
+  isAffirmation: boolean;
   deleted?: boolean;
 };
+export type BotReplyState = "pending" | "posted" | "failed";
+export type FeedItem = PostView & { botReply?: PostView; botReplyState?: BotReplyState };
 export type Page<T> = { items: T[]; cursor?: string; hasMore: boolean };
+export type ProfileFeedFilter = "posts" | "replies" | "media" | "reactions";
+export type ProfileDetail = ActorView & {
+  postCount: number;
+  firstPostAt?: string;
+  joinedAt?: string;
+};
+export type ProfilePage = { profile: ProfileDetail; feed: Page<FeedItem> };
+export type ThreadView = { post: PostView; replies: PostView[] };
 export type NotificationView = {
   id: string;
   type: "reply" | "reaction";

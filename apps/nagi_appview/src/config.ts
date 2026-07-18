@@ -52,7 +52,12 @@ export const config = {
   appviewServiceId: "nagi_appview",
   botDid: did("NAGI_BOT_DID"),
   clientOrigins: clientOrigins("NAGI_CLIENT_ORIGIN", "http://localhost:5173"),
-  trendThreshold: integer("NAGI_TREND_THRESHOLD", 86, 0, 100),
+  affirmationThreshold: integer(
+    "NAGI_AFFIRMATION_THRESHOLD",
+    Number(process.env.NAGI_TREND_THRESHOLD ?? 86),
+    0,
+    100,
+  ),
   ollamaUrl: url("OLLAMA_BASE_URL", "http://localhost:11434"),
   translationModel: process.env.OLLAMA_TRANSLATION_MODEL ?? "gemma3:4b",
 };

@@ -7,16 +7,25 @@
       "parameters": {
         "type": "params",
         "required": ["actor"],
-        "properties": { "actor": { "type": "string" } }
+        "properties": {
+          "actor": { "type": "string" },
+          "filter": {
+            "type": "string",
+            "knownValues": ["posts", "replies", "media", "reactions"],
+            "default": "posts"
+          },
+          "limit": { "type": "integer", "minimum": 1, "maximum": 100, "default": 50 },
+          "cursor": { "type": "string" }
+        }
       },
       "output": {
         "encoding": "application/json",
         "schema": {
           "type": "object",
-          "required": ["profile", "posts"],
+          "required": ["profile", "feed"],
           "properties": {
             "profile": { "type": "unknown" },
-            "posts": { "type": "ref", "ref": "com.suibari.nagi.getTimeline#output" }
+            "feed": { "type": "ref", "ref": "com.suibari.nagi.getTimeline#output" }
           }
         }
       }

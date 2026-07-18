@@ -1,6 +1,6 @@
 {
   "lexicon": 1,
-  "id": "com.suibari.nagi.getTrend",
+  "id": "com.suibari.nagi.getAffirmation",
   "defs": {
     "main": {
       "type": "query",
