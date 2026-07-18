@@ -105,6 +105,7 @@ export async function buildFeedItems(
   rows: PostRow[],
   viewerDid?: string,
   groupBotReplies = true,
+  includeReplyParents = false,
 ): Promise<FeedItem[]> {
   const jobs =
     groupBotReplies && rows.length
@@ -124,15 +125,21 @@ export async function buildFeedItems(
       : [];
   const jobByUri = new Map(jobs.map((j) => [j.sourceUri, j]));
   const replyUris = new Set<string>();
+  const parentUris = new Set<string>();
   for (const row of rows) {
     const replyUri = jobByUri.get(row.post.uri)?.replyUri ?? row.botReplyUri;
     if (groupBotReplies && replyUri) replyUris.add(replyUri);
+    if (includeReplyParents && row.post.replyParentUri) parentUris.add(row.post.replyParentUri);
   }
-  const replyRows = await fetchPostRows([...replyUris]);
-  const views = await hydratePostViews([...rows, ...replyRows], viewerDid);
+  const relatedRows = await fetchPostRows([...new Set([...replyUris, ...parentUris])]);
+  const views = await hydratePostViews([...rows, ...relatedRows], viewerDid);
   const viewByUri = new Map(views.map((v) => [v.uri, v]));
   return rows.map((row) => {
-    const view = viewByUri.get(row.post.uri)! as FeedItem;
+    let view = viewByUri.get(row.post.uri)! as FeedItem;
+    const replyParent = row.post.replyParentUri
+      ? viewByUri.get(row.post.replyParentUri)
+      : undefined;
+    if (replyParent) view = { ...view, replyParent };
     if (!groupBotReplies) return view;
     const job = jobByUri.get(row.post.uri);
     const replyUri = job?.replyUri ?? row.botReplyUri ?? undefined;
@@ -170,8 +177,10 @@ export async function getTimeline(opts: {
   if (opts.filter === "replies") filters.push(isNotNull(nagiPosts.replyParentUri));
   if (opts.filter === "media")
     filters.push(sql`jsonb_array_length(coalesce(${nagiPosts.embedImages}, '[]'::jsonb)) > 0`);
-  // Bot replies are embedded into their source post, never standalone feed items.
-  filters.push(or(ne(nagiPosts.did, config.botDid), isNull(nagiPosts.replyParentUri)));
+  // Keep Bot replies grouped with their source post on shared timelines. An
+  // explicit actor feed still needs them so the Bot profile's replies tab works.
+  if (!opts.actorDid)
+    filters.push(or(ne(nagiPosts.did, config.botDid), isNull(nagiPosts.replyParentUri)));
   const rows = await db
     .select(postSelection)
     .from(nagiPosts)
@@ -182,7 +191,7 @@ export async function getTimeline(opts: {
     .orderBy(desc(nagiPosts.indexedAt), desc(nagiPosts.uri))
     .limit(opts.limit + 1);
   const page = rows.slice(0, opts.limit);
-  const items = await buildFeedItems(page, opts.viewerDid);
+  const items = await buildFeedItems(page, opts.viewerDid, true, opts.filter === "replies");
   const last = page.at(-1)?.post;
   return {
     items,

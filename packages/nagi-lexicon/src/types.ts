@@ -58,7 +58,11 @@ export type PostView = {
   deleted?: boolean;
 };
 export type BotReplyState = "pending" | "posted" | "failed";
-export type FeedItem = PostView & { botReply?: PostView; botReplyState?: BotReplyState };
+export type FeedItem = PostView & {
+  replyParent?: PostView;
+  botReply?: PostView;
+  botReplyState?: BotReplyState;
+};
 export type Page<T> = { items: T[]; cursor?: string; hasMore: boolean };
 export type ProfileFeedFilter = "posts" | "replies" | "media" | "reactions";
 export type ProfileDetail = ActorView & {
