@@ -1,6 +1,7 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import * as schema from './schema.js';
+import * as nagiSchema from './nagiSchema.js';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -16,9 +17,10 @@ const connectionString = process.env.DATABASE_URL || 'postgres://postgres@localh
 console.log(`Connecting to Postgres: ${connectionString.replace(/:([^:@]+)@/, ':****@')}`);
 
 export const client = postgres(connectionString);
-export const db = drizzle(client, { schema });
+export const db = drizzle(client, { schema: { ...schema, ...nagiSchema } });
 
 export * from './schema.js';
+export * from './nagiSchema.js';
 
 export async function initializeDatabases() {
   // In Drizzle, we don't necessarily need an init step like we did with SQLite3,

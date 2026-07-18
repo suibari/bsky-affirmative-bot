@@ -1,0 +1,67 @@
+{
+  "lexicon": 1,
+  "id": "com.suibari.nagi.post",
+  "defs": {
+    "main": {
+      "type": "record",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["text", "createdAt"],
+        "properties": {
+          "text": { "type": "string", "maxGraphemes": 3000, "maxLength": 30000 },
+          "facets": {
+            "type": "array",
+            "items": { "type": "ref", "ref": "app.bsky.richtext.facet" }
+          },
+          "langs": {
+            "type": "array",
+            "maxLength": 3,
+            "items": { "type": "string", "format": "language" }
+          },
+          "createdAt": { "type": "string", "format": "datetime" },
+          "reply": { "type": "ref", "ref": "#replyRef" },
+          "embed": { "type": "union", "refs": ["#images", "#quote"] }
+        }
+      }
+    },
+    "replyRef": {
+      "type": "object",
+      "required": ["root", "parent"],
+      "properties": {
+        "root": { "type": "ref", "ref": "com.atproto.repo.strongRef" },
+        "parent": { "type": "ref", "ref": "com.atproto.repo.strongRef" }
+      }
+    },
+    "images": {
+      "type": "object",
+      "required": ["images"],
+      "properties": {
+        "images": {
+          "type": "array",
+          "minLength": 1,
+          "maxLength": 4,
+          "items": { "type": "ref", "ref": "#image" }
+        }
+      }
+    },
+    "image": {
+      "type": "object",
+      "required": ["image", "alt"],
+      "properties": {
+        "image": {
+          "type": "blob",
+          "accept": ["image/jpeg", "image/png", "image/webp", "image/gif"],
+          "maxSize": 1000000
+        },
+        "alt": { "type": "string", "maxGraphemes": 1000, "maxLength": 10000 },
+        "aspectRatio": { "type": "ref", "ref": "app.bsky.embed.defs#aspectRatio" }
+      }
+    },
+    "quote": {
+      "type": "object",
+      "required": ["record"],
+      "properties": { "record": { "type": "ref", "ref": "com.atproto.repo.strongRef" } }
+    }
+  }
+}

@@ -5,11 +5,11 @@ dotenv.config({ path: path.join(__dirname, '../../.env') });
 
 /** @type { import("drizzle-kit").Config } */
 module.exports = {
-  schema: './src/schema.ts',
+  schema: ['./src/schema.ts', './src/nagiSchema.ts'],
   out: './drizzle',
   dialect: 'postgresql',
   dbCredentials: {
     url: process.env.DATABASE_URL,
   },
-  schemaFilter: ['public', 'affirmative_bot'],
+  schemaFilter: ['public', 'affirmative_bot', 'nagi'],
 };

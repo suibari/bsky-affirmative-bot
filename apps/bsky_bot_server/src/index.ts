@@ -9,6 +9,12 @@ import { updateFollowers, loadFollowersFromCache } from "./bsky/followerManageme
 import { onPost, onFollow, onLike } from "./bsky/callbacks.js";
 import { router } from "./routes.js";
 import axios from "axios";
+import { onNagiPost } from "./features/nagi/NagiReplyFeature.js";
+import { startNagiReplyWorker } from "./features/nagi/NagiReplyWorker.js";
+import {
+  assertNagiBotIdentity,
+  syncNagiBotProfile,
+} from "./features/nagi/NagiBotProfileFeature.js";
 
 dotenv.config({ path: '../../.env' });
 
@@ -28,6 +34,11 @@ app.listen(PORT, async () => {
     await initializeDatabases();
 
     await initAgent();
+
+    assertNagiBotIdentity();
+    await syncNagiBotProfile().catch((error) => {
+      console.error("[ERROR][NAGI] Failed to sync Bot profile:", error);
+    });
     
     // 起動時にまずファイルキャッシュからフォロワー情報を復元（一瞬で完了）
     await loadFollowersFromCache();
@@ -57,7 +68,8 @@ app.listen(PORT, async () => {
       console.error("[ERROR] Failed to schedule regular badges:", e);
     });
 
-    startWebSocket(onPost, onFollow, onLike);
+    startWebSocket(onPost, onFollow, onLike, undefined, onNagiPost);
+    startNagiReplyWorker();
   } catch (e) {
     console.error("[CRITICAL] Bot startup failed:", e);
   }

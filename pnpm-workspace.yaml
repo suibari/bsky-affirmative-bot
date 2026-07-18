@@ -4,5 +4,6 @@ packages:
 allowBuilds:
   '@google/genai': true
   canvas: true
+  cbor-extract: false
   esbuild: true
   protobufjs: true

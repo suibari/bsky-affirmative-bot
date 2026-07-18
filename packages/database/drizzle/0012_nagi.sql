@@ -1,0 +1,17 @@
+CREATE SCHEMA IF NOT EXISTS "nagi";
+DO $$ BEGIN CREATE TYPE "nagi"."notification_type" AS ENUM ('reply', 'reaction'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN CREATE TYPE "nagi"."bot_job_state" AS ENUM ('pending', 'processing', 'posted', 'failed'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+CREATE TABLE IF NOT EXISTS "nagi"."actors" ("did" text PRIMARY KEY, "handle" text NOT NULL, "pds_url" text NOT NULL, "status" text DEFAULT 'active' NOT NULL, "resolved_at" timestamptz DEFAULT now() NOT NULL);
+CREATE TABLE IF NOT EXISTS "nagi"."posts" ("uri" text PRIMARY KEY, "cid" text NOT NULL, "rkey" text NOT NULL, "did" text NOT NULL, "text" text NOT NULL, "facets" jsonb, "langs" jsonb, "record_json" jsonb, "reply_root_uri" text, "reply_parent_uri" text, "embed_images" jsonb, "quote_uri" text, "quote_valid" boolean DEFAULT false NOT NULL, "repo_rev" text, "record_created_at" timestamptz NOT NULL, "indexed_at" timestamptz DEFAULT now() NOT NULL, "deleted_at" timestamptz);
+CREATE TABLE IF NOT EXISTS "nagi"."post_scores" ("post_uri" text PRIMARY KEY, "score" integer NOT NULL CHECK (score BETWEEN 0 AND 100), "bot_reply_uri" text, "updated_at" timestamptz DEFAULT now() NOT NULL);
+CREATE TABLE IF NOT EXISTS "nagi"."reactions" ("uri" text PRIMARY KEY, "cid" text NOT NULL, "did" text NOT NULL, "subject_uri" text NOT NULL, "emoji" text NOT NULL, "created_at" timestamptz NOT NULL, "indexed_at" timestamptz DEFAULT now() NOT NULL, UNIQUE("did", "subject_uri", "emoji"));
+CREATE TABLE IF NOT EXISTS "nagi"."profiles" ("did" text PRIMARY KEY, "display_name" text NOT NULL, "description" text, "avatar_cid" text, "created_at" timestamptz NOT NULL, "indexed_at" timestamptz DEFAULT now() NOT NULL);
+CREATE TABLE IF NOT EXISTS "nagi"."notifications" ("id" uuid PRIMARY KEY DEFAULT gen_random_uuid(), "recipient_did" text NOT NULL, "type" "nagi"."notification_type" NOT NULL, "actor_did" text NOT NULL, "subject_uri" text NOT NULL, "reason_uri" text NOT NULL, "created_at" timestamptz DEFAULT now() NOT NULL, "read_at" timestamptz, UNIQUE("recipient_did", "reason_uri"));
+CREATE TABLE IF NOT EXISTS "nagi"."translations" ("post_uri" text NOT NULL, "target_lang" text NOT NULL, "text" text NOT NULL, "created_at" timestamptz DEFAULT now() NOT NULL, PRIMARY KEY("post_uri", "target_lang"));
+CREATE TABLE IF NOT EXISTS "nagi"."ingest_state" ("key" text PRIMARY KEY, "cursor" bigint NOT NULL, "updated_at" timestamptz DEFAULT now() NOT NULL);
+CREATE TABLE IF NOT EXISTS "nagi"."processed_events" ("id" text PRIMARY KEY, "time_us" bigint NOT NULL, "processed_at" timestamptz DEFAULT now() NOT NULL);
+CREATE TABLE IF NOT EXISTS "nagi"."bot_reply_jobs" ("source_uri" text PRIMARY KEY, "source_cid" text NOT NULL, "author_did" text NOT NULL, "record_json" jsonb NOT NULL, "state" "nagi"."bot_job_state" DEFAULT 'pending' NOT NULL, "attempts" integer DEFAULT 0 NOT NULL, "lease_expires_at" timestamptz, "next_attempt_at" timestamptz DEFAULT now() NOT NULL, "reply_uri" text, "score" integer CHECK (score BETWEEN 0 AND 100), "last_error" text, "created_at" timestamptz DEFAULT now() NOT NULL, "updated_at" timestamptz DEFAULT now() NOT NULL);
+CREATE INDEX IF NOT EXISTS "nagi_posts_timeline_idx" ON "nagi"."posts" ("indexed_at" DESC, "uri" DESC);
+CREATE INDEX IF NOT EXISTS "nagi_posts_parent_idx" ON "nagi"."posts" ("reply_parent_uri");
+CREATE INDEX IF NOT EXISTS "nagi_notification_inbox_idx" ON "nagi"."notifications" ("recipient_did", "created_at" DESC);
+REVOKE ALL ON SCHEMA "nagi" FROM PUBLIC;

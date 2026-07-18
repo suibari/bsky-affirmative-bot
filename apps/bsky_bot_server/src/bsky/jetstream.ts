@@ -9,6 +9,7 @@ export async function startWebSocket(
   followCallback?: (evt: any) => Promise<void>,
   likeCallback?: (evt: any) => Promise<void>,
   followDeleteCallback?: (evt: any) => Promise<void>,
+  nagiPostCallback?: (evt: any) => Promise<void>,
 ) {
   if (jetstream) {
     console.log("[INFO] Closing previous Jetstream connection.");
@@ -18,7 +19,7 @@ export async function startWebSocket(
   jetstream = new Jetstream({
     ws,
     endpoint: process.env.URL_JETSTREAM,
-    wantedCollections: ["app.bsky.feed.post", "app.bsky.graph.follow", "app.bsky.feed.like"],
+    wantedCollections: ["app.bsky.feed.post", "app.bsky.graph.follow", "app.bsky.feed.like", "com.suibari.nagi.post"],
   });
 
   jetstream.start();
@@ -53,6 +54,7 @@ export async function startWebSocket(
       console.error('[ERROR] No callback defined');
     }
   });
+  jetstream.onCreate("com.suibari.nagi.post", async event => { if (nagiPostCallback) await nagiPostCallback(event); });
 
   // エラーハンドリング
   jetstream.on("error", (err) => {
@@ -62,7 +64,7 @@ export async function startWebSocket(
   // 接続終了時
   jetstream.on("close", () => {
     console.log("[INFO] WebSocket connection closed.");
-    reconnectWebSocket(postCallback, followCallback, likeCallback, followDeleteCallback);
+    reconnectWebSocket(postCallback, followCallback, likeCallback, followDeleteCallback, nagiPostCallback);
   });
 }
 
@@ -72,8 +74,9 @@ async function reconnectWebSocket(
   followCallback?: (evt: any) => Promise<void>,
   likeCallback?: (evt: any) => Promise<void>,
   followDeleteCallback?: (evt: any) => Promise<void>
+  ,nagiPostCallback?: (evt: any) => Promise<void>
 ) {
   console.log(`[INFO] Attempting to reconnect in ${RECONNECT_DELAY_MS / 1000} seconds...`);
   await new Promise(res => setTimeout(res, RECONNECT_DELAY_MS));
-  await startWebSocket(postCallback, followCallback, likeCallback, followDeleteCallback);
+  await startWebSocket(postCallback, followCallback, likeCallback, followDeleteCallback, nagiPostCallback);
 }

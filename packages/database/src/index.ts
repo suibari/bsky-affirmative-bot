@@ -4,6 +4,7 @@ import { generateEmbedding } from './ollamaEmbed.js';
 import { LanguageName, LIMIT_REQUEST_PER_DAY_GEMINI, DailyReport, Stats } from '@bsky-affirmative-bot/shared-configs';
 
 export { initializeDatabases, db, subscribers };
+export * from './nagiSchema.js';
 export { filterRelatedHistory } from './ollamaEmbed.js';
 export type { DailyReport, Stats };
 
@@ -690,4 +691,3 @@ static async getPost(did: string): Promise<any> {
     }
   }
 }
-

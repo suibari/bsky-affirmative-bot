@@ -1,0 +1,33 @@
+{
+  "name": "nagi-appview",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node --env-file=../../.env dist/index.js",
+    "dev": "tsx watch --env-file=../../.env src/index.ts",
+    "backfill": "tsx --env-file=../../.env scripts/backfill-from-repos.ts"
+  },
+  "dependencies": {
+    "@atproto/identity": "^0.4.8",
+    "@atproto/xrpc-server": "^0.7.19",
+    "@bsky-affirmative-bot/database": "workspace:*",
+    "@bsky-affirmative-bot/nagi-lexicon": "workspace:*",
+    "@skyware/jetstream": "^0.2.5",
+    "cors": "^2.8.5",
+    "drizzle-orm": "^0.45.1",
+    "express": "^5.0.0",
+    "express-rate-limit": "^8.2.1",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.0.0",
+    "@types/ws": "^8.5.10",
+    "tsx": "^4.20.3",
+    "typescript": "^5.8.3"
+  }
+}
