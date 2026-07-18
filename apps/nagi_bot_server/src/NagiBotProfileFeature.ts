@@ -1,5 +1,5 @@
 import { NAGI } from "@bsky-affirmative-bot/nagi-lexicon";
-import { agent } from "../../bsky/agent.js";
+import { agent } from "./agent.js";
 
 function getLoggedInBotDid() {
   const loggedInDid = agent.session?.did;

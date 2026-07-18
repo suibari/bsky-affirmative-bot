@@ -1,6 +1,6 @@
 import { generateAffirmativeWord } from "@bsky-affirmative-bot/bot-brain";
 import { NAGI } from "@bsky-affirmative-bot/nagi-lexicon";
-import { agent } from "../../bsky/agent.js";
+import { agent } from "./agent.js";
 
 export async function createNagiReply(job: any) {
   const record: any = job.recordJson;

@@ -2,7 +2,7 @@ import { db, nagiBotReplyJobs } from "@bsky-affirmative-bot/database";
 import { NAGI } from "@bsky-affirmative-bot/nagi-lexicon";
 
 export async function onNagiPost(evt: any) {
-  if (process.env.NAGI_BOT_ENABLED === "false" || !evt.commit?.record) {
+  if (!evt.commit?.record) {
     return;
   }
 
@@ -15,7 +15,9 @@ export async function onNagiPost(evt: any) {
   }
 
   const topLevel = !record.reply;
-  const directlyToBot = record.reply?.parent?.uri?.startsWith(`at://${botDid}/${NAGI.post}/`);
+  const directlyToBot = record.reply?.parent?.uri?.startsWith(
+    `at://${botDid}/${NAGI.post}/`,
+  );
 
   if (!topLevel && !directlyToBot) {
     return;

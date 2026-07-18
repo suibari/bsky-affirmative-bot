@@ -1,0 +1,26 @@
+{
+  "name": "nagi-bot-server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node --env-file=../../.env dist/index.js",
+    "dev": "tsx watch --env-file=../../.env src/index.ts"
+  },
+  "dependencies": {
+    "@atproto/api": "^0.18.21",
+    "@bsky-affirmative-bot/bot-brain": "workspace:*",
+    "@bsky-affirmative-bot/bot-runtime": "workspace:*",
+    "@bsky-affirmative-bot/clients": "workspace:*",
+    "@bsky-affirmative-bot/database": "workspace:*",
+    "@bsky-affirmative-bot/nagi-lexicon": "workspace:*",
+    "drizzle-orm": "^0.45.1"
+  },
+  "devDependencies": {
+    "@types/node": "^25.2.3",
+    "typescript": "^5.9.3"
+  }
+}

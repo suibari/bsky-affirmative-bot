@@ -19,6 +19,7 @@ pnpm build
 DIFF_FILES="$(git diff --name-only "$OLD_COMMIT" "$NEW_COMMIT")"
 
 RESTART_BOT=false
+RESTART_NAGI_BOT=false
 RESTART_BIO=false
 RESTART_LABELER=false
 RESTART_DISCORD=false
@@ -29,6 +30,7 @@ PUSH_DB=false
 if echo "$DIFF_FILES" | grep -q "packages/"; then
     # 共有ライブラリが変わったらすべて再起動
     RESTART_BOT=true
+    RESTART_NAGI_BOT=true
     RESTART_BIO=true
     RESTART_LABELER=true
     RESTART_DISCORD=true
@@ -37,6 +39,10 @@ fi
 
 if echo "$DIFF_FILES" | grep -q "apps/bsky_bot_server/"; then
     RESTART_BOT=true
+fi
+
+if echo "$DIFF_FILES" | grep -q "apps/nagi_bot_server/"; then
+    RESTART_NAGI_BOT=true
 fi
 
 if echo "$DIFF_FILES" | grep -q "apps/biorhythm_server/"; then
@@ -75,6 +81,11 @@ fi
 if [ "$RESTART_BOT" = true ]; then
     echo "♻️  Restarting Bot Server..."
     sudo systemctl restart bsky-bot.service
+fi
+
+if [ "$RESTART_NAGI_BOT" = true ]; then
+    echo "♻️  Restarting Nagi Bot Server..."
+    sudo systemctl restart nagi-bot.service
 fi
 
 if [ "$RESTART_LABELER" = true ]; then

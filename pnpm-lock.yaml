@@ -81,6 +81,9 @@ importers:
       '@bsky-affirmative-bot/bot-brain':
         specifier: workspace:*
         version: link:../../packages/bot_brain
+      '@bsky-affirmative-bot/bot-runtime':
+        specifier: workspace:*
+        version: link:../../packages/bot-runtime
       '@bsky-affirmative-bot/clients':
         specifier: workspace:*
         version: link:../../packages/clients
@@ -285,6 +288,56 @@ importers:
         version: 4.21.0
       typescript:
         specifier: ^5.8.3
+        version: 5.9.3
+
+  apps/nagi_bot_server:
+    dependencies:
+      '@atproto/api':
+        specifier: ^0.18.21
+        version: 0.18.21
+      '@bsky-affirmative-bot/bot-brain':
+        specifier: workspace:*
+        version: link:../../packages/bot_brain
+      '@bsky-affirmative-bot/bot-runtime':
+        specifier: workspace:*
+        version: link:../../packages/bot-runtime
+      '@bsky-affirmative-bot/clients':
+        specifier: workspace:*
+        version: link:../../packages/clients
+      '@bsky-affirmative-bot/database':
+        specifier: workspace:*
+        version: link:../../packages/database
+      '@bsky-affirmative-bot/nagi-lexicon':
+        specifier: workspace:*
+        version: link:../../packages/nagi-lexicon
+      drizzle-orm:
+        specifier: ^0.45.1
+        version: 0.45.1(@libsql/client@0.14.0)(postgres@3.4.8)
+    devDependencies:
+      '@types/node':
+        specifier: ^25.2.3
+        version: 25.2.3
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
+  packages/bot-runtime:
+    dependencies:
+      '@atproto/api':
+        specifier: ^0.18.21
+        version: 0.18.21
+      '@skyware/jetstream':
+        specifier: ^0.2.5
+        version: 0.2.5
+      ws:
+        specifier: ^8.18.0
+        version: 8.19.0
+    devDependencies:
+      '@types/ws':
+        specifier: ^8.5.10
+        version: 8.18.1
+      typescript:
+        specifier: ^5.9.3
         version: 5.9.3
 
   packages/bot_brain:

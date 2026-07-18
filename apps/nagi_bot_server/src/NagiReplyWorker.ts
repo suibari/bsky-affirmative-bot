@@ -1,5 +1,9 @@
 import { and, asc, eq, lte, or } from "drizzle-orm";
-import { db, nagiBotReplyJobs, nagiPostScores } from "@bsky-affirmative-bot/database";
+import {
+  db,
+  nagiBotReplyJobs,
+  nagiPostScores,
+} from "@bsky-affirmative-bot/database";
 import { createNagiReply } from "./createNagiReply.js";
 
 const MAX_ATTEMPTS = 5;
@@ -14,29 +18,28 @@ export function startNagiReplyWorker() {
     return;
   }
 
-  if (
-    process.env.NAGI_BOT_ENABLED !== "false" &&
-    !/^did:(plc|web):/.test(process.env.NAGI_BOT_DID ?? "")
-  ) {
+  if (!/^did:(plc|web):/.test(process.env.NAGI_BOT_DID ?? "")) {
     throw new Error("NAGI_BOT_DID must be an AT Protocol DID");
   }
 
   running = true;
 
   const run = async () => {
-    if (process.env.NAGI_BOT_ENABLED === "false") {
-      return;
-    }
-
     const now = new Date();
     const jobs = await db
       .select()
       .from(nagiBotReplyJobs)
       .where(
         and(
-          or(eq(nagiBotReplyJobs.state, "pending"), eq(nagiBotReplyJobs.state, "processing")),
+          or(
+            eq(nagiBotReplyJobs.state, "pending"),
+            eq(nagiBotReplyJobs.state, "processing"),
+          ),
           lte(nagiBotReplyJobs.nextAttemptAt, now),
-          or(eq(nagiBotReplyJobs.state, "pending"), lte(nagiBotReplyJobs.leaseExpiresAt, now)),
+          or(
+            eq(nagiBotReplyJobs.state, "pending"),
+            lte(nagiBotReplyJobs.leaseExpiresAt, now),
+          ),
         ),
       )
       .orderBy(asc(nagiBotReplyJobs.nextAttemptAt))
