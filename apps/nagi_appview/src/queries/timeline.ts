@@ -44,7 +44,11 @@ export async function fetchPostRows(uris: string[]): Promise<PostRow[]> {
     .leftJoin(nagiPostScores, eq(nagiPostScores.postUri, nagiPosts.uri))
     .where(inArray(nagiPosts.uri, uris));
 }
-export async function hydratePostViews(rows: PostRow[], viewerDid?: string): Promise<PostView[]> {
+export async function hydratePostViews(
+  rows: PostRow[],
+  viewerDid?: string,
+  quoteDepth = 0,
+): Promise<PostView[]> {
   const uris = rows.map((r) => r.post.uri);
   const reactions = uris.length
     ? await db
@@ -63,8 +67,23 @@ export async function hydratePostViews(rows: PostRow[], viewerDid?: string): Pro
         .where(inArray(nagiReactions.subjectUri, uris))
         .orderBy(desc(nagiReactions.indexedAt))
     : [];
-  return rows.map(({ post, actor, profile, score }) => {
+  const views = rows.map(({ post, actor, profile, score }) => {
     const deleted = Boolean(post.deletedAt);
+    const images =
+      !deleted && Array.isArray(post.embedImages)
+        ? post.embedImages.flatMap((item: any) => {
+            const cid = item?.image?.ref?.$link;
+            if (typeof cid !== "string" || typeof item?.alt !== "string")
+              return [];
+            return [
+              {
+                url: `/api/blob/${encodeURIComponent(post.did)}/${encodeURIComponent(cid)}`,
+                alt: item.alt,
+                ...(item.aspectRatio ? { aspectRatio: item.aspectRatio } : {}),
+              },
+            ];
+          })
+        : undefined;
     return {
       uri: post.uri,
       cid: post.cid,
@@ -85,9 +104,7 @@ export async function hydratePostViews(rows: PostRow[], viewerDid?: string): Pro
       reply: post.replyParentUri
         ? { root: post.replyRootUri ?? post.replyParentUri, parent: post.replyParentUri }
         : undefined,
-      images: Array.isArray(post.embedImages)
-        ? (post.embedImages as PostView["images"])
-        : undefined,
+      images: images?.length ? images : undefined,
       reactions: Object.values(
         reactions
           .filter((r) => r.subjectUri === post.uri)
@@ -116,6 +133,26 @@ export async function hydratePostViews(rows: PostRow[], viewerDid?: string): Pro
       isAffirmation: (score ?? -1) >= config.affirmationThreshold,
       deleted: deleted || undefined,
     };
+  });
+  if (quoteDepth >= 3) return views;
+  const quoteUris = [
+    ...new Set(
+      rows.flatMap(({ post }) =>
+        !post.deletedAt && post.quoteUri ? [post.quoteUri] : [],
+      ),
+    ),
+  ];
+  if (!quoteUris.length) return views;
+  const quoteViews = await hydratePostViews(
+    await fetchPostRows(quoteUris),
+    viewerDid,
+    quoteDepth + 1,
+  );
+  const quoteByUri = new Map(quoteViews.map((view) => [view.uri, view]));
+  return views.map((view, index) => {
+    const quoteUri = rows[index].post.quoteUri;
+    const quote = quoteUri ? quoteByUri.get(quoteUri) : undefined;
+    return quote ? { ...view, quote } : view;
   });
 }
 export async function buildFeedItems(

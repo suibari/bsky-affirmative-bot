@@ -52,7 +52,7 @@
         "image": {
           "type": "blob",
           "accept": ["image/jpeg", "image/png", "image/webp", "image/gif"],
-          "maxSize": 1000000
+          "maxSize": 2000000
         },
         "alt": { "type": "string", "maxGraphemes": 1000, "maxLength": 10000 },
         "aspectRatio": { "type": "ref", "ref": "app.bsky.embed.defs#aspectRatio" }
@@ -61,7 +61,15 @@
     "quote": {
       "type": "object",
       "required": ["record"],
-      "properties": { "record": { "type": "ref", "ref": "com.atproto.repo.strongRef" } }
+      "properties": {
+        "record": { "type": "ref", "ref": "com.atproto.repo.strongRef" },
+        "images": {
+          "type": "array",
+          "minLength": 1,
+          "maxLength": 4,
+          "items": { "type": "ref", "ref": "#image" }
+        }
+      }
     }
   }
 }

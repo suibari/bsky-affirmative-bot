@@ -9,6 +9,27 @@ const graphemes = (value: string) =>
 const date = (value: unknown) => typeof value === "string" && !Number.isNaN(Date.parse(value));
 const ref = (value: any) =>
   typeof value?.uri === "string" && value.uri.startsWith("at://") && typeof value?.cid === "string";
+const image = (value: any) =>
+  typeof value?.image?.ref?.$link === "string" &&
+  ["image/jpeg", "image/png", "image/webp", "image/gif"].includes(
+    value.image.mimeType,
+  ) &&
+  Number.isInteger(value.image.size) &&
+  value.image.size >= 0 &&
+  value.image.size <= 2_000_000 &&
+  typeof value.alt === "string" &&
+  graphemes(value.alt) <= 1000 &&
+  Buffer.byteLength(value.alt) <= 10_000 &&
+  (!value.aspectRatio ||
+    (Number.isInteger(value.aspectRatio.width) &&
+      value.aspectRatio.width > 0 &&
+      Number.isInteger(value.aspectRatio.height) &&
+      value.aspectRatio.height > 0));
+const images = (value: unknown) =>
+  Array.isArray(value) &&
+  value.length >= 1 &&
+  value.length <= 4 &&
+  value.every(image);
 export function validateRecord(
   collection: string,
   value: any,
@@ -22,13 +43,17 @@ export function validateRecord(
     )
       return false;
     if (value.reply && (!ref(value.reply.root) || !ref(value.reply.parent))) return false;
-    if (
-      value.embed?.$type === `${NAGI.post}#images` &&
-      (!Array.isArray(value.embed.images) ||
-        value.embed.images.length < 1 ||
-        value.embed.images.length > 4)
-    )
-      return false;
+    if (value.embed) {
+      if (value.embed.$type === `${NAGI.post}#images`) {
+        if (!images(value.embed.images)) return false;
+      } else if (value.embed.$type === `${NAGI.post}#quote`) {
+        if (
+          !ref(value.embed.record) ||
+          (value.embed.images && !images(value.embed.images))
+        )
+          return false;
+      } else return false;
+    }
     return true;
   }
   if (collection === NAGI.reaction)

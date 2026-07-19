@@ -4,6 +4,7 @@ import { AppBskyFeedPost } from "@atproto/api";
 
 import { ImageRef, LangMap, languageData, LanguageName, localeToTimezone } from "@bsky-affirmative-bot/shared-configs";
 import { getPds } from "./getPds.js";
+import { blobImagesToImageRefs } from "@bsky-affirmative-bot/bot-runtime";
 import { agent } from "./agent.js";
 import e from "express";
 
@@ -208,14 +209,13 @@ export async function getImageUrl(did: string, embed: any): Promise<ImageRef[]> 
   }
 
   if (AppBskyEmbedImages.isMain(embed)) {
-    (embed as AppBskyEmbedImages.Main).images.forEach(item => {
-      if (item.image) {
-        const cid = (item.image.ref as any).$link ?? item.image.ref?.toString(); // ref or IPLD
-        const image_url = `${pdsEndpoint}/xrpc/com.atproto.sync.getBlob?did=${did}&cid=${cid}`;
-        const mimeType = item.image.mimeType;
-        result.push({ image_url, mimeType });
-      }
-    });
+    result.push(
+      ...blobImagesToImageRefs(
+        did,
+        pdsEndpoint,
+        (embed as AppBskyEmbedImages.Main).images,
+      ),
+    );
   } else if (AppBskyEmbedExternal.isMain(embed)) {
     const thumb = (embed as AppBskyEmbedExternal.Main).external.thumb;
     if (thumb) {
@@ -435,4 +435,3 @@ export async function getLatestPostOf(did: string): Promise<FeedViewPost | null>
   }
   return null;
 }
-

@@ -12,7 +12,11 @@ export type NagiPost = {
   reply?: { root: StrongRef; parent: StrongRef };
   embed?:
     | { $type: "com.suibari.nagi.post#images"; images: NagiImage[] }
-    | { $type: "com.suibari.nagi.post#quote"; record: StrongRef };
+    | {
+        $type: "com.suibari.nagi.post#quote";
+        record: StrongRef;
+        images?: NagiImage[];
+      };
 };
 export type NagiReaction = {
   $type: "com.suibari.nagi.reaction";

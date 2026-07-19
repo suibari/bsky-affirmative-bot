@@ -1,26 +1,46 @@
-import { generateAffirmativeWord } from "@bsky-affirmative-bot/bot-brain";
+import {
+  generateAffirmativeWord,
+  getYokohamaWeather,
+} from "@bsky-affirmative-bot/bot-brain";
+import { botBiothythmManager } from "@bsky-affirmative-bot/clients";
+import {
+  configureBotContext,
+  getBotContext,
+} from "@bsky-affirmative-bot/bot-runtime";
 import { NAGI, NAGI_LANGUAGES } from "@bsky-affirmative-bot/nagi-lexicon";
 import { agent } from "./agent.js";
+import { buildNagiReplyContext } from "./nagiReplyContext.js";
+
+configureBotContext({
+  getWeather: getYokohamaWeather,
+  getStatus: () => botBiothythmManager.getContext(),
+});
 
 function replyLanguage(langs: unknown) {
   const value = Array.isArray(langs) ? String(langs[0] ?? "") : "";
   const code = value.split("-")[0]?.toLowerCase();
-  return NAGI_LANGUAGES.find((language) => language.code === code) ?? {
-    code: "en",
-    name: "English",
-  };
+  return (
+    NAGI_LANGUAGES.find((language) => language.code === code) ?? {
+      code: "en",
+      name: "English",
+    }
+  );
 }
 
 export async function createNagiReply(job: any) {
   const record: any = job.recordJson;
   const language = replyLanguage(record.langs);
+  const context = await buildNagiReplyContext(job);
+  console.log("[INFO][NAGI] Gemini reply context:", context.diagnostics);
   const generated = await generateAffirmativeWord({
-    follower: {
-      did: job.authorDid,
-      handle: job.authorDid,
-      displayName: job.authorDid,
-    },
-    posts: [record.text ?? ""],
+    follower: context.follower,
+    posts: context.posts,
+    image: context.image,
+    embed: context.embed,
+    likedByFollower: context.likedByFollower,
+    followersFriend: context.followersFriend,
+    isSubscriber: context.isSubscriber,
+    botContext: await getBotContext(),
     langStr: language.name,
   } as any);
 

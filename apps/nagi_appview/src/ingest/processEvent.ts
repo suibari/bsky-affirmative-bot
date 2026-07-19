@@ -91,6 +91,12 @@ export async function processEvent(evt: any) {
               facets: value.facets,
               langs: value.langs,
               recordJson: value,
+              replyRootUri: value.reply?.root.uri ?? null,
+              replyParentUri: value.reply?.parent.uri ?? null,
+              embedImages: value.embed?.images ?? null,
+              quoteUri: value.embed?.record?.uri ?? null,
+              repoRev: commit.rev,
+              recordCreatedAt: createdAt,
               deletedAt: null,
             },
           });
