@@ -82,3 +82,4 @@ export type NotificationView = {
   createdAt: string;
   readAt?: string;
 };
+export type DeleteAccountDataResult = { success: true };

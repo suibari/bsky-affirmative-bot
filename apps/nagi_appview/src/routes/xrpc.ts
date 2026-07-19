@@ -7,6 +7,7 @@ import { getThread } from "../queries/thread.js";
 import { getNotifications, updateSeen } from "../queries/notifications.js";
 import { translatePost } from "../services/translation.js";
 import { ApiError } from "../middleware/errors.js";
+import { deleteAccountData } from "../services/deleteAccountData.js";
 export const xrpc = Router();
 const limit = (value: unknown) => Math.min(100, Math.max(1, Number(value ?? 50) || 50));
 for (const [nsid, affirmation] of [
@@ -97,6 +98,17 @@ xrpc.post(
   async (req, res, next) => {
     try {
       res.json(await translatePost(req.body?.uri, req.body?.targetLang));
+    } catch (e) {
+      next(e);
+    }
+  },
+);
+xrpc.post(
+  `/${NAGI.deleteAccountData}`,
+  requiredServiceAuth(NAGI.deleteAccountData),
+  async (req, res, next) => {
+    try {
+      res.set("Cache-Control", "private, no-store").json(await deleteAccountData(req.viewerDid!));
     } catch (e) {
       next(e);
     }

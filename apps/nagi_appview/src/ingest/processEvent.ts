@@ -21,6 +21,13 @@ export async function processEvent(evt: any) {
   const uri = `at://${did}/${collection}/${commit.rkey}`;
   const id = `${did}:${evt.time_us}:${commit.rev ?? ""}:${collection}:${commit.rkey}`;
   await db.transaction(async (tx) => {
+    const processed = await tx
+      .select({ id: nagiProcessedEvents.id })
+      .from(nagiProcessedEvents)
+      .where(eq(nagiProcessedEvents.id, id))
+      .limit(1);
+    if (processed[0]) return;
+
     const existingPost =
       collection === NAGI.post
         ? await tx

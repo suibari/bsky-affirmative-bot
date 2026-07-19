@@ -9,6 +9,7 @@ export const NAGI = {
   getNotifications: "com.suibari.nagi.getNotifications",
   updateSeen: "com.suibari.nagi.updateSeen",
   translatePost: "com.suibari.nagi.translatePost",
+  deleteAccountData: "com.suibari.nagi.deleteAccountData",
 } as const;
 
 export const NAGI_LANGUAGES = [
@@ -71,5 +72,6 @@ export const NAGI_OAUTH_SCOPE = [
     NAGI.getProfile,
     NAGI.getNotifications,
     NAGI.updateSeen,
+    NAGI.deleteAccountData,
   ].map((nsid) => `rpc:${nsid}?aud=${NAGI_APPVIEW_AUD.replace("#", "%23")}`),
 ].join(" ");

@@ -1,0 +1,17 @@
+{
+  "lexicon": 1,
+  "id": "com.suibari.nagi.deleteAccountData",
+  "defs": {
+    "main": {
+      "type": "procedure",
+      "output": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "required": ["success"],
+          "properties": { "success": { "type": "boolean", "const": true } }
+        }
+      }
+    }
+  }
+}
