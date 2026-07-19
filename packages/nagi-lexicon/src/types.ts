@@ -36,7 +36,8 @@ export type ActorView = {
 };
 export type ReactionView = {
   emoji: string;
-  count: number;
+  reactors: ActorView[];
+  hasMoreReactors?: boolean;
   reactedByMe?: boolean;
   viewerReactionUri?: string;
 };

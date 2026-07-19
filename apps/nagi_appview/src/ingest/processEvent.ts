@@ -20,12 +20,6 @@ export async function processEvent(evt: any) {
   const uri = `at://${did}/${collection}/${commit.rkey}`;
   const id = `${did}:${evt.time_us}:${commit.rev ?? ""}:${collection}:${commit.rkey}`;
   await db.transaction(async (tx) => {
-    const seen = await tx
-      .select({ id: nagiProcessedEvents.id })
-      .from(nagiProcessedEvents)
-      .where(eq(nagiProcessedEvents.id, id))
-      .limit(1);
-    if (seen.length) return;
     if (commit.operation === "delete") {
       if (collection === NAGI.post) {
         await tx
@@ -147,7 +141,10 @@ export async function processEvent(evt: any) {
             .onConflictDoNothing();
       }
     }
-    await tx.insert(nagiProcessedEvents).values({ id, timeUs: Number(evt.time_us) });
+    await tx
+      .insert(nagiProcessedEvents)
+      .values({ id, timeUs: Number(evt.time_us) })
+      .onConflictDoNothing();
     await tx
       .insert(nagiIngestState)
       .values({ key: "jetstream", cursor: Number(evt.time_us) })

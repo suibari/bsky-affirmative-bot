@@ -53,9 +53,15 @@ export async function hydratePostViews(rows: PostRow[], viewerDid?: string): Pro
           emoji: nagiReactions.emoji,
           did: nagiReactions.did,
           uri: nagiReactions.uri,
+          handle: nagiActors.handle,
+          displayName: nagiProfiles.displayName,
+          avatarCid: nagiProfiles.avatarCid,
         })
         .from(nagiReactions)
+        .leftJoin(nagiActors, eq(nagiActors.did, nagiReactions.did))
+        .leftJoin(nagiProfiles, eq(nagiProfiles.did, nagiReactions.did))
         .where(inArray(nagiReactions.subjectUri, uris))
+        .orderBy(desc(nagiReactions.indexedAt))
     : [];
   return rows.map(({ post, actor, profile, score }) => {
     const deleted = Boolean(post.deletedAt);
@@ -86,8 +92,19 @@ export async function hydratePostViews(rows: PostRow[], viewerDid?: string): Pro
         reactions
           .filter((r) => r.subjectUri === post.uri)
           .reduce<Record<string, PostView["reactions"][number]>>((out, r) => {
-            const item = (out[r.emoji] ??= { emoji: r.emoji, count: 0 });
-            item.count += 1;
+            const item = (out[r.emoji] ??= { emoji: r.emoji, reactors: [] });
+            if (item.reactors.length < 5) {
+              item.reactors.push({
+                did: r.did,
+                handle: r.handle ?? r.did,
+                displayName: r.displayName ?? undefined,
+                avatar: r.avatarCid
+                  ? `/api/blob/${encodeURIComponent(r.did)}/${r.avatarCid}`
+                  : undefined,
+              });
+            } else {
+              item.hasMoreReactors = true;
+            }
             if (viewerDid && r.did === viewerDid) {
               item.reactedByMe = true;
               item.viewerReactionUri = r.uri;
