@@ -9,9 +9,8 @@ import eventsMidnight from "@bsky-affirmative-bot/shared-configs/json/event_midn
 import { MODEL_GEMINI, SYSTEM_INSTRUCTION } from '@bsky-affirmative-bot/shared-configs';
 import { gemini, generateContentWithRetry } from '@bsky-affirmative-bot/bot-brain';
 import { DailyReport, Stats } from '@bsky-affirmative-bot/shared-configs';
-// import { doGoodNightPost, doWhimsicalPost, doQuestionPost } from "./features/whimsical.js"; // Removed
 import EventEmitter from "events";
-import { MemoryService, BskyService } from "@bsky-affirmative-bot/clients";
+import { MemoryService } from "@bsky-affirmative-bot/clients";
 import { getFullDateAndTimeString } from "@bsky-affirmative-bot/shared-configs";
 import { LanguageName } from "@bsky-affirmative-bot/shared-configs";
 
@@ -20,6 +19,7 @@ import { getYokohamaWeather } from "@bsky-affirmative-bot/bot-brain";
 import { Type } from "@google/genai";
 
 import { Status } from "@bsky-affirmative-bot/shared-configs";
+import { postGoodNight, postMorning, postWhimsical } from "./ScheduledPostCoordinator.js";
 
 // WebSocket用にlangプロパティを配列に変換したDailyStatsの型を定義
 interface DailyStatsForWebSocket extends Omit<DailyReport, 'lang'> { // DailyStatsをDailyReportに変更
@@ -261,7 +261,7 @@ export class BiorhythmManager extends EventEmitter {
         if (this.status !== this.statusPrev && this.status === "Sleep" && (hour >= 21 || hour <= 3)) {
           if (this.canPostGoodNight()) {
             console.log(`[INFO][BIORHYTHM] post goodnight!`);
-            await BskyService.postGoodNight(this.getMood);
+            await postGoodNight(this.getMood);
             await this.setGoodNightPostDate();
           } else {
             console.log(`[INFO][BIORHYTHM] goodnight post already done today, skipping`);
@@ -274,7 +274,7 @@ export class BiorhythmManager extends EventEmitter {
         if (this.status !== this.statusPrev && this.status === "WakeUp" && (hour >= 4 && hour <= 10)) {
           if (this.canPostGoodMorning()) {
             console.log(`[INFO][BIORHYTHM] post goodmorning!`);
-            await BskyService.postQuestion();
+            await postMorning();
             await this.changeEnergy(-6000);
             await this.setGoodMorningPostDate();
           } else {
@@ -292,7 +292,7 @@ export class BiorhythmManager extends EventEmitter {
           const probability = Math.random() * 100;
           if (probability < this.getEnergy || process.env.NODE_ENV === "development") {
             console.log(`[INFO][BIORHYTHM] post and decrease energy!`);
-            await BskyService.postWhimsical(this.getMood);
+            await postWhimsical(this.getMood);
             await this.changeEnergy(-6000);
           }
         }

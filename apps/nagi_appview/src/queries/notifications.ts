@@ -5,6 +5,7 @@ import {
   nagiProfiles,
 } from "@bsky-affirmative-bot/database";
 import { and, desc, eq, lte } from "drizzle-orm";
+import { fetchPostRows, hydratePostViews } from "./timeline.js";
 export async function getNotifications(did: string, limit: number) {
   const rows = await db
     .select({ notification: nagiNotifications, actor: nagiActors, profile: nagiProfiles })
@@ -14,6 +15,15 @@ export async function getNotifications(did: string, limit: number) {
     .where(eq(nagiNotifications.recipientDid, did))
     .orderBy(desc(nagiNotifications.createdAt))
     .limit(limit);
+  const postRows = await fetchPostRows([
+    ...new Set(
+      rows.map(({ notification }) =>
+        notification.type === "reply" ? notification.reasonUri : notification.subjectUri,
+      ),
+    ),
+  ]);
+  const posts = await hydratePostViews(postRows, did);
+  const postByUri = new Map(posts.map((post) => [post.uri, post]));
   return {
     items: rows.map(({ notification: n, actor, profile }) => ({
       ...n,
@@ -25,6 +35,7 @@ export async function getNotifications(did: string, limit: number) {
           ? `/api/blob/${encodeURIComponent(n.actorDid)}/${profile.avatarCid}`
           : undefined,
       },
+      post: postByUri.get(n.type === "reply" ? n.reasonUri : n.subjectUri),
     })),
     hasMore: rows.length === limit,
   };

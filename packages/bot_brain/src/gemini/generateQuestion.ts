@@ -1,17 +1,32 @@
 
-import { generateSingleResponse } from "./util.js";
+import { generateContentWithRetry } from "./util.js";
 import { getRandomItems } from "@bsky-affirmative-bot/shared-configs";
+import { MODEL_GEMINI } from "@bsky-affirmative-bot/shared-configs";
+import { Type } from "@google/genai";
 
 export async function generateQuestion() {
   const theme = generateThemeOrSpecial();
   const prompt = PROMPT_QUESTION(theme);
-  const response = await generateSingleResponse(prompt);
-
-  // Geminiリクエスト数加算
-  
+  const response = await generateContentWithRetry({
+    model: MODEL_GEMINI,
+    contents: [prompt],
+    config: {
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          textJa: { type: Type.STRING },
+          textEn: { type: Type.STRING },
+        },
+        required: ["textJa", "textEn"],
+      },
+    },
+  });
+  const result = JSON.parse(response.text || "{}") as { textJa?: string; textEn?: string };
 
   return {
-    text: response ?? "",
+    textJa: result.textJa ?? "",
+    textEn: result.textEn ?? "",
     theme,
   }
 } 
@@ -22,8 +37,8 @@ const PROMPT_QUESTION = (questionTheme: string) => {
   `今回の質問のテーマは「${questionTheme}」です。\n` +
   `質問に回答してくれたフォロワーには、あなたからリプライすることを伝えてください。\n` +
   `ルール:\n` +
-  `* 出力は、日本語とその英語訳を記載してください。\n` +
-  `* 出力の最後にはハッシュタグ「#全肯定質問コーナー」と「#BottansQuestion」をつけてください。`
+  `* 同じ質問内容について、自然な日本語版をtextJa、自然な英語版をtextEnに出力してください。\n` +
+  `* ハッシュタグは出力に含めないでください。`
 }
 
 function generateThemeOrSpecial() {

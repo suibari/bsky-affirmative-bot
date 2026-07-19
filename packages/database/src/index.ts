@@ -1,5 +1,5 @@
-import { db, initializeDatabases, bot_state, followers, posts, likes, replies, affirmations, interaction, subscribers, biorhythm_history, gifts, youtube_shorts } from './db.js';
-import { eq, desc, sql, gte, lte, and, gt, inArray, lt } from 'drizzle-orm';
+import { db, initializeDatabases, bot_state, followers, posts, likes, replies, affirmations, interaction, subscribers, biorhythm_history, gifts, youtube_shorts, nagiActors, nagiPosts, nagiPostScores, nagiProfiles } from './db.js';
+import { eq, desc, sql, gte, lte, and, gt, inArray, lt, isNull } from 'drizzle-orm';
 import { generateEmbedding } from './ollamaEmbed.js';
 import { LanguageName, LIMIT_REQUEST_PER_DAY_GEMINI, DailyReport, Stats } from '@bsky-affirmative-bot/shared-configs';
 
@@ -99,6 +99,26 @@ export class MemoryService {
 
   static async getHighestScorePosts(): Promise<any[]> {
     return await db.select().from(posts).orderBy(desc(posts.score)).limit(5);
+  }
+
+  static async getHighestNagiScorePosts() {
+    return db
+      .select({
+        uri: nagiPosts.uri,
+        cid: nagiPosts.cid,
+        post: nagiPosts.text,
+        score: nagiPostScores.score,
+        did: nagiPosts.did,
+        handle: nagiActors.handle,
+        displayName: nagiProfiles.displayName,
+      })
+      .from(nagiPostScores)
+      .innerJoin(nagiPosts, eq(nagiPostScores.postUri, nagiPosts.uri))
+      .leftJoin(nagiActors, eq(nagiPosts.did, nagiActors.did))
+      .leftJoin(nagiProfiles, eq(nagiPosts.did, nagiProfiles.did))
+      .where(isNull(nagiPosts.deletedAt))
+      .orderBy(desc(nagiPostScores.score))
+      .limit(5);
   }
 
 static async getPost(did: string): Promise<any> {

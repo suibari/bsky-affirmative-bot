@@ -51,6 +51,8 @@ Please refer [English README](./README_en.md) for not Japanese speakers.
 
 本botのフォロー解除、またはユーザブロックにより、以降、本botはリプライしなくなります。
 
+おはよう・おやすみポストはBlueskyでは日本語と英語を併記し、定期ポストは日本語と英語を交互に投稿します。NagiでのBotたんの自律ポストはすべて日本語で投稿し、英訳はNagi AppViewの翻訳機能へ任せます。
+
 botフォロー後に、botがあなたのポストにどう反応するかの処理フローは以下です。
 
 ![bot処理フロー](https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:uixgxpiqf4i63p6rgpu7ytmx/bafkreihxgiteyk25cpv3e7lkdsggntpb3jj6ybha4btq5ykf2fzdyq7j6u@jpeg)

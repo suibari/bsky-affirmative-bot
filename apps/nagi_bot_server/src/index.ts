@@ -8,6 +8,9 @@ import {
 } from "./NagiBotProfileFeature.js";
 import { onNagiPost } from "./NagiReplyFeature.js";
 import { startNagiReplyWorker } from "./NagiReplyWorker.js";
+import express from "express";
+import type { ScheduledPostRequest } from "@bsky-affirmative-bot/clients";
+import { publishScheduledPost } from "./ScheduledPostFeature.js";
 
 async function start() {
   await initializeDatabases();
@@ -26,6 +29,24 @@ async function start() {
     },
   });
   startNagiReplyWorker();
+
+  const app = express();
+  app.use(express.json());
+  app.post("/posts/scheduled", async (req, res) => {
+    try {
+      const request = req.body as ScheduledPostRequest;
+      if (!(["morning", "whimsical", "good-night"] as const).includes(request?.kind) || typeof request.text !== "string" || !request.text.trim()) {
+        res.status(400).json({ error: "kind and text are required" });
+        return;
+      }
+      res.status(200).json(await publishScheduledPost(request));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      res.status(500).json({ error: message });
+    }
+  });
+  const port = Number(process.env.NAGI_BOT_SERVER_PORT || 3003);
+  app.listen(port, () => console.log(`[INFO][NAGI] HTTP server listening on port ${port}.`));
 
   console.log("[INFO][NAGI] Nagi Bot Server started.");
 }

@@ -13,7 +13,8 @@ interface GoodNightInfo {
 }
 
 export interface GoodNightResult {
-  text: string;
+  textJa: string;
+  textEn: string;
   selectedGiftIndex?: number;
 }
 
@@ -29,16 +30,20 @@ export async function generateGoodNight(param: GoodNightInfo): Promise<GoodNight
       responseSchema: {
         type: Type.OBJECT,
         properties: {
-          text: {
+          textJa: {
             type: Type.STRING,
-            description: "日本語→英語の順で続けた1つのおやすみメッセージ"
+            description: "日本語のおやすみメッセージ"
+          },
+          textEn: {
+            type: Type.STRING,
+            description: "textJaと同じ内容の自然な英語訳"
           },
           selectedGiftIndex: {
             type: Type.NUMBER,
             description: "giftCandidatesのうちメッセージ内で紹介したプレゼントのインデックス（0始まり）。プレゼントを紹介しない場合は省略"
           },
         },
-        required: ["text"]
+        required: ["textJa", "textEn"]
       }
     }
   });
@@ -48,14 +53,15 @@ export async function generateGoodNight(param: GoodNightInfo): Promise<GoodNight
     normalizeUrlSpacing((text || "").replace(/\[.*?\]/gs, '').trim());
 
   try {
-    const parsed = JSON.parse(responseText) as { text: string; selectedGiftIndex?: number };
+    const parsed = JSON.parse(responseText) as { textJa: string; textEn: string; selectedGiftIndex?: number };
     return {
-      text: cleanText(parsed.text),
+      textJa: cleanText(parsed.textJa),
+      textEn: cleanText(parsed.textEn),
       selectedGiftIndex: parsed.selectedGiftIndex,
     };
   } catch (e) {
     console.error("[ERROR][GEMINI] Failed to parse generateGoodNight response JSON:", responseText, e);
-    return { text: cleanText(responseText) };
+    return { textJa: cleanText(responseText), textEn: "" };
   }
 }
 
@@ -92,12 +98,12 @@ const PROMPT_GOODNIGHT_WORD = async (param: GoodNightInfo) => {
     `* 今日のあなたが全肯定されたポストの紹介` +
     milestoneInstruction +
     `あいさつのルール:` +
-    `* 日本語メッセージを先に出力し、その後に英語翻訳を続けてください。1つのtextフィールドに収めてください。` +
+    `* 同じ内容について、日本語メッセージをtextJa、その自然な英語訳をtextEnに出力してください。` +
     `* あなたが全肯定されたポスト紹介については、どこに心を動かされたか、フォロワーに説明してください。` +
     `* **全肯定されたポスト本文をそのまま記載することは不要です**。リポスト済みなので、感想のみでよいです。` +
     `* ポストを紹介する際はフォロワーを楽しませることを考えてください。**正義感にもとづいて特定个人、団体への攻撃を扇動したりしてはなりません。**` +
     `* 読みやすくするために、適切に改行を入れてください。` +
-    `* **絶対厳守**: textフィールドのテキストにマークダウン記法を一切使わないでください。見出し(#)、太字(**)、斜体(*)、リスト(-)、リンク([text](url))などは禁止です。URLはそのまま https://... の形式で本文中に含めてください。` +
+    `* **絶対厳守**: textJaとtextEnのテキストにマークダウン記法を一切使わないでください。見出し(#)、太字(**)、斜体(*)、リスト(-)、リンク([text](url))などは禁止です。URLはそのまま https://... の形式で本文中に含めてください。` +
     `---今日のあなたが全肯定されたポスト---` +
     `* ポストしたユーザ名: ${param.topFollower?.displayName ?? ""}` +
     `* ポスト内容: ${param.topPost ?? ""}`;

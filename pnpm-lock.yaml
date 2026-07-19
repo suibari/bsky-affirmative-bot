@@ -310,10 +310,22 @@ importers:
       '@bsky-affirmative-bot/nagi-lexicon':
         specifier: workspace:*
         version: link:../../packages/nagi-lexicon
+      async-retry:
+        specifier: ^1.3.3
+        version: 1.3.3
       drizzle-orm:
         specifier: ^0.45.1
         version: 0.45.1(@libsql/client@0.14.0)(postgres@3.4.8)
+      express:
+        specifier: ^5.0.0
+        version: 5.2.1
     devDependencies:
+      '@types/async-retry':
+        specifier: ^1.4.9
+        version: 1.4.9
+      '@types/express':
+        specifier: ^5.0.0
+        version: 5.0.6
       '@types/node':
         specifier: ^25.2.3
         version: 25.2.3

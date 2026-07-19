@@ -27,7 +27,7 @@ export class WhimsicalPostGenerator {
     giftContext?: { content: string; displayName: string; type: "used" },
     youtubeShortUrl?: string,
     youtubeShortTitle?: string,
-  }): Promise<{ text: string; usedYoutubeShort: boolean }> {
+  }): Promise<{ textJa: string; textEn: string; usedYoutubeShort: boolean }> {
     const lang = params.langStr;
     const history = this.historyMap[lang] ?? [];
 
@@ -37,7 +37,18 @@ export class WhimsicalPostGenerator {
     // --- Step 1 各パーツ生成 ---
     const first = await generateContentWithRetry({
       model: MODEL_GEMINI_HIGH,
-      config: { tools: this.tools, systemInstruction: SYSTEM_INSTRUCTION },
+      config: {
+        systemInstruction: SYSTEM_INSTRUCTION,
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            textJa: { type: Type.STRING },
+            textEn: { type: Type.STRING },
+          },
+          required: ["textJa", "textEn"],
+        },
+      },
       contents: [
         {
           role: "user",
@@ -92,21 +103,23 @@ Rules:
 * Edit the whole sentence so that it sounds natural enough to post on social media. You can change the order of each part or add connecting sentences.
 * Use line breaks to make the text easier to read.
 * Decorate with emojis.
-* Translate all parts in *Structure* to match the "Language" below.
-* Output the post straight away (no preamble needed).
+* Produce a natural Japanese version in textJa and a natural English version with the same meaning in textEn.
+* Do not include a preamble or language labels in either field.
 
-Language: ${lang}
 Structure: ${JSON.stringify(structure)}`
           }]
         },
       ],
     });
 
-    const finalText = normalizeUrlSpacing(second.text ?? "");
+    const parsed = JSON.parse(second.text || "{}") as { textJa?: string; textEn?: string };
+    const textJa = normalizeUrlSpacing(parsed.textJa ?? "");
+    const textEn = normalizeUrlSpacing(parsed.textEn ?? "");
 
-    this.saveHistory(lang, finalText);
+    this.saveHistory("日本語", textJa);
+    this.saveHistory("English", textEn);
 
-    return { text: finalText, usedYoutubeShort };
+    return { textJa, textEn, usedYoutubeShort };
   }
 
   /**

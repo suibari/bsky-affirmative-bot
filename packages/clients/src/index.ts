@@ -1,4 +1,5 @@
 export * from './BskyService.js';
+export * from './ScheduledPostService.js';
 export * from './BiorhythmService.js';
 export * from './LabelerService.js';
 export * from './ZennDiaryService.js';
