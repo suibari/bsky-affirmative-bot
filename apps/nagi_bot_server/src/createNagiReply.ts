@@ -1,9 +1,19 @@
 import { generateAffirmativeWord } from "@bsky-affirmative-bot/bot-brain";
-import { NAGI } from "@bsky-affirmative-bot/nagi-lexicon";
+import { NAGI, NAGI_LANGUAGES } from "@bsky-affirmative-bot/nagi-lexicon";
 import { agent } from "./agent.js";
+
+function replyLanguage(langs: unknown) {
+  const value = Array.isArray(langs) ? String(langs[0] ?? "") : "";
+  const code = value.split("-")[0]?.toLowerCase();
+  return NAGI_LANGUAGES.find((language) => language.code === code) ?? {
+    code: "en",
+    name: "English",
+  };
+}
 
 export async function createNagiReply(job: any) {
   const record: any = job.recordJson;
+  const language = replyLanguage(record.langs);
   const generated = await generateAffirmativeWord({
     follower: {
       did: job.authorDid,
@@ -11,7 +21,7 @@ export async function createNagiReply(job: any) {
       displayName: job.authorDid,
     },
     posts: [record.text ?? ""],
-    langStr: "日本語",
+    langStr: language.name,
   } as any);
 
   const botDid = process.env.NAGI_BOT_DID!;
@@ -29,6 +39,7 @@ export async function createNagiReply(job: any) {
     record: {
       $type: NAGI.post,
       text: generated.comment,
+      langs: [language.code],
       createdAt: new Date().toISOString(),
       reply: {
         root,

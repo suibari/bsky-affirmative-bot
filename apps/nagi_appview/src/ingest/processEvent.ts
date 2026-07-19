@@ -6,6 +6,7 @@ import {
   nagiProcessedEvents,
   nagiProfiles,
   nagiReactions,
+  nagiTranslations,
 } from "@bsky-affirmative-bot/database";
 import { NAGI } from "@bsky-affirmative-bot/nagi-lexicon";
 import { and, eq, isNull } from "drizzle-orm";
@@ -20,6 +21,14 @@ export async function processEvent(evt: any) {
   const uri = `at://${did}/${collection}/${commit.rkey}`;
   const id = `${did}:${evt.time_us}:${commit.rev ?? ""}:${collection}:${commit.rkey}`;
   await db.transaction(async (tx) => {
+    const existingPost =
+      collection === NAGI.post
+        ? await tx
+            .select({ cid: nagiPosts.cid })
+            .from(nagiPosts)
+            .where(eq(nagiPosts.uri, uri))
+            .limit(1)
+        : [];
     if (commit.operation === "delete") {
       if (collection === NAGI.post) {
         await tx
@@ -32,6 +41,7 @@ export async function processEvent(evt: any) {
             deletedAt: new Date(),
           })
           .where(eq(nagiPosts.uri, uri));
+        await tx.delete(nagiTranslations).where(eq(nagiTranslations.postUri, uri));
         await tx.delete(nagiNotifications).where(eq(nagiNotifications.subjectUri, uri));
       }
       if (collection === NAGI.reaction) {
@@ -43,7 +53,10 @@ export async function processEvent(evt: any) {
     } else if (validateRecord(collection, commit.record)) {
       const value: any = commit.record;
       const createdAt = new Date(value.createdAt);
-      if (collection === NAGI.post)
+      if (collection === NAGI.post) {
+        if (existingPost[0] && existingPost[0].cid !== commit.cid) {
+          await tx.delete(nagiTranslations).where(eq(nagiTranslations.postUri, uri));
+        }
         await tx
           .insert(nagiPosts)
           .values({
@@ -74,6 +87,7 @@ export async function processEvent(evt: any) {
               deletedAt: null,
             },
           });
+      }
       if (collection === NAGI.reaction)
         await tx
           .insert(nagiReactions)

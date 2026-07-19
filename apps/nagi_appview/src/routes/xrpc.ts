@@ -94,10 +94,9 @@ xrpc.post(`/${NAGI.updateSeen}`, requiredServiceAuth(NAGI.updateSeen), async (re
 });
 xrpc.post(
   `/${NAGI.translatePost}`,
-  requiredServiceAuth(NAGI.translatePost),
   async (req, res, next) => {
     try {
-      res.json(await translatePost(String(req.body.uri), String(req.body.targetLang)));
+      res.json(await translatePost(req.body?.uri, req.body?.targetLang));
     } catch (e) {
       next(e);
     }

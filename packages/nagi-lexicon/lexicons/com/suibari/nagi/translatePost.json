@@ -22,8 +22,7 @@
           "required": ["text"],
           "properties": { "text": { "type": "string" }, "cached": { "type": "boolean" } }
         }
-      },
-      "errors": [{ "name": "AuthRequired" }]
+      }
     }
   }
 }
