@@ -13,6 +13,7 @@ import {
   buildFeedItems,
   decodeCursor,
   encodeCursor,
+  getBotActor,
   postSelection,
   type PostRow,
 } from "./timeline.js";
@@ -82,10 +83,14 @@ export async function getReactedFeed(opts: {
     seen.add(row.post.uri);
     deduped.push(row);
   }
-  const items = await buildFeedItems(deduped, opts.viewerDid);
+  const [items, botActor] = await Promise.all([
+    buildFeedItems(deduped, opts.viewerDid),
+    getBotActor(),
+  ]);
   const last = page.at(-1);
   return {
     items,
+    botActor,
     cursor:
       rows.length > opts.limit && last
         ? encodeCursor(last.reactionIndexedAt, last.reactionUri)

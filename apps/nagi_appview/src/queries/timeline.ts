@@ -212,11 +212,15 @@ export async function buildFeedItems(
     const replyUri = job?.replyUri ?? row.botReplyUri ?? undefined;
     const reply = replyUri ? viewByUri.get(replyUri) : undefined;
     if (reply && !reply.deleted) return { ...view, botReply: reply, botReplyState: "posted" };
-    // A job exists but no ingested reply yet: pending/processing (and freshly
-    // posted, still in jetstream flight) all render as "pending" for the client.
+    // A freshly posted reply can still be in Jetstream flight, so it remains
+    // pending until the reply record is available to hydrate.
     // Absence of a job row never yields "pending" so old posts don't spin forever.
     if (job?.state === "failed") return { ...view, botReplyState: "failed" };
-    if (job) return { ...view, botReplyState: "pending" };
+    if (job)
+      return {
+        ...view,
+        botReplyState: job.state === "processing" ? "processing" : "pending",
+      };
     return view;
   });
 }
@@ -258,12 +262,31 @@ export async function getTimeline(opts: {
     .orderBy(desc(nagiPosts.indexedAt), desc(nagiPosts.uri))
     .limit(opts.limit + 1);
   const page = rows.slice(0, opts.limit);
-  const items = await buildFeedItems(page, opts.viewerDid, true, opts.filter === "replies");
+  const [items, botActor] = await Promise.all([
+    buildFeedItems(page, opts.viewerDid, true, opts.filter === "replies"),
+    getBotActor(),
+  ]);
   const last = page.at(-1)?.post;
   return {
     items,
+    botActor,
     cursor:
       rows.length > opts.limit && last ? encodeCursor(last.indexedAt, last.uri) : undefined,
     hasMore: rows.length > opts.limit,
+  };
+}
+
+export async function getBotActor(): Promise<FeedItem["author"]> {
+  const [actor, profile] = await Promise.all([
+    db.select().from(nagiActors).where(eq(nagiActors.did, config.botDid)).limit(1),
+    db.select().from(nagiProfiles).where(eq(nagiProfiles.did, config.botDid)).limit(1),
+  ]);
+  return {
+    did: config.botDid,
+    handle: actor[0]?.handle ?? config.botDid,
+    displayName: profile[0]?.displayName ?? "Botたん",
+    avatar: profile[0]?.avatarCid
+      ? `/api/blob/${encodeURIComponent(config.botDid)}/${profile[0].avatarCid}`
+      : undefined,
   };
 }

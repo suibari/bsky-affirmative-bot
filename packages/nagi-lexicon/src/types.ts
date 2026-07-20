@@ -70,13 +70,13 @@ export type PostView = {
   isAffirmation: boolean;
   deleted?: boolean;
 };
-export type BotReplyState = "pending" | "posted" | "failed";
+export type BotReplyState = "pending" | "processing" | "posted" | "failed";
 export type FeedItem = PostView & {
   replyParent?: PostView;
   botReply?: PostView;
   botReplyState?: BotReplyState;
 };
-export type Page<T> = { items: T[]; cursor?: string; hasMore: boolean };
+export type Page<T> = { items: T[]; cursor?: string; hasMore: boolean; botActor?: ActorView };
 export type ProfileFeedFilter = "posts" | "replies" | "media" | "reactions";
 export type ProfileDetail = ActorView & {
   postCount: number;
