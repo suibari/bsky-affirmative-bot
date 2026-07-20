@@ -15,8 +15,10 @@ import {
   buildNagiConversationHistory,
   type ConversationTurn,
 } from "./nagiConversationHistory.js";
+import { isReplyToBot } from "./NagiReplyFeature.js";
 import { buildNagiReplyContext } from "./nagiReplyContext.js";
 import { buildLinkAttachments } from "./nagiLinkCards.js";
+import { clipNagiPostText } from "./nagiPostText.js";
 
 configureBotContext({
   getWeather: getYokohamaWeather,
@@ -31,15 +33,6 @@ function replyLanguage(langs: unknown) {
       code: "en",
       name: "English",
     }
-  );
-}
-
-/** bot 自身のポストへの返信かどうか。会話モードの発動条件。 */
-function isReplyToBot(record: any) {
-  const parentUri = record.reply?.parent?.uri;
-  return (
-    typeof parentUri === "string" &&
-    parentUri.startsWith(`at://${process.env.NAGI_BOT_DID}/${NAGI.post}/`)
   );
 }
 
@@ -104,6 +97,7 @@ async function generateConversationReply(
   await MemoryService.upsertFollowerInteraction(did);
   await MemoryService.updateFollower(did, "conv_history", newHistory);
   await MemoryService.updateFollower(did, "last_conv_at", new Date());
+  await MemoryService.logUsage("conversation", did);
   console.log(`[INFO][NAGI][${did}] send conversation-result`);
 
   return { comment, score: undefined };
@@ -113,7 +107,7 @@ export async function createNagiReply(job: any) {
   const record: any = job.recordJson;
   const language = replyLanguage(record.langs);
   const context = await buildNagiReplyContext(job);
-  const conversationMode = isReplyToBot(record);
+  const conversationMode = isReplyToBot(record, process.env.NAGI_BOT_DID!);
   console.log("[INFO][NAGI] Gemini reply context:", {
     ...context.diagnostics,
     mode: conversationMode ? "conversation" : "affirmative",
@@ -140,6 +134,9 @@ export async function createNagiReply(job: any) {
     cid: job.sourceCid,
   };
 
+  // facet のバイト位置がズレないよう、切り詰めた後の本文からリンクを検出する。
+  const text = clipNagiPostText(generated.comment, "NAGI_REPLY");
+
   const response = await agent.api.com.atproto.repo.putRecord({
     repo: botDid,
     collection: NAGI.post,
@@ -147,10 +144,10 @@ export async function createNagiReply(job: any) {
     validate: false,
     record: {
       $type: NAGI.post,
-      text: generated.comment,
+      text,
       langs: [language.code],
       createdAt: new Date().toISOString(),
-      ...(await buildLinkAttachments(generated.comment)),
+      ...(await buildLinkAttachments(text)),
       reply: {
         root,
         parent: {
