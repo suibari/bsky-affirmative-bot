@@ -5,10 +5,16 @@ import {
   type NagiReaction,
 } from "@bsky-affirmative-bot/nagi-lexicon";
 const graphemes = (value: string) =>
-  [...new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(value)].length;
-const date = (value: unknown) => typeof value === "string" && !Number.isNaN(Date.parse(value));
+  [...new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(value)]
+    .length;
+const date = (value: unknown) =>
+  typeof value === "string" && !Number.isNaN(Date.parse(value));
+const did = (value: unknown) =>
+  typeof value === "string" && /^did:[a-z0-9]+:[A-Za-z0-9._:%-]+$/.test(value);
 const ref = (value: any) =>
-  typeof value?.uri === "string" && value.uri.startsWith("at://") && typeof value?.cid === "string";
+  typeof value?.uri === "string" &&
+  value.uri.startsWith("at://") &&
+  typeof value?.cid === "string";
 const image = (value: any) =>
   typeof value?.image?.ref?.$link === "string" &&
   ["image/jpeg", "image/png", "image/webp", "image/gif"].includes(
@@ -30,6 +36,34 @@ const images = (value: unknown) =>
   value.length >= 1 &&
   value.length <= 4 &&
   value.every(image);
+const facets = (value: unknown, text: string) => {
+  if (!Array.isArray(value)) return false;
+  const boundaries = new Set<number>([0]);
+  let offset = 0;
+  for (const character of text) {
+    offset += Buffer.byteLength(character);
+    boundaries.add(offset);
+  }
+  return value.every((facet: any) => {
+    const start = facet?.index?.byteStart;
+    const end = facet?.index?.byteEnd;
+    if (
+      !Number.isInteger(start) ||
+      !Number.isInteger(end) ||
+      start < 0 ||
+      end <= start ||
+      !boundaries.has(start) ||
+      !boundaries.has(end) ||
+      !Array.isArray(facet.features)
+    )
+      return false;
+    return facet.features.every(
+      (feature: any) =>
+        feature?.$type !== "app.bsky.richtext.facet#mention" ||
+        did(feature.did),
+    );
+  });
+};
 const linkCard = (value: any) => {
   let uri: URL;
   try {
@@ -49,15 +83,20 @@ const linkCard = (value: any) => {
         Buffer.byteLength(value.description) <= 10000)) &&
     (value.thumb === undefined ||
       (typeof value.thumb?.ref?.$link === "string" &&
-        ["image/jpeg", "image/png", "image/webp"].includes(value.thumb.mimeType) &&
-        Number.isInteger(value.thumb.size) && value.thumb.size >= 0 && value.thumb.size <= 1_000_000))
+        ["image/jpeg", "image/png", "image/webp"].includes(
+          value.thumb.mimeType,
+        ) &&
+        Number.isInteger(value.thumb.size) &&
+        value.thumb.size >= 0 &&
+        value.thumb.size <= 1_000_000))
   );
 };
 export function validateRecord(
   collection: string,
   value: any,
 ): value is NagiPost | NagiReaction | NagiProfile {
-  if (!value || value.$type !== collection || !date(value.createdAt)) return false;
+  if (!value || value.$type !== collection || !date(value.createdAt))
+    return false;
   if (collection === NAGI.post) {
     if (
       typeof value.text !== "string" ||
@@ -65,9 +104,16 @@ export function validateRecord(
       Buffer.byteLength(value.text) > 30000
     )
       return false;
-    if (value.reply && (!ref(value.reply.root) || !ref(value.reply.parent))) return false;
-    if (value.linkCards &&
-      (!Array.isArray(value.linkCards) || value.linkCards.length > 4 || !value.linkCards.every(linkCard)))
+    if (value.facets !== undefined && !facets(value.facets, value.text))
+      return false;
+    if (value.reply && (!ref(value.reply.root) || !ref(value.reply.parent)))
+      return false;
+    if (
+      value.linkCards &&
+      (!Array.isArray(value.linkCards) ||
+        value.linkCards.length > 4 ||
+        !value.linkCards.every(linkCard))
+    )
       return false;
     if (value.embed) {
       if (value.embed.$type === `${NAGI.post}#images`) {

@@ -1,8 +1,28 @@
 export type StrongRef = { uri: string; cid: string };
 export type AspectRatio = { width: number; height: number };
-export type BlobRef = { $type: "blob"; ref: { $link: string }; mimeType: string; size: number };
-export type Facet = { index: { byteStart: number; byteEnd: number }; features: unknown[] };
-export type NagiImage = { image: BlobRef; alt: string; aspectRatio?: AspectRatio };
+export type BlobRef = {
+  $type: "blob";
+  ref: { $link: string };
+  mimeType: string;
+  size: number;
+};
+export type LinkFacetFeature = {
+  $type: "app.bsky.richtext.facet#link";
+  uri: string;
+};
+export type MentionFacetFeature = {
+  $type: "app.bsky.richtext.facet#mention";
+  did: string;
+};
+export type Facet = {
+  index: { byteStart: number; byteEnd: number };
+  features: Array<LinkFacetFeature | MentionFacetFeature | unknown>;
+};
+export type NagiImage = {
+  image: BlobRef;
+  alt: string;
+  aspectRatio?: AspectRatio;
+};
 export type NagiLinkCard = {
   uri: string;
   title: string;
@@ -63,7 +83,12 @@ export type PostView = {
   indexedAt: string;
   reply?: { root: string; parent: string };
   images?: Array<{ url: string; alt: string; aspectRatio?: AspectRatio }>;
-  linkCards?: Array<{ uri: string; title: string; description?: string; thumb?: string }>;
+  linkCards?: Array<{
+    uri: string;
+    title: string;
+    description?: string;
+    thumb?: string;
+  }>;
   quote?: PostView;
   reactions: ReactionView[];
   isBot: boolean;
@@ -76,7 +101,12 @@ export type FeedItem = PostView & {
   botReply?: PostView;
   botReplyState?: BotReplyState;
 };
-export type Page<T> = { items: T[]; cursor?: string; hasMore: boolean; botActor?: ActorView };
+export type Page<T> = {
+  items: T[];
+  cursor?: string;
+  hasMore: boolean;
+  botActor?: ActorView;
+};
 export type ProfileFeedFilter = "posts" | "replies" | "media" | "reactions";
 export type ProfileDetail = ActorView & {
   postCount: number;
@@ -87,7 +117,7 @@ export type ProfilePage = { profile: ProfileDetail; feed: Page<FeedItem> };
 export type ThreadView = { post: PostView; replies: PostView[] };
 export type NotificationView = {
   id: string;
-  type: "reply" | "reaction";
+  type: "reply" | "reaction" | "mention";
   actor: ActorView;
   post?: PostView;
   subjectUri: string;
@@ -95,4 +125,5 @@ export type NotificationView = {
   createdAt: string;
   readAt?: string;
 };
+export type SearchActorsResult = { actors: ActorView[] };
 export type DeleteAccountDataResult = { success: true };

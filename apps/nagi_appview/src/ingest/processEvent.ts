@@ -9,7 +9,7 @@ import {
   nagiTranslations,
 } from "@bsky-affirmative-bot/database";
 import { NAGI } from "@bsky-affirmative-bot/nagi-lexicon";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { validateRecord } from "./validateRecord.js";
 
 export async function processEvent(evt: any) {
@@ -48,12 +48,18 @@ export async function processEvent(evt: any) {
             deletedAt: new Date(),
           })
           .where(eq(nagiPosts.uri, uri));
-        await tx.delete(nagiTranslations).where(eq(nagiTranslations.postUri, uri));
-        await tx.delete(nagiNotifications).where(eq(nagiNotifications.subjectUri, uri));
+        await tx
+          .delete(nagiTranslations)
+          .where(eq(nagiTranslations.postUri, uri));
+        await tx
+          .delete(nagiNotifications)
+          .where(eq(nagiNotifications.subjectUri, uri));
       }
       if (collection === NAGI.reaction) {
         await tx.delete(nagiReactions).where(eq(nagiReactions.uri, uri));
-        await tx.delete(nagiNotifications).where(eq(nagiNotifications.reasonUri, uri));
+        await tx
+          .delete(nagiNotifications)
+          .where(eq(nagiNotifications.reasonUri, uri));
       }
       if (collection === NAGI.profile)
         await tx.delete(nagiProfiles).where(eq(nagiProfiles.did, did));
@@ -62,7 +68,9 @@ export async function processEvent(evt: any) {
       const createdAt = new Date(value.createdAt);
       if (collection === NAGI.post) {
         if (existingPost[0] && existingPost[0].cid !== commit.cid) {
-          await tx.delete(nagiTranslations).where(eq(nagiTranslations.postUri, uri));
+          await tx
+            .delete(nagiTranslations)
+            .where(eq(nagiTranslations.postUri, uri));
         }
         await tx
           .insert(nagiPosts)
@@ -131,13 +139,20 @@ export async function processEvent(evt: any) {
               avatarCid: value.avatar?.ref?.$link,
             },
           });
+      let replyRecipientDid: string | undefined;
       if (collection === NAGI.post && value.reply?.parent?.uri) {
         const parent = await tx
           .select()
           .from(nagiPosts)
-          .where(and(eq(nagiPosts.uri, value.reply.parent.uri), isNull(nagiPosts.deletedAt)))
+          .where(
+            and(
+              eq(nagiPosts.uri, value.reply.parent.uri),
+              isNull(nagiPosts.deletedAt),
+            ),
+          )
           .limit(1);
-        if (parent[0] && parent[0].did !== did)
+        if (parent[0] && parent[0].did !== did) {
+          replyRecipientDid = parent[0].did;
           await tx
             .insert(nagiNotifications)
             .values({
@@ -148,12 +163,55 @@ export async function processEvent(evt: any) {
               reasonUri: uri,
             })
             .onConflictDoNothing();
+        }
+      }
+      if (collection === NAGI.post && Array.isArray(value.facets)) {
+        const mentionedDids = [
+          ...new Set<string>(
+            value.facets.flatMap((facet: any) =>
+              Array.isArray(facet?.features)
+                ? facet.features
+                    .filter(
+                      (feature: any) =>
+                        feature?.$type === "app.bsky.richtext.facet#mention" &&
+                        typeof feature.did === "string",
+                    )
+                    .map((feature: any) => feature.did as string)
+                : [],
+            ),
+          ),
+        ].filter(
+          (recipientDid) =>
+            recipientDid !== did && recipientDid !== replyRecipientDid,
+        );
+        if (mentionedDids.length) {
+          const profiles = await tx
+            .select({ did: nagiProfiles.did })
+            .from(nagiProfiles)
+            .where(inArray(nagiProfiles.did, mentionedDids));
+          for (const { did: recipientDid } of profiles)
+            await tx
+              .insert(nagiNotifications)
+              .values({
+                recipientDid,
+                type: "mention",
+                actorDid: did,
+                subjectUri: uri,
+                reasonUri: uri,
+              })
+              .onConflictDoNothing();
+        }
       }
       if (collection === NAGI.reaction) {
         const subject = await tx
           .select()
           .from(nagiPosts)
-          .where(and(eq(nagiPosts.uri, value.subject.uri), isNull(nagiPosts.deletedAt)))
+          .where(
+            and(
+              eq(nagiPosts.uri, value.subject.uri),
+              isNull(nagiPosts.deletedAt),
+            ),
+          )
           .limit(1);
         if (subject[0] && subject[0].did !== did)
           await tx

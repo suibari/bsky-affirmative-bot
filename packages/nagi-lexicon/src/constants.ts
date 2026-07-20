@@ -6,6 +6,7 @@ export const NAGI = {
   getAffirmation: "com.suibari.nagi.getAffirmation",
   getThread: "com.suibari.nagi.getThread",
   getProfile: "com.suibari.nagi.getProfile",
+  searchActors: "com.suibari.nagi.searchActors",
   getNotifications: "com.suibari.nagi.getNotifications",
   updateSeen: "com.suibari.nagi.updateSeen",
   translatePost: "com.suibari.nagi.translatePost",
@@ -55,13 +56,20 @@ export const NAGI_LANGUAGES = [
   { code: "vi", name: "Vietnamese" },
 ] as const;
 
-export const NAGI_COLLECTIONS = [NAGI.post, NAGI.reaction, NAGI.profile] as const;
-export const NAGI_APPVIEW_DID = process.env.NAGI_APPVIEW_DID ?? "did:web:nagi-api.suibari.com";
+export const NAGI_COLLECTIONS = [
+  NAGI.post,
+  NAGI.reaction,
+  NAGI.profile,
+] as const;
+export const NAGI_APPVIEW_DID =
+  process.env.NAGI_APPVIEW_DID ?? "did:web:nagi-api.suibari.com";
 export const NAGI_APPVIEW_SERVICE_ID = "nagi_appview";
 export const NAGI_APPVIEW_AUD = `${NAGI_APPVIEW_DID}#${NAGI_APPVIEW_SERVICE_ID}`;
 export const NAGI_BOT_DID = process.env.NAGI_BOT_DID ?? "";
 export const NAGI_AFFIRMATION_THRESHOLD = Number(
-  process.env.NAGI_AFFIRMATION_THRESHOLD ?? process.env.NAGI_TREND_THRESHOLD ?? 86,
+  process.env.NAGI_AFFIRMATION_THRESHOLD ??
+    process.env.NAGI_TREND_THRESHOLD ??
+    86,
 );
 export const NAGI_OAUTH_SCOPE = [
   "atproto",
