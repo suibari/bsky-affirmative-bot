@@ -9,6 +9,8 @@ export const NAGI = {
   getNotifications: "com.suibari.nagi.getNotifications",
   updateSeen: "com.suibari.nagi.updateSeen",
   translatePost: "com.suibari.nagi.translatePost",
+  getLinkMetadata: "com.suibari.nagi.getLinkMetadata",
+  getLinkThumbnail: "com.suibari.nagi.getLinkThumbnail",
   deleteAccountData: "com.suibari.nagi.deleteAccountData",
 } as const;
 
@@ -73,5 +75,7 @@ export const NAGI_OAUTH_SCOPE = [
     NAGI.getNotifications,
     NAGI.updateSeen,
     NAGI.deleteAccountData,
+    NAGI.getLinkMetadata,
+    NAGI.getLinkThumbnail,
   ].map((nsid) => `rpc:${nsid}?aud=${NAGI_APPVIEW_AUD.replace("#", "%23")}`),
 ].join(" ");

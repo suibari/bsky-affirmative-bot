@@ -84,6 +84,18 @@ export async function hydratePostViews(
             ];
           })
         : undefined;
+    const linkCards = !deleted && Array.isArray((post.recordJson as any)?.linkCards)
+      ? (post.recordJson as any).linkCards.flatMap((card: any) => {
+          if (typeof card?.uri !== "string" || typeof card?.title !== "string") return [];
+          const cid = card.thumb?.ref?.$link;
+          return [{
+            uri: card.uri,
+            title: card.title,
+            ...(typeof card.description === "string" ? { description: card.description } : {}),
+            ...(typeof cid === "string" ? { thumb: `/api/blob/${encodeURIComponent(post.did)}/${encodeURIComponent(cid)}` } : {}),
+          }];
+        })
+      : undefined;
     return {
       uri: post.uri,
       cid: post.cid,
@@ -105,6 +117,7 @@ export async function hydratePostViews(
         ? { root: post.replyRootUri ?? post.replyParentUri, parent: post.replyParentUri }
         : undefined,
       images: images?.length ? images : undefined,
+      linkCards: linkCards?.length ? linkCards : undefined,
       reactions: Object.values(
         reactions
           .filter((r) => r.subjectUri === post.uri)

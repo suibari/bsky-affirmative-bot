@@ -169,14 +169,22 @@ export async function generateSingleResponseWithScore(prompt: string, userinfo?:
     }
   ];
 
-  if (userinfo?.embed?.uri_embed && userinfo.isSubscriber) {
+  const links = userinfo?.embed?.links_embed?.map((link) => link.uri) ?? [];
+  if (userinfo?.embed?.uri_embed && !links.includes(userinfo.embed.uri_embed)) {
+    links.push(userinfo.embed.uri_embed);
+  }
+  const useUrlContext = Boolean(
+    links.length &&
+    (userinfo?.urlContextEnabled ?? Boolean(userinfo?.embed?.uri_embed && userinfo?.isSubscriber))
+  );
+  if (useUrlContext) {
     tools.push({
       urlContext: {},
     });
-    console.log(`[INFO][GEMINI] URL Context tool enabled for URL: ${userinfo.embed.uri_embed}`);
+    console.log(`[INFO][GEMINI] URL Context tool enabled for ${links.length} URL(s): ${links.join(", ")}`);
   }
 
-  const response = await generateContentWithRetry({
+  const request = (requestTools: any[]) => generateContentWithRetry({
     model: MODEL_GEMINI,
     contents,
     config: {
@@ -184,9 +192,17 @@ export async function generateSingleResponseWithScore(prompt: string, userinfo?:
       serviceTier: userinfo?.isSubscriber ? ServiceTier.STANDARD : ServiceTier.FLEX,
       // responseMimeType: "application/json", // Removed
       // responseSchema, // Removed
-      tools
+      tools: requestTools
     }
   }, 3, userinfo);
+  let response;
+  try {
+    response = await request(tools);
+  } catch (error) {
+    if (!useUrlContext) throw error;
+    console.warn("[WARN][GEMINI] URL Context request failed; retrying with card metadata only", error);
+    response = await request([{ googleSearch: {} }]);
+  }
 
   const result = extractJSON(response.text || "") as GeminiScore[];
 

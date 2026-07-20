@@ -1,0 +1,30 @@
+{
+  "lexicon": 1,
+  "id": "com.suibari.nagi.getLinkMetadata",
+  "defs": {
+    "main": {
+      "type": "query",
+      "parameters": {
+        "type": "params",
+        "required": ["url"],
+        "properties": {
+          "url": { "type": "string", "format": "uri", "maxLength": 2048 },
+          "fallback": { "type": "boolean", "default": false }
+        }
+      },
+      "output": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "required": ["uri", "title"],
+          "properties": {
+            "uri": { "type": "string", "format": "uri" },
+            "title": { "type": "string" },
+            "description": { "type": "string" },
+            "image": { "type": "string", "format": "uri" }
+          }
+        }
+      }
+    }
+  }
+}

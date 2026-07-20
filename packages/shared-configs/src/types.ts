@@ -166,6 +166,7 @@ export type UserInfoGemini = {
     post?: string;
   }[];
   embed?: Embed;
+  urlContextEnabled?: boolean;
   topWords?: string[];
   postOnMonth?: string[][];
   isSubscriber?: boolean;
@@ -178,6 +179,11 @@ export interface Embed {
   uri_embed?: string;
   title_embed?: string;
   description_embed?: string;
+  links_embed?: {
+    uri: string;
+    title?: string;
+    description?: string;
+  }[];
   image_embed?: ImageRef[];
 }
 

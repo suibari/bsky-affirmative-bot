@@ -3,6 +3,12 @@ export type AspectRatio = { width: number; height: number };
 export type BlobRef = { $type: "blob"; ref: { $link: string }; mimeType: string; size: number };
 export type Facet = { index: { byteStart: number; byteEnd: number }; features: unknown[] };
 export type NagiImage = { image: BlobRef; alt: string; aspectRatio?: AspectRatio };
+export type NagiLinkCard = {
+  uri: string;
+  title: string;
+  description?: string;
+  thumb?: BlobRef;
+};
 export type NagiPost = {
   $type: "com.suibari.nagi.post";
   text: string;
@@ -10,6 +16,7 @@ export type NagiPost = {
   langs?: string[];
   createdAt: string;
   reply?: { root: StrongRef; parent: StrongRef };
+  linkCards?: NagiLinkCard[];
   embed?:
     | { $type: "com.suibari.nagi.post#images"; images: NagiImage[] }
     | {
@@ -56,6 +63,7 @@ export type PostView = {
   indexedAt: string;
   reply?: { root: string; parent: string };
   images?: Array<{ url: string; alt: string; aspectRatio?: AspectRatio }>;
+  linkCards?: Array<{ uri: string; title: string; description?: string; thumb?: string }>;
   quote?: PostView;
   reactions: ReactionView[];
   isBot: boolean;

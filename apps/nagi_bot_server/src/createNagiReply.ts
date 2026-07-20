@@ -40,6 +40,7 @@ export async function createNagiReply(job: any) {
     likedByFollower: context.likedByFollower,
     followersFriend: context.followersFriend,
     isSubscriber: context.isSubscriber,
+    urlContextEnabled: context.urlContextEnabled,
     botContext: await getBotContext(),
     langStr: language.name,
   } as any);

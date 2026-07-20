@@ -12,19 +12,44 @@ import {
 } from "@bsky-affirmative-bot/bot-runtime";
 import { and, desc, eq, isNull, ne } from "drizzle-orm";
 
-function firstFacetLink(facets: unknown) {
-  if (!Array.isArray(facets)) return undefined;
-  for (const facet of facets) {
+type ContextLink = { uri: string; title?: string; description?: string };
+
+export function extractContextLinks(record: any) {
+  const links: ContextLink[] = [];
+  const seen = new Set<string>();
+  let cardLinkCount = 0;
+  let facetLinkCount = 0;
+  if (Array.isArray(record?.linkCards)) {
+    for (const card of record.linkCards) {
+      if (typeof card?.uri !== "string" || seen.has(card.uri)) continue;
+      seen.add(card.uri);
+      links.push({
+        uri: card.uri,
+        ...(typeof card.title === "string" ? { title: card.title } : {}),
+        ...(typeof card.description === "string"
+          ? { description: card.description }
+          : {}),
+      });
+      cardLinkCount++;
+    }
+  }
+  if (!Array.isArray(record?.facets))
+    return { links, cardLinkCount, facetLinkCount };
+  for (const facet of record.facets) {
     if (!Array.isArray(facet?.features)) continue;
     for (const feature of facet.features) {
       if (
         feature?.$type === "app.bsky.richtext.facet#link" &&
         typeof feature.uri === "string"
-      )
-        return feature.uri;
+      ) {
+        facetLinkCount++;
+        if (seen.has(feature.uri)) continue;
+        seen.add(feature.uri);
+        links.push({ uri: feature.uri });
+      }
     }
   }
-  return undefined;
+  return { links, cardLinkCount, facetLinkCount };
 }
 
 const profileView = (
@@ -171,6 +196,14 @@ export async function buildNagiReplyContext(job: any) {
     authorPds,
     record.embed?.images,
   );
+  const linkThumbnails = blobImagesToImageRefs(
+    job.authorDid,
+    authorPds,
+    Array.isArray(record.linkCards)
+      ? record.linkCards.map((card: any) => ({ image: card?.thumb }))
+      : undefined,
+  );
+  image.push(...linkThumbnails);
   const embed: any = {};
   const quote = quoteRows[0];
   if (quote) {
@@ -191,8 +224,13 @@ export async function buildNagiReplyContext(job: any) {
     embed.image_embed = quoteImages;
     image.push(...quoteImages);
   }
-  const link = firstFacetLink(record.facets);
-  if (link) embed.uri_embed = link;
+  const { links, cardLinkCount, facetLinkCount } = extractContextLinks(record);
+  if (links.length) {
+    embed.links_embed = links;
+    embed.uri_embed = links[0].uri;
+    embed.title_embed = links[0].title;
+    embed.description_embed = links[0].description;
+  }
 
   return {
     follower: profileView(job.authorDid, author.actor, author.profile),
@@ -204,11 +242,17 @@ export async function buildNagiReplyContext(job: any) {
       : undefined,
     followersFriend: followersFriend ? [followersFriend] : undefined,
     isSubscriber: false,
+    urlContextEnabled: links.length > 0,
     diagnostics: {
       imageCount: image.length,
+      linkThumbnailCount: linkThumbnails.length,
       relatedPostCount: relatedPosts.length,
       hasQuote: Boolean(quote),
-      hasLink: Boolean(link),
+      hasLink: links.length > 0,
+      cardLinkCount,
+      facetLinkCount,
+      linkCount: links.length,
+      urlContextEnabled: links.length > 0,
       hasReaction: Boolean(reactionRows[0]),
       hasFollowersFriend: Boolean(followersFriend),
     },

@@ -21,7 +21,26 @@
           },
           "createdAt": { "type": "string", "format": "datetime" },
           "reply": { "type": "ref", "ref": "#replyRef" },
+          "linkCards": {
+            "type": "array",
+            "maxLength": 4,
+            "items": { "type": "ref", "ref": "#linkCard" }
+          },
           "embed": { "type": "union", "refs": ["#images", "#quote"] }
+        }
+      }
+    },
+    "linkCard": {
+      "type": "object",
+      "required": ["uri", "title"],
+      "properties": {
+        "uri": { "type": "string", "format": "uri", "maxLength": 2048 },
+        "title": { "type": "string", "maxGraphemes": 300, "maxLength": 3000 },
+        "description": { "type": "string", "maxGraphemes": 1000, "maxLength": 10000 },
+        "thumb": {
+          "type": "blob",
+          "accept": ["image/jpeg", "image/png", "image/webp"],
+          "maxSize": 1000000
         }
       }
     },

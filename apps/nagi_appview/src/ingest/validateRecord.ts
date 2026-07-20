@@ -30,6 +30,29 @@ const images = (value: unknown) =>
   value.length >= 1 &&
   value.length <= 4 &&
   value.every(image);
+const linkCard = (value: any) => {
+  let uri: URL;
+  try {
+    uri = new URL(value?.uri);
+  } catch {
+    return false;
+  }
+  return (
+    ["http:", "https:"].includes(uri.protocol) &&
+    value.uri.length <= 2048 &&
+    typeof value.title === "string" &&
+    graphemes(value.title) <= 300 &&
+    Buffer.byteLength(value.title) <= 3000 &&
+    (value.description === undefined ||
+      (typeof value.description === "string" &&
+        graphemes(value.description) <= 1000 &&
+        Buffer.byteLength(value.description) <= 10000)) &&
+    (value.thumb === undefined ||
+      (typeof value.thumb?.ref?.$link === "string" &&
+        ["image/jpeg", "image/png", "image/webp"].includes(value.thumb.mimeType) &&
+        Number.isInteger(value.thumb.size) && value.thumb.size >= 0 && value.thumb.size <= 1_000_000))
+  );
+};
 export function validateRecord(
   collection: string,
   value: any,
@@ -43,6 +66,9 @@ export function validateRecord(
     )
       return false;
     if (value.reply && (!ref(value.reply.root) || !ref(value.reply.parent))) return false;
+    if (value.linkCards &&
+      (!Array.isArray(value.linkCards) || value.linkCards.length > 4 || !value.linkCards.every(linkCard)))
+      return false;
     if (value.embed) {
       if (value.embed.$type === `${NAGI.post}#images`) {
         if (!images(value.embed.images)) return false;

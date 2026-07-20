@@ -18,6 +18,29 @@ export async function generateAffirmativeWord(userinfo: UserInfoGemini) {
    return result;
 }
 
+const sharedLinks = (userinfo: UserInfoGemini) => {
+   const links = [...(userinfo.embed?.links_embed ?? [])];
+   if (userinfo.embed?.uri_embed && !links.some((link) => link.uri === userinfo.embed?.uri_embed)) {
+      links.push({
+         uri: userinfo.embed.uri_embed,
+         title: userinfo.embed.title_embed,
+         description: userinfo.embed.description_embed,
+      });
+   }
+   return links;
+};
+
+const formatSharedLinks = (userinfo: UserInfoGemini, empty: string) => {
+   const links = sharedLinks(userinfo);
+   if (!links.length) return empty;
+   return links.map((link, index) =>
+      `${index + 1}. ${link.title ? `${link.title} ` : ""}(${link.uri})${link.description ? ` ${link.description}` : ""}`
+   ).join("\n");
+};
+
+const urlContextEnabled = (userinfo: UserInfoGemini) =>
+   userinfo.urlContextEnabled ?? Boolean(userinfo.embed?.uri_embed && userinfo.isSubscriber);
+
 const PROMPT_AFFIRMATIVE_WORD = async (userinfo: UserInfoGemini) => {
    const postText = userinfo.posts?.[0] || "";
    const postLength = postText.length;
@@ -78,7 +101,7 @@ const PROMPT_AFFIRMATIVE_WORD = async (userinfo: UserInfoGemini) => {
          ? `* フォロワー名: ${userinfo.followersFriend[0].profile.displayName}  
         * ポスト: ${userinfo.followersFriend[0].post}` : ""}
     - ${userinfo.embed?.text_embed ? "ユーザが引用しているポストとの共通点を踏まえて今回のポストを褒めてください。ポスト内容はそのまま記載しないでください。引用元が「全肯定botたん」に関するポストの場合、言及してくれたことへの感謝も伝えてください。" : ""}
-    - ${userinfo.embed?.uri_embed && userinfo.isSubscriber ? "ユーザが共有しているリンク先の内容について、URLコンテキスト機能を必ず使用して実際のページ内容を確認し、その具体的な中身（記事のテーマや主張など）に触れた上で、ユーザの感性や興味を具体的に褒めてください。" : ""}
+    - ${urlContextEnabled(userinfo) && sharedLinks(userinfo).length ? "ユーザが共有しているすべてのリンク先について、URLコンテキスト機能を使用して実際のページ内容を確認してください。取得できないリンクは、下記のカードタイトルと説明を参考にしてください。リンクの具体的なテーマや内容に触れ、ユーザの感性や興味を具体的に褒めてください。" : ""}
 
    **注意: commentにはscoreに関する情報を絶対に含めないこと**
 
@@ -98,7 +121,7 @@ const PROMPT_AFFIRMATIVE_WORD = async (userinfo: UserInfoGemini) => {
 - ユーザ名: ${userinfo.follower.displayName}
 - 今回のポスト: ${postText}
 - ユーザが引用したポスト: ${userinfo.embed?.text_embed ? userinfo.embed.text_embed + " by " + userinfo.embed.profile_embed?.displayName : "なし"}
-- ユーザが共有したリンク: ${userinfo.embed?.uri_embed ? `${userinfo.embed.title_embed} (${userinfo.embed.uri_embed}) ${userinfo.embed.description_embed || ""}` : "なし"}
+- ユーザが共有したリンク:\n${formatSharedLinks(userinfo, "なし")}
 - 過去のポスト（直接言及しないこと）: ${userinfo.posts?.slice(1) ?? "なし"}
 ` :
       `Please generate the output in the following JSON format in ${userinfo.langStr}.
@@ -134,7 +157,7 @@ const PROMPT_AFFIRMATIVE_WORD = async (userinfo: UserInfoGemini) => {
          ? `* Follower Name: ${userinfo.followersFriend[0].profile.displayName}  
         * Follower's Post: ${userinfo.followersFriend[0].post}` : ""}
     - ${userinfo.embed?.text_embed ? "The user is quoting a post, so please use that post's content to praise this post." : ""}
-    - ${userinfo.embed?.uri_embed && userinfo.isSubscriber ? "Be sure to use the URL context feature to check the actual content of the shared link, and specifically praise the user's interest or perspective by referring to the specific theme or content of the link." : ""}
+    - ${urlContextEnabled(userinfo) && sharedLinks(userinfo).length ? "Use URL Context to inspect every shared link. If a link cannot be retrieved, use its card title and description below as fallback context. Specifically praise the user's interest or perspective by referring to the links' themes or content." : ""}
 
    **Important: Do not reveal score in the comment.**
 
@@ -154,7 +177,7 @@ const PROMPT_AFFIRMATIVE_WORD = async (userinfo: UserInfoGemini) => {
 - Username: ${userinfo.follower.displayName}  
 - This Post: ${postText}
 - Posts quoted by this user: ${userinfo.embed?.text_embed ? userinfo.embed.text_embed + " by " + userinfo.embed.profile_embed?.displayName : "None"}
-- Links shared by this user: ${userinfo.embed?.uri_embed ? `${userinfo.embed.title_embed} (${userinfo.embed.uri_embed}) ${userinfo.embed.description_embed || ""}` : "None"}
+- Links shared by this user:\n${formatSharedLinks(userinfo, "None")}
 - Previous Posts (do not directly mention): ${userinfo.posts?.slice(1) ?? "None"}
 `;
 };
