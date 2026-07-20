@@ -1,5 +1,5 @@
 import { PartListUnion, Type, ServiceTier } from "@google/genai";
-import { MODEL_GEMINI, SYSTEM_INSTRUCTION, MODEL_GEMINI_LITE } from "@bsky-affirmative-bot/shared-configs";
+import { MODEL_GEMINI, SYSTEM_INSTRUCTION, MODEL_GEMINI_LITE, safeFetch } from "@bsky-affirmative-bot/shared-configs";
 import { UserInfoGemini, GeminiScore } from "@bsky-affirmative-bot/shared-configs";
 import { gemini } from "./index.js";
 
@@ -43,7 +43,7 @@ commentには、そう判断した理由を出力してください。
   const contents: PartListUnion = [prompt];
   if (userinfo?.image) {
     for (const img of userinfo.image) {
-      const response = await fetch(img.image_url);
+      const response = await safeFetch(img.image_url);
       const imageArrayBuffer = await response.arrayBuffer();
       const base64ImageData = Buffer.from(imageArrayBuffer).toString("base64");
       contents.push({

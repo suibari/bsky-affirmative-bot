@@ -1,5 +1,6 @@
 import express from "express";
 import http from "http";
+import { timingSafeEqual } from "crypto";
 import { WebSocketServer } from "ws";
 import dotenv from "dotenv";
 import { BiorhythmManager } from "./manager.js";
@@ -13,13 +14,34 @@ const PORT = process.env.BIORHYTHM_SERVER_PORT || 3002;
 
 const manager = new BiorhythmManager();
 
+// このサーバーは公開されている（/image.png と /.well-known/atproto-did を配信）ため、
+// 以下の状態変更/状態取得エンドポイントは loopback バインドではなく共有シークレットで
+// 保護する。呼び出し側は packages/clients/BiorhythmService でシークレットを付与する。
+const INTERNAL_SECRET = process.env.BIORHYTHM_INTERNAL_SECRET;
+const requireInternalAuth: express.RequestHandler = (req, res, next) => {
+  if (!INTERNAL_SECRET) {
+    console.error("[ERROR][BIO] BIORHYTHM_INTERNAL_SECRET が未設定のため内部リクエストを拒否します。");
+    res.status(503).json({ error: "server not configured" });
+    return;
+  }
+  const header = req.headers.authorization ?? "";
+  const expected = `Bearer ${INTERNAL_SECRET}`;
+  const provided = Buffer.from(header);
+  const expectedBuf = Buffer.from(expected);
+  if (provided.length !== expectedBuf.length || !timingSafeEqual(provided, expectedBuf)) {
+    res.status(401).json({ error: "unauthorized" });
+    return;
+  }
+  next();
+};
+
 // Endpoints
-app.get("/status", async (req, res) => {
+app.get("/status", requireInternalAuth, async (req, res) => {
   const state = await manager.getCurrentState();
   res.json(state);
 });
 
-app.post("/energy", async (req, res) => {
+app.post("/energy", requireInternalAuth, async (req, res) => {
   const { amount, type, did } = req.body;
 
   try {

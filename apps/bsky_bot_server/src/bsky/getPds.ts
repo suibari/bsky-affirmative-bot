@@ -1,3 +1,5 @@
+import { safeFetch } from "@bsky-affirmative-bot/shared-configs";
+
 interface DidDocument {
   service?: { type: string; serviceEndpoint: string }[];
 }
@@ -12,7 +14,7 @@ export async function getPds(did: string): Promise<string> {
   let doc: DidDocument;
 
   if (did.startsWith("did:plc:")) {
-    doc = await fetch(`https://plc.directory/${did}`, {
+    doc = await safeFetch(`https://plc.directory/${did}`, {
       headers: {
         "Cache-Control": "no-cache",
       },
@@ -22,7 +24,7 @@ export async function getPds(did: string): Promise<string> {
     });
   } else if (did.startsWith("did:web:")) {
     const didDomain = did.split(":")[2];
-    doc = await fetch(`https://${didDomain}/.well-known/did.json`, {
+    doc = await safeFetch(`https://${decodeURIComponent(didDomain)}/.well-known/did.json`, {
       headers: {
         "Cache-Control": "no-cache",
       },

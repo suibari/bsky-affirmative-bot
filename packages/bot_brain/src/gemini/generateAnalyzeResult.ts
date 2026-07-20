@@ -1,7 +1,7 @@
 import { Type, ServiceTier } from "@google/genai";
 import { gemini } from "./index.js";
 import { generateContentWithRetry } from "./util.js";
-import { UserInfoGemini, MODEL_GEMINI, SYSTEM_INSTRUCTION } from "@bsky-affirmative-bot/shared-configs";
+import { UserInfoGemini, MODEL_GEMINI, SYSTEM_INSTRUCTION, safeFetch } from "@bsky-affirmative-bot/shared-configs";
 
 export interface AnalyzeResult {
   analysis: string;
@@ -16,7 +16,7 @@ export async function generateAnalyzeResult(userinfo: UserInfoGemini): Promise<A
   if (userinfo?.image) {
     for (const img of userinfo.image) {
       try {
-        const response = await fetch(img.image_url);
+        const response = await safeFetch(img.image_url);
         if (!response.ok) {
           console.warn(`[WARN] Failed to fetch image: ${img.image_url} (Status: ${response.status})`);
           continue;

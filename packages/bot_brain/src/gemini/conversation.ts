@@ -1,6 +1,6 @@
 import { PartListUnion } from "@google/genai";
 import { gemini } from "./index.js";
-import { MODEL_GEMINI, SYSTEM_INSTRUCTION, MODEL_GEMINI_HIGH } from "@bsky-affirmative-bot/shared-configs";
+import { MODEL_GEMINI, SYSTEM_INSTRUCTION, MODEL_GEMINI_HIGH, safeFetch } from "@bsky-affirmative-bot/shared-configs";
 import { UserInfoGemini, GeminiScore } from "@bsky-affirmative-bot/shared-configs";
 import { formatBotContext } from "./util.js";
 
@@ -35,7 +35,7 @@ export async function conversation(userinfo: UserInfoGemini) {
   const message: PartListUnion = [prompt];
   if (userinfo.image) {
     for (const img of userinfo.image) {
-      const response = await fetch(img.image_url);
+      const response = await safeFetch(img.image_url);
       const imageArrayBuffer = await response.arrayBuffer();
       const base64ImageData = Buffer.from(imageArrayBuffer).toString("base64");
       message.push({

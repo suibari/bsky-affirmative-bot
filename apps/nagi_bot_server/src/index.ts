@@ -46,7 +46,11 @@ async function start() {
     }
   });
   const port = Number(process.env.NAGI_BOT_SERVER_PORT || 3003);
-  app.listen(port, () => console.log(`[INFO][NAGI] HTTP server listening on port ${port}.`));
+  // サービス間通信専用のエンドポイントのため、他ホストから到達できないよう
+  // loopback にバインドする。
+  app.listen(port, "127.0.0.1", () =>
+    console.log(`[INFO][NAGI] HTTP server listening on 127.0.0.1:${port}.`),
+  );
 
   console.log("[INFO][NAGI] Nagi Bot Server started.");
 }

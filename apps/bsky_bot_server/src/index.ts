@@ -21,8 +21,10 @@ const PORT = process.env.BSKY_BOT_SERVER_PORT || 3001;
 // Endpoints for features triggered by biorhythm_server
 // Moved to routes.ts
 
-app.listen(PORT, async () => {
-  console.log(`Besky Bot Server running on port ${PORT}`);
+// サービス間通信専用のエンドポイントのため、他ホストから到達できないよう
+// loopback にバインドする。
+app.listen(PORT, "127.0.0.1", async () => {
+  console.log(`Besky Bot Server running on 127.0.0.1:${PORT}`);
   try {
     const { initializeDatabases } = await import("@bsky-affirmative-bot/clients");
     await initializeDatabases();

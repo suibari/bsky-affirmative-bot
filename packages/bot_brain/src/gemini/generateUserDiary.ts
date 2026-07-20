@@ -1,6 +1,6 @@
 import { Type, ServiceTier } from "@google/genai";
 import { generateContentWithRetry } from "./util.js";
-import { UserInfoGemini, MODEL_GEMINI, SYSTEM_INSTRUCTION } from "@bsky-affirmative-bot/shared-configs";
+import { UserInfoGemini, MODEL_GEMINI, SYSTEM_INSTRUCTION, safeFetch } from "@bsky-affirmative-bot/shared-configs";
 
 export interface DiaryResult {
   diary: string;
@@ -61,7 +61,7 @@ Today's posts: ${userinfo.posts || ""}
   if (userinfo?.image) {
     for (const img of userinfo.image) {
       try {
-        const response = await fetch(img.image_url);
+        const response = await safeFetch(img.image_url);
         if (!response.ok) {
           console.warn(`[WARN] Failed to fetch image: ${img.image_url} (Status: ${response.status})`);
           continue;

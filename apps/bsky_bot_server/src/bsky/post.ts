@@ -3,6 +3,7 @@ import { MemoryService } from '@bsky-affirmative-bot/clients';
 import { agent } from './agent.js';
 import { BlobRef, RichText } from "@atproto/api";
 import ogs from 'open-graph-scraper'; // ← これを使ってOGP取得
+import { assertPublicUrl, safeFetch } from "@bsky-affirmative-bot/shared-configs";
 
 /**
  * postのオーバーライド
@@ -30,6 +31,8 @@ export async function post(record: Record, embedRecord?: Record): Promise<{
       const url = urlMatch;
 
       try {
+        // open-graph-scraper が fetch する前にプライベート/ループバック宛てを拒否する。
+        await assertPublicUrl(url);
         const { result } = await ogs({ url });
         if (result.success) {
           let thumbBlob: BlobRef | undefined = undefined;
@@ -37,7 +40,7 @@ export async function post(record: Record, embedRecord?: Record): Promise<{
 
           if (imageUrl) {
             try {
-              const imageRes = await fetch(imageUrl);
+              const imageRes = await safeFetch(imageUrl);
               const arrayBuffer = await imageRes.arrayBuffer();
               const imageBuffer = Buffer.from(arrayBuffer);
               const contentType = imageRes.headers.get("content-type") || "image/jpeg";

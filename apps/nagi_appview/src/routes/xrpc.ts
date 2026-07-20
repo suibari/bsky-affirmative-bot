@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { rateLimit } from "express-rate-limit";
 import { NAGI } from "@bsky-affirmative-bot/nagi-lexicon";
 import { optionalServiceAuth, requiredServiceAuth } from "../auth/serviceAuth.js";
 import { getTimeline } from "../queries/timeline.js";
@@ -94,8 +95,18 @@ xrpc.post(`/${NAGI.updateSeen}`, requiredServiceAuth(NAGI.updateSeen), async (re
     next(e);
   }
 });
+// 未サインインユーザーでも翻訳できるよう意図的に無認証にしている。キャッシュミス
+// ごとに LLM 呼び出しが走るため、共有の /xrpc レート制限に加えて、乱用を抑える専用の
+// より厳しいレート制限をこのエンドポイントに設ける。
+const translateLimiter = rateLimit({
+  windowMs: 60_000,
+  limit: 10,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+});
 xrpc.post(
   `/${NAGI.translatePost}`,
+  translateLimiter,
   async (req, res, next) => {
     try {
       res.json(await translatePost(req.body?.uri, req.body?.targetLang));
