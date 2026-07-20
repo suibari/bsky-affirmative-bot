@@ -179,7 +179,9 @@ export async function onFollow(event: any) {
   console.log(`[INFO] New follower: ${did}! Executing follow-back and greeting.`);
 
   try {
-    botBiothythmManager.addFollower(); // Boost energy on new follow
+    // エネルギー加算の失敗でフォローバックを止めないよう、ここでは待たずに握る。
+    botBiothythmManager.addFollower()
+      .catch(e => console.error("[ERROR] Failed to add follower energy:", e));
     await MemoryService.logUsage('follow', did);
     await follow(did);
 

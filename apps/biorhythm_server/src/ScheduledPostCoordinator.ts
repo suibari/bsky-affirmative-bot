@@ -114,7 +114,12 @@ export async function postWhimsical(currentMood: string) {
   if (published) {
     if (giftIdToUpdate !== undefined) await MemoryService.updateGiftStatus(giftIdToUpdate, "used");
     if (newShort && generated.usedYoutubeShort) await MemoryService.updateYoutubeShortStatus(newShort.id, "posted");
-    if (results.bsky) await MemoryService.setWhimsicalPostRoots([results.bsky.uri]);
+  }
+
+  // 未読リプライの消費・言語カウント・言語トグルはいずれも Bluesky 投稿に紐づくため、
+  // 他ターゲットだけが成功した場合に進めてはならない。
+  if (results.bsky) {
+    await MemoryService.setWhimsicalPostRoots([results.bsky.uri]);
     await MemoryService.clearReplies();
     await MemoryService.incrementLang(langStr as any);
     isJapanesePost = !isJapanesePost;

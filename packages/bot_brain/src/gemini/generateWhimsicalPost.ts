@@ -37,18 +37,7 @@ export class WhimsicalPostGenerator {
     // --- Step 1 各パーツ生成 ---
     const first = await generateContentWithRetry({
       model: MODEL_GEMINI_HIGH,
-      config: {
-        systemInstruction: SYSTEM_INSTRUCTION,
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            textJa: { type: Type.STRING },
-            textEn: { type: Type.STRING },
-          },
-          required: ["textJa", "textEn"],
-        },
-      },
+      config: { tools: this.tools, systemInstruction: SYSTEM_INSTRUCTION },
       contents: [
         {
           role: "user",
@@ -91,7 +80,18 @@ export class WhimsicalPostGenerator {
     // --- Step 2: 最終文章生成 ---
     const second = await generateContentWithRetry({
       model: MODEL_GEMINI_HIGH,
-      config: { tools: this.tools, systemInstruction: SYSTEM_INSTRUCTION },
+      config: {
+        systemInstruction: SYSTEM_INSTRUCTION,
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            textJa: { type: Type.STRING },
+            textEn: { type: Type.STRING },
+          },
+          required: ["textJa", "textEn"],
+        },
+      },
       contents: [
         {
           role: "user",
