@@ -64,28 +64,32 @@ export function startNagiReplyWorker() {
       const result = await createNagiReply(job);
 
       await db.transaction(async (tx) => {
-        await tx
-          .insert(nagiPostScores)
-          .values({
-            postUri: job.sourceUri,
-            score: result.score,
-            botReplyUri: result.uri,
-          })
-          .onConflictDoUpdate({
-            target: nagiPostScores.postUri,
-            set: {
+        // 会話モードの返信はスコアを持たないので post_scores には積まない。
+        // botReply の紐付けは bot_reply_jobs.reply_uri 側で維持される。
+        if (result.score !== undefined) {
+          await tx
+            .insert(nagiPostScores)
+            .values({
+              postUri: job.sourceUri,
               score: result.score,
               botReplyUri: result.uri,
-              updatedAt: new Date(),
-            },
-          });
+            })
+            .onConflictDoUpdate({
+              target: nagiPostScores.postUri,
+              set: {
+                score: result.score,
+                botReplyUri: result.uri,
+                updatedAt: new Date(),
+              },
+            });
+        }
 
         await tx
           .update(nagiBotReplyJobs)
           .set({
             state: "posted",
             replyUri: result.uri,
-            score: result.score,
+            score: result.score ?? null,
             leaseExpiresAt: null,
             updatedAt: new Date(),
           })

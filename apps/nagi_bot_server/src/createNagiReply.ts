@@ -1,14 +1,20 @@
 import {
+  conversation,
   generateAffirmativeWord,
   getYokohamaWeather,
 } from "@bsky-affirmative-bot/bot-brain";
-import { botBiothythmManager } from "@bsky-affirmative-bot/clients";
+import { botBiothythmManager, MemoryService } from "@bsky-affirmative-bot/clients";
 import {
   configureBotContext,
   getBotContext,
 } from "@bsky-affirmative-bot/bot-runtime";
 import { NAGI, NAGI_LANGUAGES } from "@bsky-affirmative-bot/nagi-lexicon";
+import retry from "async-retry";
 import { agent } from "./agent.js";
+import {
+  buildNagiConversationHistory,
+  type ConversationTurn,
+} from "./nagiConversationHistory.js";
 import { buildNagiReplyContext } from "./nagiReplyContext.js";
 import { buildLinkAttachments } from "./nagiLinkCards.js";
 
@@ -28,23 +34,104 @@ function replyLanguage(langs: unknown) {
   );
 }
 
+/** bot 自身のポストへの返信かどうか。会話モードの発動条件。 */
+function isReplyToBot(record: any) {
+  const parentUri = record.reply?.parent?.uri;
+  return (
+    typeof parentUri === "string" &&
+    parentUri.startsWith(`at://${process.env.NAGI_BOT_DID}/${NAGI.post}/`)
+  );
+}
+
+/**
+ * 会話モード。Bluesky の ConversationFeature と同じく conv_history を記憶として
+ * 引き回し、生成後に更新する。スコアは付けない（肯定ポストとして扱わない）。
+ */
+async function generateConversationReply(
+  job: any,
+  context: Awaited<ReturnType<typeof buildNagiReplyContext>>,
+  langStr: string,
+) {
+  const did = job.authorDid;
+  const userText = context.posts[0] ?? "";
+  const history = await buildNagiConversationHistory(job);
+
+  let comment = "";
+  let newHistory: ConversationTurn[] = [];
+
+  await retry(
+    async () => {
+      const result = await conversation({
+        follower: context.follower,
+        posts: [userText],
+        image: context.image,
+        embed: context.embed,
+        history,
+        isSubscriber: true,
+        urlContextEnabled: context.urlContextEnabled,
+        botContext: await getBotContext(),
+        langStr,
+      } as any);
+
+      comment = result.text_bot ?? "";
+      newHistory = result.new_history ?? [];
+
+      if (!comment) throw new Error("Response text is empty, retrying.");
+    },
+    {
+      retries: 2,
+      onRetry: (error: any, attempt) => {
+        console.warn(`[WARN][NAGI][${did}] Conversation retry ${attempt}: ${error.message}`);
+      },
+    },
+  );
+
+  // 最後の user ターンをプロンプト全文から純粋な入力テキストのみに置換する。
+  for (let i = newHistory.length - 1; i >= 0; i--) {
+    if (newHistory[i].role !== "user") continue;
+    newHistory[i] = { role: "user", parts: [{ text: userText }] };
+    break;
+  }
+
+  // 会話記録に inlineData（画像）が含まれると巨大すぎるので削除しておく。
+  for (const content of newHistory) {
+    if (!content.parts) continue;
+    content.parts = content.parts.filter((part: any) => !("inlineData" in part));
+  }
+
+  // Nagi 限定ユーザには followers 行が無いことがある。ensureFollower は
+  // 新規行で follow 統計を加算してしまうため、素の upsert を使う。
+  await MemoryService.upsertFollowerInteraction(did);
+  await MemoryService.updateFollower(did, "conv_history", newHistory);
+  await MemoryService.updateFollower(did, "last_conv_at", new Date());
+  console.log(`[INFO][NAGI][${did}] send conversation-result`);
+
+  return { comment, score: undefined };
+}
+
 export async function createNagiReply(job: any) {
   const record: any = job.recordJson;
   const language = replyLanguage(record.langs);
   const context = await buildNagiReplyContext(job);
-  console.log("[INFO][NAGI] Gemini reply context:", context.diagnostics);
-  const generated = await generateAffirmativeWord({
-    follower: context.follower,
-    posts: context.posts,
-    image: context.image,
-    embed: context.embed,
-    likedByFollower: context.likedByFollower,
-    followersFriend: context.followersFriend,
-    isSubscriber: context.isSubscriber,
-    urlContextEnabled: context.urlContextEnabled,
-    botContext: await getBotContext(),
-    langStr: language.name,
-  } as any);
+  const conversationMode = isReplyToBot(record);
+  console.log("[INFO][NAGI] Gemini reply context:", {
+    ...context.diagnostics,
+    mode: conversationMode ? "conversation" : "affirmative",
+  });
+  const generated = conversationMode
+    ? await generateConversationReply(job, context, language.name)
+    : await generateAffirmativeWord({
+        follower: context.follower,
+        posts: context.posts,
+        image: context.image,
+        embed: context.embed,
+        likedByFollower: context.likedByFollower,
+        followersFriend: context.followersFriend,
+        isSubscriber: context.isSubscriber,
+        urlContextEnabled: context.urlContextEnabled,
+        botContext: await getBotContext(),
+        langStr: language.name,
+      } as any);
 
   const botDid = process.env.NAGI_BOT_DID!;
   const sourceRkey = job.sourceUri.split("/").at(-1)!;
@@ -76,6 +163,10 @@ export async function createNagiReply(job: any) {
 
   return {
     uri: response.data.uri,
-    score: Math.max(0, Math.min(100, Math.round(generated.score))),
+    // 会話ターンはスコアを持たない = 肯定ポストとして扱わない。
+    score:
+      generated.score === undefined
+        ? undefined
+        : Math.max(0, Math.min(100, Math.round(generated.score))),
   };
 }
