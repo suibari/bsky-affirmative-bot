@@ -10,6 +10,7 @@ import {
 import { NAGI, NAGI_LANGUAGES } from "@bsky-affirmative-bot/nagi-lexicon";
 import { agent } from "./agent.js";
 import { buildNagiReplyContext } from "./nagiReplyContext.js";
+import { buildLinkAttachments } from "./nagiLinkCards.js";
 
 configureBotContext({
   getWeather: getYokohamaWeather,
@@ -62,6 +63,7 @@ export async function createNagiReply(job: any) {
       text: generated.comment,
       langs: [language.code],
       createdAt: new Date().toISOString(),
+      ...(await buildLinkAttachments(generated.comment)),
       reply: {
         root,
         parent: {

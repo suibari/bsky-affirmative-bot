@@ -2,6 +2,7 @@ import type { ScheduledPostRequest, ScheduledPostResult } from "@bsky-affirmativ
 import { NAGI } from "@bsky-affirmative-bot/nagi-lexicon";
 import retry from "async-retry";
 import { agent } from "./agent.js";
+import { buildLinkAttachments } from "./nagiLinkCards.js";
 
 function clipNagiPostText(text: string) {
   const segments = [...new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(text)];
@@ -18,11 +19,14 @@ function clipNagiPostText(text: string) {
 
 export async function publishScheduledPost(request: ScheduledPostRequest): Promise<ScheduledPostResult> {
   return retry(async () => {
+    // facet のバイト位置がズレないよう、切り詰めた後の本文からリンクを検出する。
+    const text = clipNagiPostText(request.text);
     const record: Record<string, unknown> = {
       $type: NAGI.post,
-      text: clipNagiPostText(request.text),
+      text,
       createdAt: new Date().toISOString(),
       ...(request.langs?.length ? { langs: request.langs } : {}),
+      ...(await buildLinkAttachments(text)),
     };
 
     if (request.kind === "good-night" && request.sourcePost?.network === "nagi") {

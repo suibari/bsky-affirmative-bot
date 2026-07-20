@@ -17,6 +17,7 @@
     "@bsky-affirmative-bot/clients": "workspace:*",
     "@bsky-affirmative-bot/database": "workspace:*",
     "@bsky-affirmative-bot/nagi-lexicon": "workspace:*",
+    "@bsky-affirmative-bot/nagi-linkcard": "workspace:*",
     "async-retry": "^1.3.3",
     "drizzle-orm": "^0.45.1",
     "express": "^5.0.0"
