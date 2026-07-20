@@ -16,7 +16,7 @@ const app = express();
 app.use(express.json());
 app.use("/", router);
 
-const PORT = process.env.BSKY_BOT_SERVER_PORT || 3001;
+const PORT = Number(process.env.BSKY_BOT_SERVER_PORT || 3001);
 
 // Endpoints for features triggered by biorhythm_server
 // Moved to routes.ts
