@@ -10,7 +10,7 @@ import type { ProfileDetail } from "@bsky-affirmative-bot/nagi-lexicon";
 import { and, desc, eq, isNull, lt, or, sql } from "drizzle-orm";
 import { config } from "../config.js";
 import { ApiError } from "../middleware/errors.js";
-import { getSuperPositiveLevel } from "./badges.js";
+import { getCurrentTitle, getSuperPositiveLevel } from "./badges.js";
 import {
   buildFeedItems,
   decodeCursor,
@@ -20,7 +20,7 @@ import {
   type PostRow,
 } from "./timeline.js";
 export async function getActorProfile(did: string): Promise<ProfileDetail> {
-  const [[actor], [profile], [stats], superPositiveLevel] = await Promise.all([
+  const [[actor], [profile], [stats], superPositiveLevel, currentTitle] = await Promise.all([
     db.select().from(nagiActors).where(eq(nagiActors.did, did)),
     db.select().from(nagiProfiles).where(eq(nagiProfiles.did, did)),
     db
@@ -31,6 +31,7 @@ export async function getActorProfile(did: string): Promise<ProfileDetail> {
       .from(nagiPosts)
       .where(and(eq(nagiPosts.did, did), isNull(nagiPosts.deletedAt))),
     getSuperPositiveLevel(did),
+    getCurrentTitle(did),
   ]);
   if (!actor && !profile && !stats?.postCount)
     throw new ApiError(404, "not_found", "Actor not found");
@@ -45,6 +46,7 @@ export async function getActorProfile(did: string): Promise<ProfileDetail> {
       : undefined,
     isBot: did === config.botDid,
     superPositiveLevel,
+    currentTitle,
     postCount: stats?.postCount ?? 0,
     firstPostAt,
     joinedAt: profile?.createdAt?.toISOString() ?? firstPostAt,

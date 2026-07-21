@@ -2,26 +2,17 @@ import { $Typed, AppBskyEmbedDefs, AppBskyEmbedExternal, AppBskyEmbedImages, App
 import { AppBskyFeedDefs } from "@atproto/api"; type PostView = AppBskyFeedDefs.PostView; type FeedViewPost = AppBskyFeedDefs.FeedViewPost;
 import { AppBskyFeedPost } from "@atproto/api";
 
-import { ImageRef, LangMap, languageData, LanguageName, localeToTimezone } from "@bsky-affirmative-bot/shared-configs";
+import { ImageRef, localeToTimezone } from "@bsky-affirmative-bot/shared-configs";
 import { getPds } from "./getPds.js";
 import { blobImagesToImageRefs } from "@bsky-affirmative-bot/bot-runtime";
 import { agent } from "./agent.js";
 import e from "express";
 
-const langMap: LangMap = languageData.reduce((acc, lang) => {
-  acc[lang.code] = { name: lang.name };
-  return acc;
-}, {} as LangMap);
-
 /**
  * 言語コードからタイムゾーンを取得するヘルパー関数
- * @param lang 言語コード (例: "ja", "en-US")
- * @returns タイムゾーン文字列、または見つからない場合は null
+ * Nagi 側の日記スケジューラでも使うので実体は clients に置いてある。
  */
-export function getTimezoneFromLang(lang: string | undefined): string {
-  if (!lang) return "UTC";
-  return localeToTimezone[lang] || "UTC";
-}
+export { getTimezoneFromLang } from "@bsky-affirmative-bot/clients";
 
 /**
  * メンション判定しメンション先のDIDを返す
@@ -191,13 +182,9 @@ export function uniteDidNsidRkey(did: string, nsid: string, rkey: string) {
 /**
  * 言語判定。返すのは言語名（ex. "日本語, English"）
  * langsが1つならその言語を返し、複数または非設定なら英語を返す
- * @param langs 
- * @returns 
+ * Nagi 側の日記でも使うので実体は clients に置いてある。
  */
-export function getLangStr(langs: string[] | undefined): LanguageName {
-  const lang = (langs?.length === 1) ? langs[0] : "en";
-  return langMap[lang]?.name ?? langMap["en"].name;
-}
+export { getLangStr } from "@bsky-affirmative-bot/clients";
 
 /**
  * 画像URLを取得

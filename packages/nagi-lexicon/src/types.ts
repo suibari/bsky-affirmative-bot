@@ -83,6 +83,35 @@ export type EmojiView = {
   alt?: string;
   url: string;
 };
+/**
+ * botたんが書くユーザーの日記。bot のリポジトリに置く。
+ * rkey は `${subject の ":" を "_" にしたもの}-${date}` で決定論的にし、putRecord で冪等にする。
+ */
+export type NagiDiary = {
+  $type: "com.suibari.nagi.diary";
+  /** 日記の対象ユーザーの DID。 */
+  subject: string;
+  /** ユーザーのローカル日付 "YYYY-MM-DD"。 */
+  date: string;
+  text: string;
+  /** その日の称号。 */
+  titleJa?: string;
+  titleEn?: string;
+  langs?: string[];
+  createdAt: string;
+};
+export type DiaryView = {
+  uri: string;
+  cid: string;
+  subject: string;
+  date: string;
+  text: string;
+  titleJa?: string;
+  titleEn?: string;
+  langs?: string[];
+  createdAt: string;
+  indexedAt: string;
+};
 export type NagiProfile = {
   $type: "com.suibari.nagi.profile";
   displayName: string;
@@ -100,6 +129,12 @@ export type ActorView = {
   isBot?: boolean;
   /** 超ポジティブLv（Blueskyと共通のカウンタ。100以上もそのまま返す）。0のときは付けない。 */
   superPositiveLevel?: number;
+  /**
+   * 現在の称号（Blueskyと共通の followers.current_title_*）。
+   * Bluesky のラベルは24時間で失効するが、こちらは次の日記/占いが上書きするまで維持される。
+   * 表示側が UI 言語で出し分けるので両方返す。
+   */
+  currentTitle?: { ja: string; en: string };
 };
 export type ReactionView = {
   emoji: string;
@@ -154,9 +189,11 @@ export type ProfilePage = { profile: ProfileDetail; feed: Page<FeedItem> };
 export type ThreadView = { post: PostView; replies: PostView[] };
 export type NotificationView = {
   id: string;
-  type: "reply" | "reaction" | "mention";
+  type: "reply" | "reaction" | "mention" | "diary";
   actor: ActorView;
   post?: PostView;
+  /** type が "diary" のときの日記本体。post は付かない。 */
+  diary?: DiaryView;
   /** type が "reaction" のときの、押された絵文字。 */
   reaction?: { emoji: string; bluemoji?: EmojiView };
   subjectUri: string;

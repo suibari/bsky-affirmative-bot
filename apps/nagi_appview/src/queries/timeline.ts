@@ -12,7 +12,7 @@ import type { FeedItem, PostView } from "@bsky-affirmative-bot/nagi-lexicon";
 import { and, desc, eq, inArray, isNotNull, isNull, lt, ne, or, sql } from "drizzle-orm";
 import { config } from "../config.js";
 import { emojiView } from "../services/emoji.js";
-import { getSuperPositiveLevels } from "./badges.js";
+import { getCurrentTitles, getSuperPositiveLevels } from "./badges.js";
 export const encodeCursor = (date: Date, uri: string) =>
   Buffer.from(JSON.stringify([date.toISOString(), uri])).toString("base64url");
 export const decodeCursor = (cursor?: string): [Date, string] | undefined => {
@@ -73,7 +73,11 @@ export async function hydratePostViews(
         .where(inArray(nagiReactions.subjectUri, uris))
         .orderBy(desc(nagiReactions.indexedAt))
     : [];
-  const levels = await getSuperPositiveLevels(rows.map((r) => r.post.did));
+  const dids = rows.map((r) => r.post.did);
+  const [levels, titles] = await Promise.all([
+    getSuperPositiveLevels(dids),
+    getCurrentTitles(dids),
+  ]);
   const views = rows.map(({ post, actor, profile, score }) => {
     const deleted = Boolean(post.deletedAt);
     const images =
@@ -116,6 +120,7 @@ export async function hydratePostViews(
           : undefined,
         isBot: post.did === config.botDid,
         superPositiveLevel: levels.get(post.did),
+        currentTitle: titles.get(post.did),
       },
       text: deleted ? "" : post.text,
       facets: (post.facets as PostView["facets"]) ?? undefined,

@@ -18,6 +18,7 @@ export const notificationType = nagiSchema.enum("notification_type", [
   "reply",
   "reaction",
   "mention",
+  "diary",
 ]);
 export const botJobState = nagiSchema.enum("bot_job_state", [
   "pending",
@@ -133,6 +134,37 @@ export const nagiProfiles = nagiSchema.table("profiles", {
     .defaultNow()
     .notNull(),
 });
+/**
+ * botたんが書いたユーザーの日記（com.suibari.nagi.diary）。
+ * ポストではないのでタイムラインには一切出ず、通知とプロフィールの日記タブからのみ参照する。
+ */
+export const nagiDiaries = nagiSchema.table(
+  "diaries",
+  {
+    uri: text("uri").primaryKey(),
+    cid: text("cid").notNull(),
+    /** 書き手。bot 以外は取り込まない。 */
+    did: text("did").notNull(),
+    /** 日記の対象ユーザー。 */
+    subjectDid: text("subject_did").notNull(),
+    /** ユーザーのローカル日付 "YYYY-MM-DD"。 */
+    diaryDate: text("diary_date").notNull(),
+    text: text("text").notNull(),
+    titleJa: text("title_ja"),
+    titleEn: text("title_en"),
+    langs: jsonb("langs"),
+    recordCreatedAt: timestamp("record_created_at", {
+      withTimezone: true,
+    }).notNull(),
+    indexedAt: timestamp("indexed_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [
+    uniqueIndex("nagi_diary_subject_date_idx").on(t.subjectDid, t.diaryDate),
+    index("nagi_diary_subject_idx").on(t.subjectDid, t.diaryDate),
+  ],
+);
 export const nagiNotifications = nagiSchema.table(
   "notifications",
   {

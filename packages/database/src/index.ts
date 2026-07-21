@@ -121,6 +121,56 @@ export class MemoryService {
       .limit(5);
   }
 
+  /** 指定ユーザーが since 以降に Nagi へ投稿したポスト（日記の材料）。 */
+  static async getNagiPostsSince(did: string, since: Date) {
+    return db
+      .select({
+        uri: nagiPosts.uri,
+        text: nagiPosts.text,
+        langs: nagiPosts.langs,
+        recordCreatedAt: nagiPosts.recordCreatedAt,
+      })
+      .from(nagiPosts)
+      .where(
+        and(
+          eq(nagiPosts.did, did),
+          isNull(nagiPosts.deletedAt),
+          gte(nagiPosts.recordCreatedAt, since),
+        ),
+      )
+      .orderBy(nagiPosts.recordCreatedAt);
+  }
+
+  /**
+   * since 以降に Nagi へ投稿したか。
+   * Bluesky 側の日記を止めるかの判定に使うので、存在確認だけの軽いクエリにしている。
+   */
+  static async hasNagiPostsSince(did: string, since: Date): Promise<boolean> {
+    const rows = await db
+      .select({ uri: nagiPosts.uri })
+      .from(nagiPosts)
+      .where(
+        and(
+          eq(nagiPosts.did, did),
+          isNull(nagiPosts.deletedAt),
+          gte(nagiPosts.recordCreatedAt, since),
+        ),
+      )
+      .limit(1);
+    return rows.length > 0;
+  }
+
+  /** since 以降に Nagi へ投稿したユーザーの DID 一覧（日記のスケジュール対象）。 */
+  static async getNagiActiveAuthorsSince(since: Date): Promise<string[]> {
+    const rows = await db
+      .selectDistinct({ did: nagiPosts.did })
+      .from(nagiPosts)
+      .where(
+        and(isNull(nagiPosts.deletedAt), gte(nagiPosts.recordCreatedAt, since)),
+      );
+    return rows.map((row) => row.did);
+  }
+
 static async getPost(did: string): Promise<any> {
     const result = await db.select().from(posts).where(eq(posts.did, did)).limit(1);
     return result[0] || {};

@@ -1,5 +1,6 @@
 import {
   db,
+  nagiDiaries,
   nagiEmojis,
   nagiIngestState,
   nagiNotifications,
@@ -11,6 +12,7 @@ import {
 } from "@bsky-affirmative-bot/database";
 import { BLUEMOJI_ITEM, NAGI } from "@bsky-affirmative-bot/nagi-lexicon";
 import { and, eq, inArray, isNull } from "drizzle-orm";
+import { config } from "../config.js";
 import { indexEmoji, resolveEmoji, type EmojiRow } from "../services/emoji.js";
 import { validateRecord } from "./validateRecord.js";
 
@@ -19,10 +21,14 @@ export async function processEvent(evt: any) {
   if (!commit) return;
   const collection = commit.collection;
   if (
-    ![NAGI.post, NAGI.reaction, NAGI.profile, BLUEMOJI_ITEM].includes(collection)
+    ![NAGI.post, NAGI.reaction, NAGI.profile, BLUEMOJI_ITEM, NAGI.diary].includes(
+      collection,
+    )
   )
     return;
   const did = evt.did;
+  // 日記を書けるのは botたんだけ。他人が他人の日記を捏造できないようにする。
+  if (collection === NAGI.diary && did !== config.botDid) return;
   const uri = `at://${did}/${collection}/${commit.rkey}`;
   const id = `${did}:${evt.time_us}:${commit.rev ?? ""}:${collection}:${commit.rkey}`;
   // カスタム絵文字の解決は元 PDS への fetch を伴うことがあるので、トランザクションの外で行う。
@@ -74,6 +80,12 @@ export async function processEvent(evt: any) {
       }
       if (collection === NAGI.reaction) {
         await tx.delete(nagiReactions).where(eq(nagiReactions.uri, uri));
+        await tx
+          .delete(nagiNotifications)
+          .where(eq(nagiNotifications.reasonUri, uri));
+      }
+      if (collection === NAGI.diary) {
+        await tx.delete(nagiDiaries).where(eq(nagiDiaries.uri, uri));
         await tx
           .delete(nagiNotifications)
           .where(eq(nagiNotifications.reasonUri, uri));
@@ -145,6 +157,45 @@ export async function processEvent(evt: any) {
             createdAt,
           })
           .onConflictDoNothing();
+      }
+      if (collection === NAGI.diary) {
+        await tx
+          .insert(nagiDiaries)
+          .values({
+            uri,
+            cid: commit.cid,
+            did,
+            subjectDid: value.subject,
+            diaryDate: value.date,
+            text: value.text,
+            titleJa: value.titleJa ?? null,
+            titleEn: value.titleEn ?? null,
+            langs: value.langs ?? null,
+            recordCreatedAt: createdAt,
+          })
+          .onConflictDoUpdate({
+            target: nagiDiaries.uri,
+            set: {
+              cid: commit.cid,
+              text: value.text,
+              titleJa: value.titleJa ?? null,
+              titleEn: value.titleEn ?? null,
+              langs: value.langs ?? null,
+              recordCreatedAt: createdAt,
+            },
+          });
+        // 日記はポストではないのでタイムラインには出ない。本人への通知だけが入口。
+        if (value.subject !== did)
+          await tx
+            .insert(nagiNotifications)
+            .values({
+              recipientDid: value.subject,
+              type: "diary",
+              actorDid: did,
+              subjectUri: uri,
+              reasonUri: uri,
+            })
+            .onConflictDoNothing();
       }
       if (collection === BLUEMOJI_ITEM) {
         // インデックスするのは Nagi ユーザーの絵文字のみ。それ以外はリアクション等で

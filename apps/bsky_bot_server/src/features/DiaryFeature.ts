@@ -2,13 +2,12 @@ import { CommitCreateEvent } from "@skyware/jetstream";
 import { AppBskyActorDefs } from "@atproto/api"; type ProfileView = AppBskyActorDefs.ProfileView;
 import { BotFeature, FeatureContext } from "./types.js";
 
-import { DIARY_REGISTER_TRIGGER, DIARY_RELEASE_TRIGGER, BADGE_DEF } from "@bsky-affirmative-bot/shared-configs";
+import { DIARY_REGISTER_TRIGGER, DIARY_RELEASE_TRIGGER } from "@bsky-affirmative-bot/shared-configs";
 import { AppBskyFeedPost } from "@atproto/api"; type Record = AppBskyFeedPost.Record;
 import { handleMode } from "./utils.js";
 import { getLangStr, getTimezoneFromLang } from "../bsky/util.js";
-import { MemoryService, botLabelerManager } from "@bsky-affirmative-bot/clients";
+import { MemoryService, applyDiaryTitle, calculateDelayUntilLocal22 } from "@bsky-affirmative-bot/clients";
 import { LanguageName } from "@bsky-affirmative-bot/shared-configs";
-import { DateTime } from "luxon";
 import { getConcatProfiles } from "../bsky/getConcatProfiles.js";
 import { getDaysAuthorFeed } from "../bsky/getDaysAuthorFeed.js";
 import { generateUserDiary, DiaryResult } from "@bsky-affirmative-bot/bot-brain";
@@ -70,25 +69,8 @@ export class DiaryFeature implements BotFeature {
     }
 }
 
-/**
- * 指定タイムゾーンのローカル時間で22時までの遅延時間をミリ秒で取得
- * @param timezone Asia/Tokyo など
- */
-export function calculateDelayUntilLocal22(timezone: string): number {
-    // 現在時刻を指定タイムゾーンで取得
-    const now = DateTime.now().setZone(timezone);
-
-    // 今日の22時を取得
-    let target = now.set({ hour: 22, minute: 0, second: 0, millisecond: 0 });
-
-    // すでに22時を過ぎていれば、明日の22時にする
-    if (now >= target) {
-        target = target.plus({ days: 1 });
-    }
-
-    // 遅延時間（ミリ秒）を返す
-    return target.toMillis() - now.toMillis();
-}
+/** ローカル22時までの遅延。Nagi 側の日記スケジューラと共用するため実体は clients にある。 */
+export { calculateDelayUntilLocal22 };
 
 /**
  * Processes the diary for a single user.
@@ -97,6 +79,14 @@ export function calculateDelayUntilLocal22(timezone: string): number {
 async function processUserDiary(userDid: string) {
     try {
         console.log(`[INFO][${userDid}] Processing diary...`);
+
+        // Nagi にその日のポストがあれば、日記は Nagi 側が書く。
+        // クロスポスト（isNagiCrosspost）と同じく、片方が担当したらもう片方は黙る。
+        const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+        if (await MemoryService.hasNagiPostsSince(userDid, since)) {
+            console.log(`[INFO][${userDid}] Nagi diary takes precedence, skipping Bluesky diary`);
+            return;
+        }
 
         // ユーザープロフィールを取得
         const profiles = await getConcatProfiles({ actors: [userDid] });
@@ -165,25 +155,9 @@ async function processUserDiary(userDid: string) {
             `${profile.displayName}さんへ、今日の日記をまとめたよ! 画像を貼るので見てみてね。おやすみ～!` :
             `${profile.displayName}, I summarized your diary for today! Check the image. Good night!`;
 
-        // 称号バッジ (日記) 適用処理
+        // 称号バッジ (日記) 適用処理。Nagi 側の日記からも同じ関数を呼ぶ。
         try {
-            await MemoryService.ensureFollower(userDid);
-            const def = BADGE_DEF.title(userDid, diaryResult.title_ja, diaryResult.title_en);
-            console.log(`[INFO][BADGE][DIARY] Upserting title badge definition for ${userDid}: ${diaryResult.title_ja} / ${diaryResult.title_en}`);
-
-            // 1. レーベラーに定義を upsert
-            await botLabelerManager.upsertLabelDefinition(def.id, def.locales);
-
-            // 2. 24時間の有効期限を計算
-            const expDate = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-
-            // 3. ユーザーに24時間限定バッジを適用
-            await botLabelerManager.applyLabel(userDid, def.id, false, expDate);
-
-            // 4. DB 更新
-            await MemoryService.updateFollower(userDid, "current_title_ja", diaryResult.title_ja);
-            await MemoryService.updateFollower(userDid, "current_title_en", diaryResult.title_en);
-            console.log(`[INFO][BADGE][DIARY] Successfully applied title badge ${def.id} to ${userDid} with exp=${expDate}`);
+            await applyDiaryTitle(userDid, diaryResult);
 
             // 成功メッセージの追加
             if (langStr === "日本語") {

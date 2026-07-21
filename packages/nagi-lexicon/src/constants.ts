@@ -2,6 +2,8 @@ export const NAGI = {
   post: "com.suibari.nagi.post",
   reaction: "com.suibari.nagi.reaction",
   profile: "com.suibari.nagi.profile",
+  /** botたんが書くユーザーの日記。書き手は bot のみなのでユーザーの書き込みスコープには含めない。 */
+  diary: "com.suibari.nagi.diary",
   getTimeline: "com.suibari.nagi.getTimeline",
   getAffirmation: "com.suibari.nagi.getAffirmation",
   getThread: "com.suibari.nagi.getThread",
@@ -15,6 +17,7 @@ export const NAGI = {
   deleteAccountData: "com.suibari.nagi.deleteAccountData",
   searchEmojis: "com.suibari.nagi.searchEmojis",
   getEmoji: "com.suibari.nagi.getEmoji",
+  getDiaries: "com.suibari.nagi.getDiaries",
 } as const;
 
 /** Bluemoji (moji.blue) の絵文字定義レコード。カスタム絵文字はユーザー自身のPDSに置く。 */
@@ -67,8 +70,15 @@ export const NAGI_COLLECTIONS = [
   NAGI.profile,
   BLUEMOJI_ITEM,
 ] as const;
-/** jetstream で購読するコレクション。現状は書き込みスコープと同一。 */
-export const NAGI_INGEST_COLLECTIONS = NAGI_COLLECTIONS;
+/**
+ * jetstream で購読するコレクション。
+ * 日記は bot だけが書くのでユーザーの書き込みスコープ（NAGI_COLLECTIONS）には無いが、
+ * AppView は取り込む必要があるためここにだけ足す。
+ */
+export const NAGI_INGEST_COLLECTIONS = [
+  ...NAGI_COLLECTIONS,
+  NAGI.diary,
+] as const;
 export const NAGI_APPVIEW_DID =
   process.env.NAGI_APPVIEW_DID ?? "did:web:nagi-api.suibari.com";
 export const NAGI_APPVIEW_SERVICE_ID = "nagi_appview";

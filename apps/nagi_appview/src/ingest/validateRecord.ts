@@ -2,6 +2,7 @@ import {
   BLUEMOJI_ITEM,
   NAGI,
   type BluemojiItem,
+  type NagiDiary,
   type NagiPost,
   type NagiProfile,
   type NagiReaction,
@@ -142,10 +143,13 @@ const bluemojiRef = (value: any) =>
   (value.alt === undefined ||
     (typeof value.alt === "string" && graphemes(value.alt) <= 100));
 
+/** 日記の日付は "YYYY-MM-DD"（ユーザーのローカル日付）。 */
+const DIARY_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
 export function validateRecord(
   collection: string,
   value: any,
-): value is NagiPost | NagiReaction | NagiProfile | BluemojiItem {
+): value is NagiPost | NagiReaction | NagiProfile | BluemojiItem | NagiDiary {
   if (!value || value.$type !== collection || !date(value.createdAt))
     return false;
   if (collection === NAGI.post) {
@@ -196,6 +200,25 @@ export function validateRecord(
       (value.alt === undefined ||
         (typeof value.alt === "string" && graphemes(value.alt) <= 100)) &&
       Object.keys(bluemojiFormatCids(value.formats)).length > 0
+    );
+  if (collection === NAGI.diary)
+    return (
+      did(value.subject) &&
+      typeof value.date === "string" &&
+      DIARY_DATE.test(value.date) &&
+      !Number.isNaN(Date.parse(value.date)) &&
+      typeof value.text === "string" &&
+      value.text.length > 0 &&
+      graphemes(value.text) <= 3000 &&
+      Buffer.byteLength(value.text) <= 30000 &&
+      (value.titleJa === undefined ||
+        (typeof value.titleJa === "string" && graphemes(value.titleJa) <= 64)) &&
+      (value.titleEn === undefined ||
+        (typeof value.titleEn === "string" && graphemes(value.titleEn) <= 64)) &&
+      (value.langs === undefined ||
+        (Array.isArray(value.langs) &&
+          value.langs.length <= 4 &&
+          value.langs.every((lang: unknown) => typeof lang === "string")))
     );
   if (collection === NAGI.profile)
     return (

@@ -11,6 +11,11 @@ import { startNagiReplyWorker } from "./NagiReplyWorker.js";
 import express from "express";
 import type { ScheduledPostRequest } from "@bsky-affirmative-bot/clients";
 import { publishScheduledPost } from "./ScheduledPostFeature.js";
+import {
+  processNagiDiary,
+  purgeNagiDiaries,
+  scheduleAllNagiDiaries,
+} from "./NagiDiaryFeature.js";
 
 async function start() {
   await initializeDatabases();
@@ -30,6 +35,10 @@ async function start() {
   });
   startNagiReplyWorker();
 
+  scheduleAllNagiDiaries().catch((error) => {
+    console.error("[ERROR][NAGI] Failed to schedule diaries:", error);
+  });
+
   const app = express();
   app.use(express.json());
   app.post("/posts/scheduled", async (req, res) => {
@@ -43,6 +52,33 @@ async function start() {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       res.status(500).json({ error: message });
+    }
+  });
+  // 22時を待たずに日記を書かせる（動作確認・手動リカバリ用）。
+  app.post("/diaries/run", async (req, res) => {
+    try {
+      const did = String(req.body?.did ?? "");
+      if (!did.startsWith("did:")) {
+        res.status(400).json({ error: "did is required" });
+        return;
+      }
+      await processNagiDiary(did);
+      res.status(200).json({ ok: true });
+    } catch (error) {
+      res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
+    }
+  });
+  // データ削除時に bot リポジトリから当該ユーザーの日記を消す。
+  app.post("/diaries/purge", async (req, res) => {
+    try {
+      const did = String(req.body?.did ?? "");
+      if (!did.startsWith("did:")) {
+        res.status(400).json({ error: "did is required" });
+        return;
+      }
+      res.status(200).json({ deleted: await purgeNagiDiaries(did) });
+    } catch (error) {
+      res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
     }
   });
   const port = Number(process.env.NAGI_BOT_SERVER_PORT || 3003);

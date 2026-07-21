@@ -9,6 +9,7 @@ import {
 import { and, desc, eq, inArray, lte } from "drizzle-orm";
 import { emojiView } from "../services/emoji.js";
 import { fetchPostRows, hydratePostViews } from "./timeline.js";
+import { diaryView, fetchDiaryRows } from "./diaries.js";
 export async function getNotifications(did: string, limit: number) {
   const rows = await db
     .select({ notification: nagiNotifications, actor: nagiActors, profile: nagiProfiles })
@@ -20,11 +21,22 @@ export async function getNotifications(did: string, limit: number) {
     .limit(limit);
   const postRows = await fetchPostRows([
     ...new Set(
-      rows.map(({ notification }) =>
-        notification.type === "reply" ? notification.reasonUri : notification.subjectUri,
+      rows.flatMap(({ notification }) =>
+        // 日記はポストではないので post の引き直し対象から外す。
+        notification.type === "diary"
+          ? []
+          : [notification.type === "reply" ? notification.reasonUri : notification.subjectUri],
       ),
     ),
   ]);
+  const diaryRows = await fetchDiaryRows([
+    ...new Set(
+      rows.flatMap(({ notification }) =>
+        notification.type === "diary" ? [notification.subjectUri] : [],
+      ),
+    ),
+  ]);
+  const diaryByUri = new Map(diaryRows.map((row) => [row.uri, diaryView(row)]));
   const posts = await hydratePostViews(postRows, did);
   const postByUri = new Map(posts.map((post) => [post.uri, post]));
   // リアクション通知の reasonUri はリアクションレコードの URI。押された絵文字は
@@ -64,7 +76,11 @@ export async function getNotifications(did: string, limit: number) {
           ? `/api/blob/${encodeURIComponent(n.actorDid)}/${profile.avatarCid}`
           : undefined,
       },
-      post: postByUri.get(n.type === "reply" ? n.reasonUri : n.subjectUri),
+      post:
+        n.type === "diary"
+          ? undefined
+          : postByUri.get(n.type === "reply" ? n.reasonUri : n.subjectUri),
+      diary: n.type === "diary" ? diaryByUri.get(n.subjectUri) : undefined,
       reaction: n.type === "reaction" ? reactionByUri.get(n.reasonUri) : undefined,
     })),
     hasMore: rows.length === limit,

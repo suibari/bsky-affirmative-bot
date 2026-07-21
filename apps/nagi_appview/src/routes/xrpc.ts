@@ -10,6 +10,7 @@ import { getActorProfile, getReactedFeed } from "../queries/profile.js";
 import { searchActors } from "../queries/actors.js";
 import { getThread } from "../queries/thread.js";
 import { getNotifications, updateSeen } from "../queries/notifications.js";
+import { getDiaries } from "../queries/diaries.js";
 import { translatePost } from "../services/translation.js";
 import { ApiError } from "../middleware/errors.js";
 import { deleteAccountData } from "../services/deleteAccountData.js";
@@ -127,6 +128,22 @@ xrpc.get(
     }
   },
 );
+// 日記は公開コンテンツ（Bluesky 側が公開リプライなのと同じ）なので認証不要。
+// ここを認証必須にすると OAuth スコープの追加＝既存ユーザーの再同意が必要になる。
+xrpc.get(`/${NAGI.getDiaries}`, async (req, res, next) => {
+  try {
+    res.set("Cache-Control", "public, max-age=60").json(
+      await getDiaries({
+        actor: String(req.query.actor ?? ""),
+        month: String(req.query.month ?? "") || undefined,
+        limit: limit(req.query.limit),
+        cursor: String(req.query.cursor ?? "") || undefined,
+      }),
+    );
+  } catch (e) {
+    next(e);
+  }
+});
 xrpc.get(`/${NAGI.searchActors}`, async (req, res, next) => {
   try {
     const query = String(req.query.q ?? "");
