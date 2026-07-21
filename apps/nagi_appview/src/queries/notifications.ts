@@ -6,7 +6,7 @@ import {
   nagiProfiles,
   nagiReactions,
 } from "@bsky-affirmative-bot/database";
-import { and, desc, eq, inArray, lte } from "drizzle-orm";
+import { and, count, desc, eq, inArray, isNull, lte } from "drizzle-orm";
 import { emojiView } from "../services/emoji.js";
 import { fetchPostRows, hydratePostViews } from "./timeline.js";
 import { diaryView, fetchDiaryRows } from "./diaries.js";
@@ -85,6 +85,15 @@ export async function getNotifications(did: string, limit: number) {
     })),
     hasMore: rows.length === limit,
   };
+}
+export async function getUnreadCount(did: string) {
+  const [row] = await db
+    .select({ value: count() })
+    .from(nagiNotifications)
+    .where(
+      and(eq(nagiNotifications.recipientDid, did), isNull(nagiNotifications.readAt)),
+    );
+  return { count: row?.value ?? 0 };
 }
 export async function updateSeen(did: string, seenAt: Date) {
   const result = await db

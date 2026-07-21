@@ -9,7 +9,11 @@ import { getTimeline } from "../queries/timeline.js";
 import { getActorProfile, getReactedFeed } from "../queries/profile.js";
 import { searchActors } from "../queries/actors.js";
 import { getThread } from "../queries/thread.js";
-import { getNotifications, updateSeen } from "../queries/notifications.js";
+import {
+  getNotifications,
+  getUnreadCount,
+  updateSeen,
+} from "../queries/notifications.js";
 import { getDiaries } from "../queries/diaries.js";
 import { translatePost } from "../services/translation.js";
 import { ApiError } from "../middleware/errors.js";
@@ -162,6 +166,19 @@ xrpc.get(
       res
         .set("Cache-Control", "private, no-store")
         .json(await getNotifications(req.viewerDid!, limit(req.query.limit)));
+    } catch (e) {
+      next(e);
+    }
+  },
+);
+xrpc.get(
+  `/${NAGI.getUnreadCount}`,
+  requiredServiceAuth(NAGI.getUnreadCount),
+  async (req, res, next) => {
+    try {
+      res
+        .set("Cache-Control", "private, no-store")
+        .json(await getUnreadCount(req.viewerDid!));
     } catch (e) {
       next(e);
     }
