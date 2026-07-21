@@ -96,6 +96,8 @@ export type ActorView = {
   displayName?: string;
   description?: string;
   avatar?: string;
+  /** botたん本人か。バッジ表示はアクター単位で判定する（PostView.isBot は同じ式の派生）。 */
+  isBot?: boolean;
   /** 超ポジティブLv（Blueskyと共通のカウンタ。100以上もそのまま返す）。0のときは付けない。 */
   superPositiveLevel?: number;
 };

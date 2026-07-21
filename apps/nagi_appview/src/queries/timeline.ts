@@ -114,6 +114,7 @@ export async function hydratePostViews(
         avatar: profile?.avatarCid
           ? `/api/blob/${encodeURIComponent(post.did)}/${profile.avatarCid}`
           : undefined,
+        isBot: post.did === config.botDid,
         superPositiveLevel: levels.get(post.did),
       },
       text: deleted ? "" : post.text,
@@ -301,5 +302,6 @@ export async function getBotActor(): Promise<FeedItem["author"]> {
     avatar: profile[0]?.avatarCid
       ? `/api/blob/${encodeURIComponent(config.botDid)}/${profile[0].avatarCid}`
       : undefined,
+    isBot: true,
   };
 }

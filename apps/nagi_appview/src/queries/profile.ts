@@ -8,6 +8,7 @@ import {
 } from "@bsky-affirmative-bot/database";
 import type { ProfileDetail } from "@bsky-affirmative-bot/nagi-lexicon";
 import { and, desc, eq, isNull, lt, or, sql } from "drizzle-orm";
+import { config } from "../config.js";
 import { ApiError } from "../middleware/errors.js";
 import { getSuperPositiveLevel } from "./badges.js";
 import {
@@ -42,6 +43,7 @@ export async function getActorProfile(did: string): Promise<ProfileDetail> {
     avatar: profile?.avatarCid
       ? `/api/blob/${encodeURIComponent(did)}/${profile.avatarCid}`
       : undefined,
+    isBot: did === config.botDid,
     superPositiveLevel,
     postCount: stats?.postCount ?? 0,
     firstPostAt,
