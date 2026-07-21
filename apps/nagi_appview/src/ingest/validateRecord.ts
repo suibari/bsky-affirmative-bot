@@ -1,5 +1,7 @@
 import {
+  BLUEMOJI_ITEM,
   NAGI,
+  type BluemojiItem,
   type NagiPost,
   type NagiProfile,
   type NagiReaction,
@@ -91,10 +93,59 @@ const linkCard = (value: any) => {
         value.thumb.size <= 1_000_000))
   );
 };
+/** Bluemoji のエイリアスは :foo: 形式。rkey にもそのまま使える文字種に限る。 */
+const BLUEMOJI_NAME = /^:[a-zA-Z0-9_-]{1,32}:$/;
+const BLUEMOJI_MIME: Record<string, string> = {
+  "image/png": "png_128",
+  "image/webp": "webp_128",
+  "image/gif": "gif_128",
+  "image/apng": "apng_128",
+};
+const BLUEMOJI_FORMAT_KEYS = ["png_128", "webp_128", "gif_128", "apng_128"] as const;
+export type BluemojiFormatCids = Partial<
+  Record<(typeof BLUEMOJI_FORMAT_KEYS)[number], string>
+>;
+
+/**
+ * formats（v0/v1 どちらでも）から blob として表示できるラスタ形式の CID だけを取り出す。
+ * lottie と formats_v0 の生 Bytes 形式は blob プロキシ経由で配信できないため無視する。
+ */
+export function bluemojiFormatCids(formats: any): BluemojiFormatCids {
+  const out: BluemojiFormatCids = {};
+  if (!formats || typeof formats !== "object") return out;
+  for (const key of BLUEMOJI_FORMAT_KEYS) {
+    const blob = formats[key];
+    const link = blob?.ref?.$link;
+    if (
+      typeof link === "string" &&
+      link.length > 0 &&
+      /^[a-zA-Z0-9]+$/.test(link) &&
+      BLUEMOJI_MIME[blob.mimeType] === key &&
+      Number.isInteger(blob.size) &&
+      blob.size >= 0 &&
+      blob.size <= 256_000
+    )
+      out[key] = link;
+  }
+  return out;
+}
+
+const bluemojiRef = (value: any) =>
+  typeof value?.uri === "string" &&
+  value.uri.startsWith("at://") &&
+  value.uri.split("/")[3] === BLUEMOJI_ITEM &&
+  value.uri.length <= 512 &&
+  typeof value?.cid === "string" &&
+  /^[a-zA-Z0-9]+$/.test(value.cid) &&
+  typeof value?.name === "string" &&
+  BLUEMOJI_NAME.test(value.name) &&
+  (value.alt === undefined ||
+    (typeof value.alt === "string" && graphemes(value.alt) <= 100));
+
 export function validateRecord(
   collection: string,
   value: any,
-): value is NagiPost | NagiReaction | NagiProfile {
+): value is NagiPost | NagiReaction | NagiProfile | BluemojiItem {
   if (!value || value.$type !== collection || !date(value.createdAt))
     return false;
   if (collection === NAGI.post) {
@@ -128,12 +179,23 @@ export function validateRecord(
     }
     return true;
   }
-  if (collection === NAGI.reaction)
+  if (collection === NAGI.reaction) {
+    if (!ref(value.subject) || typeof value.emoji !== "string") return false;
+    if (value.bluemoji !== undefined)
+      // カスタム絵文字。emoji はフォールバックテキストなので参照先のエイリアスと一致させる。
+      return bluemojiRef(value.bluemoji) && value.emoji === value.bluemoji.name;
     return (
-      ref(value.subject) &&
-      typeof value.emoji === "string" &&
       graphemes(value.emoji.normalize("NFC")) === 1 &&
       Buffer.byteLength(value.emoji) <= 64
+    );
+  }
+  if (collection === BLUEMOJI_ITEM)
+    return (
+      typeof value.name === "string" &&
+      BLUEMOJI_NAME.test(value.name) &&
+      (value.alt === undefined ||
+        (typeof value.alt === "string" && graphemes(value.alt) <= 100)) &&
+      Object.keys(bluemojiFormatCids(value.formats)).length > 0
     );
   if (collection === NAGI.profile)
     return (

@@ -10,9 +10,30 @@
         "required": ["subject", "emoji", "createdAt"],
         "properties": {
           "subject": { "type": "ref", "ref": "com.atproto.repo.strongRef" },
-          "emoji": { "type": "string", "maxGraphemes": 1, "maxLength": 64 },
+          "emoji": {
+            "type": "string",
+            "description": "A single Unicode emoji, or the colon-wrapped alias of the referenced Bluemoji (fallback text).",
+            "maxGraphemes": 34,
+            "maxLength": 64
+          },
+          "bluemoji": { "type": "ref", "ref": "#bluemojiRef" },
           "createdAt": { "type": "string", "format": "datetime" }
         }
+      }
+    },
+    "bluemojiRef": {
+      "type": "object",
+      "description": "Reference to a blue.moji.collection.item record. Formats are intentionally not carried here: the AppView resolves them from its own index of the source item, which is the trust anchor.",
+      "required": ["uri", "cid", "name"],
+      "properties": {
+        "uri": { "type": "string", "format": "at-uri" },
+        "cid": { "type": "string", "format": "cid" },
+        "name": {
+          "type": "string",
+          "description": "Colon-wrapped alias of the Bluemoji, e.g. :blobcat:. Must equal the record's emoji field.",
+          "maxLength": 64
+        },
+        "alt": { "type": "string", "maxGraphemes": 100, "maxLength": 1000 }
       }
     }
   }

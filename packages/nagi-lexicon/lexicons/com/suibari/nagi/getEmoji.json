@@ -1,0 +1,25 @@
+{
+  "lexicon": 1,
+  "id": "com.suibari.nagi.getEmoji",
+  "defs": {
+    "main": {
+      "type": "query",
+      "description": "Resolve a blue.moji.collection.item by AT-URI, indexing it on demand when it is not yet known.",
+      "parameters": {
+        "type": "params",
+        "required": ["uri"],
+        "properties": {
+          "uri": { "type": "string", "format": "at-uri" }
+        }
+      },
+      "output": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "required": ["emoji"],
+          "properties": { "emoji": { "type": "unknown" } }
+        }
+      }
+    }
+  }
+}

@@ -81,19 +81,46 @@ export const nagiReactions = nagiSchema.table(
     cid: text("cid").notNull(),
     did: text("did").notNull(),
     subjectUri: text("subject_uri").notNull(),
+    // Unicode 絵文字そのもの、またはカスタム絵文字のフォールバックテキスト（":name:"）。
     emoji: text("emoji").notNull(),
+    // カスタム絵文字のとき blue.moji.collection.item の AT-URI。Unicode なら null。
+    emojiUri: text("emoji_uri"),
+    // 重複判定用のキー。emojiUri ?? emoji。
+    emojiKey: text("emoji_key").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
     indexedAt: timestamp("indexed_at", { withTimezone: true })
       .defaultNow()
       .notNull(),
   },
   (t) => [
-    uniqueIndex("nagi_reaction_actor_subject_emoji_idx").on(
+    uniqueIndex("nagi_reaction_actor_subject_emoji_key_idx").on(
       t.did,
       t.subjectUri,
-      t.emoji,
+      t.emojiKey,
     ),
     index("nagi_reaction_subject_idx").on(t.subjectUri),
+  ],
+);
+export const nagiEmojis = nagiSchema.table(
+  "emojis",
+  {
+    uri: text("uri").primaryKey(),
+    cid: text("cid").notNull(),
+    did: text("did").notNull(),
+    // ":name:" 形式のエイリアス。
+    name: text("name").notNull(),
+    alt: text("alt"),
+    // { png_128?, webp_128?, gif_128?, apng_128? } の blob CID。
+    formats: jsonb("formats").notNull(),
+    adultOnly: boolean("adult_only").default(false).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+    indexedAt: timestamp("indexed_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [
+    uniqueIndex("nagi_emoji_did_name_idx").on(t.did, t.name),
+    index("nagi_emoji_name_idx").on(t.name),
   ],
 );
 export const nagiProfiles = nagiSchema.table("profiles", {

@@ -14,6 +14,7 @@ import { translatePost } from "../services/translation.js";
 import { ApiError } from "../middleware/errors.js";
 import { deleteAccountData } from "../services/deleteAccountData.js";
 import { getLinkMetadata, getLinkThumbnail } from "../services/linkMetadata.js";
+import { getEmoji, searchEmojis } from "../services/emoji.js";
 export const xrpc = Router();
 const limit = (value: unknown) =>
   Math.min(100, Math.max(1, Number(value ?? 50) || 50));
@@ -90,6 +91,37 @@ xrpc.get(
           req.viewerDid ? "private, no-store" : "public, max-age=15",
         )
         .json({ profile, feed });
+    } catch (e) {
+      next(e);
+    }
+  },
+);
+xrpc.get(
+  `/${NAGI.searchEmojis}`,
+  optionalServiceAuth(NAGI.searchEmojis),
+  async (req, res, next) => {
+    try {
+      res.set("Cache-Control", "public, max-age=60").json(
+        await searchEmojis({
+          q: String(req.query.q ?? "") || undefined,
+          repo: String(req.query.repo ?? "") || undefined,
+          limit: limit(req.query.limit),
+          cursor: String(req.query.cursor ?? "") || undefined,
+        }),
+      );
+    } catch (e) {
+      next(e);
+    }
+  },
+);
+xrpc.get(
+  `/${NAGI.getEmoji}`,
+  optionalServiceAuth(NAGI.getEmoji),
+  async (req, res, next) => {
+    try {
+      res
+        .set("Cache-Control", "public, max-age=60")
+        .json(await getEmoji(String(req.query.uri ?? "")));
     } catch (e) {
       next(e);
     }

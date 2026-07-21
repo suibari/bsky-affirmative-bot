@@ -2,6 +2,7 @@ import {
   db,
   nagiActors,
   nagiBotReplyJobs,
+  nagiEmojis,
   nagiNotifications,
   nagiPosts,
   nagiPostScores,
@@ -9,7 +10,7 @@ import {
   nagiReactions,
   nagiTranslations,
 } from "@bsky-affirmative-bot/database";
-import { NAGI } from "@bsky-affirmative-bot/nagi-lexicon";
+import { BLUEMOJI_ITEM, NAGI } from "@bsky-affirmative-bot/nagi-lexicon";
 import { eq, like, or } from "drizzle-orm";
 
 export async function deleteAccountData(did: string) {
@@ -34,6 +35,11 @@ export async function deleteAccountData(did: string) {
         ),
       );
     await tx.delete(nagiReactions).where(eq(nagiReactions.did, did));
+    // 自分のカスタム絵文字と、それを使った他ユーザーのリアクションも消す。
+    await tx
+      .delete(nagiReactions)
+      .where(like(nagiReactions.emojiUri, `at://${did}/${BLUEMOJI_ITEM}/%`));
+    await tx.delete(nagiEmojis).where(eq(nagiEmojis.did, did));
     await tx.delete(nagiPosts).where(eq(nagiPosts.did, did));
     await tx.delete(nagiProfiles).where(eq(nagiProfiles.did, did));
     await tx.delete(nagiActors).where(eq(nagiActors.did, did));

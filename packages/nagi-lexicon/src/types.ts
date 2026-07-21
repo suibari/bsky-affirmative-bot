@@ -45,11 +45,43 @@ export type NagiPost = {
         images?: NagiImage[];
       };
 };
+export type BluemojiRef = {
+  uri: string;
+  cid: string;
+  name: string;
+  alt?: string;
+};
 export type NagiReaction = {
   $type: "com.suibari.nagi.reaction";
   subject: StrongRef;
   emoji: string;
+  bluemoji?: BluemojiRef;
   createdAt: string;
+};
+/** blue.moji.collection.item のうち Nagi が利用するラスタ形式（lottie は非対応）。 */
+export type BluemojiFormats = {
+  png_128?: string;
+  webp_128?: string;
+  gif_128?: string;
+  apng_128?: string;
+};
+export type BluemojiItem = {
+  $type: "blue.moji.collection.item";
+  name: string;
+  alt?: string;
+  adultOnly?: boolean;
+  fallbackText?: string;
+  createdAt: string;
+  formats: { $type: string } & Record<string, unknown>;
+};
+/** AppView が返すカスタム絵文字のビュー。url は blob プロキシへの相対パス。 */
+export type EmojiView = {
+  uri: string;
+  cid: string;
+  did: string;
+  name: string;
+  alt?: string;
+  url: string;
 };
 export type NagiProfile = {
   $type: "com.suibari.nagi.profile";
@@ -67,6 +99,7 @@ export type ActorView = {
 };
 export type ReactionView = {
   emoji: string;
+  bluemoji?: EmojiView;
   reactors: ActorView[];
   hasMoreReactors?: boolean;
   reactedByMe?: boolean;
@@ -126,4 +159,6 @@ export type NotificationView = {
   readAt?: string;
 };
 export type SearchActorsResult = { actors: ActorView[] };
+export type SearchEmojisResult = { emojis: EmojiView[]; cursor?: string };
+export type GetEmojiResult = { emoji: EmojiView };
 export type DeleteAccountDataResult = { success: true };

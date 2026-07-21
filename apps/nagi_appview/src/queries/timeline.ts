@@ -2,6 +2,7 @@ import {
   db,
   nagiActors,
   nagiBotReplyJobs,
+  nagiEmojis,
   nagiPostScores,
   nagiPosts,
   nagiProfiles,
@@ -10,6 +11,7 @@ import {
 import type { FeedItem, PostView } from "@bsky-affirmative-bot/nagi-lexicon";
 import { and, desc, eq, inArray, isNotNull, isNull, lt, ne, or, sql } from "drizzle-orm";
 import { config } from "../config.js";
+import { emojiView } from "../services/emoji.js";
 export const encodeCursor = (date: Date, uri: string) =>
   Buffer.from(JSON.stringify([date.toISOString(), uri])).toString("base64url");
 export const decodeCursor = (cursor?: string): [Date, string] | undefined => {
@@ -55,15 +57,18 @@ export async function hydratePostViews(
         .select({
           subjectUri: nagiReactions.subjectUri,
           emoji: nagiReactions.emoji,
+          emojiKey: nagiReactions.emojiKey,
           did: nagiReactions.did,
           uri: nagiReactions.uri,
           handle: nagiActors.handle,
           displayName: nagiProfiles.displayName,
           avatarCid: nagiProfiles.avatarCid,
+          emojiItem: nagiEmojis,
         })
         .from(nagiReactions)
         .leftJoin(nagiActors, eq(nagiActors.did, nagiReactions.did))
         .leftJoin(nagiProfiles, eq(nagiProfiles.did, nagiReactions.did))
+        .leftJoin(nagiEmojis, eq(nagiEmojis.uri, nagiReactions.emojiUri))
         .where(inArray(nagiReactions.subjectUri, uris))
         .orderBy(desc(nagiReactions.indexedAt))
     : [];
@@ -122,7 +127,12 @@ export async function hydratePostViews(
         reactions
           .filter((r) => r.subjectUri === post.uri)
           .reduce<Record<string, PostView["reactions"][number]>>((out, r) => {
-            const item = (out[r.emoji] ??= { emoji: r.emoji, reactors: [] });
+            const bluemoji = r.emojiItem ? emojiView(r.emojiItem) : null;
+            const item = (out[r.emojiKey] ??= {
+              emoji: r.emoji,
+              ...(bluemoji ? { bluemoji } : {}),
+              reactors: [],
+            });
             if (item.reactors.length < 5) {
               item.reactors.push({
                 did: r.did,

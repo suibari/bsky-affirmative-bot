@@ -1,7 +1,7 @@
 import { Jetstream } from "@skyware/jetstream";
 import ws from "ws";
 import { db, nagiIngestState } from "@bsky-affirmative-bot/database";
-import { NAGI_COLLECTIONS } from "@bsky-affirmative-bot/nagi-lexicon";
+import { NAGI_INGEST_COLLECTIONS } from "@bsky-affirmative-bot/nagi-lexicon";
 import { eq } from "drizzle-orm";
 import { config } from "../config.js";
 import { processEvent } from "./processEvent.js";
@@ -15,10 +15,10 @@ export async function startJetstream() {
   const stream = new Jetstream({
     ws,
     endpoint: config.jetstreamUrl,
-    wantedCollections: [...NAGI_COLLECTIONS],
+    wantedCollections: [...NAGI_INGEST_COLLECTIONS],
     cursor,
   });
-  for (const collection of NAGI_COLLECTIONS) {
+  for (const collection of NAGI_INGEST_COLLECTIONS) {
     stream.onCreate(collection, processEvent);
     stream.onUpdate(collection, processEvent);
     stream.onDelete(collection, processEvent);

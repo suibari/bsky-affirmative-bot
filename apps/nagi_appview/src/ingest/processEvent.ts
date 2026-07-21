@@ -1,5 +1,6 @@
 import {
   db,
+  nagiEmojis,
   nagiIngestState,
   nagiNotifications,
   nagiPosts,
@@ -8,18 +9,34 @@ import {
   nagiReactions,
   nagiTranslations,
 } from "@bsky-affirmative-bot/database";
-import { NAGI } from "@bsky-affirmative-bot/nagi-lexicon";
+import { BLUEMOJI_ITEM, NAGI } from "@bsky-affirmative-bot/nagi-lexicon";
 import { and, eq, inArray, isNull } from "drizzle-orm";
+import { indexEmoji, resolveEmoji, type EmojiRow } from "../services/emoji.js";
 import { validateRecord } from "./validateRecord.js";
 
 export async function processEvent(evt: any) {
   const commit = evt.commit;
   if (!commit) return;
   const collection = commit.collection;
-  if (![NAGI.post, NAGI.reaction, NAGI.profile].includes(collection)) return;
+  if (
+    ![NAGI.post, NAGI.reaction, NAGI.profile, BLUEMOJI_ITEM].includes(collection)
+  )
+    return;
   const did = evt.did;
   const uri = `at://${did}/${collection}/${commit.rkey}`;
   const id = `${did}:${evt.time_us}:${commit.rev ?? ""}:${collection}:${commit.rkey}`;
+  // カスタム絵文字の解決は元 PDS への fetch を伴うことがあるので、トランザクションの外で行う。
+  // 自己申告の値は使わず、インデックス済みの item だけを信頼する。
+  let bluemoji: EmojiRow | null = null;
+  if (
+    collection === NAGI.reaction &&
+    commit.operation !== "delete" &&
+    validateRecord(collection, commit.record) &&
+    (commit.record as any).bluemoji
+  ) {
+    bluemoji = await resolveEmoji((commit.record as any).bluemoji.uri);
+    if (!bluemoji) return;
+  }
   await db.transaction(async (tx) => {
     const processed = await tx
       .select({ id: nagiProcessedEvents.id })
@@ -63,6 +80,8 @@ export async function processEvent(evt: any) {
       }
       if (collection === NAGI.profile)
         await tx.delete(nagiProfiles).where(eq(nagiProfiles.did, did));
+      if (collection === BLUEMOJI_ITEM)
+        await tx.delete(nagiEmojis).where(eq(nagiEmojis.uri, uri));
     } else if (validateRecord(collection, commit.record)) {
       const value: any = commit.record;
       const createdAt = new Date(value.createdAt);
@@ -109,7 +128,10 @@ export async function processEvent(evt: any) {
             },
           });
       }
-      if (collection === NAGI.reaction)
+      if (collection === NAGI.reaction) {
+        const emoji = bluemoji
+          ? bluemoji.name
+          : value.emoji.normalize("NFC");
         await tx
           .insert(nagiReactions)
           .values({
@@ -117,10 +139,24 @@ export async function processEvent(evt: any) {
             cid: commit.cid,
             did,
             subjectUri: value.subject.uri,
-            emoji: value.emoji.normalize("NFC"),
+            emoji,
+            emojiUri: bluemoji?.uri ?? null,
+            emojiKey: bluemoji?.uri ?? emoji,
             createdAt,
           })
           .onConflictDoNothing();
+      }
+      if (collection === BLUEMOJI_ITEM) {
+        // インデックスするのは Nagi ユーザーの絵文字のみ。それ以外はリアクション等で
+        // 参照された時点でオンデマンドに取り込む（services/emoji.ts）。
+        const profile = await tx
+          .select({ did: nagiProfiles.did })
+          .from(nagiProfiles)
+          .where(eq(nagiProfiles.did, did))
+          .limit(1);
+        if (profile[0])
+          await indexEmoji(tx, { uri, cid: commit.cid, did, record: value });
+      }
       if (collection === NAGI.profile)
         await tx
           .insert(nagiProfiles)

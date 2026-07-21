@@ -13,7 +13,12 @@ export const NAGI = {
   getLinkMetadata: "com.suibari.nagi.getLinkMetadata",
   getLinkThumbnail: "com.suibari.nagi.getLinkThumbnail",
   deleteAccountData: "com.suibari.nagi.deleteAccountData",
+  searchEmojis: "com.suibari.nagi.searchEmojis",
+  getEmoji: "com.suibari.nagi.getEmoji",
 } as const;
+
+/** Bluemoji (moji.blue) の絵文字定義レコード。カスタム絵文字はユーザー自身のPDSに置く。 */
+export const BLUEMOJI_ITEM = "blue.moji.collection.item";
 
 export const NAGI_LANGUAGES = [
   { code: "ar", name: "Arabic" },
@@ -60,7 +65,10 @@ export const NAGI_COLLECTIONS = [
   NAGI.post,
   NAGI.reaction,
   NAGI.profile,
+  BLUEMOJI_ITEM,
 ] as const;
+/** jetstream で購読するコレクション。現状は書き込みスコープと同一。 */
+export const NAGI_INGEST_COLLECTIONS = NAGI_COLLECTIONS;
 export const NAGI_APPVIEW_DID =
   process.env.NAGI_APPVIEW_DID ?? "did:web:nagi-api.suibari.com";
 export const NAGI_APPVIEW_SERVICE_ID = "nagi_appview";
@@ -85,5 +93,7 @@ export const NAGI_OAUTH_SCOPE = [
     NAGI.deleteAccountData,
     NAGI.getLinkMetadata,
     NAGI.getLinkThumbnail,
+    NAGI.searchEmojis,
+    NAGI.getEmoji,
   ].map((nsid) => `rpc:${nsid}?aud=${NAGI_APPVIEW_AUD.replace("#", "%23")}`),
 ].join(" ");
