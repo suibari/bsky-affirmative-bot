@@ -105,7 +105,7 @@ export async function updateSeen(did: string, seenAt: Date) {
     .where(
       and(
         eq(nagiNotifications.recipientDid, did),
-        sql`date_trunc('milliseconds', ${nagiNotifications.createdAt}) <= ${seenAt}`,
+        sql`date_trunc('milliseconds', ${nagiNotifications.createdAt}) <= ${seenAt.toISOString()}::timestamptz`,
       ),
     )
     .returning({ id: nagiNotifications.id });
