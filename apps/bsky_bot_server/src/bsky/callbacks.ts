@@ -4,7 +4,7 @@ import { agent } from "./agent.js";
 import { features } from "../features/index.js";
 import { MemoryService, botBiothythmManager } from "@bsky-affirmative-bot/clients";
 import { followerMap, updateFollowers } from "./followerManagement.js";
-import { getLangStr, splitUri, isIgnoreTarget, hasNGWord, isIgnorePost, isReplyOrMentionToMe, hasBroadcastDomainLink, hasAffiliateDomainLink, hasAnyLink, getLatestPostOf, isReplyInThirdPartyThread } from "./util.js";
+import { getLangStr, splitUri, isIgnoreTarget, hasNGWord, isIgnorePost, isReplyOrMentionToMe, hasBroadcastDomainLink, hasAffiliateDomainLink, hasAnyLink, getLatestPostOf, isReplyInThirdPartyThread, isNagiCrosspost } from "./util.js";
 import { follow } from "./follow.js";
 import { replyGreets } from "./replyGreets.js";
 import retry from 'async-retry';
@@ -24,6 +24,12 @@ export async function onPost(event: any) {
       async () => {
         // Self filter
         if (authorDid === process.env.BSKY_DID) return;
+
+        // NagiからのクロスポストはNagi側のbotたんが反応するため、こちらでは反応しない
+        if (isNagiCrosspost(record)) {
+          console.log(`[INFO][${authorDid}] Ignored as Nagi crosspost`);
+          return;
+        }
 
         // 被ブロックチェック＆キャッシュ削除
         // followerMapはフォロー発生時に更新されるが、それ以外にここでもブロックチェックする

@@ -156,6 +156,15 @@ export function isIgnorePost(post: PostView): boolean {
 }
 
 /**
+ * Nagiからクロスポストされた投稿か判定する。
+ * Nagiクライアントがapp.bsky.feed.postに via: "Nagi" を付けており、
+ * これらにはNagi側のbotたんが反応するため、Bluesky側では反応しない。
+ */
+export function isNagiCrosspost(record: AppBskyFeedPost.Record | any): boolean {
+  return record?.via === "Nagi";
+}
+
+/**
  * URIをDID/NSID/RKEYに分割
  */
 export function splitUri(uri: string) {
