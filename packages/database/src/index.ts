@@ -3,7 +3,7 @@ import { eq, desc, sql, gte, lte, and, gt, inArray, lt, isNull } from 'drizzle-o
 import { generateEmbedding } from './ollamaEmbed.js';
 import { LanguageName, LIMIT_REQUEST_PER_DAY_GEMINI, DailyReport, Stats } from '@bsky-affirmative-bot/shared-configs';
 
-export { initializeDatabases, db, subscribers };
+export { initializeDatabases, db, subscribers, followers };
 export * from './nagiSchema.js';
 export { filterRelatedHistory } from './ollamaEmbed.js';
 export type { DailyReport, Stats };

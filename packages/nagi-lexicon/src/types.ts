@@ -96,6 +96,8 @@ export type ActorView = {
   displayName?: string;
   description?: string;
   avatar?: string;
+  /** 超ポジティブLv（Blueskyと共通のカウンタ。100以上もそのまま返す）。0のときは付けない。 */
+  superPositiveLevel?: number;
 };
 export type ReactionView = {
   emoji: string;

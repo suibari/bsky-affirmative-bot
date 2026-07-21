@@ -4,6 +4,10 @@ import {
   nagiBotReplyJobs,
   nagiPostScores,
 } from "@bsky-affirmative-bot/database";
+import {
+  SUPER_POSITIVE_SCORE_THRESHOLD,
+  awardSuperPositiveLevel,
+} from "@bsky-affirmative-bot/clients";
 import { createNagiReply } from "./createNagiReply.js";
 
 const MAX_ATTEMPTS = 5;
@@ -95,6 +99,22 @@ export function startNagiReplyWorker() {
           })
           .where(eq(nagiBotReplyJobs.sourceUri, job.sourceUri));
       });
+
+      // 超ポジティブLvはBlueskyと共通のカウンタ（followers.positivity_level）。
+      // ジョブは既に posted なので、ここでの失敗はログのみ（リトライで二重加算させない）。
+      if (
+        result.score !== undefined &&
+        result.score >= SUPER_POSITIVE_SCORE_THRESHOLD
+      ) {
+        try {
+          await awardSuperPositiveLevel(job.authorDid);
+        } catch (error) {
+          console.error(
+            `[ERROR][BADGE] Failed to award positivity level for ${job.authorDid}:`,
+            error,
+          );
+        }
+      }
     } catch (error) {
       const attempts = job.attempts + 1;
       const backoffMs = Math.min(MAX_BACKOFF_MS, 2 ** attempts * 5_000);

@@ -4,11 +4,10 @@ import { AppBskyFeedPost } from "@atproto/api"; type Record = AppBskyFeedPost.Re
 import { getImageUrl, getLangStr, uniteDidNsidRkey } from "../bsky/util.js";
 import { getBotContext } from "../util/botContext.js";
 import { generateAffirmativeWord } from "@bsky-affirmative-bot/bot-brain";
-import { Embed, GeminiScore, BADGE_DEF } from "@bsky-affirmative-bot/shared-configs";
-import { MemoryService, botLabelerManager } from "@bsky-affirmative-bot/clients";
+import { Embed, GeminiScore, SUPER_POSITIVE_SCORE_THRESHOLD } from "@bsky-affirmative-bot/shared-configs";
+import { MemoryService, awardSuperPositiveLevel } from "@bsky-affirmative-bot/clients";
 import { postContinuous } from "../bsky/postContinuous.js";
 import { checkAndSendRoomInvitation } from "../bsky/roomInvitation.js";
-import { MAX_LEVEL } from "../util/index.js";
 import { getConcatProfiles } from "../bsky/getConcatProfiles.js";
 import { parseEmbedPost } from "../bsky/parseEmbedPost.js";
 import { followerMap } from "../bsky/followerManagement.js";
@@ -141,48 +140,13 @@ export async function replyAI(
             });
         }
 
-        // 超ポジティブバッジ適用判定 (スコア 95 以上)
+        // 超ポジティブバッジ適用判定（Nagi側と共通のカウンタを加算する）
         let isNewMaxPositivityLevel = false;
-        if (result && result.score && result.score >= 95) {
+        if (result && result.score && result.score >= SUPER_POSITIVE_SCORE_THRESHOLD) {
             try {
-                // Ensure follower exists in DB first
-                await MemoryService.ensureFollower(follower.did);
-
-                // 1. ユーザーの現在の positivity_level を取得
-                const followerData = await MemoryService.getFollower(follower.did);
-                const currentLevel = followerData?.positivity_level || 0;
-
-                if (currentLevel >= MAX_LEVEL) {
-                    console.log(`[INFO][BADGE] User ${follower.did} already at MAX level, skipping badge update`);
-                } else {
-                    const nextLevel = currentLevel + 1;
-                    const isNewMax = nextLevel === MAX_LEVEL;
-                    const levelLabel = isNewMax ? 'Lv. MAX' : `Lv.${nextLevel}`;
-
-                    console.log(`[INFO][BADGE] User ${follower.did} achieved score ${result.score}! Positivity Level Up: ${currentLevel} -> ${nextLevel}`);
-
-                    const nextDef = BADGE_DEF.superPositiveLv(nextLevel, levelLabel);
-
-                    // 2. 新しいレベルのバッジ定義をレーベラーに upsert
-                    await botLabelerManager.upsertLabelDefinition(nextDef.id, nextDef.locales);
-
-                    // 3. 新しいバッジを付与
-                    await botLabelerManager.applyLabel(follower.did, nextDef.id, false);
-
-                    // 4. 古いバッジがあれば剥奪
-                    if (currentLevel > 0) {
-                        const prevBadgeId = BADGE_DEF.superPositiveLv(currentLevel, '').id;
-                        await botLabelerManager.applyLabel(follower.did, prevBadgeId, true).catch(err => {
-                            console.error(`[WARN][BADGE] Failed to negate previous badge ${prevBadgeId} for ${follower.did}:`, err.message);
-                        });
-                    }
-
-                    // 5. DB の positivity_level を更新
-                    await MemoryService.updateFollower(follower.did, "positivity_level", nextLevel);
-                    console.log(`[INFO][BADGE] Successfully applied badge ${nextDef.id} to ${follower.did}`);
-
-                    if (isNewMax) isNewMaxPositivityLevel = true;
-                }
+                console.log(`[INFO][BADGE] User ${follower.did} achieved score ${result.score}!`);
+                const { reachedMax } = await awardSuperPositiveLevel(follower.did);
+                isNewMaxPositivityLevel = reachedMax;
             } catch (badgeErr: any) {
                 console.error(`[ERROR][BADGE] Failed to apply positivity level badge for ${follower.did}:`, badgeErr.message);
             }

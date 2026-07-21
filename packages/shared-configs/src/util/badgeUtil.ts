@@ -1,4 +1,10 @@
+// ラベラーに登録するレベルバッジの上限。
+// 超ポジティブLvの内部値（followers.positivity_level）はこれを超えて伸びるが、
+// Bluesky側のラベルは MAX_LEVEL にクリップして登録する（Nagiは実値を表示する）。
 export const MAX_LEVEL = 100;
+
+/** 超ポジティブLvが加算されるスコアの閾値。 */
+export const SUPER_POSITIVE_SCORE_THRESHOLD = 95;
 
 export function numberToEnglishWord(num: number): string {
     if (num === MAX_LEVEL) return "max";
