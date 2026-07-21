@@ -1,10 +1,13 @@
 import {
   db,
   nagiActors,
+  nagiEmojis,
   nagiNotifications,
   nagiProfiles,
+  nagiReactions,
 } from "@bsky-affirmative-bot/database";
-import { and, desc, eq, lte } from "drizzle-orm";
+import { and, desc, eq, inArray, lte } from "drizzle-orm";
+import { emojiView } from "../services/emoji.js";
 import { fetchPostRows, hydratePostViews } from "./timeline.js";
 export async function getNotifications(did: string, limit: number) {
   const rows = await db
@@ -24,6 +27,32 @@ export async function getNotifications(did: string, limit: number) {
   ]);
   const posts = await hydratePostViews(postRows, did);
   const postByUri = new Map(posts.map((post) => [post.uri, post]));
+  // リアクション通知の reasonUri はリアクションレコードの URI。押された絵文字は
+  // そこにしか無いので引き直す。
+  const reactionUris = [
+    ...new Set(
+      rows.flatMap(({ notification }) =>
+        notification.type === "reaction" ? [notification.reasonUri] : [],
+      ),
+    ),
+  ];
+  const reactionRows = reactionUris.length
+    ? await db
+        .select({
+          uri: nagiReactions.uri,
+          emoji: nagiReactions.emoji,
+          emojiItem: nagiEmojis,
+        })
+        .from(nagiReactions)
+        .leftJoin(nagiEmojis, eq(nagiEmojis.uri, nagiReactions.emojiUri))
+        .where(inArray(nagiReactions.uri, reactionUris))
+    : [];
+  const reactionByUri = new Map(
+    reactionRows.map((r) => {
+      const bluemoji = r.emojiItem ? emojiView(r.emojiItem) : null;
+      return [r.uri, { emoji: r.emoji, ...(bluemoji ? { bluemoji } : {}) }];
+    }),
+  );
   return {
     items: rows.map(({ notification: n, actor, profile }) => ({
       ...n,
@@ -36,6 +65,7 @@ export async function getNotifications(did: string, limit: number) {
           : undefined,
       },
       post: postByUri.get(n.type === "reply" ? n.reasonUri : n.subjectUri),
+      reaction: n.type === "reaction" ? reactionByUri.get(n.reasonUri) : undefined,
     })),
     hasMore: rows.length === limit,
   };

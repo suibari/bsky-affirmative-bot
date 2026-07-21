@@ -153,6 +153,8 @@ export type NotificationView = {
   type: "reply" | "reaction" | "mention";
   actor: ActorView;
   post?: PostView;
+  /** type が "reaction" のときの、押された絵文字。 */
+  reaction?: { emoji: string; bluemoji?: EmojiView };
   subjectUri: string;
   reasonUri: string;
   createdAt: string;
