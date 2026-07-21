@@ -6,7 +6,7 @@ import {
   nagiProfiles,
   nagiReactions,
 } from "@bsky-affirmative-bot/database";
-import { and, count, desc, eq, inArray, isNull, lte } from "drizzle-orm";
+import { and, count, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { emojiView } from "../services/emoji.js";
 import { fetchPostRows, hydratePostViews } from "./timeline.js";
 import { diaryView, fetchDiaryRows } from "./diaries.js";
@@ -99,7 +99,15 @@ export async function updateSeen(did: string, seenAt: Date) {
   const result = await db
     .update(nagiNotifications)
     .set({ readAt: seenAt })
-    .where(and(eq(nagiNotifications.recipientDid, did), lte(nagiNotifications.createdAt, seenAt)))
+    // created_at はマイクロ秒精度で入るが、API 経由の seenAt は JS Date でミリ秒に
+    // 切り捨てられる。同精度で比較しないと最新の1件が取りこぼされ未読のまま残るため、
+    // 比較時に created_at をミリ秒へ丸める。
+    .where(
+      and(
+        eq(nagiNotifications.recipientDid, did),
+        sql`date_trunc('milliseconds', ${nagiNotifications.createdAt}) <= ${seenAt}`,
+      ),
+    )
     .returning({ id: nagiNotifications.id });
   return { updated: result.length };
 }
