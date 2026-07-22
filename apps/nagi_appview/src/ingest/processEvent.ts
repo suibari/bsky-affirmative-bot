@@ -14,7 +14,14 @@ import { BLUEMOJI_ITEM, NAGI } from "@bsky-affirmative-bot/nagi-lexicon";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { config } from "../config.js";
 import { indexEmoji, resolveEmoji, type EmojiRow } from "../services/emoji.js";
+import { dispatchPushAll, type PushJob } from "../services/pushDispatch.js";
 import { validateRecord } from "./validateRecord.js";
+
+/** プッシュ本文用に長い本文を詰める。 */
+const preview = (text: unknown, max = 80): string => {
+  const s = typeof text === "string" ? text.replace(/\s+/g, " ").trim() : "";
+  return s.length > max ? `${s.slice(0, max)}…` : s;
+};
 
 export async function processEvent(evt: any) {
   const commit = evt.commit;
@@ -43,6 +50,9 @@ export async function processEvent(evt: any) {
     bluemoji = await resolveEmoji((commit.record as any).bluemoji.uri);
     if (!bluemoji) return;
   }
+  // トランザクション内で実際に挿入できた通知だけを収集し、コミット成功後に
+  // fire-and-forget でプッシュ配信する（重複挿入時は returning が空なので送らない）。
+  const pushJobs: PushJob[] = [];
   await db.transaction(async (tx) => {
     const processed = await tx
       .select({ id: nagiProcessedEvents.id })
@@ -187,8 +197,8 @@ export async function processEvent(evt: any) {
             },
           });
         // 日記はポストではないのでタイムラインには出ない。本人への通知だけが入口。
-        if (value.subject !== did)
-          await tx
+        if (value.subject !== did) {
+          const inserted = await tx
             .insert(nagiNotifications)
             .values({
               recipientDid: value.subject,
@@ -197,7 +207,16 @@ export async function processEvent(evt: any) {
               subjectUri: uri,
               reasonUri: uri,
             })
-            .onConflictDoNothing();
+            .onConflictDoNothing()
+            .returning({ id: nagiNotifications.id });
+          if (inserted.length)
+            pushJobs.push({
+              recipientDid: value.subject,
+              type: "diary",
+              actorDid: did,
+              bodyText: preview(value.titleJa ?? value.titleEn ?? value.text),
+            });
+        }
       }
       if (collection === BLUEMOJI_ITEM) {
         // インデックスするのは Nagi ユーザーの絵文字のみ。それ以外はリアクション等で
@@ -242,7 +261,7 @@ export async function processEvent(evt: any) {
           .limit(1);
         if (parent[0] && parent[0].did !== did) {
           replyRecipientDid = parent[0].did;
-          await tx
+          const inserted = await tx
             .insert(nagiNotifications)
             .values({
               recipientDid: parent[0].did,
@@ -251,7 +270,15 @@ export async function processEvent(evt: any) {
               subjectUri: parent[0].uri,
               reasonUri: uri,
             })
-            .onConflictDoNothing();
+            .onConflictDoNothing()
+            .returning({ id: nagiNotifications.id });
+          if (inserted.length)
+            pushJobs.push({
+              recipientDid: parent[0].did,
+              type: "reply",
+              actorDid: did,
+              bodyText: preview(value.text),
+            });
         }
       }
       if (collection === NAGI.post && Array.isArray(value.facets)) {
@@ -278,8 +305,8 @@ export async function processEvent(evt: any) {
             .select({ did: nagiProfiles.did })
             .from(nagiProfiles)
             .where(inArray(nagiProfiles.did, mentionedDids));
-          for (const { did: recipientDid } of profiles)
-            await tx
+          for (const { did: recipientDid } of profiles) {
+            const inserted = await tx
               .insert(nagiNotifications)
               .values({
                 recipientDid,
@@ -288,7 +315,16 @@ export async function processEvent(evt: any) {
                 subjectUri: uri,
                 reasonUri: uri,
               })
-              .onConflictDoNothing();
+              .onConflictDoNothing()
+              .returning({ id: nagiNotifications.id });
+            if (inserted.length)
+              pushJobs.push({
+                recipientDid,
+                type: "mention",
+                actorDid: did,
+                bodyText: preview(value.text),
+              });
+          }
         }
       }
       if (collection === NAGI.reaction) {
@@ -302,8 +338,8 @@ export async function processEvent(evt: any) {
             ),
           )
           .limit(1);
-        if (subject[0] && subject[0].did !== did)
-          await tx
+        if (subject[0] && subject[0].did !== did) {
+          const inserted = await tx
             .insert(nagiNotifications)
             .values({
               recipientDid: subject[0].did,
@@ -312,7 +348,16 @@ export async function processEvent(evt: any) {
               subjectUri: subject[0].uri,
               reasonUri: uri,
             })
-            .onConflictDoNothing();
+            .onConflictDoNothing()
+            .returning({ id: nagiNotifications.id });
+          if (inserted.length)
+            pushJobs.push({
+              recipientDid: subject[0].did,
+              type: "reaction",
+              actorDid: did,
+              bodyText: bluemoji ? `:${bluemoji.name}:` : preview(value.emoji, 8),
+            });
+        }
       }
     }
     await tx
@@ -327,4 +372,6 @@ export async function processEvent(evt: any) {
         set: { cursor: Number(evt.time_us), updatedAt: new Date() },
       });
   });
+  // コミット後に配信。送信失敗はイングェストに影響させない。
+  if (pushJobs.length) dispatchPushAll(pushJobs);
 }

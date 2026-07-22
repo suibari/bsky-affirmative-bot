@@ -12,6 +12,8 @@ export const NAGI = {
   getNotifications: "com.suibari.nagi.getNotifications",
   getUnreadCount: "com.suibari.nagi.getUnreadCount",
   updateSeen: "com.suibari.nagi.updateSeen",
+  registerPushSubscription: "com.suibari.nagi.registerPushSubscription",
+  deletePushSubscription: "com.suibari.nagi.deletePushSubscription",
   translatePost: "com.suibari.nagi.translatePost",
   getLinkMetadata: "com.suibari.nagi.getLinkMetadata",
   getLinkThumbnail: "com.suibari.nagi.getLinkThumbnail",

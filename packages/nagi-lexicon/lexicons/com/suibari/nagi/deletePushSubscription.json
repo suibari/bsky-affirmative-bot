@@ -1,0 +1,28 @@
+{
+  "lexicon": 1,
+  "id": "com.suibari.nagi.deletePushSubscription",
+  "defs": {
+    "main": {
+      "type": "procedure",
+      "input": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "required": ["endpoint"],
+          "properties": {
+            "endpoint": { "type": "string", "format": "uri" }
+          }
+        }
+      },
+      "output": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "required": ["deleted"],
+          "properties": { "deleted": { "type": "integer", "minimum": 0 } }
+        }
+      },
+      "errors": [{ "name": "AuthRequired" }]
+    }
+  }
+}

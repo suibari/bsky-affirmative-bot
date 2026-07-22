@@ -15,6 +15,10 @@ import {
   updateSeen,
 } from "../queries/notifications.js";
 import { getDiaries } from "../queries/diaries.js";
+import {
+  deleteSubscription,
+  upsertSubscription,
+} from "../queries/pushSubscriptions.js";
 import { translatePost } from "../services/translation.js";
 import { ApiError } from "../middleware/errors.js";
 import { deleteAccountData } from "../services/deleteAccountData.js";
@@ -193,6 +197,38 @@ xrpc.post(
       if (Number.isNaN(seenAt.valueOf()))
         throw new ApiError(400, "invalid_request", "Invalid seenAt");
       res.json(await updateSeen(req.viewerDid!, seenAt));
+    } catch (e) {
+      next(e);
+    }
+  },
+);
+xrpc.post(
+  `/${NAGI.registerPushSubscription}`,
+  requiredServiceAuth(NAGI.registerPushSubscription),
+  async (req, res, next) => {
+    try {
+      const endpoint = req.body?.endpoint;
+      const p256dh = req.body?.keys?.p256dh;
+      const auth = req.body?.keys?.auth;
+      if (typeof endpoint !== "string" || typeof p256dh !== "string" || typeof auth !== "string")
+        throw new ApiError(400, "invalid_request", "Invalid push subscription");
+      res.json(
+        await upsertSubscription(req.viewerDid!, { endpoint, keys: { p256dh, auth } }),
+      );
+    } catch (e) {
+      next(e);
+    }
+  },
+);
+xrpc.post(
+  `/${NAGI.deletePushSubscription}`,
+  requiredServiceAuth(NAGI.deletePushSubscription),
+  async (req, res, next) => {
+    try {
+      const endpoint = req.body?.endpoint;
+      if (typeof endpoint !== "string")
+        throw new ApiError(400, "invalid_request", "Invalid endpoint");
+      res.json(await deleteSubscription(endpoint));
     } catch (e) {
       next(e);
     }

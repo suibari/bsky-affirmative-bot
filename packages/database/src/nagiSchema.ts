@@ -238,3 +238,18 @@ export const nagiBotReplyJobs = nagiSchema.table(
   },
   (t) => [index("nagi_bot_jobs_ready_idx").on(t.state, t.nextAttemptAt)],
 );
+// Web Push の購読。endpoint がプッシュサービス上の宛先で自然な一意キー。同一ユーザーが
+// 複数デバイス/ブラウザから購読するため did ごとに複数行を持ちうる（did で索引）。
+export const nagiPushSubscriptions = nagiSchema.table(
+  "push_subscriptions",
+  {
+    endpoint: text("endpoint").primaryKey(),
+    recipientDid: text("recipient_did").notNull(),
+    p256dh: text("p256dh").notNull(),
+    auth: text("auth").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [index("nagi_push_subscription_did_idx").on(t.recipientDid)],
+);

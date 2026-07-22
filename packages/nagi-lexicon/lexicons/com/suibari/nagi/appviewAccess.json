@@ -29,6 +29,8 @@
             "com.suibari.nagi.getNotifications",
             "com.suibari.nagi.getUnreadCount",
             "com.suibari.nagi.updateSeen",
+            "com.suibari.nagi.registerPushSubscription",
+            "com.suibari.nagi.deletePushSubscription",
             "com.suibari.nagi.deleteAccountData",
             "com.suibari.nagi.getLinkMetadata",
             "com.suibari.nagi.getLinkThumbnail",

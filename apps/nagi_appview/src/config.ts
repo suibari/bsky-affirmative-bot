@@ -63,6 +63,15 @@ export const config = {
   ),
   ollamaUrl: url("OLLAMA_BASE_URL", "http://localhost:11434"),
   translationModel: process.env.OLLAMA_TRANSLATION_MODEL ?? "gemma3:4b",
+  // Web Push（VAPID）。未設定ならプッシュ配信は無効化し、通知の挿入だけ従来どおり続ける。
+  vapid:
+    process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY
+      ? {
+          publicKey: process.env.VAPID_PUBLIC_KEY,
+          privateKey: process.env.VAPID_PRIVATE_KEY,
+          subject: process.env.VAPID_SUBJECT ?? "mailto:admin@nagi.suibari.com",
+        }
+      : undefined,
 };
 
 export const appviewAudience = `${config.appviewDid}#${config.appviewServiceId}`;
