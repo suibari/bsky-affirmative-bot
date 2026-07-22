@@ -34,9 +34,11 @@ app.use(notFound);
 app.use(errorHandler);
 await initializeDatabases();
 const stream = await startJetstream();
-const server = app.listen(config.port, () =>
-  console.log(`Nagi AppView listening on ${config.port}`),
-);
+const onListen = () =>
+  console.log(`Nagi AppView listening on ${config.host ?? "(default)"}:${config.port}`);
+const server = config.host
+  ? app.listen(config.port, config.host, onListen)
+  : app.listen(config.port, onListen);
 const shutdown = () => {
   stream.close();
   server.close(() => process.exit(0));

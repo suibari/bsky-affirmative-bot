@@ -1,0 +1,42 @@
+{
+  "lexicon": 1,
+  "id": "com.suibari.nagi.appviewAccess",
+  "defs": {
+    "main": {
+      "type": "permission-set",
+      "title": "Nagi",
+      "detail": "Nagi の投稿・リアクション・プロフィール・カスタム絵文字（Bluemoji）の読み書きと、Nagi AppView へのアクセス。",
+      "permissions": [
+        {
+          "type": "permission",
+          "resource": "repo",
+          "collection": [
+            "com.suibari.nagi.post",
+            "com.suibari.nagi.reaction",
+            "com.suibari.nagi.profile",
+            "blue.moji.collection.item"
+          ]
+        },
+        {
+          "type": "permission",
+          "resource": "rpc",
+          "inheritAud": true,
+          "lxm": [
+            "com.suibari.nagi.getTimeline",
+            "com.suibari.nagi.getAffirmation",
+            "com.suibari.nagi.getThread",
+            "com.suibari.nagi.getProfile",
+            "com.suibari.nagi.getNotifications",
+            "com.suibari.nagi.getUnreadCount",
+            "com.suibari.nagi.updateSeen",
+            "com.suibari.nagi.deleteAccountData",
+            "com.suibari.nagi.getLinkMetadata",
+            "com.suibari.nagi.getLinkThumbnail",
+            "com.suibari.nagi.searchEmojis",
+            "com.suibari.nagi.getEmoji"
+          ]
+        }
+      ]
+    }
+  }
+}

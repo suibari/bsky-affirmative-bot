@@ -46,6 +46,9 @@ const clientOrigins = (name: string, fallback: string) => {
 
 export const config = {
   port: integer("NAGI_PORT", 3002, 1, 65_535),
+  // 待ち受けホスト。未設定なら Node 既定（unspecified）。WSL2 等で localhost が ::1(IPv6) に
+  // 解決され 127.0.0.1(IPv4) が拒否されるときは NAGI_HOST=127.0.0.1 等で明示する（dev 用）。
+  host: process.env.NAGI_HOST,
   databaseUrl: required("DATABASE_URL", "postgres://postgres@localhost:5432/postgres"),
   jetstreamUrl: required("URL_JETSTREAM", "wss://jetstream2.us-east.bsky.network/subscribe"),
   appviewDid: did("NAGI_APPVIEW_DID", "did:web:nagi-api.suibari.com"),

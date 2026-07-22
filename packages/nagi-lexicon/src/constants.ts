@@ -90,22 +90,20 @@ export const NAGI_AFFIRMATION_THRESHOLD = Number(
     process.env.NAGI_TREND_THRESHOLD ??
     86,
 );
+/** permission set の NSID。定義は lexicons/com/suibari/nagi/appviewAccess.json。 */
+export const NAGI_PERMISSION_SET = "com.suibari.nagi.appviewAccess";
+
+/**
+ * Nagi の OAuth スコープ（真実源はこの1箇所）。repo/rpc 権限は permission set(appviewAccess) に
+ * 集約し、公開済み lexicon 側を真実源にする。blob は permission set に入れられない仕様なので
+ * `blob:image/*` は直接スコープで残す（account/identity と同様、クライアントが直接要求する種別）。
+ * client.ts / client-metadata.json はこのバンドル参照形を使う。
+ *
+ * 変更時の注意: バンドルの中身（repo/rpc）は appviewAccess.json 側を編集し `goat lex publish` で
+ * 再公開する。スコープ文字列そのものを変える場合は全ユーザーに再同意が発生する。cf. [[atproto-roadmap-2026]]
+ */
 export const NAGI_OAUTH_SCOPE = [
   "atproto",
-  ...NAGI_COLLECTIONS.map((nsid) => `repo:${nsid}`),
   "blob:image/*",
-  ...[
-    NAGI.getTimeline,
-    NAGI.getAffirmation,
-    NAGI.getThread,
-    NAGI.getProfile,
-    NAGI.getNotifications,
-    NAGI.getUnreadCount,
-    NAGI.updateSeen,
-    NAGI.deleteAccountData,
-    NAGI.getLinkMetadata,
-    NAGI.getLinkThumbnail,
-    NAGI.searchEmojis,
-    NAGI.getEmoji,
-  ].map((nsid) => `rpc:${nsid}?aud=${NAGI_APPVIEW_AUD.replace("#", "%23")}`),
+  `include:${NAGI_PERMISSION_SET}?aud=${NAGI_APPVIEW_AUD.replace("#", "%23")}`,
 ].join(" ");
