@@ -194,3 +194,52 @@ test("APIキーがなければ外部通信せず候補ゼロにする", async ()
   assert.equal(result.candidates.length, 0);
   assert.equal(result.diagnostics.errors.length, 1);
 });
+
+test("同時取得はNewsDataページHTTPを1回に集約する", async () => {
+  let newsCalls = 0;
+  let gemmaCalls = 0;
+  const fetchMock = async (input: string | URL | Request) => {
+    if (String(input).startsWith("https://newsdata.io")) {
+      newsCalls++;
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      return response({ status: "success", totalResults: 1, results: [article("a1", "受賞")] });
+    }
+    gemmaCalls++;
+    return response({ message: { content: JSON.stringify({ decision: "accept", promotional: false, reasonCode: "positive_result" }) } });
+  };
+  const service = new PositiveNewsService({ fetchImpl: fetchMock as typeof fetch, getNewsDataApiKey: () => "key", getOllamaBaseUrl: () => "http://ollama", logger: silentLogger });
+  await Promise.all([service.getCandidates(), service.getCandidates({ excludeArticleIds: ["other"] })]);
+  assert.equal(newsCalls, 1);
+  assert.equal(gemmaCalls, 1);
+});
+
+test("NewsData再取得後も24時間はGemma判定を再利用する", async () => {
+  let now = 0, newsCalls = 0, gemmaCalls = 0;
+  const fetchMock = async (input: string | URL | Request) => {
+    if (String(input).startsWith("https://newsdata.io")) { newsCalls++; return response({ status: "success", results: [article("a1", "受賞")] }); }
+    gemmaCalls++; return response({ message: { content: JSON.stringify({ decision: "accept", promotional: false, reasonCode: "positive_result" }) } });
+  };
+  const service = new PositiveNewsService({ fetchImpl: fetchMock as typeof fetch, now: () => now, getNewsDataApiKey: () => "key", getOllamaBaseUrl: () => "http://ollama", logger: silentLogger });
+  await service.getCandidates();
+  now += 31 * 60 * 1000;
+  await service.getCandidates();
+  assert.equal(newsCalls, 2);
+  assert.equal(gemmaCalls, 1);
+});
+
+test("再起動相当の別サービスでも永続Gemmaキャッシュを利用する", async () => {
+  const store = new Map<string, { decision: "accept" | "reject"; reasonCode: "positive_result" }>();
+  let gemmaCalls = 0;
+  const dependencies = {
+    fetchImpl: (async (input: string | URL | Request) => {
+      if (String(input).startsWith("https://newsdata.io")) return response({ status: "success", results: [article("a1", "受賞")] });
+      gemmaCalls++; return response({ message: { content: JSON.stringify({ decision: "accept", promotional: false, reasonCode: "positive_result" }) } });
+    }) as typeof fetch,
+    getNewsDataApiKey: () => "key", getOllamaBaseUrl: () => "http://ollama", logger: silentLogger,
+    getPersistentScreening: async (key: string) => store.get(key),
+    setPersistentScreening: async (key: string, _articleId: string, decision: any) => { store.set(key, { decision: decision.decision, reasonCode: decision.reasonCode }); },
+  };
+  await new PositiveNewsService(dependencies).getCandidates();
+  await new PositiveNewsService(dependencies).getCandidates();
+  assert.equal(gemmaCalls, 1);
+});

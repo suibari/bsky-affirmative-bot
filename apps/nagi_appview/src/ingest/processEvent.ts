@@ -4,6 +4,7 @@ import {
   nagiEmojis,
   nagiIngestState,
   nagiNotifications,
+  nagiNews,
   nagiPosts,
   nagiProcessedEvents,
   nagiProfiles,
@@ -28,7 +29,7 @@ export async function processEvent(evt: any) {
   if (!commit) return;
   const collection = commit.collection;
   if (
-    ![NAGI.post, NAGI.reaction, NAGI.profile, BLUEMOJI_ITEM, NAGI.diary].includes(
+    ![NAGI.post, NAGI.reaction, NAGI.profile, BLUEMOJI_ITEM, NAGI.diary, NAGI.news].includes(
       collection,
     )
   )
@@ -100,6 +101,8 @@ export async function processEvent(evt: any) {
           .delete(nagiNotifications)
           .where(eq(nagiNotifications.reasonUri, uri));
       }
+      if (collection === NAGI.news)
+        await tx.update(nagiNews).set({ deletedAt: new Date() }).where(eq(nagiNews.uri, uri));
       if (collection === NAGI.profile)
         await tx.delete(nagiProfiles).where(eq(nagiProfiles.did, did));
       if (collection === BLUEMOJI_ITEM)
@@ -127,7 +130,8 @@ export async function processEvent(evt: any) {
             replyRootUri: value.reply?.root.uri,
             replyParentUri: value.reply?.parent.uri,
             embedImages: value.embed?.images,
-            quoteUri: value.embed?.record?.uri,
+            quoteUri: value.embed?.$type === `${NAGI.post}#quote` ? value.embed.record.uri : null,
+            quoteCid: value.embed?.$type === `${NAGI.post}#quote` ? value.embed.record.cid : null,
             kossori: value.kossori === true,
             repoRev: commit.rev,
             recordCreatedAt: createdAt,
@@ -144,13 +148,33 @@ export async function processEvent(evt: any) {
               replyRootUri: value.reply?.root.uri ?? null,
               replyParentUri: value.reply?.parent.uri ?? null,
               embedImages: value.embed?.images ?? null,
-              quoteUri: value.embed?.record?.uri ?? null,
+              quoteUri: value.embed?.$type === `${NAGI.post}#quote` ? value.embed.record.uri : null,
+              quoteCid: value.embed?.$type === `${NAGI.post}#quote` ? value.embed.record.cid : null,
               kossori: value.kossori === true,
               repoRev: commit.rev,
               recordCreatedAt: createdAt,
               deletedAt: null,
             },
           });
+      }
+      if (collection === NAGI.news) {
+        const normalizedUrl = new URL(value.url);
+        normalizedUrl.hash = "";
+        ["utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content"].forEach((key) => normalizedUrl.searchParams.delete(key));
+        await tx.insert(nagiNews).values({
+          uri, cid: commit.cid, rkey: commit.rkey, did,
+          articleId: value.articleId, url: value.url, normalizedUrl: normalizedUrl.toString(),
+          titleJa: value.titleJa, sourceName: value.sourceName ?? null,
+          sourceUrl: value.sourceUrl ?? null,
+          publishedAt: value.publishedAt ? new Date(value.publishedAt) : null,
+          langs: value.langs, recordCreatedAt: createdAt, deletedAt: null,
+        }).onConflictDoUpdate({
+          target: nagiNews.uri,
+          set: { cid: commit.cid, url: value.url, normalizedUrl: normalizedUrl.toString(), titleJa: value.titleJa,
+            sourceName: value.sourceName ?? null, sourceUrl: value.sourceUrl ?? null,
+            publishedAt: value.publishedAt ? new Date(value.publishedAt) : null,
+            langs: value.langs, recordCreatedAt: createdAt, deletedAt: null },
+        });
       }
       if (collection === NAGI.reaction) {
         const emoji = bluemoji

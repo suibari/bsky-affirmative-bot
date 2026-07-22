@@ -15,6 +15,7 @@ import {
   updateSeen,
 } from "../queries/notifications.js";
 import { getDiaries } from "../queries/diaries.js";
+import { getPositiveNews } from "../queries/positiveNews.js";
 import {
   deleteSubscription,
   upsertSubscription,
@@ -151,6 +152,15 @@ xrpc.get(`/${NAGI.getDiaries}`, async (req, res, next) => {
   } catch (e) {
     next(e);
   }
+});
+xrpc.get(`/${NAGI.getPositiveNews}`, async (req, res, next) => {
+  try {
+    const lang = String(req.query.lang ?? "ja");
+    if (lang !== "ja" && lang !== "en") throw new ApiError(400, "invalid_request", "lang must be ja or en");
+    res.set("Cache-Control", "public, max-age=60").json(await getPositiveNews({
+      limit: Math.min(20, limit(req.query.limit)), cursor: String(req.query.cursor ?? "") || undefined, lang,
+    }));
+  } catch (e) { next(e); }
 });
 xrpc.get(`/${NAGI.searchActors}`, async (req, res, next) => {
   try {

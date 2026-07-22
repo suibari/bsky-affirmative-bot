@@ -51,6 +51,7 @@ export const nagiPosts = nagiSchema.table(
     replyParentUri: text("reply_parent_uri"),
     embedImages: jsonb("embed_images"),
     quoteUri: text("quote_uri"),
+    quoteCid: text("quote_cid"),
     quoteValid: boolean("quote_valid").default(false).notNull(),
     // こっそりモード。true のトップレベル投稿はグローバル/全肯定TLに出さない。
     // プロフィール・スレッド・通知からは見える（完全非公開ではない）。
@@ -70,6 +71,77 @@ export const nagiPosts = nagiSchema.table(
     index("nagi_posts_actor_idx").on(t.did, t.indexedAt),
   ],
 );
+/** PDSから取り込んだニュース本体。承認はCID単位で別表に保持する。 */
+export const nagiNews = nagiSchema.table(
+  "news",
+  {
+    uri: text("uri").primaryKey(),
+    cid: text("cid").notNull(),
+    rkey: text("rkey").notNull(),
+    did: text("did").notNull(),
+    articleId: text("article_id").notNull(),
+    url: text("url").notNull(),
+    normalizedUrl: text("normalized_url").notNull(),
+    titleJa: text("title_ja").notNull(),
+    sourceName: text("source_name"),
+    sourceUrl: text("source_url"),
+    publishedAt: timestamp("published_at", { withTimezone: true }),
+    langs: jsonb("langs"),
+    recordCreatedAt: timestamp("record_created_at", { withTimezone: true }).notNull(),
+    indexedAt: timestamp("indexed_at", { withTimezone: true }).defaultNow().notNull(),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+  },
+  (t) => [
+    index("nagi_news_article_id_idx").on(t.articleId),
+    index("nagi_news_normalized_url_idx").on(t.normalizedUrl),
+    index("nagi_news_feed_idx").on(t.indexedAt, t.uri),
+  ],
+);
+/** AI・管理者による審査結果。ニュース編集でCIDが変わると古い承認は適用されない。 */
+export const nagiNewsApprovals = nagiSchema.table(
+  "news_approvals",
+  {
+    newsUri: text("news_uri").notNull(),
+    newsCid: text("news_cid").notNull(),
+    status: text("status").notNull(),
+    reasonCode: text("reason_code"),
+    botCommentJa: text("bot_comment_ja"),
+    titleEn: text("title_en"),
+    botCommentEn: text("bot_comment_en"),
+    snapshotArticleId: text("snapshot_article_id"),
+    snapshotUrl: text("snapshot_url"),
+    snapshotTitleJa: text("snapshot_title_ja"),
+    snapshotSourceName: text("snapshot_source_name"),
+    snapshotSourceUrl: text("snapshot_source_url"),
+    snapshotPublishedAt: timestamp("snapshot_published_at", { withTimezone: true }),
+    snapshotCreatedAt: timestamp("snapshot_created_at", { withTimezone: true }),
+    model: text("model"),
+    promptVersion: text("prompt_version"),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }).defaultNow().notNull(),
+    hiddenAt: timestamp("hidden_at", { withTimezone: true }),
+  },
+  (t) => [primaryKey({ columns: [t.newsUri, t.newsCid] })],
+);
+/** 24時間の不採用・Gemma判定キャッシュ。 */
+export const nagiNewsScreening = nagiSchema.table("news_screening", {
+  cacheKey: text("cache_key").primaryKey(),
+  articleId: text("article_id").notNull(),
+  decision: text("decision").notNull(),
+  reasonCode: text("reason_code").notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+/** 6時間枠の排他と日次上限集計に使う更新実行記録。 */
+export const nagiNewsUpdateRuns = nagiSchema.table("news_update_runs", {
+  slot: timestamp("slot", { withTimezone: true }).primaryKey(),
+  status: text("status").notNull(),
+  publishedCount: integer("published_count").default(0).notNull(),
+  newsDataCredits: integer("newsdata_credits").default(0).notNull(),
+  retryCount: integer("retry_count").default(0).notNull(),
+  lastError: text("last_error"),
+  startedAt: timestamp("started_at", { withTimezone: true }).defaultNow().notNull(),
+  finishedAt: timestamp("finished_at", { withTimezone: true }),
+});
 export const nagiPostScores = nagiSchema.table("post_scores", {
   postUri: text("post_uri").primaryKey(),
   score: integer("score").notNull(),

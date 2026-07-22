@@ -1,0 +1,28 @@
+{
+  "lexicon": 1,
+  "id": "com.suibari.nagi.news",
+  "defs": {
+    "main": {
+      "type": "record",
+      "key": "any",
+      "record": {
+        "type": "object",
+        "required": ["articleId", "url", "titleJa", "langs", "createdAt"],
+        "properties": {
+          "articleId": { "type": "string", "maxLength": 512 },
+          "url": { "type": "string", "format": "uri", "maxLength": 2048 },
+          "titleJa": { "type": "string", "maxGraphemes": 300, "maxLength": 3000 },
+          "sourceName": { "type": "string", "maxGraphemes": 200, "maxLength": 2000 },
+          "sourceUrl": { "type": "string", "format": "uri", "maxLength": 2048 },
+          "publishedAt": { "type": "string", "format": "datetime" },
+          "langs": {
+            "type": "array",
+            "maxLength": 3,
+            "items": { "type": "string", "format": "language" }
+          },
+          "createdAt": { "type": "string", "format": "datetime" }
+        }
+      }
+    }
+  }
+}

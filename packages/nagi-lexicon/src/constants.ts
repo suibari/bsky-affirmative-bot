@@ -4,6 +4,8 @@ export const NAGI = {
   profile: "com.suibari.nagi.profile",
   /** botたんが書くユーザーの日記。書き手は bot のみなのでユーザーの書き込みスコープには含めない。 */
   diary: "com.suibari.nagi.diary",
+  /** botたん（将来はユーザーも）がPDSへ保存する、タイムライン非表示のニュースレコード。 */
+  news: "com.suibari.nagi.news",
   getTimeline: "com.suibari.nagi.getTimeline",
   getAffirmation: "com.suibari.nagi.getAffirmation",
   getThread: "com.suibari.nagi.getThread",
@@ -21,6 +23,7 @@ export const NAGI = {
   searchEmojis: "com.suibari.nagi.searchEmojis",
   getEmoji: "com.suibari.nagi.getEmoji",
   getDiaries: "com.suibari.nagi.getDiaries",
+  getPositiveNews: "com.suibari.nagi.getPositiveNews",
 } as const;
 
 /** Bluemoji (moji.blue) の絵文字定義レコード。カスタム絵文字はユーザー自身のPDSに置く。 */
@@ -81,6 +84,7 @@ export const NAGI_COLLECTIONS = [
 export const NAGI_INGEST_COLLECTIONS = [
   ...NAGI_COLLECTIONS,
   NAGI.diary,
+  NAGI.news,
 ] as const;
 export const NAGI_APPVIEW_DID =
   process.env.NAGI_APPVIEW_DID ?? "did:web:nagi-api.suibari.com";

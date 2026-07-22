@@ -29,6 +29,9 @@ importers:
       '@bsky-affirmative-bot/clients':
         specifier: workspace:*
         version: link:../../packages/clients
+      '@bsky-affirmative-bot/database':
+        specifier: workspace:*
+        version: link:../../packages/database
       '@bsky-affirmative-bot/shared-configs':
         specifier: workspace:*
         version: link:../../packages/shared-configs
@@ -47,6 +50,9 @@ importers:
       dotenv:
         specifier: ^16.4.5
         version: 16.6.1
+      drizzle-orm:
+        specifier: ^0.45.1
+        version: 0.45.1(@libsql/client@0.14.0)(postgres@3.4.8)
       express:
         specifier: ^5.0.0
         version: 5.2.1
@@ -390,6 +396,9 @@ importers:
       dotenv:
         specifier: ^16.4.5
         version: 16.6.1
+      drizzle-orm:
+        specifier: ^0.45.1
+        version: 0.45.1(@libsql/client@0.14.0)(postgres@3.4.8)
       googleapis:
         specifier: ^171.4.0
         version: 171.4.0

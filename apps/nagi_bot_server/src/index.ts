@@ -16,6 +16,7 @@ import {
   purgeNagiDiaries,
   scheduleAllNagiDiaries,
 } from "./NagiDiaryFeature.js";
+import { publishNews } from "./NagiNewsFeature.js";
 
 async function start() {
   await initializeDatabases();
@@ -52,6 +53,24 @@ async function start() {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       res.status(500).json({ error: message });
+    }
+  });
+  app.post("/news", async (req, res) => {
+    try {
+      const value = req.body;
+      if (typeof value?.articleId !== "string" || typeof value?.url !== "string" || typeof value?.titleJa !== "string") {
+        res.status(400).json({ error: "articleId, url and titleJa are required" });
+        return;
+      }
+      res.status(200).json(await publishNews({
+        articleId: value.articleId, url: value.url, titleJa: value.titleJa,
+        sourceName: typeof value.sourceName === "string" ? value.sourceName : undefined,
+        sourceUrl: typeof value.sourceUrl === "string" ? value.sourceUrl : undefined,
+        publishedAt: typeof value.publishedAt === "string" ? value.publishedAt : undefined,
+        langs: ["ja"], createdAt: typeof value.createdAt === "string" ? value.createdAt : new Date().toISOString(),
+      }));
+    } catch (error) {
+      res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
     }
   });
   // 22時を待たずに日記を書かせる（動作確認・手動リカバリ用）。

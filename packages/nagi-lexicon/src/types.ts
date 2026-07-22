@@ -47,6 +47,32 @@ export type NagiPost = {
         images?: NagiImage[];
       };
 };
+export type NagiNews = {
+  $type: "com.suibari.nagi.news";
+  articleId: string;
+  url: string;
+  titleJa: string;
+  sourceName?: string;
+  sourceUrl?: string;
+  publishedAt?: string;
+  langs: string[];
+  createdAt: string;
+};
+export type NewsView = {
+  uri: string;
+  cid: string;
+  articleId: string;
+  url: string;
+  title: string;
+  sourceName?: string;
+  sourceUrl?: string;
+  publishedAt?: string;
+  botComment: string;
+  lang: "ja" | "en";
+  createdAt: string;
+  indexedAt: string;
+  unavailable?: boolean;
+};
 export type BluemojiRef = {
   uri: string;
   cid: string;
@@ -163,7 +189,9 @@ export type PostView = {
     description?: string;
     thumb?: string;
   }>;
-  quote?: PostView;
+  quote?:
+    | { kind: "post"; post: PostView }
+    | { kind: "news"; news: NewsView };
   reactions: ReactionView[];
   isBot: boolean;
   isAffirmation: boolean;

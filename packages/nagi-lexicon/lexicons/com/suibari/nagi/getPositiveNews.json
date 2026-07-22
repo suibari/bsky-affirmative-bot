@@ -1,0 +1,29 @@
+{
+  "lexicon": 1,
+  "id": "com.suibari.nagi.getPositiveNews",
+  "defs": {
+    "main": {
+      "type": "query",
+      "parameters": {
+        "type": "params",
+        "properties": {
+          "limit": { "type": "integer", "minimum": 1, "maximum": 100, "default": 20 },
+          "cursor": { "type": "string" },
+          "lang": { "type": "string", "knownValues": ["ja", "en"], "default": "ja" }
+        }
+      },
+      "output": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "required": ["items", "hasMore"],
+          "properties": {
+            "items": { "type": "array", "items": { "type": "unknown" } },
+            "cursor": { "type": "string" },
+            "hasMore": { "type": "boolean" }
+          }
+        }
+      }
+    }
+  }
+}

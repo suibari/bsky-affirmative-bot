@@ -8,11 +8,12 @@ import {
   nagiProfiles,
   nagiReactions,
 } from "@bsky-affirmative-bot/database";
-import type { FeedItem, PostView } from "@bsky-affirmative-bot/nagi-lexicon";
+import { NAGI, type FeedItem, type PostView } from "@bsky-affirmative-bot/nagi-lexicon";
 import { and, desc, eq, inArray, isNotNull, isNull, lt, ne, or, sql } from "drizzle-orm";
 import { config } from "../config.js";
 import { emojiView } from "../services/emoji.js";
 import { getCurrentTitles, getSuperPositiveLevels } from "./badges.js";
+import { getNewsQuoteViews } from "./positiveNews.js";
 export const encodeCursor = (date: Date, uri: string) =>
   Buffer.from(JSON.stringify([date.toISOString(), uri])).toString("base64url");
 export const decodeCursor = (cursor?: string): [Date, string] | undefined => {
@@ -171,21 +172,31 @@ export async function hydratePostViews(
   const quoteUris = [
     ...new Set(
       rows.flatMap(({ post }) =>
-        !post.deletedAt && post.quoteUri ? [post.quoteUri] : [],
+        !post.deletedAt && post.quoteUri?.split("/")[3] === NAGI.post ? [post.quoteUri] : [],
       ),
     ),
   ];
-  if (!quoteUris.length) return views;
-  const quoteViews = await hydratePostViews(
-    await fetchPostRows(quoteUris),
-    viewerDid,
-    quoteDepth + 1,
+  const newsRefs = rows.flatMap(({ post }) =>
+    post.quoteUri?.split("/")[3] === NAGI.news && post.quoteCid
+      ? [{ uri: post.quoteUri, cid: post.quoteCid }]
+      : [],
   );
+  const newsViews = await getNewsQuoteViews(newsRefs);
+  if (!quoteUris.length && !newsRefs.length) return views;
+  const quoteViews = quoteUris.length ? await hydratePostViews(await fetchPostRows(quoteUris), viewerDid, quoteDepth + 1) : [];
   const quoteByUri = new Map(quoteViews.map((view) => [view.uri, view]));
   return views.map((view, index) => {
     const quoteUri = rows[index].post.quoteUri;
     const quote = quoteUri ? quoteByUri.get(quoteUri) : undefined;
-    return quote ? { ...view, quote } : view;
+    const post = rows[index].post;
+    const quotedNews = post.quoteUri && post.quoteCid
+      ? newsViews.get(`${post.quoteUri}|${post.quoteCid}`)
+      : undefined;
+    return {
+      ...view,
+      ...(quote ? { quote: { kind: "post" as const, post: quote } } : {}),
+      ...(quotedNews ? { quote: { kind: "news" as const, news: quotedNews } } : {}),
+    };
   });
 }
 export async function buildFeedItems(

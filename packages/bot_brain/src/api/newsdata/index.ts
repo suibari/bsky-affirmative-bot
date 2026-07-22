@@ -1,5 +1,11 @@
+import { createHash } from "node:crypto";
+import { db, nagiNewsScreening } from "@bsky-affirmative-bot/database";
+import { and, eq, gt } from "drizzle-orm";
+
 const NEWSDATA_ENDPOINT = "https://newsdata.io/api/1/latest";
 const CACHE_TTL_MS = 30 * 60 * 1000;
+const GEMMA_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+const SCREENING_POLICY_VERSION = "positive-news-coarse-v2";
 const MAX_PAGES = 3;
 const PAGE_SIZE = 10;
 const TARGET_CANDIDATES = 3;
@@ -40,6 +46,8 @@ export interface NewsScreeningDiagnostics {
   cacheHit: boolean;
   totalResults: number;
   pagesFetched: number;
+  /** この呼び出しで実際にNewsDataへ到達した回数（キャッシュヒットは0）。 */
+  creditsUsed: number;
   articlesFetched: number;
   decisions: NewsScreeningDecision[];
   errors: string[];
@@ -75,16 +83,19 @@ export interface PositiveNewsServiceDependencies {
   getOllamaBaseUrl?: () => string | undefined;
   getOllamaModel?: () => string;
   logger?: Pick<Console, "log" | "warn">;
+  getPersistentScreening?: (key: string, now: Date) => Promise<{ decision: "accept" | "reject"; reasonCode: NewsDecisionReason } | undefined>;
+  setPersistentScreening?: (key: string, articleId: string, decision: NewsScreeningDecision, expiresAt: Date) => Promise<void>;
 }
 
 export interface GetPositiveNewsOptions {
   excludeArticleIds?: Iterable<string>;
   forceRefresh?: boolean;
+  maxPages?: number;
 }
 
-interface CachedResult {
+interface CachedResult<T> {
   expiresAt: number;
-  result: PositiveNewsResult;
+  result: T;
 }
 
 const CLASSIFIER_SCHEMA = {
@@ -142,18 +153,6 @@ function normalizeArticle(value: unknown): PositiveNewsCandidate | null {
   };
 }
 
-function cloneDiagnostics(
-  diagnostics: NewsScreeningDiagnostics,
-  cacheHit: boolean,
-): NewsScreeningDiagnostics {
-  return {
-    ...diagnostics,
-    cacheHit,
-    decisions: [...diagnostics.decisions],
-    errors: [...diagnostics.errors],
-  };
-}
-
 async function mapWithConcurrency<T, R>(
   values: T[],
   concurrency: number,
@@ -182,7 +181,12 @@ export class PositiveNewsService {
   private readonly getOllamaBaseUrl: () => string | undefined;
   private readonly getOllamaModel: () => string;
   private readonly logger: Pick<Console, "log" | "warn">;
-  private cache?: CachedResult;
+  private readonly getPersistentScreening?: PositiveNewsServiceDependencies["getPersistentScreening"];
+  private readonly setPersistentScreening?: PositiveNewsServiceDependencies["setPersistentScreening"];
+  private readonly pageCache = new Map<string, CachedResult<NewsDataResponse>>();
+  private readonly pageInflight = new Map<string, Promise<NewsDataResponse>>();
+  private readonly screeningCache = new Map<string, CachedResult<NewsScreeningDecision>>();
+  private readonly screeningInflight = new Map<string, Promise<NewsScreeningDecision>>();
 
   constructor(dependencies: PositiveNewsServiceDependencies = {}) {
     this.fetchImpl = dependencies.fetchImpl ?? fetch;
@@ -194,28 +198,24 @@ export class PositiveNewsService {
     this.getOllamaModel = dependencies.getOllamaModel
       ?? (() => process.env.OLLAMA_MODEL || "gemma3:4b");
     this.logger = dependencies.logger ?? console;
+    this.getPersistentScreening = dependencies.getPersistentScreening;
+    this.setPersistentScreening = dependencies.setPersistentScreening;
   }
 
   clearCache() {
-    this.cache = undefined;
+    this.pageCache.clear();
+    this.pageInflight.clear();
+    this.screeningCache.clear();
+    this.screeningInflight.clear();
   }
 
   async getCandidates(options: GetPositiveNewsOptions = {}): Promise<PositiveNewsResult> {
     const excludedIds = new Set(options.excludeArticleIds ?? []);
-    const now = this.now();
-
-    if (!options.forceRefresh && this.cache && this.cache.expiresAt > now) {
-      return {
-        candidates: this.cache.result.candidates
-          .filter((candidate) => !excludedIds.has(candidate.articleId)),
-        diagnostics: cloneDiagnostics(this.cache.result.diagnostics, true),
-      };
-    }
-
     const diagnostics: NewsScreeningDiagnostics = {
       cacheHit: false,
       totalResults: 0,
       pagesFetched: 0,
+      creditsUsed: 0,
       articlesFetched: 0,
       decisions: [],
       errors: [],
@@ -231,10 +231,13 @@ export class PositiveNewsService {
     const seenIds = new Set<string>();
     let page: string | undefined;
 
-    for (let pageIndex = 0; pageIndex < MAX_PAGES; pageIndex++) {
+    for (let pageIndex = 0; pageIndex < Math.min(MAX_PAGES, Math.max(0, options.maxPages ?? MAX_PAGES)); pageIndex++) {
       let response: NewsDataResponse;
       try {
-        response = await this.fetchNewsPage(apiKey, page);
+        const fetched = await this.fetchNewsPageCached(apiKey, page, options.forceRefresh === true);
+        response = fetched.response;
+        if (!fetched.cacheHit) diagnostics.creditsUsed++;
+        diagnostics.cacheHit = diagnostics.pagesFetched === 0 ? fetched.cacheHit : diagnostics.cacheHit && fetched.cacheHit;
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         diagnostics.errors.push(message);
@@ -279,12 +282,32 @@ export class PositiveNewsService {
       if (!page) break;
     }
 
-    const result: PositiveNewsResult = {
+    return {
       candidates: accepted.slice(0, TARGET_CANDIDATES),
       diagnostics,
     };
-    this.cache = { expiresAt: now + CACHE_TTL_MS, result };
-    return result;
+  }
+
+  private pageCacheKey(page?: string) {
+    return `ja|jp|10|politics,crime|top|${page ?? "first"}`;
+  }
+
+  private async fetchNewsPageCached(apiKey: string, page?: string, forceRefresh = false) {
+    const key = this.pageCacheKey(page);
+    const cached = this.pageCache.get(key);
+    if (!forceRefresh && cached && cached.expiresAt > this.now()) return { response: cached.result, cacheHit: true };
+    const running = this.pageInflight.get(key);
+    if (!forceRefresh && running) return { response: await running, cacheHit: true };
+    const promise = this.fetchNewsPage(apiKey, page);
+    this.pageInflight.set(key, promise);
+    try {
+      const response = await promise;
+      this.pageCache.set(key, { result: response, expiresAt: this.now() + CACHE_TTL_MS });
+      this.logger.log(`[INFO][NEWS][USAGE] NewsData credit=1 page=${page ?? "first"}`);
+      return { response, cacheHit: false };
+    } finally {
+      if (this.pageInflight.get(key) === promise) this.pageInflight.delete(key);
+    }
   }
 
   private async fetchNewsPage(apiKey: string, page?: string): Promise<NewsDataResponse> {
@@ -311,6 +334,30 @@ export class PositiveNewsService {
   }
 
   private async classifyArticle(article: PositiveNewsCandidate): Promise<NewsScreeningDecision> {
+    const contentHash = createHash("sha256").update(`${article.title}\n${article.description ?? ""}`).digest("hex");
+    const cacheKey = `${SCREENING_POLICY_VERSION}:${article.articleId}:${contentHash}`;
+    const cached = this.screeningCache.get(cacheKey);
+    if (cached && cached.expiresAt > this.now()) return cached.result;
+    const running = this.screeningInflight.get(cacheKey);
+    if (running) return running;
+    const promise = (async () => {
+      const persistent = await this.getPersistentScreening?.(cacheKey, new Date(this.now()));
+      if (persistent) {
+        const result: NewsScreeningDecision = { article, decision: persistent.decision, promotional: false, reasonCode: persistent.reasonCode };
+        this.screeningCache.set(cacheKey, { result, expiresAt: this.now() + GEMMA_CACHE_TTL_MS });
+        return result;
+      }
+      const result = await this.classifyArticleUncached(article);
+      this.screeningCache.set(cacheKey, { result, expiresAt: this.now() + GEMMA_CACHE_TTL_MS });
+      await this.setPersistentScreening?.(cacheKey, article.articleId, result, new Date(this.now() + GEMMA_CACHE_TTL_MS)).catch((error) => this.logger.warn(`[WARN][NEWS] Failed to persist Gemma cache: ${error}`));
+      return result;
+    })();
+    this.screeningInflight.set(cacheKey, promise);
+    try { return await promise; }
+    finally { if (this.screeningInflight.get(cacheKey) === promise) this.screeningInflight.delete(cacheKey); }
+  }
+
+  private async classifyArticleUncached(article: PositiveNewsCandidate): Promise<NewsScreeningDecision> {
     const ollamaBaseUrl = this.getOllamaBaseUrl()?.trim();
     if (!ollamaBaseUrl) return this.classifierError(article, "OLLAMA_BASE_URL is not configured");
 
@@ -382,7 +429,19 @@ export class PositiveNewsService {
   }
 }
 
-export const positiveNewsService = new PositiveNewsService();
+export const positiveNewsService = new PositiveNewsService({
+  getPersistentScreening: async (key, now) => {
+    const rows = await db.select({ decision: nagiNewsScreening.decision, reasonCode: nagiNewsScreening.reasonCode }).from(nagiNewsScreening)
+      .where(and(eq(nagiNewsScreening.cacheKey, key), gt(nagiNewsScreening.expiresAt, now))).limit(1);
+    const row = rows[0];
+    if (!row || (row.decision !== "accept" && row.decision !== "reject") || !REASON_CODES.includes(row.reasonCode as NewsDecisionReason)) return undefined;
+    return { decision: row.decision, reasonCode: row.reasonCode as NewsDecisionReason };
+  },
+  setPersistentScreening: async (key, articleId, decision, expiresAt) => {
+    await db.insert(nagiNewsScreening).values({ cacheKey: key, articleId, decision: decision.decision, reasonCode: decision.reasonCode, expiresAt })
+      .onConflictDoUpdate({ target: nagiNewsScreening.cacheKey, set: { decision: decision.decision, reasonCode: decision.reasonCode, expiresAt } });
+  },
+});
 
 export function getPositiveNewsCandidates(options: GetPositiveNewsOptions = {}) {
   return positiveNewsService.getCandidates(options);

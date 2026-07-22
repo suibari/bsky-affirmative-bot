@@ -3,6 +3,7 @@ import {
   NAGI,
   type BluemojiItem,
   type NagiDiary,
+  type NagiNews,
   type NagiPost,
   type NagiProfile,
   type NagiReaction,
@@ -149,7 +150,7 @@ const DIARY_DATE = /^\d{4}-\d{2}-\d{2}$/;
 export function validateRecord(
   collection: string,
   value: any,
-): value is NagiPost | NagiReaction | NagiProfile | BluemojiItem | NagiDiary {
+): value is NagiPost | NagiReaction | NagiProfile | BluemojiItem | NagiDiary | NagiNews {
   if (!value || value.$type !== collection || !date(value.createdAt))
     return false;
   if (collection === NAGI.post) {
@@ -222,6 +223,17 @@ export function validateRecord(
           value.langs.length <= 4 &&
           value.langs.every((lang: unknown) => typeof lang === "string")))
     );
+  if (collection === NAGI.news) {
+    let url: URL;
+    try { url = new URL(value.url); } catch { return false; }
+    return (
+      ["http:", "https:"].includes(url.protocol) &&
+      typeof value.articleId === "string" && value.articleId.length > 0 && value.articleId.length <= 512 &&
+      typeof value.titleJa === "string" && value.titleJa.length > 0 && graphemes(value.titleJa) <= 300 &&
+      Array.isArray(value.langs) && value.langs.includes("ja") &&
+      (value.publishedAt === undefined || date(value.publishedAt))
+    );
+  }
   if (collection === NAGI.profile)
     return (
       typeof value.displayName === "string" &&

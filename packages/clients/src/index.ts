@@ -1,5 +1,6 @@
 export * from './BskyService.js';
 export * from './ScheduledPostService.js';
+export * from './NagiNewsService.js';
 export * from './BiorhythmService.js';
 export * from './LabelerService.js';
 export * from './SuperPositiveBadgeService.js';

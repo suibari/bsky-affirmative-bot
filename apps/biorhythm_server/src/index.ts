@@ -135,6 +135,8 @@ server.listen(PORT, async () => {
     await manager.init();
     const { scheduleRoomInteractionSync } = await import("./roomInteractionSync.js");
     scheduleRoomInteractionSync(manager);
+    const { schedulePositiveNewsUpdates } = await import("./positiveNewsUpdater.js");
+    schedulePositiveNewsUpdates();
     await manager.step();
     console.log("[INFO] Biorhythm loop started.");
   } catch (e) {
