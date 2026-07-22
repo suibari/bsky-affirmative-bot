@@ -1,7 +1,7 @@
 import { db, nagiNews, nagiNewsApprovals } from "@bsky-affirmative-bot/database";
 import type { NewsView, Page } from "@bsky-affirmative-bot/nagi-lexicon";
 import { and, desc, eq, inArray, isNull, lt, or, sql } from "drizzle-orm";
-import { decodeCursor, encodeCursor } from "./timeline.js";
+import { decodeCursor, encodeCursor, getBotActor } from "./timeline.js";
 
 type Lang = "ja" | "en";
 
@@ -38,7 +38,7 @@ export async function getPositiveNews(opts: { limit: number; cursor?: string; la
     .where(and(...filters)).orderBy(desc(nagiNews.indexedAt), desc(nagiNews.uri)).limit(opts.limit + 1);
   const page = rows.slice(0, opts.limit);
   const last = page.at(-1)?.news;
-  return { items: page.map((row) => view(row, opts.lang)), hasMore: rows.length > opts.limit,
+  return { items: page.map((row) => view(row, opts.lang)), botActor: await getBotActor(), hasMore: rows.length > opts.limit,
     cursor: rows.length > opts.limit && last ? encodeCursor(last.indexedAt, last.uri) : undefined };
 }
 
