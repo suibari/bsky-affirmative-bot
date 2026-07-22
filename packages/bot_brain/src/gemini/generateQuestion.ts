@@ -1,7 +1,7 @@
 
 import { generateContentWithRetry } from "./util.js";
 import { getRandomItems } from "@bsky-affirmative-bot/shared-configs";
-import { MODEL_GEMINI } from "@bsky-affirmative-bot/shared-configs";
+import { MODEL_GEMINI, SYSTEM_INSTRUCTION } from "@bsky-affirmative-bot/shared-configs";
 import { Type } from "@google/genai";
 
 export async function generateQuestion() {
@@ -11,6 +11,7 @@ export async function generateQuestion() {
     model: MODEL_GEMINI,
     contents: [prompt],
     config: {
+      systemInstruction: SYSTEM_INSTRUCTION,
       responseMimeType: "application/json",
       responseSchema: {
         type: Type.OBJECT,
