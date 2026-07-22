@@ -52,6 +52,9 @@ export const nagiPosts = nagiSchema.table(
     embedImages: jsonb("embed_images"),
     quoteUri: text("quote_uri"),
     quoteValid: boolean("quote_valid").default(false).notNull(),
+    // こっそりモード。true のトップレベル投稿はグローバル/全肯定TLに出さない。
+    // プロフィール・スレッド・通知からは見える（完全非公開ではない）。
+    kossori: boolean("kossori").default(false).notNull(),
     repoRev: text("repo_rev"),
     recordCreatedAt: timestamp("record_created_at", {
       withTimezone: true,

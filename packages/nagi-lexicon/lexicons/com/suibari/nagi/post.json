@@ -20,6 +20,7 @@
             "items": { "type": "string", "format": "language" }
           },
           "createdAt": { "type": "string", "format": "datetime" },
+          "kossori": { "type": "boolean" },
           "reply": { "type": "ref", "ref": "#replyRef" },
           "linkCards": {
             "type": "array",

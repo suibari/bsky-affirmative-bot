@@ -161,6 +161,8 @@ export function validateRecord(
       return false;
     if (value.facets !== undefined && !facets(value.facets, value.text))
       return false;
+    if (value.kossori !== undefined && typeof value.kossori !== "boolean")
+      return false;
     if (value.reply && (!ref(value.reply.root) || !ref(value.reply.parent)))
       return false;
     if (

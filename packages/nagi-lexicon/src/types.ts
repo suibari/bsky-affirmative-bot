@@ -35,6 +35,8 @@ export type NagiPost = {
   facets?: Facet[];
   langs?: string[];
   createdAt: string;
+  /** こっそりモード。true のトップレベル投稿はグローバル/全肯定TLに出さない。 */
+  kossori?: boolean;
   reply?: { root: StrongRef; parent: StrongRef };
   linkCards?: NagiLinkCard[];
   embed?:
@@ -165,6 +167,8 @@ export type PostView = {
   reactions: ReactionView[];
   isBot: boolean;
   isAffirmation: boolean;
+  /** こっそりモード。グローバル/全肯定TLには出ず、プロフィール・スレッドでのみ見える。 */
+  kossori?: boolean;
   deleted?: boolean;
 };
 export type BotReplyState = "pending" | "processing" | "posted" | "failed";

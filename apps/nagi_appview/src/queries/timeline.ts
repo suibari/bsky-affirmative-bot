@@ -163,6 +163,7 @@ export async function hydratePostViews(
       ),
       isBot: post.did === config.botDid,
       isAffirmation: (score ?? -1) >= config.affirmationThreshold,
+      kossori: post.kossori || undefined,
       deleted: deleted || undefined,
     };
   });
@@ -271,6 +272,9 @@ export async function getTimeline(opts: {
   // explicit actor feed still needs them so the Bot profile's replies tab works.
   if (!opts.actorDid)
     filters.push(or(ne(nagiPosts.did, config.botDid), isNull(nagiPosts.replyParentUri)));
+  // こっそりポストは共有TL（グローバル/全肯定）から除外。プロフィール（actorDid）や
+  // スレッド・引用では見えるので、ここでだけ落とす。
+  if (!opts.actorDid) filters.push(eq(nagiPosts.kossori, false));
   const rows = await db
     .select(postSelection)
     .from(nagiPosts)
