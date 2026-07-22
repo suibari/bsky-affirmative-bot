@@ -6,8 +6,8 @@ export const wellKnownDid: RequestHandler = (_req, res) =>
     id: config.appviewDid,
     service: [
       {
-      id: `#${config.appviewServiceId}`,
-        type: "AtprotoPersonalDataServer",
+        id: `#${config.appviewServiceId}`,
+        type: "NagiAppView",
         serviceEndpoint: `https://${config.appviewDid.slice(8)}`,
       },
     ],
