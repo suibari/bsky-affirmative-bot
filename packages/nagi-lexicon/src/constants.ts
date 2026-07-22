@@ -96,9 +96,9 @@ export const NAGI_AFFIRMATION_THRESHOLD = Number(
 export const NAGI_PERMISSION_SET = "com.suibari.nagi.appviewAccess";
 
 /**
- * Nagi の OAuth スコープ（真実源はこの1箇所）。repo/rpc 権限は permission set(appviewAccess) に
- * 集約し、公開済み lexicon 側を真実源にする。blob は permission set に入れられない仕様なので
- * `blob:image/*` は直接スコープで残す（account/identity と同様、クライアントが直接要求する種別）。
+ * Nagi の OAuth スコープ（真実源はこの1箇所）。Nagi namespace の repo/rpc 権限は permission
+ * set(appviewAccess) に集約し、公開済み lexicon 側を真実源にする。blob と別 namespace の
+ * Bluemoji repo 権限は permission set に入れられないため、直接スコープで残す。
  * client.ts / client-metadata.json はこのバンドル参照形を使う。
  *
  * rpc の aud は permission set 側で `"aud": "*"`（wildcard）にハードコードしている。fragment 固定だと
@@ -114,4 +114,5 @@ export const NAGI_OAUTH_SCOPE = [
   "atproto",
   "blob:image/*",
   `include:${NAGI_PERMISSION_SET}`,
+  `repo:${BLUEMOJI_ITEM}`,
 ].join(" ");

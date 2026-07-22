@@ -5,7 +5,7 @@
     "main": {
       "type": "permission-set",
       "title": "Nagi",
-      "detail": "Nagi の投稿・リアクション・プロフィール・カスタム絵文字（Bluemoji）の読み書きと、Nagi AppView へのアクセス。",
+      "detail": "Nagi の投稿・リアクション・プロフィールの読み書きと、Nagi AppView へのアクセス。",
       "permissions": [
         {
           "type": "permission",
@@ -13,8 +13,7 @@
           "collection": [
             "com.suibari.nagi.post",
             "com.suibari.nagi.reaction",
-            "com.suibari.nagi.profile",
-            "blue.moji.collection.item"
+            "com.suibari.nagi.profile"
           ]
         },
         {
