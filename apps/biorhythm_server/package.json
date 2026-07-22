@@ -6,8 +6,10 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
+    "test": "tsx --test test/newsHistory.test.ts",
     "start": "node --env-file=../../.env dist/index.js",
-    "dev": "tsx watch --env-file=../../.env src/index.ts"
+    "dev": "tsx watch --env-file=../../.env src/index.ts",
+    "news:preview": "tsx --env-file=../../.env src/newsPreview.ts"
   },
   "dependencies": {
     "@atproto/api": "^0.18.21",

@@ -1,0 +1,196 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { PositiveNewsService } from "../src/api/newsdata/index.js";
+
+function response(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "content-type": "application/json" },
+  });
+}
+
+function article(id: string, title: string) {
+  return {
+    article_id: id,
+    title,
+    description: `${title}の説明`,
+    source_name: "テストニュース",
+    category: ["top"],
+  };
+}
+
+const silentLogger = { log() {}, warn() {} };
+
+test("候補が3件集まるまでページングし、NewsDataの必須条件を付ける", async () => {
+  const calls: string[] = [];
+  const fetchMock = async (input: string | URL | Request, init?: RequestInit) => {
+    const url = String(input);
+    calls.push(url);
+    if (url.startsWith("https://newsdata.io")) {
+      const parsedUrl = new URL(url);
+      assert.equal(parsedUrl.searchParams.get("language"), "ja");
+      assert.equal(parsedUrl.searchParams.get("country"), "jp");
+      assert.equal(parsedUrl.searchParams.get("removeduplicate"), "1");
+      assert.equal(parsedUrl.searchParams.get("excludecategory"), "politics,crime");
+      assert.equal(parsedUrl.searchParams.get("excludedomain"), "news.google.com");
+      assert.equal(parsedUrl.searchParams.get("prioritydomain"), "top");
+      if (!parsedUrl.searchParams.has("page")) {
+        return response({
+          status: "success",
+          totalResults: 100,
+          nextPage: "page-2",
+          results: [article("a1", "明るい発見"), article("r1", "未解決の話"), article("a2", "うれしい受賞")],
+        });
+      }
+      return response({
+        status: "success",
+        totalResults: 100,
+        results: [article("a3", "完全復旧")],
+      });
+    }
+
+    const payload = JSON.parse(String(init?.body)) as { messages: Array<{ content: string }> };
+    const content = payload.messages[1].content;
+    const accepted = !content.includes("未解決");
+    return response({
+      message: {
+        content: JSON.stringify({
+          decision: accepted ? "accept" : "reject",
+          promotional: false,
+          reasonCode: accepted ? "positive_result" : "unresolved",
+        }),
+      },
+    });
+  };
+
+  const service = new PositiveNewsService({
+    fetchImpl: fetchMock as typeof fetch,
+    getNewsDataApiKey: () => "test-key",
+    getOllamaBaseUrl: () => "http://ollama.test:11434/v1",
+    getOllamaModel: () => "gemma3:4b",
+    logger: silentLogger,
+  });
+  const result = await service.getCandidates();
+
+  assert.deepEqual(result.candidates.map((item) => item.articleId), ["a1", "a2", "a3"]);
+  assert.equal(result.diagnostics.pagesFetched, 2);
+  assert.equal(result.diagnostics.articlesFetched, 4);
+  assert.equal(calls.filter((url) => url.startsWith("https://newsdata.io")).length, 2);
+  assert.equal(calls.filter((url) => url.endsWith("/api/chat")).length, 4);
+});
+
+test("Gemma判定は同時2件までに制限する", async () => {
+  let active = 0;
+  let maxActive = 0;
+  const fetchMock = async (input: string | URL | Request) => {
+    const url = String(input);
+    if (url.startsWith("https://newsdata.io")) {
+      return response({
+        status: "success",
+        totalResults: 4,
+        results: [article("a1", "一"), article("a2", "二"), article("a3", "三"), article("a4", "四")],
+      });
+    }
+    active++;
+    maxActive = Math.max(maxActive, active);
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    active--;
+    return response({
+      message: {
+        content: JSON.stringify({
+          decision: "accept",
+          promotional: false,
+          reasonCode: "positive_result",
+        }),
+      },
+    });
+  };
+  const service = new PositiveNewsService({
+    fetchImpl: fetchMock as typeof fetch,
+    getNewsDataApiKey: () => "test-key",
+    getOllamaBaseUrl: () => "http://ollama.test:11434",
+    logger: silentLogger,
+  });
+
+  await service.getCandidates();
+  assert.equal(maxActive, 2);
+});
+
+test("Gemmaの不正JSONは不採用にする", async () => {
+  const fetchMock = async (input: string | URL | Request) => {
+    const url = String(input);
+    if (url.startsWith("https://newsdata.io")) {
+      return response({ status: "success", totalResults: 1, results: [article("a1", "候補")] });
+    }
+    return response({ message: { content: "not-json" } });
+  };
+  const service = new PositiveNewsService({
+    fetchImpl: fetchMock as typeof fetch,
+    getNewsDataApiKey: () => "test-key",
+    getOllamaBaseUrl: () => "http://ollama.test:11434",
+    logger: silentLogger,
+  });
+
+  const result = await service.getCandidates();
+  assert.equal(result.candidates.length, 0);
+  assert.equal(result.diagnostics.decisions[0]?.reasonCode, "classifier_error");
+});
+
+test("30分キャッシュを使い、利用済み記事を結果から除く", async () => {
+  let now = 1_000;
+  let newsCalls = 0;
+  const fetchMock = async (input: string | URL | Request) => {
+    const url = String(input);
+    if (url.startsWith("https://newsdata.io")) {
+      newsCalls++;
+      return response({
+        status: "success",
+        totalResults: 3,
+        results: [article("a1", "一"), article("a2", "二"), article("a3", "三")],
+      });
+    }
+    return response({
+      message: {
+        content: JSON.stringify({
+          decision: "accept",
+          promotional: false,
+          reasonCode: "positive_result",
+        }),
+      },
+    });
+  };
+  const service = new PositiveNewsService({
+    fetchImpl: fetchMock as typeof fetch,
+    now: () => now,
+    getNewsDataApiKey: () => "test-key",
+    getOllamaBaseUrl: () => "http://ollama.test:11434",
+    logger: silentLogger,
+  });
+
+  await service.getCandidates();
+  const cached = await service.getCandidates({ excludeArticleIds: ["a1"] });
+  assert.equal(cached.diagnostics.cacheHit, true);
+  assert.deepEqual(cached.candidates.map((item) => item.articleId), ["a2", "a3"]);
+  assert.equal(newsCalls, 1);
+
+  now += 30 * 60 * 1000 + 1;
+  await service.getCandidates();
+  assert.equal(newsCalls, 2);
+});
+
+test("APIキーがなければ外部通信せず候補ゼロにする", async () => {
+  let calls = 0;
+  const service = new PositiveNewsService({
+    fetchImpl: (async () => {
+      calls++;
+      return response({});
+    }) as typeof fetch,
+    getNewsDataApiKey: () => undefined,
+    logger: silentLogger,
+  });
+
+  const result = await service.getCandidates();
+  assert.equal(calls, 0);
+  assert.equal(result.candidates.length, 0);
+  assert.equal(result.diagnostics.errors.length, 1);
+});

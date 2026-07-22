@@ -12,6 +12,7 @@ import {
 } from "@bsky-affirmative-bot/bot-brain";
 import retry from "async-retry";
 import { getGoodNightCandidate } from "./GoodNightCandidateProvider.js";
+import { getRecentNewsArticleIds, recordRecentNewsArticle } from "./newsHistory.js";
 
 const whimsicalPostGenerator = new WhimsicalPostGenerator();
 const moodSongGenerator = new MyMoodSongGenerator();
@@ -50,6 +51,9 @@ export async function postMorning() {
 
 export async function postWhimsical(currentMood: string) {
   const langStr = isJapanesePost ? "日本語" : "English";
+  const excludedNewsArticleIds = isJapanesePost
+    ? await getRecentNewsArticleIds()
+    : undefined;
   let userReplies: string[] | null = null;
   try {
     userReplies = await MemoryService.getUnreadReplies();
@@ -80,6 +84,7 @@ export async function postWhimsical(currentMood: string) {
       giftContext,
       youtubeShortUrl: newShort?.url,
       youtubeShortTitle: newShort?.title ?? undefined,
+      excludedNewsArticleIds,
     });
     if (!result.textJa || !result.textEn) throw new Error("Whimsical post generation returned incomplete text");
     return result;
@@ -114,6 +119,9 @@ export async function postWhimsical(currentMood: string) {
   if (published) {
     if (giftIdToUpdate !== undefined) await MemoryService.updateGiftStatus(giftIdToUpdate, "used");
     if (newShort && generated.usedYoutubeShort) await MemoryService.updateYoutubeShortStatus(newShort.id, "posted");
+    if (generated.selectedNewsArticleId) {
+      await recordRecentNewsArticle(generated.selectedNewsArticleId);
+    }
   }
 
   // 未読リプライの消費・言語カウント・言語トグルはいずれも Bluesky 投稿に紐づくため、

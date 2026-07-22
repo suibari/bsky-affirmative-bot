@@ -1,5 +1,3 @@
-import { fetchNews } from "../api/gnews/index.js";
-
 import { UserInfoGemini, GeminiScore } from "@bsky-affirmative-bot/shared-configs";
 import { generateSingleResponseWithScore } from "./util.js";
 import { getWhatDay } from "@bsky-affirmative-bot/shared-configs";

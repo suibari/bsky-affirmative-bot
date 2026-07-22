@@ -396,9 +396,6 @@ importers:
       open-graph-scraper:
         specifier: ^6.11.0
         version: 6.11.0
-      rss-parser:
-        specifier: ^3.13.0
-        version: 3.13.0
     devDependencies:
       '@types/async-retry':
         specifier: ^1.4.9

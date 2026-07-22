@@ -12,7 +12,8 @@
     }
   },
   "scripts": {
-    "build": "tsc"
+    "build": "tsc",
+    "test": "tsx --test test/newsdata.test.ts test/positiveNewsSelection.test.ts"
   },
   "dependencies": {
     "@atproto/api": "^0.18.21",
@@ -24,8 +25,7 @@
     "compute-cosine-similarity": "^1.1.0",
     "dotenv": "^16.4.5",
     "googleapis": "^171.4.0",
-    "open-graph-scraper": "^6.11.0",
-    "rss-parser": "^3.13.0"
+    "open-graph-scraper": "^6.11.0"
   },
   "devDependencies": {
     "@types/async-retry": "^1.4.9",
