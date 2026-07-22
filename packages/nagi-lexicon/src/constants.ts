@@ -99,11 +99,17 @@ export const NAGI_PERMISSION_SET = "com.suibari.nagi.appviewAccess";
  * `blob:image/*` は直接スコープで残す（account/identity と同様、クライアントが直接要求する種別）。
  * client.ts / client-metadata.json はこのバンドル参照形を使う。
  *
- * 変更時の注意: バンドルの中身（repo/rpc）は appviewAccess.json 側を編集し `goat lex publish` で
- * 再公開する。スコープ文字列そのものを変える場合は全ユーザーに再同意が発生する。cf. [[atproto-roadmap-2026]]
+ * rpc の aud は permission set 側で `"aud": "*"`（wildcard）にハードコードしている。fragment 固定だと
+ * proxy 時に service fragment を落として bare aud で照合する PDS（Spring 2026 以前挙動）で
+ * "Missing required scope" になるため。wildcard は新旧 PDS 双方の照合にマッチする（cf. Skyblur）。
+ * よって include には aud パラメータを付けない（付けると inheritAud と競合しうる）。
+ *
+ * 変更時の注意: バンドルの中身（repo/rpc）は appviewAccess.json 側を編集し `pnpm lex:publish`
+ * （= goat lex publish）で再公開する。反映まで JSON 変更だけでは効かない。
+ * スコープ文字列そのものを変える場合は全ユーザーに再同意が発生する。cf. [[atproto-roadmap-2026]]
  */
 export const NAGI_OAUTH_SCOPE = [
   "atproto",
   "blob:image/*",
-  `include:${NAGI_PERMISSION_SET}?aud=${NAGI_APPVIEW_AUD.replace("#", "%23")}`,
+  `include:${NAGI_PERMISSION_SET}`,
 ].join(" ");
