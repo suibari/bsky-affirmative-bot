@@ -149,9 +149,10 @@ export async function createNagiReply(job: any) {
       createdAt: new Date().toISOString(),
       ...(await buildLinkAttachments(text)),
       // 元投稿がチャンネル所属なら返信も同じ channel を継承し、CH TL に並ぶ（Misskey 同様）。
-      // 元が CH 限定ならこの返信も CH 限定にしてグローバル露出を揃える。
+      // 元が「グローバルに出さない」（kossori、または旧データの channelOnly）ならこの返信も
+      // kossori にしてグローバル露出を揃える。
       ...(record.channel ? { channel: record.channel } : {}),
-      ...(record.channel && record.channelOnly ? { channelOnly: true } : {}),
+      ...(record.channel && (record.kossori || record.channelOnly) ? { kossori: true } : {}),
       reply: {
         root,
         parent: {
