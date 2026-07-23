@@ -2,6 +2,7 @@ import {
   BLUEMOJI_ITEM,
   NAGI,
   type BluemojiItem,
+  type NagiChannel,
   type NagiDiary,
   type NagiNews,
   type NagiPost,
@@ -147,10 +148,18 @@ const bluemojiRef = (value: any) =>
 /** 日記の日付は "YYYY-MM-DD"（ユーザーのローカル日付）。 */
 const DIARY_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
+/** チャンネルバナー（image blob、最大1MB）。 */
+const bannerBlob = (value: any) =>
+  typeof value?.ref?.$link === "string" &&
+  ["image/jpeg", "image/png", "image/webp"].includes(value.mimeType) &&
+  Number.isInteger(value.size) &&
+  value.size >= 0 &&
+  value.size <= 1_000_000;
+
 export function validateRecord(
   collection: string,
   value: any,
-): value is NagiPost | NagiReaction | NagiProfile | BluemojiItem | NagiDiary | NagiNews {
+): value is NagiPost | NagiReaction | NagiProfile | BluemojiItem | NagiDiary | NagiNews | NagiChannel {
   if (!value || value.$type !== collection || !date(value.createdAt))
     return false;
   if (collection === NAGI.post) {
@@ -163,6 +172,9 @@ export function validateRecord(
     if (value.facets !== undefined && !facets(value.facets, value.text))
       return false;
     if (value.kossori !== undefined && typeof value.kossori !== "boolean")
+      return false;
+    if (value.channel !== undefined && !ref(value.channel)) return false;
+    if (value.channelOnly !== undefined && typeof value.channelOnly !== "boolean")
       return false;
     if (value.reply && (!ref(value.reply.root) || !ref(value.reply.parent)))
       return false;
@@ -239,6 +251,16 @@ export function validateRecord(
       typeof value.displayName === "string" &&
       graphemes(value.displayName) <= 64 &&
       (!value.description || graphemes(value.description) <= 256)
+    );
+  if (collection === NAGI.channel)
+    return (
+      typeof value.name === "string" &&
+      value.name.trim().length > 0 &&
+      graphemes(value.name) <= 50 &&
+      (value.description === undefined ||
+        (typeof value.description === "string" &&
+          graphemes(value.description) <= 300)) &&
+      (value.banner === undefined || bannerBlob(value.banner))
     );
   return false;
 }

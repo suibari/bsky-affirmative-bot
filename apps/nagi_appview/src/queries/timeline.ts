@@ -2,6 +2,7 @@ import {
   db,
   nagiActors,
   nagiBotReplyJobs,
+  nagiChannels,
   nagiEmojis,
   nagiPostScores,
   nagiPosts,
@@ -79,6 +80,20 @@ export async function hydratePostViews(
     getSuperPositiveLevels(dids),
     getCurrentTitles(dids),
   ]);
+  // バッジ表示用にチャンネル名を引く（uri→name）。所属 CH のある投稿だけ。
+  const channelUris = [
+    ...new Set(rows.flatMap((r) => (r.post.channelUri ? [r.post.channelUri] : []))),
+  ];
+  const channelNames = channelUris.length
+    ? new Map(
+        (
+          await db
+            .select({ uri: nagiChannels.uri, name: nagiChannels.name })
+            .from(nagiChannels)
+            .where(inArray(nagiChannels.uri, channelUris))
+        ).map((c) => [c.uri, c.name]),
+      )
+    : new Map<string, string>();
   const views = rows.map(({ post, actor, profile, score }) => {
     const deleted = Boolean(post.deletedAt);
     const images =
@@ -165,6 +180,16 @@ export async function hydratePostViews(
       isBot: post.did === config.botDid,
       isAffirmation: (score ?? -1) >= config.affirmationThreshold,
       kossori: post.kossori || undefined,
+      channel: post.channelUri
+        ? {
+            uri: post.channelUri,
+            cid: (post.recordJson as any)?.channel?.cid ?? "",
+            ...(channelNames.has(post.channelUri)
+              ? { name: channelNames.get(post.channelUri) }
+              : {}),
+          }
+        : undefined,
+      channelOnly: post.channelOnly || undefined,
       deleted: deleted || undefined,
     };
   });
@@ -261,6 +286,8 @@ export async function getTimeline(opts: {
   viewerDid?: string;
   affirmation?: boolean;
   actorDid?: string;
+  /** CH タイムライン: この URI の channel を持つ投稿だけを、kossori/channelOnly に関係なく出す。 */
+  channelUri?: string;
   filter?: "posts" | "replies" | "media";
 }) {
   const point = decodeCursor(opts.cursor);
@@ -273,6 +300,7 @@ export async function getTimeline(opts: {
       ),
     );
   if (opts.actorDid) filters.push(eq(nagiPosts.did, opts.actorDid));
+  if (opts.channelUri) filters.push(eq(nagiPosts.channelUri, opts.channelUri));
   if (opts.affirmation)
     filters.push(sql`${nagiPostScores.score} >= ${config.affirmationThreshold}`);
   if (opts.filter === "posts") filters.push(isNull(nagiPosts.replyParentUri));
@@ -281,11 +309,15 @@ export async function getTimeline(opts: {
     filters.push(sql`jsonb_array_length(coalesce(${nagiPosts.embedImages}, '[]'::jsonb)) > 0`);
   // Keep Bot replies grouped with their source post on shared timelines. An
   // explicit actor feed still needs them so the Bot profile's replies tab works.
+  // CH TL も共有TL扱いで grouping する（botたんの返信は元投稿にまとめる）。
   if (!opts.actorDid)
     filters.push(or(ne(nagiPosts.did, config.botDid), isNull(nagiPosts.replyParentUri)));
-  // こっそりポストは共有TL（グローバル/全肯定）から除外。プロフィール（actorDid）や
-  // スレッド・引用では見えるので、ここでだけ落とす。
-  if (!opts.actorDid) filters.push(eq(nagiPosts.kossori, false));
+  // こっそり／CH限定ポストは共有TL（グローバル/全肯定）から除外。プロフィール（actorDid）や
+  // CH TL（channelUri）・スレッド・引用では見えるので、ここでだけ落とす。
+  if (!opts.actorDid && !opts.channelUri) {
+    filters.push(eq(nagiPosts.kossori, false));
+    filters.push(eq(nagiPosts.channelOnly, false));
+  }
   const rows = await db
     .select(postSelection)
     .from(nagiPosts)
@@ -297,7 +329,12 @@ export async function getTimeline(opts: {
     .limit(opts.limit + 1);
   const page = rows.slice(0, opts.limit);
   const [items, botActor] = await Promise.all([
-    buildFeedItems(page, opts.viewerDid, true, opts.filter === "replies"),
+    buildFeedItems(
+      page,
+      opts.viewerDid,
+      true,
+      opts.filter === "replies" || Boolean(opts.channelUri),
+    ),
     getBotActor(),
   ]);
   const last = page.at(-1)?.post;

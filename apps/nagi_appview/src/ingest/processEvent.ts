@@ -1,5 +1,6 @@
 import {
   db,
+  nagiChannels,
   nagiDiaries,
   nagiEmojis,
   nagiIngestState,
@@ -29,9 +30,15 @@ export async function processEvent(evt: any) {
   if (!commit) return;
   const collection = commit.collection;
   if (
-    ![NAGI.post, NAGI.reaction, NAGI.profile, BLUEMOJI_ITEM, NAGI.diary, NAGI.news].includes(
-      collection,
-    )
+    ![
+      NAGI.post,
+      NAGI.reaction,
+      NAGI.profile,
+      BLUEMOJI_ITEM,
+      NAGI.diary,
+      NAGI.news,
+      NAGI.channel,
+    ].includes(collection)
   )
     return;
   const did = evt.did;
@@ -103,6 +110,9 @@ export async function processEvent(evt: any) {
       }
       if (collection === NAGI.news)
         await tx.update(nagiNews).set({ deletedAt: new Date() }).where(eq(nagiNews.uri, uri));
+      // CH 削除はソフト削除。所属投稿の channel_uri はそのまま残す（通常投稿はグローバルに残る）。
+      if (collection === NAGI.channel)
+        await tx.update(nagiChannels).set({ deletedAt: new Date() }).where(eq(nagiChannels.uri, uri));
       if (collection === NAGI.profile)
         await tx.delete(nagiProfiles).where(eq(nagiProfiles.did, did));
       if (collection === BLUEMOJI_ITEM)
@@ -133,6 +143,8 @@ export async function processEvent(evt: any) {
             quoteUri: value.embed?.$type === `${NAGI.post}#quote` ? value.embed.record.uri : null,
             quoteCid: value.embed?.$type === `${NAGI.post}#quote` ? value.embed.record.cid : null,
             kossori: value.kossori === true,
+            channelUri: value.channel?.uri ?? null,
+            channelOnly: value.channelOnly === true,
             repoRev: commit.rev,
             recordCreatedAt: createdAt,
             deletedAt: null,
@@ -151,6 +163,8 @@ export async function processEvent(evt: any) {
               quoteUri: value.embed?.$type === `${NAGI.post}#quote` ? value.embed.record.uri : null,
               quoteCid: value.embed?.$type === `${NAGI.post}#quote` ? value.embed.record.cid : null,
               kossori: value.kossori === true,
+              channelUri: value.channel?.uri ?? null,
+              channelOnly: value.channelOnly === true,
               repoRev: commit.rev,
               recordCreatedAt: createdAt,
               deletedAt: null,
@@ -175,6 +189,32 @@ export async function processEvent(evt: any) {
             publishedAt: value.publishedAt ? new Date(value.publishedAt) : null,
             langs: value.langs, recordCreatedAt: createdAt, deletedAt: null },
         });
+      }
+      if (collection === NAGI.channel) {
+        await tx
+          .insert(nagiChannels)
+          .values({
+            uri,
+            cid: commit.cid,
+            rkey: commit.rkey,
+            did,
+            name: value.name,
+            description: value.description ?? null,
+            bannerCid: value.banner?.ref?.$link ?? null,
+            recordCreatedAt: createdAt,
+            deletedAt: null,
+          })
+          .onConflictDoUpdate({
+            target: nagiChannels.uri,
+            set: {
+              cid: commit.cid,
+              name: value.name,
+              description: value.description ?? null,
+              bannerCid: value.banner?.ref?.$link ?? null,
+              recordCreatedAt: createdAt,
+              deletedAt: null,
+            },
+          });
       }
       if (collection === NAGI.reaction) {
         const emoji = bluemoji

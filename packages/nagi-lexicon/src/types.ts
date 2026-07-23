@@ -37,6 +37,10 @@ export type NagiPost = {
   createdAt: string;
   /** こっそりモード。true のトップレベル投稿はグローバル/全肯定TLに出さない。 */
   kossori?: boolean;
+  /** 所属チャンネル（com.suibari.nagi.channel）への参照。返信は親の channel を継承する。 */
+  channel?: StrongRef;
+  /** true なら CH 限定＝グローバルTL非表示（kossori と同じ除外扱い）。 */
+  channelOnly?: boolean;
   reply?: { root: StrongRef; parent: StrongRef };
   linkCards?: NagiLinkCard[];
   embed?:
@@ -46,6 +50,27 @@ export type NagiPost = {
         record: StrongRef;
         images?: NagiImage[];
       };
+};
+/** ユーザーが作るチャンネル。作成者の PDS に置くレコード。 */
+export type NagiChannel = {
+  $type: "com.suibari.nagi.channel";
+  name: string;
+  description?: string;
+  banner?: BlobRef;
+  createdAt: string;
+};
+/** AppView が返すチャンネルのビュー。banner は blob プロキシへの相対パス。 */
+export type ChannelView = {
+  uri: string;
+  cid: string;
+  did: string;
+  name: string;
+  description?: string;
+  banner?: string;
+  createdAt: string;
+  indexedAt: string;
+  /** 最新投稿時刻（活動順の並べ替え・過疎判定に使う）。投稿ゼロなら付けない。 */
+  lastPostAt?: string;
 };
 export type NagiNews = {
   $type: "com.suibari.nagi.news";
@@ -197,6 +222,10 @@ export type PostView = {
   isAffirmation: boolean;
   /** こっそりモード。グローバル/全肯定TLには出ず、プロフィール・スレッドでのみ見える。 */
   kossori?: boolean;
+  /** 所属チャンネル（あれば）。バッジ表示・返信時の継承元に使う。 */
+  channel?: { uri: string; cid: string; name?: string };
+  /** CH 限定投稿（グローバル非表示）か。 */
+  channelOnly?: boolean;
   deleted?: boolean;
 };
 export type BotReplyState = "pending" | "processing" | "posted" | "failed";

@@ -6,6 +6,7 @@ import {
   requiredServiceAuth,
 } from "../auth/serviceAuth.js";
 import { getTimeline } from "../queries/timeline.js";
+import { getChannel, getChannelTimeline, getChannels } from "../queries/channels.js";
 import { getActorProfile, getReactedFeed } from "../queries/profile.js";
 import { searchActors } from "../queries/actors.js";
 import { getThread } from "../queries/thread.js";
@@ -102,6 +103,73 @@ xrpc.get(
           req.viewerDid ? "private, no-store" : "public, max-age=15",
         )
         .json({ profile, feed });
+    } catch (e) {
+      next(e);
+    }
+  },
+);
+xrpc.get(
+  `/${NAGI.getChannels}`,
+  optionalServiceAuth(NAGI.getChannels),
+  async (req, res, next) => {
+    try {
+      res
+        .set(
+          "Cache-Control",
+          req.viewerDid ? "private, no-store" : "public, max-age=15",
+        )
+        .json(
+          await getChannels({
+            limit: limit(req.query.limit),
+            cursor: String(req.query.cursor ?? "") || undefined,
+          }),
+        );
+    } catch (e) {
+      next(e);
+    }
+  },
+);
+xrpc.get(
+  `/${NAGI.getChannel}`,
+  optionalServiceAuth(NAGI.getChannel),
+  async (req, res, next) => {
+    try {
+      const uri = String(req.query.uri ?? "");
+      if (!uri) throw new ApiError(400, "invalid_request", "uri is required");
+      const channel = await getChannel(uri);
+      if (!channel)
+        throw new ApiError(404, "not_found", "Channel not found");
+      res
+        .set(
+          "Cache-Control",
+          req.viewerDid ? "private, no-store" : "public, max-age=15",
+        )
+        .json({ channel });
+    } catch (e) {
+      next(e);
+    }
+  },
+);
+xrpc.get(
+  `/${NAGI.getChannelTimeline}`,
+  optionalServiceAuth(NAGI.getChannelTimeline),
+  async (req, res, next) => {
+    try {
+      const uri = String(req.query.uri ?? "");
+      if (!uri) throw new ApiError(400, "invalid_request", "uri is required");
+      res
+        .set(
+          "Cache-Control",
+          req.viewerDid ? "private, no-store" : "public, max-age=15",
+        )
+        .json(
+          await getChannelTimeline({
+            uri,
+            limit: limit(req.query.limit),
+            cursor: String(req.query.cursor ?? "") || undefined,
+            viewerDid: req.viewerDid,
+          }),
+        );
     } catch (e) {
       next(e);
     }

@@ -1,0 +1,24 @@
+{
+  "lexicon": 1,
+  "id": "com.suibari.nagi.channel",
+  "defs": {
+    "main": {
+      "type": "record",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["name", "createdAt"],
+        "properties": {
+          "name": { "type": "string", "maxGraphemes": 50, "maxLength": 500 },
+          "description": { "type": "string", "maxGraphemes": 300, "maxLength": 3000 },
+          "banner": {
+            "type": "blob",
+            "accept": ["image/jpeg", "image/png", "image/webp"],
+            "maxSize": 1000000
+          },
+          "createdAt": { "type": "string", "format": "datetime" }
+        }
+      }
+    }
+  }
+}

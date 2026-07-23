@@ -8,6 +8,8 @@ export const NAGI = {
   diary: "com.suibari.nagi.diary",
   /** botたん（将来はユーザーも）がPDSへ保存する、タイムライン非表示のニュースレコード。 */
   news: "com.suibari.nagi.news",
+  /** ユーザーが作る同好の集まり（チャンネル）。作成者のPDSに置く。post.channel から参照する。 */
+  channel: "com.suibari.nagi.channel",
   getTimeline: "com.suibari.nagi.getTimeline",
   getAffirmation: "com.suibari.nagi.getAffirmation",
   getThread: "com.suibari.nagi.getThread",
@@ -28,6 +30,9 @@ export const NAGI = {
   getPositiveNews: "com.suibari.nagi.getPositiveNews",
   resolveLexicon: "com.suibari.nagi.resolveLexicon",
   getAppIcon: "com.suibari.nagi.getAppIcon",
+  getChannels: "com.suibari.nagi.getChannels",
+  getChannel: "com.suibari.nagi.getChannel",
+  getChannelTimeline: "com.suibari.nagi.getChannelTimeline",
 } as const;
 
 /** Bluemoji (moji.blue) の絵文字定義レコード。カスタム絵文字はユーザー自身のPDSに置く。 */
@@ -79,6 +84,7 @@ export const NAGI_COLLECTIONS = [
   NAGI.reaction,
   NAGI.profile,
   NAGI.appLinks,
+  NAGI.channel,
   BLUEMOJI_ITEM,
 ] as const;
 /**
@@ -95,6 +101,7 @@ export const NAGI_INGEST_COLLECTIONS = [
   BLUEMOJI_ITEM,
   NAGI.diary,
   NAGI.news,
+  NAGI.channel,
 ] as const;
 export const NAGI_APPVIEW_DID =
   process.env.NAGI_APPVIEW_DID ?? "did:web:nagi-api.suibari.com";

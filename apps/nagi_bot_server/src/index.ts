@@ -7,6 +7,7 @@ import {
   syncNagiBotProfile,
 } from "./NagiBotProfileFeature.js";
 import { onNagiPost } from "./NagiReplyFeature.js";
+import { onNagiChannel } from "./NagiChannelFeature.js";
 import { startNagiReplyWorker } from "./NagiReplyWorker.js";
 import express from "express";
 import type { ScheduledPostRequest } from "@bsky-affirmative-bot/clients";
@@ -29,9 +30,11 @@ async function start() {
 
   startBotJetstream({
     endpoint: process.env.URL_JETSTREAM,
-    wantedCollections: [NAGI.post],
+    // Phase 2 の「創設時の盛り上げ投稿」に備え、CH 作成イベントも購読しておく（ハンドラは現状スタブ）。
+    wantedCollections: [NAGI.post, NAGI.channel],
     onCreate: {
       [NAGI.post]: onNagiPost,
+      [NAGI.channel]: onNagiChannel,
     },
   });
   startNagiReplyWorker();

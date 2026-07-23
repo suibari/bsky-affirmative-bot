@@ -56,6 +56,10 @@ export const nagiPosts = nagiSchema.table(
     // こっそりモード。true のトップレベル投稿はグローバル/全肯定TLに出さない。
     // プロフィール・スレッド・通知からは見える（完全非公開ではない）。
     kossori: boolean("kossori").default(false).notNull(),
+    // 所属チャンネル（com.suibari.nagi.channel）の AT-URI。返信は親の channel を継承する。
+    channelUri: text("channel_uri"),
+    // true なら CH 限定＝グローバル/全肯定TL非表示（kossori と同じ除外扱い）。CH TLには出る。
+    channelOnly: boolean("channel_only").default(false).notNull(),
     repoRev: text("repo_rev"),
     recordCreatedAt: timestamp("record_created_at", {
       withTimezone: true,
@@ -69,7 +73,29 @@ export const nagiPosts = nagiSchema.table(
     index("nagi_posts_timeline_idx").on(t.indexedAt, t.uri),
     index("nagi_posts_parent_idx").on(t.replyParentUri),
     index("nagi_posts_actor_idx").on(t.did, t.indexedAt),
+    index("nagi_posts_channel_idx").on(t.channelUri, t.indexedAt),
   ],
+);
+/** ユーザーが作るチャンネル（com.suibari.nagi.channel）。作成者の PDS が真実源。 */
+export const nagiChannels = nagiSchema.table(
+  "channels",
+  {
+    uri: text("uri").primaryKey(),
+    cid: text("cid").notNull(),
+    rkey: text("rkey").notNull(),
+    did: text("did").notNull(),
+    name: text("name").notNull(),
+    description: text("description"),
+    bannerCid: text("banner_cid"),
+    recordCreatedAt: timestamp("record_created_at", {
+      withTimezone: true,
+    }).notNull(),
+    indexedAt: timestamp("indexed_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+  },
+  (t) => [index("nagi_channels_idx").on(t.indexedAt)],
 );
 /** PDSから取り込んだニュース本体。承認はCID単位で別表に保持する。 */
 export const nagiNews = nagiSchema.table(
