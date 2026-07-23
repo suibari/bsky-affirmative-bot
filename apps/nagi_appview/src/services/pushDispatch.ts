@@ -5,9 +5,16 @@ import { config } from "../config.js";
 import { deleteSubscription, listSubscriptions } from "../queries/pushSubscriptions.js";
 
 let configured = false;
+let warnedMissingConfig = false;
 /** VAPID 未設定ならプッシュ配信を無効化（通知の挿入自体は従来どおり続く）。 */
 function ensureConfigured(): boolean {
-  if (!config.vapid) return false;
+  if (!config.vapid) {
+    if (!warnedMissingConfig) {
+      console.warn("[push] delivery disabled: VAPID keys are not configured");
+      warnedMissingConfig = true;
+    }
+    return false;
+  }
   if (!configured) {
     webpush.setVapidDetails(
       config.vapid.subject,
@@ -71,6 +78,9 @@ export async function dispatchPush(job: PushJob): Promise<void> {
   const name = await actorName(job.actorDid);
   const { title, body } = compose(job.type, name, job.bodyText ?? "");
   const payload = JSON.stringify({ title, body, type: job.type, url: NOTIF_URL });
+  let sent = 0;
+  let expired = 0;
+  let failed = 0;
   await Promise.all(
     subs.map(async (sub) => {
       try {
@@ -78,19 +88,28 @@ export async function dispatchPush(job: PushJob): Promise<void> {
           { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
           payload,
         );
+        sent += 1;
       } catch (e: any) {
         const status = e?.statusCode;
         if (status === 404 || status === 410) {
           await deleteSubscription(sub.endpoint).catch(() => {});
+          expired += 1;
         } else {
+          failed += 1;
           console.error("[push] send failed", status, e?.body ?? e?.message);
         }
       }
     }),
   );
+  console.info(
+    `[push] dispatch type=${job.type} subscriptions=${subs.length} sent=${sent} expired=${expired} failed=${failed}`,
+  );
 }
 
 /** 複数ジョブをまとめて非同期発火。イングェストをブロックしないよう待たない用途で使う。 */
 export function dispatchPushAll(jobs: PushJob[]): void {
-  for (const job of jobs) void dispatchPush(job).catch(() => {});
+  for (const job of jobs)
+    void dispatchPush(job).catch((error) => {
+      console.error(`[push] dispatch failed type=${job.type}`, error);
+    });
 }

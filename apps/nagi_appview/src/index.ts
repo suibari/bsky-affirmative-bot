@@ -33,7 +33,9 @@ app.use(
   }),
 );
 app.use(express.json({ limit: "32kb" }));
-app.get("/health", (_req, res) => res.json({ ok: true }));
+app.get("/health", (_req, res) =>
+  res.json({ ok: true, pushConfigured: Boolean(config.vapid) }),
+);
 app.get("/.well-known/did.json", wellKnownDid);
 app.use(
   "/xrpc",

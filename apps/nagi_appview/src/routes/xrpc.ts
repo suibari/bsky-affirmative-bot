@@ -27,6 +27,7 @@ import { deleteAccountData } from "../services/deleteAccountData.js";
 import { getAppIcon, getLinkMetadata, getLinkThumbnail } from "../services/linkMetadata.js";
 import { getEmoji, searchEmojis } from "../services/emoji.js";
 import { resolveLexicon } from "../queries/resolveLexicon.js";
+import { config } from "../config.js";
 export const xrpc = Router();
 const limit = (value: unknown) =>
   Math.min(100, Math.max(1, Number(value ?? 50) || 50));
@@ -322,6 +323,12 @@ xrpc.post(
   requiredServiceAuth(NAGI.registerPushSubscription),
   async (req, res, next) => {
     try {
+      if (!config.vapid)
+        throw new ApiError(
+          503,
+          "push_unavailable",
+          "Push notification delivery is not configured",
+        );
       const endpoint = req.body?.endpoint;
       const p256dh = req.body?.keys?.p256dh;
       const auth = req.body?.keys?.auth;
