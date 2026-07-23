@@ -1,5 +1,12 @@
 {
   "extends": "../../tsconfig.base.json",
-  "compilerOptions": { "outDir": "dist", "rootDir": "src", "noImplicitAny": false },
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src",
+    "noImplicitAny": false,
+    // @atproto/lexicon-resolver は exports フィールドのみ（main/types 無し）のため classic node 解決では
+    // 型が引けない。bundler は exports 対応かつ .js 拡張子 import も許容する上位互換なのでこのアプリだけ上書き。
+    "moduleResolution": "bundler"
+  },
   "include": ["src/**/*.ts"]
 }

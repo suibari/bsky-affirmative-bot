@@ -1,0 +1,88 @@
+{
+  "lexicon": 1,
+  "id": "com.suibari.nagi.appLinks",
+  "defs": {
+    "main": {
+      "type": "record",
+      "key": "literal:self",
+      "description": "プロフィールカードに並べる、任意の Atmosphere アプリへの連携宣言リスト。所有者本人が curate し、どの collection のどのフィールドを表示するかを定義する。公開レコード。",
+      "record": {
+        "type": "object",
+        "required": ["links", "createdAt"],
+        "properties": {
+          "links": {
+            "type": "array",
+            "maxLength": 20,
+            "items": { "type": "ref", "ref": "#link" }
+          },
+          "createdAt": { "type": "string", "format": "datetime" }
+        }
+      }
+    },
+    "link": {
+      "type": "object",
+      "required": ["collection", "label", "selection", "fields"],
+      "properties": {
+        "collection": {
+          "type": "string",
+          "format": "nsid",
+          "description": "表示対象のレコード collection の NSID。"
+        },
+        "label": {
+          "type": "string",
+          "maxGraphemes": 64,
+          "maxLength": 640,
+          "description": "カード見出し（アプリ名相当）。"
+        },
+        "selection": {
+          "type": "string",
+          "knownValues": ["latest"],
+          "default": "latest",
+          "description": "表示するレコードの選び方。MVP は最新1件（latest）のみ。"
+        },
+        "appUri": {
+          "type": "string",
+          "format": "uri",
+          "description": "アプリの Web サイト URL。favicon の取得元にもなる。"
+        },
+        "iconUrl": {
+          "type": "string",
+          "format": "uri",
+          "description": "アプリのアイコン（favicon）URL。連携設定時に appUri から解決して保存する。"
+        },
+        "enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "この連携をプロフィールに表示するか。"
+        },
+        "fields": {
+          "type": "array",
+          "maxLength": 10,
+          "items": { "type": "ref", "ref": "#field" }
+        }
+      }
+    },
+    "field": {
+      "type": "object",
+      "required": ["path", "role"],
+      "properties": {
+        "path": {
+          "type": "string",
+          "maxLength": 512,
+          "description": "レコード本体を flatten したキーパス（例 \"trackName\" / \"embed.title\" / \"items[0].name\"）。"
+        },
+        "label": {
+          "type": "string",
+          "maxGraphemes": 64,
+          "maxLength": 640,
+          "description": "表示ラベル（省略時は path 末尾）。"
+        },
+        "role": {
+          "type": "string",
+          "knownValues": ["title", "value", "datetime", "url"],
+          "description": "描画ヒント。title=見出し、value=本文、datetime=日時、url=リンク。"
+        }
+      }
+    }
+  }
+}

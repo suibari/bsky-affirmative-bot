@@ -1,0 +1,32 @@
+{
+  "lexicon": 1,
+  "id": "com.suibari.nagi.resolveLexicon",
+  "defs": {
+    "main": {
+      "type": "query",
+      "description": "NSID を受け、publish 済み Lexicon のスキーマ定義を解決して返す。DNS TXT 解決を伴うためサーバ側で実行する。未解決なら resolved=false。",
+      "parameters": {
+        "type": "params",
+        "required": ["nsid"],
+        "properties": {
+          "nsid": { "type": "string", "format": "nsid" }
+        }
+      },
+      "output": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "required": ["resolved"],
+          "properties": {
+            "resolved": { "type": "boolean" },
+            "nsid": { "type": "string" },
+            "schema": {
+              "type": "unknown",
+              "description": "解決できた場合の Lexicon ドキュメント（com.atproto.lexicon.schema レコードの value）。"
+            }
+          }
+        }
+      }
+    }
+  }
+}

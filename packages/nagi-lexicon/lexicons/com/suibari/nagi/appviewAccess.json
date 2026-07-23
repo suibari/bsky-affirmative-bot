@@ -13,7 +13,8 @@
           "collection": [
             "com.suibari.nagi.post",
             "com.suibari.nagi.reaction",
-            "com.suibari.nagi.profile"
+            "com.suibari.nagi.profile",
+            "com.suibari.nagi.appLinks"
           ]
         },
         {

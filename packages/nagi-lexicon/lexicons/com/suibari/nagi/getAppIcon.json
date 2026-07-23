@@ -1,0 +1,26 @@
+{
+  "lexicon": 1,
+  "id": "com.suibari.nagi.getAppIcon",
+  "defs": {
+    "main": {
+      "type": "query",
+      "description": "アプリの Web サイト URL を受け、ページの <link rel=icon> 等を解析して favicon の絶対URLを返す。連携設定時にアイコンを1回解決して appLinks レコードへ保存するために使う。",
+      "parameters": {
+        "type": "params",
+        "required": ["url"],
+        "properties": {
+          "url": { "type": "string", "format": "uri" }
+        }
+      },
+      "output": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "iconUrl": { "type": "string", "format": "uri" }
+          }
+        }
+      }
+    }
+  }
+}

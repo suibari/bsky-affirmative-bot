@@ -147,6 +147,48 @@ export async function getLinkMetadata(raw: string, forceFallback = false) {
   }
 }
 
+// <link rel="...icon..."> の href を rel ごとに拾う。icon / shortcut icon / apple-touch-icon を対象。
+const iconLink = (html: string): string | undefined => {
+  const re = /<link\b[^>]*>/gi;
+  let best: { href: string; score: number } | undefined;
+  for (const tag of html.match(re) ?? []) {
+    const rel = /\brel=["']([^"']*)["']/i.exec(tag)?.[1]?.toLowerCase() ?? "";
+    if (!/\bicon\b/.test(rel)) continue;
+    const href = /\bhref=["']([^"']*)["']/i.exec(tag)?.[1];
+    if (!href) continue;
+    // apple-touch-icon > icon > shortcut icon をやや優先（大きめ・確実なもの）。
+    const score = rel.includes("apple-touch-icon") ? 3 : rel === "icon" ? 2 : 1;
+    if (!best || score > best.score) best = { href: decode(href), score };
+  }
+  return best?.href;
+};
+
+/**
+ * アプリの Web サイト URL から favicon の絶対URLを解決する。ページHTMLの
+ * <link rel=icon> 等を優先し、無ければ origin 直下の /favicon.ico にフォールバック。
+ * 画像そのものは取得せず URL だけ返す（表示側が <img> で読む）。
+ */
+export async function resolveFavicon(raw: string): Promise<{ iconUrl?: string }> {
+  const url = await safeUrl(raw);
+  const fallback = new URL("/favicon.ico", url).href;
+  try {
+    const { response, url: resolved } = await limitedFetch(
+      url.href,
+      "text/html,application/xhtml+xml",
+    );
+    if (!response.headers.get("content-type")?.toLowerCase().includes("html"))
+      return { iconUrl: fallback };
+    const html = new TextDecoder().decode(await bytes(response, HTML_LIMIT));
+    const href = iconLink(html);
+    if (!href) return { iconUrl: fallback };
+    // href は相対・プロトコル相対・data: いずれもありうる。safeUrl で絶対化＋SSRF/スキーム検証。
+    if (href.startsWith("data:")) return { iconUrl: href };
+    return { iconUrl: (await safeUrl(href, resolved)).href };
+  } catch {
+    return { iconUrl: fallback };
+  }
+}
+
 export async function getLinkThumbnail(raw: string) {
   const { response } = await limitedFetch(raw, "image/jpeg,image/png,image/webp");
   const contentType = response.headers.get("content-type")?.split(";")[0].toLowerCase() ?? "";

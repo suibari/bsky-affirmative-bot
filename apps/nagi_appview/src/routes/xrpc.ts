@@ -23,8 +23,9 @@ import {
 import { translatePost } from "../services/translation.js";
 import { ApiError } from "../middleware/errors.js";
 import { deleteAccountData } from "../services/deleteAccountData.js";
-import { getLinkMetadata, getLinkThumbnail } from "../services/linkMetadata.js";
+import { getAppIcon, getLinkMetadata, getLinkThumbnail } from "../services/linkMetadata.js";
 import { getEmoji, searchEmojis } from "../services/emoji.js";
+import { resolveLexicon } from "../queries/resolveLexicon.js";
 export const xrpc = Router();
 const limit = (value: unknown) =>
   Math.min(100, Math.max(1, Number(value ?? 50) || 50));
@@ -132,6 +133,42 @@ xrpc.get(
       res
         .set("Cache-Control", "public, max-age=60")
         .json(await getEmoji(String(req.query.uri ?? "")));
+    } catch (e) {
+      next(e);
+    }
+  },
+);
+// 任意アプリ連携のためのスキーマ解決。認証不要の公開クエリ（PDS プロキシを経由せず
+// AppView へ直接呼ばれる）。DNS 解決を伴うため専用のレート制限を掛ける。
+const resolveLexiconLimiter = rateLimit({
+  windowMs: 60_000,
+  limit: 30,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+});
+xrpc.get(
+  `/${NAGI.resolveLexicon}`,
+  resolveLexiconLimiter,
+  async (req, res, next) => {
+    try {
+      res
+        .set("Cache-Control", "public, max-age=300")
+        .json(await resolveLexicon(String(req.query.nsid ?? "")));
+    } catch (e) {
+      next(e);
+    }
+  },
+);
+// アプリのアイコン（favicon）解決。外部ページを fetch するので同じレート制限を掛ける。
+// 連携設定時に1回だけ呼ばれ、結果は appLinks レコードへ保存される想定。
+xrpc.get(
+  `/${NAGI.getAppIcon}`,
+  resolveLexiconLimiter,
+  async (req, res, next) => {
+    try {
+      res
+        .set("Cache-Control", "public, max-age=3600")
+        .json(await getAppIcon(String(req.query.url ?? "")));
     } catch (e) {
       next(e);
     }

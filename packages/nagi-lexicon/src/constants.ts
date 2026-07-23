@@ -2,6 +2,8 @@ export const NAGI = {
   post: "com.suibari.nagi.post",
   reaction: "com.suibari.nagi.reaction",
   profile: "com.suibari.nagi.profile",
+  /** ユーザーが curate する、任意 Atmosphere アプリへの連携宣言リスト（プロフィール下部に表示）。 */
+  appLinks: "com.suibari.nagi.appLinks",
   /** botたんが書くユーザーの日記。書き手は bot のみなのでユーザーの書き込みスコープには含めない。 */
   diary: "com.suibari.nagi.diary",
   /** botたん（将来はユーザーも）がPDSへ保存する、タイムライン非表示のニュースレコード。 */
@@ -24,6 +26,8 @@ export const NAGI = {
   getEmoji: "com.suibari.nagi.getEmoji",
   getDiaries: "com.suibari.nagi.getDiaries",
   getPositiveNews: "com.suibari.nagi.getPositiveNews",
+  resolveLexicon: "com.suibari.nagi.resolveLexicon",
+  getAppIcon: "com.suibari.nagi.getAppIcon",
 } as const;
 
 /** Bluemoji (moji.blue) の絵文字定義レコード。カスタム絵文字はユーザー自身のPDSに置く。 */
@@ -74,15 +78,21 @@ export const NAGI_COLLECTIONS = [
   NAGI.post,
   NAGI.reaction,
   NAGI.profile,
+  NAGI.appLinks,
   BLUEMOJI_ITEM,
 ] as const;
 /**
  * jetstream で購読するコレクション。
  * 日記は bot だけが書くのでユーザーの書き込みスコープ（NAGI_COLLECTIONS）には無いが、
  * AppView は取り込む必要があるためここにだけ足す。
+ * 逆に appLinks はユーザー書き込み可能（NAGI_COLLECTIONS に含む）だが、表示はクライアント直読み
+ * のため AppView では取り込まない。よって NAGI_COLLECTIONS を spread せず明示列挙する。
  */
 export const NAGI_INGEST_COLLECTIONS = [
-  ...NAGI_COLLECTIONS,
+  NAGI.post,
+  NAGI.reaction,
+  NAGI.profile,
+  BLUEMOJI_ITEM,
   NAGI.diary,
   NAGI.news,
 ] as const;
