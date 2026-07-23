@@ -5,7 +5,7 @@ import { and, eq, gt } from "drizzle-orm";
 const NEWSDATA_ENDPOINT = "https://newsdata.io/api/1/latest";
 const CACHE_TTL_MS = 30 * 60 * 1000;
 const GEMMA_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
-const SCREENING_POLICY_VERSION = "positive-news-coarse-v2";
+const SCREENING_POLICY_VERSION = "positive-news-coarse-v3";
 const MAX_PAGES = 3;
 const PAGE_SIZE = 10;
 const TARGET_CANDIDATES = 3;
@@ -120,11 +120,14 @@ const CLASSIFIER_SYSTEM_PROMPT = `あなたは「全肯定ニュース」の候�
 
 不採用条件:
 - 政治、選挙、外交、戦争、紛争、犯罪、事件、事故が記事の中心である。
+- 家畜伝染病・感染症の発生や拡大、防疫措置、殺処分（豚熱、鳥インフルエンザ、口蹄疫など）が記事の中心である。
 - 復旧中、改善傾向、可能性、見込み、募集中、発生中など、結果が未確定である。
 - 病気、闘病、負傷は、完全回復・完治・寛解が明記されていない。
 - 明らかな商品・サービス・店舗・イベントの宣伝や販促が記事の中心である。
 - 媒体名が明確なプレスリリース配信サービスを示している。
 - 暗い状態の報告、単なる予定・解説、または判断が曖昧である。
+
+注意: 「措置・対応・作業の終了/完了」自体は前向きな成果ではありません。人や地域に利益をもたらす復旧・回復・達成がある場合だけ成果とみなしてください。
 
 迷う場合は reject にしてください。JSON Schemaどおりにだけ回答してください。`;
 

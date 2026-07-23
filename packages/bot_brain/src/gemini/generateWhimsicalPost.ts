@@ -73,6 +73,8 @@ export class WhimsicalPostGenerator {
   Final safety rules for positive news:
   * Choose only news whose main focus and confirmed outcome are clearly positive.
   * Reject unresolved, dark, political, electoral, diplomatic, war, conflict, crime, incident, or accident news.
+  * Reject livestock epidemic, infectious disease outbreaks, disease-control measures, or culling (e.g. swine fever, avian influenza, foot-and-mouth disease).
+  * Completion or conclusion of measures or a response is not itself a positive outcome; only a recovery, restoration, or achievement that benefits people or a community counts.
   * Health or injury news is allowed only when full recovery, cure, or remission is explicit.
   * Reject strongly promotional advertising or press-release-style content.
   * Reject an item when its sourceName clearly identifies a press-release distribution service.
