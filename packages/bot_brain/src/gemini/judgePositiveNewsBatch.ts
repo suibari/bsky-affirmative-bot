@@ -2,6 +2,7 @@ import { MODEL_GEMINI_LITE, SYSTEM_INSTRUCTION as BOT_PERSONA } from "@bsky-affi
 import { Type } from "@google/genai";
 import type { PositiveNewsCandidate } from "../api/newsdata/index.js";
 import { gemini } from "./index.js";
+import { withNewsGeminiRetry } from "./newsGeminiRetry.js";
 
 export const POSITIVE_NEWS_PROMPT_VERSION = "nagi-positive-news-v7";
 export const POSITIVE_NEWS_MODEL = MODEL_GEMINI_LITE;
@@ -180,6 +181,28 @@ function parseNewsComment(text: string | undefined): NewsComment | undefined {
 
 // 1回のゲート審査で扱う最大件数。1スロットの掲載上限に合わせる。
 const MAX_BATCH_SIZE = 5;
+const COMMENT_CONCURRENCY = 2;
+
+async function mapWithConcurrency<T, R>(
+  values: T[],
+  concurrency: number,
+  mapper: (value: T) => Promise<R>,
+): Promise<R[]> {
+  const results = new Array<R>(values.length);
+  let nextIndex = 0;
+
+  async function worker() {
+    while (nextIndex < values.length) {
+      const index = nextIndex++;
+      results[index] = await mapper(values[index]);
+    }
+  }
+
+  await Promise.all(
+    Array.from({ length: Math.min(concurrency, values.length) }, () => worker()),
+  );
+  return results;
+}
 
 async function gateNewsBatch(input: PositiveNewsCandidate[]): Promise<GateDecision[]> {
   const userText = JSON.stringify(input.map((article) => ({
@@ -189,15 +212,18 @@ async function gateNewsBatch(input: PositiveNewsCandidate[]): Promise<GateDecisi
   // responseSchemaで構造化を保証。それでも稀な空応答に備え最大2回試行する。
   let decisions: unknown[] | undefined;
   for (let attempt = 0; attempt < 2 && !decisions; attempt++) {
-    const response = await gemini.models.generateContent({
-      model: MODEL_GEMINI_LITE,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: GATE_SCHEMA,
-        systemInstruction: GATE_SYSTEM_INSTRUCTION,
-      },
-      contents: [{ role: "user", parts: [{ text: userText }] }],
-    });
+    const response = await withNewsGeminiRetry(
+      { stage: "gate" },
+      () => gemini.models.generateContent({
+        model: MODEL_GEMINI_LITE,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: GATE_SCHEMA,
+          systemInstruction: GATE_SYSTEM_INSTRUCTION,
+        },
+        contents: [{ role: "user", parts: [{ text: userText }] }],
+      }),
+    );
     decisions = parseDecisions(response.text);
     if (!decisions && attempt === 0) {
       console.warn("[WARN][NEWS_FEED] Gemini gate response had no parseable JSON; retrying once.");
@@ -214,23 +240,33 @@ async function generateNewsComment(candidate: PositiveNewsCandidate): Promise<Ne
     titleJa: candidate.title, descriptionJa: candidate.description, sourceName: candidate.sourceName, url: candidate.link,
   })}`;
 
-  const request = async (tools: any[]): Promise<string | undefined> => {
-    const response = await gemini.models.generateContent({
-      model: MODEL_GEMINI_LITE,
-      config: { systemInstruction: BOT_PERSONA, ...(tools.length ? { tools } : {}) },
-      contents: [{ role: "user", parts: [{ text: userText }] }],
-    });
+  const request = async (
+    mode: "url_context" | "search" | "plain",
+    tools: any[],
+  ): Promise<string | undefined> => {
+    const response = await withNewsGeminiRetry(
+      { stage: "comment", articleId: candidate.articleId, mode },
+      () => gemini.models.generateContent({
+        model: MODEL_GEMINI_LITE,
+        config: { systemInstruction: BOT_PERSONA, ...(tools.length ? { tools } : {}) },
+        contents: [{ role: "user", parts: [{ text: userText }] }],
+      }),
+    );
     return response.text;
   };
 
   // urlContextは実ページを読める分コメントが的確になるが空応答を招くことがある。
   // 失敗しても googleSearch のみ→ツール無し へ段階的に落として必ずコメントを得る。
-  const toolChain = candidate.link
-    ? [[{ googleSearch: {} }, { urlContext: {} }], [{ googleSearch: {} }], []]
-    : [[{ googleSearch: {} }], []];
-  for (const tools of toolChain) {
+  const toolChain: Array<{ mode: "url_context" | "search" | "plain"; tools: any[] }> = candidate.link
+    ? [
+      { mode: "url_context", tools: [{ googleSearch: {} }, { urlContext: {} }] },
+      { mode: "search", tools: [{ googleSearch: {} }] },
+      { mode: "plain", tools: [] },
+    ]
+    : [{ mode: "search", tools: [{ googleSearch: {} }] }, { mode: "plain", tools: [] }];
+  for (const { mode, tools } of toolChain) {
     try {
-      const comment = parseNewsComment(await request(tools));
+      const comment = parseNewsComment(await request(mode, tools));
       if (comment) return comment;
       console.warn(`[WARN][NEWS_FEED] comment unparseable for ${candidate.articleId}; trying next fallback.`);
     } catch (error) {
@@ -248,7 +284,7 @@ export async function judgePositiveNewsBatch(candidates: PositiveNewsCandidate[]
   const gated = await gateNewsBatch(input);
 
   // パス2: 承認された記事だけ、botたんとしてコメントを生成する（共有ペルソナ使用）。
-  return Promise.all(gated.map(async (decision) => {
+  return mapWithConcurrency(gated, COMMENT_CONCURRENCY, async (decision) => {
     const empty = { articleId: decision.articleId, publishable: false, reasonCode: decision.reasonCode, botCommentJa: "", titleEn: "", botCommentEn: "" };
     if (!decision.publishable) return empty;
     const candidate = input.find((item) => item.articleId === decision.articleId);
@@ -260,5 +296,5 @@ export async function judgePositiveNewsBatch(candidates: PositiveNewsCandidate[]
       return empty;
     }
     return { articleId: decision.articleId, publishable: true, reasonCode: decision.reasonCode, ...comment };
-  }));
+  });
 }
