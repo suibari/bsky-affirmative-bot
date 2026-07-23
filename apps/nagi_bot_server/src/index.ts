@@ -7,7 +7,10 @@ import {
   syncNagiBotProfile,
 } from "./NagiBotProfileFeature.js";
 import { onNagiPost } from "./NagiReplyFeature.js";
-import { onNagiChannel } from "./NagiChannelFeature.js";
+import {
+  onNagiChannel,
+  startNagiChannelTopicScheduler,
+} from "./NagiChannelFeature.js";
 import { startNagiReplyWorker } from "./NagiReplyWorker.js";
 import express from "express";
 import type { ScheduledPostRequest } from "@bsky-affirmative-bot/clients";
@@ -38,6 +41,8 @@ async function start() {
     },
   });
   startNagiReplyWorker();
+  // 過疎チャンネルへの話題提供（Phase 2）。作成時の盛り上げ投稿は onNagiChannel が担う。
+  startNagiChannelTopicScheduler();
 
   scheduleAllNagiDiaries().catch((error) => {
     console.error("[ERROR][NAGI] Failed to schedule diaries:", error);
