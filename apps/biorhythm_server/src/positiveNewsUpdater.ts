@@ -8,6 +8,10 @@ import { and, eq, gt, inArray, isNull, lt, or, sql } from "drizzle-orm";
 const SIX_HOURS = 6 * 60 * 60 * 1000;
 const RETRY_DELAY = 30 * 60 * 1000;
 const JST_OFFSET = 9 * 60 * 60 * 1000;
+// 1スロットで掲載する最大件数と、その日次上限（掲載数 / NewsDataクレジット）。
+const MAX_PER_SLOT = 5;
+const DAILY_PUBLISH_LIMIT = 20;
+const DAILY_CREDIT_LIMIT = 20;
 
 export function newsSlot(now = new Date()): Date {
   return new Date(Math.floor((now.getTime() + JST_OFFSET) / SIX_HOURS) * SIX_HOURS - JST_OFFSET);
@@ -39,14 +43,14 @@ export async function updatePositiveNews(now = new Date()): Promise<number> {
     const dayStartMs = Math.floor((now.getTime() + JST_OFFSET) / 86_400_000) * 86_400_000 - JST_OFFSET;
     const countRows = await db.select({ count: sql<number>`coalesce(sum(${nagiNewsUpdateRuns.publishedCount}), 0)` }).from(nagiNewsUpdateRuns)
       .where(and(gt(nagiNewsUpdateRuns.slot, new Date(dayStartMs - 1)), lt(nagiNewsUpdateRuns.slot, new Date(dayStartMs + 86_400_000))));
-    const remaining = Math.max(0, 12 - Number(countRows[0]?.count ?? 0));
+    const remaining = Math.max(0, DAILY_PUBLISH_LIMIT - Number(countRows[0]?.count ?? 0));
     if (!remaining) {
       await db.update(nagiNewsUpdateRuns).set({ status: "complete", finishedAt: new Date() }).where(eq(nagiNewsUpdateRuns.slot, slot));
       return 0;
     }
     const creditRows = await db.select({ count: sql<number>`coalesce(sum(${nagiNewsUpdateRuns.newsDataCredits}), 0)` }).from(nagiNewsUpdateRuns)
       .where(and(gt(nagiNewsUpdateRuns.slot, new Date(dayStartMs - 1)), lt(nagiNewsUpdateRuns.slot, new Date(dayStartMs + 86_400_000))));
-    const remainingCredits = Math.max(0, 12 - Number(creditRows[0]?.count ?? 0));
+    const remainingCredits = Math.max(0, DAILY_CREDIT_LIMIT - Number(creditRows[0]?.count ?? 0));
     if (!remainingCredits) {
       await db.update(nagiNewsUpdateRuns).set({ status: "complete", finishedAt: new Date() }).where(eq(nagiNewsUpdateRuns.slot, slot));
       return 0;
@@ -62,7 +66,7 @@ export async function updatePositiveNews(now = new Date()): Promise<number> {
     const candidates = result.candidates.filter((item) => {
       const url = normalizedUrl(item.link);
       return url && !existing.some((row) => row.normalizedUrl === url);
-    }).slice(0, Math.min(3, remaining));
+    }).slice(0, Math.min(MAX_PER_SLOT, remaining));
     if (!candidates.length) {
       await db.update(nagiNewsUpdateRuns).set({ status: "complete", newsDataCredits: sql`${nagiNewsUpdateRuns.newsDataCredits} + ${creditsUsed}`, finishedAt: new Date() }).where(eq(nagiNewsUpdateRuns.slot, slot));
       return 0;

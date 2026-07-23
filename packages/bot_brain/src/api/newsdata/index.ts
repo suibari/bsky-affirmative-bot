@@ -8,7 +8,7 @@ const GEMMA_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const SCREENING_POLICY_VERSION = "positive-news-coarse-v3";
 const MAX_PAGES = 3;
 const PAGE_SIZE = 10;
-const TARGET_CANDIDATES = 3;
+const TARGET_CANDIDATES = 5;
 const CLASSIFIER_CONCURRENCY = 2;
 const DESCRIPTION_LIMIT = 1_200;
 

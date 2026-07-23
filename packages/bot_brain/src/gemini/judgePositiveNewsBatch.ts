@@ -92,8 +92,11 @@ function parseDecisions(text: string | undefined): unknown[] | undefined {
   return undefined;
 }
 
+// 1回のグラウンディング付き審査で扱う最大件数。多すぎると空応答・タイムアウトが増えるため控えめに保つ。
+const MAX_BATCH_SIZE = 5;
+
 export async function judgePositiveNewsBatch(candidates: PositiveNewsCandidate[]): Promise<PositiveNewsBatchDecision[]> {
-  const input = candidates.slice(0, 3);
+  const input = candidates.slice(0, MAX_BATCH_SIZE);
   if (!input.length) return [];
   const userText = JSON.stringify(input.map((article) => ({ articleId: article.articleId, titleJa: article.title, descriptionJa: article.description, sourceName: article.sourceName, url: article.link })));
 
