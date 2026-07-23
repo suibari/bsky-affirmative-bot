@@ -53,8 +53,8 @@ export const nagiPosts = nagiSchema.table(
     quoteUri: text("quote_uri"),
     quoteCid: text("quote_cid"),
     quoteValid: boolean("quote_valid").default(false).notNull(),
-    // こっそりモード。true のトップレベル投稿はグローバル/全肯定TLに出さない。
-    // プロフィール・スレッド・通知からは見える（完全非公開ではない）。
+    // こっそりはスレッドルートだけが所有する。返信の共有可否はこの行自身ではなく
+    // replyRootUri の参照先から解決し、プロフィール・スレッドからは引き続き見える。
     kossori: boolean("kossori").default(false).notNull(),
     // 所属チャンネル（com.suibari.nagi.channel）の AT-URI。返信は親の channel を継承する。
     channelUri: text("channel_uri"),

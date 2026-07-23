@@ -149,10 +149,9 @@ export async function createNagiReply(job: any) {
       createdAt: new Date().toISOString(),
       ...(await buildLinkAttachments(text)),
       // 元投稿がチャンネル所属なら返信も同じ channel を継承し、CH TL に並ぶ（Misskey 同様）。
-      // 元が「グローバルに出さない」（kossori、または旧データの channelOnly）ならこの返信も
-      // kossori にしてグローバル露出を揃える。
+      // こっそりはスレッドルートだけが所有し、AppView が返信にも有効範囲を適用する。
+      // 返信へ複製すると、返信単位で公開範囲を持てるように見えてしまうため保存しない。
       ...(record.channel ? { channel: record.channel } : {}),
-      ...(record.channel && (record.kossori || record.channelOnly) ? { kossori: true } : {}),
       reply: {
         root,
         parent: {

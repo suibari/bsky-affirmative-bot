@@ -35,7 +35,10 @@ export type NagiPost = {
   facets?: Facet[];
   langs?: string[];
   createdAt: string;
-  /** こっそりモード。true のトップレベル投稿はグローバル/全肯定TLに出さない。 */
+  /**
+   * こっそりモード。スレッドの公開範囲はルート投稿だけが所有するため、
+   * 新しい返信レコードには設定しない。
+   */
   kossori?: boolean;
   /** 所属チャンネル（com.suibari.nagi.channel）への参照。返信は親の channel を継承する。 */
   channel?: StrongRef;
@@ -206,7 +209,7 @@ export type PostView = {
   langs?: string[];
   createdAt: string;
   indexedAt: string;
-  reply?: { root: string; parent: string };
+  reply?: { root: StrongRef; parent: StrongRef };
   images?: Array<{ url: string; alt: string; aspectRatio?: AspectRatio }>;
   linkCards?: Array<{
     uri: string;
@@ -220,8 +223,10 @@ export type PostView = {
   reactions: ReactionView[];
   isBot: boolean;
   isAffirmation: boolean;
-  /** こっそりモード。グローバル/全肯定TLには出ず、プロフィール・スレッドでのみ見える。 */
+  /** このレコード自身のこっそり値。新規データではスレッドルートだけが持つ。 */
   kossori?: boolean;
+  /** ルート投稿から解決した、スレッド全体の有効なこっそり状態。 */
+  threadKossori?: boolean;
   /** 所属チャンネル（あれば）。バッジ表示・返信時の継承元に使う。 */
   channel?: { uri: string; cid: string; name?: string };
   /** CH 限定投稿（グローバル非表示）か。 */

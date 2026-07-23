@@ -80,6 +80,27 @@ export async function hydratePostViews(
     getSuperPositiveLevels(dids),
     getCurrentTitles(dids),
   ]);
+  const rootUris = [
+    ...new Set(rows.flatMap(({ post }) => (post.replyRootUri ? [post.replyRootUri] : []))),
+  ];
+  const threadRoots = rootUris.length
+    ? new Map(
+        (
+          await db
+            .select({
+              uri: nagiPosts.uri,
+              cid: nagiPosts.cid,
+              kossori: nagiPosts.kossori,
+              channelOnly: nagiPosts.channelOnly,
+            })
+            .from(nagiPosts)
+            .where(and(inArray(nagiPosts.uri, rootUris), isNull(nagiPosts.deletedAt)))
+        ).map((root) => [root.uri, root]),
+      )
+    : new Map<
+        string,
+        { uri: string; cid: string; kossori: boolean; channelOnly: boolean }
+      >();
   // バッジ表示用にチャンネル名を引く（uri→name）。所属 CH のある投稿だけ。
   const channelUris = [
     ...new Set(rows.flatMap((r) => (r.post.channelUri ? [r.post.channelUri] : []))),
@@ -96,6 +117,18 @@ export async function hydratePostViews(
     : new Map<string, string>();
   const views = rows.map(({ post, actor, profile, score }) => {
     const deleted = Boolean(post.deletedAt);
+    const recordReply = (post.recordJson as any)?.reply;
+    const threadRoot = post.replyRootUri
+      ? threadRoots.get(post.replyRootUri)
+      : undefined;
+    // こっそりは返信レコードの値ではなくルートが所有する。旧 channelOnly も、
+    // 過去のチャンネル限定スレッドを再公開しないため同じ非共有設定として扱う。
+    // 参照先を解決できない返信は、意図しない共有TL露出を避けるため非共有側に倒す。
+    const threadKossori = post.replyRootUri
+      ? threadRoot
+        ? threadRoot.kossori || threadRoot.channelOnly
+        : true
+      : post.kossori || post.channelOnly;
     const images =
       !deleted && Array.isArray(post.embedImages)
         ? post.embedImages.flatMap((item: any) => {
@@ -144,7 +177,20 @@ export async function hydratePostViews(
       createdAt: post.recordCreatedAt.toISOString(),
       indexedAt: post.indexedAt.toISOString(),
       reply: post.replyParentUri
-        ? { root: post.replyRootUri ?? post.replyParentUri, parent: post.replyParentUri }
+        ? {
+            root: {
+              uri: post.replyRootUri ?? post.replyParentUri,
+              cid:
+                recordReply?.root?.cid ??
+                threadRoot?.cid ??
+                recordReply?.parent?.cid ??
+                "",
+            },
+            parent: {
+              uri: post.replyParentUri,
+              cid: recordReply?.parent?.cid ?? "",
+            },
+          }
         : undefined,
       images: images?.length ? images : undefined,
       linkCards: linkCards?.length ? linkCards : undefined,
@@ -180,6 +226,7 @@ export async function hydratePostViews(
       isBot: post.did === config.botDid,
       isAffirmation: (score ?? -1) >= config.affirmationThreshold,
       kossori: post.kossori || undefined,
+      threadKossori: threadKossori || undefined,
       channel: post.channelUri
         ? {
             uri: post.channelUri,
@@ -312,11 +359,22 @@ export async function getTimeline(opts: {
   // CH TL も共有TL扱いで grouping する（botたんの返信は元投稿にまとめる）。
   if (!opts.actorDid)
     filters.push(or(ne(nagiPosts.did, config.botDid), isNull(nagiPosts.replyParentUri)));
-  // こっそり／CH限定ポストは共有TL（グローバル/全肯定）から除外。プロフィール（actorDid）や
-  // CH TL（channelUri）・スレッド・引用では見えるので、ここでだけ落とす。
+  // こっそりは返信ごとではなくスレッドルートが所有する。旧 channelOnly も互換性のため
+  // ルートの非共有設定として扱う。ルート未解決時に true へ倒すのは、壊れた参照によって
+  // 本来こっそりだった返信を共有TLへ露出させないため。
   if (!opts.actorDid && !opts.channelUri) {
-    filters.push(eq(nagiPosts.kossori, false));
-    filters.push(eq(nagiPosts.channelOnly, false));
+    filters.push(sql`
+      case
+        when ${nagiPosts.replyRootUri} is null
+          then not (${nagiPosts.kossori} or ${nagiPosts.channelOnly})
+        else coalesce((
+          select not (thread_root.kossori or thread_root.channel_only)
+          from nagi.posts as thread_root
+          where thread_root.uri = ${nagiPosts.replyRootUri}
+            and thread_root.deleted_at is null
+        ), false)
+      end
+    `);
     // 将来チャンネル投稿をグローバル/全肯定TLへ流さない方針に変える場合は、
     // ここに filters.push(isNull(nagiPosts.channelUri)); を1行足すだけでよい。
   }
