@@ -6,6 +6,10 @@ import { getTimeline } from "./timeline.js";
 /** 活動順ソート用の下限（投稿ゼロの CH はここに沈む）。 */
 const EPOCH = "1970-01-01T00:00:00.000Z";
 
+// max(indexed_at) など生 SQL 式の結果は drizzle が Date へ変換せず文字列で返すことがある。
+// timestamp 列も含め new Date() で包んでから ISO 化する（Date でも文字列でも安全）。
+const iso = (value: Date | string) => new Date(value).toISOString();
+
 const channelView = (row: {
   uri: string;
   cid: string;
@@ -13,9 +17,9 @@ const channelView = (row: {
   name: string;
   description: string | null;
   bannerCid: string | null;
-  recordCreatedAt: Date;
-  indexedAt: Date;
-  lastPostAt: Date | null;
+  recordCreatedAt: Date | string;
+  indexedAt: Date | string;
+  lastPostAt: Date | string | null;
 }): ChannelView => ({
   uri: row.uri,
   cid: row.cid,
@@ -25,9 +29,9 @@ const channelView = (row: {
   ...(row.bannerCid
     ? { banner: `/api/blob/${encodeURIComponent(row.did)}/${row.bannerCid}` }
     : {}),
-  createdAt: row.recordCreatedAt.toISOString(),
-  indexedAt: row.indexedAt.toISOString(),
-  ...(row.lastPostAt ? { lastPostAt: row.lastPostAt.toISOString() } : {}),
+  createdAt: iso(row.recordCreatedAt),
+  indexedAt: iso(row.indexedAt),
+  ...(row.lastPostAt ? { lastPostAt: iso(row.lastPostAt) } : {}),
 });
 
 /** 各 CH の最新投稿時刻（活動順・過疎判定に再利用できる）。削除済み投稿は除く。 */
@@ -85,7 +89,7 @@ export async function getChannels(opts: { limit: number; cursor?: string }) {
     channels: page.map(channelView),
     cursor:
       rows.length > opts.limit && last
-        ? encodeCursor((last.lastPostAt ?? new Date(EPOCH)).toISOString(), last.uri)
+        ? encodeCursor(iso(last.lastPostAt ?? EPOCH), last.uri)
         : undefined,
     hasMore: rows.length > opts.limit,
   };
