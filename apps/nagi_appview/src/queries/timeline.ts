@@ -317,6 +317,8 @@ export async function getTimeline(opts: {
   if (!opts.actorDid && !opts.channelUri) {
     filters.push(eq(nagiPosts.kossori, false));
     filters.push(eq(nagiPosts.channelOnly, false));
+    // 将来チャンネル投稿をグローバル/全肯定TLへ流さない方針に変える場合は、
+    // ここに filters.push(isNull(nagiPosts.channelUri)); を1行足すだけでよい。
   }
   const rows = await db
     .select(postSelection)
