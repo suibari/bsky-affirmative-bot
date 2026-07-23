@@ -64,23 +64,18 @@
     },
     "field": {
       "type": "object",
-      "required": ["path", "role"],
+      "required": ["path"],
+      "description": "プロフィールに表示するフィールド。表示するキーパスの宣言のみを持ち、描画の役割（値/日時/リンク/画像）は表示側が値から自動判別する。",
       "properties": {
         "path": {
           "type": "string",
           "maxLength": 512,
           "description": "レコード本体を flatten したキーパス（例 \"trackName\" / \"embed.title\" / \"items[0].name\"）。"
         },
-        "label": {
-          "type": "string",
-          "maxGraphemes": 64,
-          "maxLength": 640,
-          "description": "表示ラベル（省略時は path 末尾）。"
-        },
         "role": {
           "type": "string",
-          "knownValues": ["title", "value", "datetime", "url"],
-          "description": "描画ヒント。title=見出し、value=本文、datetime=日時、url=リンク。"
+          "knownValues": ["value", "datetime", "url", "image"],
+          "description": "任意の描画ヒント。省略時は表示側が値から自動判別する。"
         }
       }
     }
