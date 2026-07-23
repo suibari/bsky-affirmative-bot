@@ -40,6 +40,11 @@
           "default": "latest",
           "description": "表示するレコードの選び方。MVP は最新1件（latest）のみ。"
         },
+        "repeat": {
+          "type": "string",
+          "maxLength": 512,
+          "description": "1レコード内で、このキーパスが指す配列の各要素を1行として展開する（例 \"cards\"）。省略時は単一表示。指定時、fields の path は配列の各要素からの相対パスになる。"
+        },
         "appUri": {
           "type": "string",
           "format": "uri",
