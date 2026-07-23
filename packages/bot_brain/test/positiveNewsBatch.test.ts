@@ -1,19 +1,20 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { sanitizePositiveNewsBatch } from "../src/gemini/judgePositiveNewsBatch.js";
+import { sanitizeGateDecisions } from "../src/gemini/judgePositiveNewsBatch.js";
 
 const input = [
   { articleId: "a", title: "受賞", categories: [] },
   { articleId: "b", title: "復旧", categories: [] },
 ];
-const decision = (articleId: string) => ({ articleId, publishable: true, reasonCode: "positive_result", botCommentJa: "よかった！", titleEn: "Award", botCommentEn: "Wonderful!" });
+const decision = (articleId: string) => ({ articleId, publishable: true, reasonCode: "positive_result" });
 
 test("入力外・欠落・重複IDをfail closedにする", () => {
-  const result = sanitizePositiveNewsBatch(input, [decision("a"), decision("a"), decision("unknown")]);
+  const result = sanitizeGateDecisions(input, [decision("a"), decision("a"), decision("unknown")]);
   assert.deepEqual(result.map((item) => item.publishable), [false, false]);
 });
 
-test("掲載判定の空コメントを拒否する", () => {
-  const result = sanitizePositiveNewsBatch(input.slice(0, 1), [{ ...decision("a"), botCommentJa: "" }]);
+test("不正なreasonCode/publishableは掲載しない", () => {
+  const result = sanitizeGateDecisions(input.slice(0, 1), [{ articleId: "a", publishable: true, reasonCode: "bogus" }]);
   assert.equal(result[0].publishable, false);
+  assert.equal(result[0].reasonCode, "unclear");
 });
