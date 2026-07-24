@@ -94,6 +94,8 @@ export const nagiChannels = nagiSchema.table(
     name: text("name").notNull(),
     description: text("description"),
     bannerCid: text("banner_cid"),
+    pinnedPostUri: text("pinned_post_uri"),
+    pinnedPostCid: text("pinned_post_cid"),
     recordCreatedAt: timestamp("record_created_at", {
       withTimezone: true,
     }).notNull(),

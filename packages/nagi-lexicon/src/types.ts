@@ -66,6 +66,8 @@ export type NagiChannel = {
   name: string;
   description?: string;
   banner?: BlobRef;
+  /** チャンネル上部へ固定する投稿。URI を基準に現在の投稿内容を解決する。 */
+  pinnedPost?: StrongRef;
   createdAt: string;
 };
 /** AppView が返すチャンネルのビュー。banner は blob プロキシへの相対パス。 */
@@ -80,6 +82,10 @@ export type ChannelView = {
   indexedAt: string;
   /** 最新投稿時刻（活動順の並べ替え・過疎判定に使う）。投稿ゼロなら付けない。 */
   lastPostAt?: string;
+  /** PDS のチャンネルレコードに保存された参照。取得不能でも解除できるよう返す。 */
+  pinnedPostRef?: StrongRef;
+  /** 非削除かつこのチャンネル所属であることを確認して hydrate した投稿。 */
+  pinnedPost?: PostView;
 };
 export type NagiNews = {
   $type: "com.suibari.nagi.news";

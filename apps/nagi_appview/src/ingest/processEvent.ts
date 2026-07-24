@@ -262,6 +262,8 @@ export async function processEvent(evt: any) {
             name: value.name,
             description: value.description ?? null,
             bannerCid: value.banner?.ref?.$link ?? null,
+            pinnedPostUri: value.pinnedPost?.uri ?? null,
+            pinnedPostCid: value.pinnedPost?.cid ?? null,
             recordCreatedAt: createdAt,
             deletedAt: null,
           })
@@ -272,6 +274,8 @@ export async function processEvent(evt: any) {
               name: value.name,
               description: value.description ?? null,
               bannerCid: value.banner?.ref?.$link ?? null,
+              pinnedPostUri: value.pinnedPost?.uri ?? null,
+              pinnedPostCid: value.pinnedPost?.cid ?? null,
               recordCreatedAt: createdAt,
               deletedAt: null,
             },

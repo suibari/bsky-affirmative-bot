@@ -149,7 +149,7 @@ xrpc.get(
     try {
       const uri = String(req.query.uri ?? "");
       if (!uri) throw new ApiError(400, "invalid_request", "uri is required");
-      const channel = await getChannel(uri);
+      const channel = await getChannel(uri, req.viewerDid);
       if (!channel) throw new ApiError(404, "not_found", "Channel not found");
       res
         .set(

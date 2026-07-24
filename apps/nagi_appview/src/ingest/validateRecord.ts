@@ -260,7 +260,8 @@ export function validateRecord(
       (value.description === undefined ||
         (typeof value.description === "string" &&
           graphemes(value.description) <= 300)) &&
-      (value.banner === undefined || bannerBlob(value.banner))
+      (value.banner === undefined || bannerBlob(value.banner)) &&
+      (value.pinnedPost === undefined || ref(value.pinnedPost))
     );
   return false;
 }

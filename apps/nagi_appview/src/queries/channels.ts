@@ -1,7 +1,11 @@
 import { db, nagiChannels, nagiPosts } from "@bsky-affirmative-bot/database";
 import type { ChannelView } from "@bsky-affirmative-bot/nagi-lexicon";
 import { and, eq, isNull, sql } from "drizzle-orm";
-import { getTimeline } from "./timeline.js";
+import {
+  fetchPostRows,
+  getTimeline,
+  hydratePostViews,
+} from "./timeline.js";
 
 /** 活動順ソート用の下限（投稿ゼロの CH はここに沈む）。 */
 const EPOCH = "1970-01-01T00:00:00.000Z";
@@ -17,6 +21,8 @@ const channelView = (row: {
   name: string;
   description: string | null;
   bannerCid: string | null;
+  pinnedPostUri: string | null;
+  pinnedPostCid: string | null;
   recordCreatedAt: Date | string;
   indexedAt: Date | string;
   lastPostAt: Date | string | null;
@@ -32,6 +38,14 @@ const channelView = (row: {
   createdAt: iso(row.recordCreatedAt),
   indexedAt: iso(row.indexedAt),
   ...(row.lastPostAt ? { lastPostAt: iso(row.lastPostAt) } : {}),
+  ...(row.pinnedPostUri && row.pinnedPostCid
+    ? {
+        pinnedPostRef: {
+          uri: row.pinnedPostUri,
+          cid: row.pinnedPostCid,
+        },
+      }
+    : {}),
 });
 
 /** 各 CH の最新投稿時刻（活動順・過疎判定に再利用できる）。削除済み投稿は除く。 */
@@ -74,6 +88,8 @@ export async function getChannels(opts: { limit: number; cursor?: string }) {
       name: nagiChannels.name,
       description: nagiChannels.description,
       bannerCid: nagiChannels.bannerCid,
+      pinnedPostUri: nagiChannels.pinnedPostUri,
+      pinnedPostCid: nagiChannels.pinnedPostCid,
       recordCreatedAt: nagiChannels.recordCreatedAt,
       indexedAt: nagiChannels.indexedAt,
       lastPostAt: lastPostSub.lastPostAt,
@@ -95,7 +111,10 @@ export async function getChannels(opts: { limit: number; cursor?: string }) {
   };
 }
 
-export async function getChannel(uri: string): Promise<ChannelView | null> {
+export async function getChannel(
+  uri: string,
+  viewerDid?: string,
+): Promise<ChannelView | null> {
   const rows = await db
     .select({
       uri: nagiChannels.uri,
@@ -104,6 +123,8 @@ export async function getChannel(uri: string): Promise<ChannelView | null> {
       name: nagiChannels.name,
       description: nagiChannels.description,
       bannerCid: nagiChannels.bannerCid,
+      pinnedPostUri: nagiChannels.pinnedPostUri,
+      pinnedPostCid: nagiChannels.pinnedPostCid,
       recordCreatedAt: nagiChannels.recordCreatedAt,
       indexedAt: nagiChannels.indexedAt,
       lastPostAt: lastPostSub.lastPostAt,
@@ -112,7 +133,18 @@ export async function getChannel(uri: string): Promise<ChannelView | null> {
     .leftJoin(lastPostSub, eq(lastPostSub.channelUri, nagiChannels.uri))
     .where(and(eq(nagiChannels.uri, uri), isNull(nagiChannels.deletedAt)))
     .limit(1);
-  return rows[0] ? channelView(rows[0]) : null;
+  if (!rows[0]) return null;
+  const channel = channelView(rows[0]);
+  if (!rows[0].pinnedPostUri) return channel;
+  const [pinnedPost] = await hydratePostViews(
+    await fetchPostRows([rows[0].pinnedPostUri]),
+    viewerDid,
+  );
+  return pinnedPost &&
+    !pinnedPost.deleted &&
+    pinnedPost.channel?.uri === uri
+    ? { ...channel, pinnedPost }
+    : channel;
 }
 
 /** CH タイムライン。channelOnly/kossori に関係なく当該 CH の投稿を全部（返信も）出す。 */
