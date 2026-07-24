@@ -1,38 +1,43 @@
 import { RichText } from "@atproto/api";
 import { getLinkMetadata, getLinkThumbnail } from "@bsky-affirmative-bot/nagi-linkcard";
+import type { NagiPost } from "@bsky-affirmative-bot/nagi-lexicon";
 import { agent } from "./agent.js";
 
 // Nagi の lexicon 上、linkCards は最大 4 件。
 const MAX_LINK_CARDS = 4;
 
-type NagiFacet = { index: { byteStart: number; byteEnd: number }; features: unknown[] };
-type NagiLinkCardRecord = {
-  uri: string;
-  title: string;
-  description?: string;
-  thumb?: unknown;
-};
+type NagiFacet = NonNullable<NagiPost["facets"]>[number];
+type NagiLinkCardRecord = NonNullable<NagiPost["linkCards"]>[number];
 
 /**
- * 本文からリンク facet を検出する。
- * Bluesky 側 (bsky/post.ts) と同じ RichText の検出結果を使うが、mention/tag facet は落として
- * リンクのみ残す（Nagi では mention の解決経路が異なるため）。
+ * 本文から解決なしで安全に作れる facet を検出する。
+ * mention は detectFacetsWithoutResolution だと did が handle のままの無効な facet になるため
+ * 除外するが、link と tag はそのまま Nagi のレコードに保存できる。
  */
-export function buildLinkFacets(text: string): { facets: NagiFacet[]; urls: string[] } {
+export function detectNagiFacets(text: string): { facets: NagiFacet[]; urls: string[] } {
   const rt = new RichText({ text });
   rt.detectFacetsWithoutResolution();
 
   const facets: NagiFacet[] = [];
   const urls: string[] = [];
   for (const facet of rt.facets ?? []) {
-    const links = facet.features.filter(
+    const features = facet.features.filter(
       (feature: any) =>
-        feature?.$type === "app.bsky.richtext.facet#link" && typeof feature.uri === "string",
+        (feature?.$type === "app.bsky.richtext.facet#link" &&
+          typeof feature.uri === "string") ||
+        (feature?.$type === "app.bsky.richtext.facet#tag" &&
+          typeof feature.tag === "string"),
     );
-    if (!links.length) continue;
-    facets.push({ index: facet.index, features: links });
-    for (const link of links as Array<{ uri: string }>) {
-      if (!urls.includes(link.uri)) urls.push(link.uri);
+    if (!features.length) continue;
+    facets.push({ index: facet.index, features });
+    for (const feature of features as Array<{ $type: string; uri?: string }>) {
+      if (
+        feature.$type === "app.bsky.richtext.facet#link" &&
+        feature.uri &&
+        !urls.includes(feature.uri)
+      ) {
+        urls.push(feature.uri);
+      }
     }
   }
   return { facets, urls };
@@ -55,14 +60,14 @@ export async function buildLinkCards(urls: string[]): Promise<NagiLinkCardRecord
         !metadata.image && !metadata.description && metadata.title === new URL(url).hostname;
       if (isEmpty) continue;
 
-      let thumb: unknown;
+      let thumb: NagiLinkCardRecord["thumb"];
       if (metadata.image) {
         try {
           // サイズ (1MB) と mime 種別の検証は getLinkThumbnail 側で担保されており、
           // Nagi の validateRecord が要求する制約と一致する。
           const { data, contentType } = await getLinkThumbnail(metadata.image);
           const response = await agent.uploadBlob(data, { encoding: contentType });
-          thumb = response.data.blob;
+          thumb = response.data.blob as NagiLinkCardRecord["thumb"];
         } catch (error) {
           console.warn(`[WARN][NAGI] Failed to upload link thumbnail for ${url}:`, error);
         }
@@ -87,11 +92,11 @@ export async function buildLinkCards(urls: string[]): Promise<NagiLinkCardRecord
  * 本文に対応する facets / linkCards を返す。リンクカード生成が失敗しても
  * 投稿自体は成功させたいので、例外は握りつぶして空の結果を返す。
  */
-export async function buildLinkAttachments(
+export async function buildNagiPostAttachments(
   text: string,
 ): Promise<{ facets?: NagiFacet[]; linkCards?: NagiLinkCardRecord[] }> {
   try {
-    const { facets, urls } = buildLinkFacets(text);
+    const { facets, urls } = detectNagiFacets(text);
     if (!facets.length) return {};
     const linkCards = await buildLinkCards(urls);
     return {

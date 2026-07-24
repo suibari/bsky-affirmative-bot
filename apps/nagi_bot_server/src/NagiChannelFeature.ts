@@ -3,8 +3,7 @@ import { generateSingleResponse } from "@bsky-affirmative-bot/bot-brain";
 import { NAGI } from "@bsky-affirmative-bot/nagi-lexicon";
 import { and, asc, desc, eq, isNotNull, isNull, lt, ne } from "drizzle-orm";
 import retry from "async-retry";
-import { agent } from "./agent.js";
-import { clipNagiPostText } from "./nagiPostText.js";
+import { publishNagiPost } from "./nagiPost.js";
 
 /** 投稿が途絶えてから話題提供するまでの時間（時間）。既定1週間。 */
 const DORMANT_HOURS = Number(process.env.NAGI_CHANNEL_DORMANT_HOURS ?? 168);
@@ -19,22 +18,15 @@ type ChannelRef = { uri: string; cid: string; name: string; description: string 
 
 /** botたんとして、指定チャンネルにトップレベル投稿する（channel を付けて CH TL に載せる）。 */
 async function postToChannel(channel: ChannelRef, text: string) {
-  const clipped = clipNagiPostText(text, "NAGI_CHANNEL");
-  if (!clipped.trim()) return;
+  if (!text.trim()) return;
   await retry(
     () =>
-      agent.api.com.atproto.repo.createRecord({
-        repo: process.env.NAGI_BOT_DID!,
-        collection: NAGI.post,
-        validate: false,
-        record: {
-          $type: NAGI.post,
-          text: clipped,
-          langs: ["ja"],
-          createdAt: new Date().toISOString(),
-          channel: { uri: channel.uri, cid: channel.cid },
-        },
-      } as any),
+      publishNagiPost({
+        text,
+        label: "NAGI_CHANNEL",
+        langs: ["ja"],
+        channel: { uri: channel.uri, cid: channel.cid },
+      }),
     {
       retries: 2,
       onRetry: (error: any, attempt) =>

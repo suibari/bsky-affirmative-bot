@@ -10,15 +10,13 @@ import {
 } from "@bsky-affirmative-bot/bot-runtime";
 import { NAGI, NAGI_LANGUAGES } from "@bsky-affirmative-bot/nagi-lexicon";
 import retry from "async-retry";
-import { agent } from "./agent.js";
 import {
   buildNagiConversationHistory,
   type ConversationTurn,
 } from "./nagiConversationHistory.js";
 import { isReplyToBot } from "./NagiReplyFeature.js";
 import { buildNagiReplyContext } from "./nagiReplyContext.js";
-import { buildLinkAttachments } from "./nagiLinkCards.js";
-import { clipNagiPostText } from "./nagiPostText.js";
+import { publishNagiPost } from "./nagiPost.js";
 
 configureBotContext({
   getWeather: getYokohamaWeather,
@@ -127,43 +125,32 @@ export async function createNagiReply(job: any) {
         langStr: language.name,
       } as any);
 
-  const botDid = process.env.NAGI_BOT_DID!;
   const sourceRkey = job.sourceUri.split("/").at(-1)!;
   const root = record.reply?.root ?? {
     uri: job.sourceUri,
     cid: job.sourceCid,
   };
 
-  // facet のバイト位置がズレないよう、切り詰めた後の本文からリンクを検出する。
-  const text = clipNagiPostText(generated.comment, "NAGI_REPLY");
-
-  const response = await agent.api.com.atproto.repo.putRecord({
-    repo: botDid,
-    collection: NAGI.post,
+  const response = await publishNagiPost({
+    text: generated.comment,
+    label: "NAGI_REPLY",
     rkey: sourceRkey,
-    validate: false,
-    record: {
-      $type: NAGI.post,
-      text,
-      langs: [language.code],
-      createdAt: new Date().toISOString(),
-      ...(await buildLinkAttachments(text)),
-      // 元投稿がチャンネル所属なら返信も同じ channel を継承し、CH TL に並ぶ（Misskey 同様）。
-      // こっそりはスレッドルートだけが所有し、AppView が返信にも有効範囲を適用する。
-      // 返信へ複製すると、返信単位で公開範囲を持てるように見えてしまうため保存しない。
-      ...(record.channel ? { channel: record.channel } : {}),
-      reply: {
-        root,
-        parent: {
-          uri: job.sourceUri,
-          cid: job.sourceCid,
-        },
+    langs: [language.code],
+    // 元投稿がチャンネル所属なら返信も同じ channel を継承し、CH TL に並ぶ（Misskey 同様）。
+    // こっそりはスレッドルートだけが所有し、AppView が返信にも有効範囲を適用する。
+    // 返信へ複製すると、返信単位で公開範囲を持てるように見えてしまうため保存しない。
+    ...(record.channel ? { channel: record.channel } : {}),
+    reply: {
+      root,
+      parent: {
+        uri: job.sourceUri,
+        cid: job.sourceCid,
       },
     },
-  } as any);
+  });
 
   return {
-    uri: response.data.uri,
+    uri: response.uri,
     // 会話ターンはスコアを持たない = 肯定ポストとして扱わない。
     score:
       generated.score === undefined
