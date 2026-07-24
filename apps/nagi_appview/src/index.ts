@@ -31,7 +31,9 @@ app.use(
   cors({
     origin: config.clientOrigins,
     methods: ["GET", "POST", "OPTIONS"],
-    allowedHeaders: ["authorization", "content-type"],
+    // x-viewer-did は開発直fetch用のカスタムヘッダー。許可名を足すだけで無害
+    // （実際に信用するのは APPVIEW_DEV_TRUST_VIEWER=true のときだけ）。
+    allowedHeaders: ["authorization", "content-type", "x-viewer-did"],
   }),
 );
 app.use(express.json({ limit: "32kb" }));

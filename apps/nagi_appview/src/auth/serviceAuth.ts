@@ -27,11 +27,20 @@ const verify = async (jwt: string, lxm: string) => {
   }
   return payload.iss;
 };
+// 開発専用: local appview へ直接当てる際は PDS 発行の service-auth JWT が無い。
+// APPVIEW_DEV_TRUST_VIEWER=true のときだけ x-viewer-did ヘッダーを viewerDid として信用する。
+const devViewer = (didHeader?: string): string | undefined => {
+  if (!config.devTrustViewer) return undefined;
+  return didHeader && /^did:(plc|web):/.test(didHeader) ? didHeader : undefined;
+};
 export const optionalServiceAuth =
   (lxm: string): RequestHandler =>
   async (req, _res, next) => {
     const token = bearer(req.header("authorization"));
-    if (!token) return next();
+    if (!token) {
+      req.viewerDid = devViewer(req.header("x-viewer-did"));
+      return next();
+    }
     try {
       req.viewerDid = await verify(token, lxm);
       next();
@@ -43,7 +52,14 @@ export const requiredServiceAuth =
   (lxm: string): RequestHandler =>
   async (req, _res, next) => {
     const token = bearer(req.header("authorization"));
-    if (!token) return next(new ApiError(401, "auth_required", "Authentication required"));
+    if (!token) {
+      const viewer = devViewer(req.header("x-viewer-did"));
+      if (viewer) {
+        req.viewerDid = viewer;
+        return next();
+      }
+      return next(new ApiError(401, "auth_required", "Authentication required"));
+    }
     try {
       req.viewerDid = await verify(token, lxm);
       next();

@@ -54,6 +54,9 @@ export const config = {
   appviewDid: did("NAGI_APPVIEW_DID", "did:web:nagi-api.suibari.com"),
   appviewServiceId: "nagi_appview",
   botDid: did("NAGI_BOT_DID"),
+  // 開発専用: local appview へ直接当てる際、service-auth JWT の代わりに
+  // x-viewer-did ヘッダーを viewerDid として信用する。本番では絶対に設定しないこと。
+  devTrustViewer: process.env.APPVIEW_DEV_TRUST_VIEWER === "true",
   clientOrigins: clientOrigins("NAGI_CLIENT_ORIGIN", "http://localhost:5173"),
   affirmationThreshold: integer(
     "NAGI_AFFIRMATION_THRESHOLD",
