@@ -70,6 +70,9 @@ export const nagiPosts = nagiSchema.table(
     indexedAt: timestamp("indexed_at", { withTimezone: true })
       .defaultNow()
       .notNull(),
+    // 投稿後編集の検知フラグ。ライブで cid 変化を観測した編集で true になり、以後戻さない
+    // （単調）。バックフィルなし＝機能導入後に観測した編集のみ。UI の「編集済み」バッジ用。
+    edited: boolean("edited").default(false).notNull(),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
   },
   (t) => [

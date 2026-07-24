@@ -194,6 +194,7 @@ export async function hydratePostViews(
       langs: (post.langs as string[] | null) ?? undefined,
       createdAt: post.recordCreatedAt.toISOString(),
       indexedAt: post.indexedAt.toISOString(),
+      edited: post.edited || undefined,
       reply: post.replyParentUri
         ? {
             root: {

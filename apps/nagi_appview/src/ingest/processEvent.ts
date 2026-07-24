@@ -154,7 +154,9 @@ export async function processEvent(evt: any) {
       const value: any = commit.record;
       const createdAt = new Date(value.createdAt);
       if (collection === NAGI.post) {
-        if (existingPost[0] && existingPost[0].cid !== commit.cid) {
+        // 既存投稿 かつ cid が変わった＝投稿後編集。翻訳キャッシュ破棄と edited フラグ立てに使う。
+        const isEdit = !!existingPost[0] && existingPost[0].cid !== commit.cid;
+        if (isEdit) {
           await tx
             .delete(nagiTranslations)
             .where(eq(nagiTranslations.postUri, uri));
@@ -181,6 +183,7 @@ export async function processEvent(evt: any) {
             channelOnly: value.channelOnly === true,
             repoRev: commit.rev,
             recordCreatedAt: createdAt,
+            edited: false,
             deletedAt: null,
           })
           .onConflictDoUpdate({
@@ -202,6 +205,8 @@ export async function processEvent(evt: any) {
               channelOnly: value.channelOnly === true,
               repoRev: commit.rev,
               recordCreatedAt: createdAt,
+              // cid 変化を観測した編集で true。cid 不変の再処理ではフラグを戻さない（単調）。
+              edited: isEdit ? true : sql`${nagiPosts.edited}`,
               deletedAt: null,
             },
           });

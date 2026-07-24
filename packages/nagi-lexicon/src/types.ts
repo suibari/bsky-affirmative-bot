@@ -236,6 +236,8 @@ export type PostView = {
   channel?: { uri: string; cid: string; name?: string };
   /** CH 限定投稿（グローバル非表示）か。 */
   channelOnly?: boolean;
+  /** 投稿後に編集された（AppView が cid 変化を観測した）か。UI の「編集済み」バッジ用。 */
+  edited?: boolean;
   deleted?: boolean;
 };
 export type BotReplyState = "pending" | "processing" | "posted" | "failed";
