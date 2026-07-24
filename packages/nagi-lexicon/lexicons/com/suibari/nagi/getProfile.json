@@ -14,7 +14,18 @@
             "knownValues": ["posts", "replies", "media", "reactions"],
             "default": "posts"
           },
-          "limit": { "type": "integer", "minimum": 1, "maximum": 100, "default": 50 },
+          "lang": {
+            "type": "string",
+            "maxLength": 2,
+            "knownValues": ["ja", "en"],
+            "default": "ja"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "default": 50
+          },
           "cursor": { "type": "string" }
         }
       },
@@ -25,7 +36,10 @@
           "required": ["profile", "feed"],
           "properties": {
             "profile": { "type": "unknown" },
-            "feed": { "type": "ref", "ref": "com.suibari.nagi.getTimeline#output" }
+            "feed": {
+              "type": "ref",
+              "ref": "com.suibari.nagi.getTimeline#output"
+            }
           }
         }
       }

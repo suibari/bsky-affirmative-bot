@@ -1,13 +1,28 @@
 import {
   db,
   nagiActors,
+  nagiNews,
+  nagiNewsApprovals,
   nagiPostScores,
   nagiPosts,
   nagiProfiles,
   nagiReactions,
 } from "@bsky-affirmative-bot/database";
-import type { ProfileDetail } from "@bsky-affirmative-bot/nagi-lexicon";
-import { and, desc, eq, isNull, lt, or, sql } from "drizzle-orm";
+import type {
+  ProfileDetail,
+  ProfileFeedItem,
+} from "@bsky-affirmative-bot/nagi-lexicon";
+import {
+  and,
+  desc,
+  eq,
+  exists,
+  inArray,
+  isNull,
+  lt,
+  or,
+  sql,
+} from "drizzle-orm";
 import { config } from "../config.js";
 import { ApiError } from "../middleware/errors.js";
 import { getCurrentTitle, getSuperPositiveLevel } from "./badges.js";
@@ -19,23 +34,27 @@ import {
   postSelection,
   type PostRow,
 } from "./timeline.js";
+import { getApprovedNewsViews, type NewsLang } from "./positiveNews.js";
 export async function getActorProfile(did: string): Promise<ProfileDetail> {
-  const [[actor], [profile], [stats], superPositiveLevel, currentTitle] = await Promise.all([
-    db.select().from(nagiActors).where(eq(nagiActors.did, did)),
-    db.select().from(nagiProfiles).where(eq(nagiProfiles.did, did)),
-    db
-      .select({
-        postCount: sql<number>`count(*)::int`,
-        firstPostAt: sql<string | null>`min(${nagiPosts.recordCreatedAt})`,
-      })
-      .from(nagiPosts)
-      .where(and(eq(nagiPosts.did, did), isNull(nagiPosts.deletedAt))),
-    getSuperPositiveLevel(did),
-    getCurrentTitle(did),
-  ]);
+  const [[actor], [profile], [stats], superPositiveLevel, currentTitle] =
+    await Promise.all([
+      db.select().from(nagiActors).where(eq(nagiActors.did, did)),
+      db.select().from(nagiProfiles).where(eq(nagiProfiles.did, did)),
+      db
+        .select({
+          postCount: sql<number>`count(*)::int`,
+          firstPostAt: sql<string | null>`min(${nagiPosts.recordCreatedAt})`,
+        })
+        .from(nagiPosts)
+        .where(and(eq(nagiPosts.did, did), isNull(nagiPosts.deletedAt))),
+      getSuperPositiveLevel(did),
+      getCurrentTitle(did),
+    ]);
   if (!actor && !profile && !stats?.postCount)
     throw new ApiError(404, "not_found", "Actor not found");
-  const firstPostAt = stats?.firstPostAt ? new Date(stats.firstPostAt).toISOString() : undefined;
+  const firstPostAt = stats?.firstPostAt
+    ? new Date(stats.firstPostAt).toISOString()
+    : undefined;
   return {
     did,
     handle: actor?.handle ?? did,
@@ -57,43 +76,105 @@ export async function getReactedFeed(opts: {
   limit: number;
   cursor?: string;
   viewerDid?: string;
+  lang: NewsLang;
 }) {
   const point = decodeCursor(opts.cursor);
-  const filters: any[] = [eq(nagiReactions.did, opts.actorDid), isNull(nagiPosts.deletedAt)];
+  const eligiblePost = exists(
+    db
+      .select({ value: sql`1` })
+      .from(nagiPosts)
+      .where(
+        and(
+          eq(nagiPosts.uri, nagiReactions.subjectUri),
+          isNull(nagiPosts.deletedAt),
+        ),
+      ),
+  );
+  const eligibleNews = exists(
+    db
+      .select({ value: sql`1` })
+      .from(nagiNews)
+      .innerJoin(
+        nagiNewsApprovals,
+        and(
+          eq(nagiNewsApprovals.newsUri, nagiNews.uri),
+          eq(nagiNewsApprovals.newsCid, nagiNews.cid),
+        ),
+      )
+      .where(
+        and(
+          eq(nagiNews.uri, nagiReactions.subjectUri),
+          isNull(nagiNews.deletedAt),
+          eq(nagiNewsApprovals.status, "approved"),
+        ),
+      ),
+  );
+  const ranked = db.$with("ranked_reactions").as(
+    db
+      .select({
+        subjectUri: nagiReactions.subjectUri,
+        reactionUri: nagiReactions.uri,
+        reactionIndexedAt: nagiReactions.indexedAt,
+        rank: sql<number>`row_number() over (
+          partition by ${nagiReactions.subjectUri}
+          order by ${nagiReactions.indexedAt} desc, ${nagiReactions.uri} desc
+        )`.as("reaction_rank"),
+      })
+      .from(nagiReactions)
+      .where(
+        and(
+          eq(nagiReactions.did, opts.actorDid),
+          or(eligiblePost, eligibleNews),
+        ),
+      ),
+  );
+  const filters: any[] = [eq(ranked.rank, 1)];
   if (point)
     filters.push(
       or(
-        lt(nagiReactions.indexedAt, point[0]),
-        and(eq(nagiReactions.indexedAt, point[0]), lt(nagiReactions.uri, point[1])),
+        lt(ranked.reactionIndexedAt, point[0]),
+        and(
+          eq(ranked.reactionIndexedAt, point[0]),
+          lt(ranked.reactionUri, point[1]),
+        ),
       ),
     );
   const rows = await db
+    .with(ranked)
     .select({
-      ...postSelection,
-      reactionUri: nagiReactions.uri,
-      reactionIndexedAt: nagiReactions.indexedAt,
+      subjectUri: ranked.subjectUri,
+      reactionUri: ranked.reactionUri,
+      reactionIndexedAt: ranked.reactionIndexedAt,
     })
-    .from(nagiReactions)
-    .innerJoin(nagiPosts, eq(nagiPosts.uri, nagiReactions.subjectUri))
-    .leftJoin(nagiActors, eq(nagiActors.did, nagiPosts.did))
-    .leftJoin(nagiProfiles, eq(nagiProfiles.did, nagiPosts.did))
-    .leftJoin(nagiPostScores, eq(nagiPostScores.postUri, nagiPosts.uri))
+    .from(ranked)
     .where(and(...filters))
-    .orderBy(desc(nagiReactions.indexedAt), desc(nagiReactions.uri))
+    .orderBy(desc(ranked.reactionIndexedAt), desc(ranked.reactionUri))
     .limit(opts.limit + 1);
   const page = rows.slice(0, opts.limit);
-  // One user can react to the same post with several emoji; keep the newest occurrence.
-  const seen = new Set<string>();
-  const deduped: PostRow[] = [];
-  for (const row of page) {
-    if (seen.has(row.post.uri)) continue;
-    seen.add(row.post.uri);
-    deduped.push(row);
-  }
-  const [items, botActor] = await Promise.all([
-    buildFeedItems(deduped, opts.viewerDid),
+  const subjectUris = page.map((row) => row.subjectUri);
+  const postRows: PostRow[] = subjectUris.length
+    ? await db
+        .select(postSelection)
+        .from(nagiPosts)
+        .leftJoin(nagiActors, eq(nagiActors.did, nagiPosts.did))
+        .leftJoin(nagiProfiles, eq(nagiProfiles.did, nagiPosts.did))
+        .leftJoin(nagiPostScores, eq(nagiPostScores.postUri, nagiPosts.uri))
+        .where(
+          and(inArray(nagiPosts.uri, subjectUris), isNull(nagiPosts.deletedAt)),
+        )
+    : [];
+  const [postItems, newsByUri, botActor] = await Promise.all([
+    buildFeedItems(postRows, opts.viewerDid),
+    getApprovedNewsViews(subjectUris, opts.lang, opts.viewerDid),
     getBotActor(),
   ]);
+  const postByUri = new Map(postItems.map((item) => [item.uri, item]));
+  const items = page.flatMap<ProfileFeedItem>((row) => {
+    const post = postByUri.get(row.subjectUri);
+    if (post) return [post];
+    const news = newsByUri.get(row.subjectUri);
+    return news ? [{ kind: "news" as const, news }] : [];
+  });
   const last = page.at(-1);
   return {
     items,

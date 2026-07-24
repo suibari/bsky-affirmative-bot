@@ -3,18 +3,31 @@ import {
   nagiActors,
   nagiBotReplyJobs,
   nagiChannels,
-  nagiEmojis,
   nagiPostScores,
   nagiPosts,
   nagiProfiles,
-  nagiReactions,
 } from "@bsky-affirmative-bot/database";
-import { NAGI, type FeedItem, type PostView } from "@bsky-affirmative-bot/nagi-lexicon";
-import { and, desc, eq, inArray, isNotNull, isNull, lt, ne, or, sql } from "drizzle-orm";
+import {
+  NAGI,
+  type FeedItem,
+  type PostView,
+} from "@bsky-affirmative-bot/nagi-lexicon";
+import {
+  and,
+  desc,
+  eq,
+  inArray,
+  isNotNull,
+  isNull,
+  lt,
+  ne,
+  or,
+  sql,
+} from "drizzle-orm";
 import { config } from "../config.js";
-import { emojiView } from "../services/emoji.js";
 import { getCurrentTitles, getSuperPositiveLevels } from "./badges.js";
 import { getNewsQuoteViews } from "./positiveNews.js";
+import { getReactionViews } from "./reactions.js";
 export const encodeCursor = (date: Date, uri: string) =>
   Buffer.from(JSON.stringify([date.toISOString(), uri])).toString("base64url");
 export const decodeCursor = (cursor?: string): [Date, string] | undefined => {
@@ -55,33 +68,18 @@ export async function hydratePostViews(
   quoteDepth = 0,
 ): Promise<PostView[]> {
   const uris = rows.map((r) => r.post.uri);
-  const reactions = uris.length
-    ? await db
-        .select({
-          subjectUri: nagiReactions.subjectUri,
-          emoji: nagiReactions.emoji,
-          emojiKey: nagiReactions.emojiKey,
-          did: nagiReactions.did,
-          uri: nagiReactions.uri,
-          handle: nagiActors.handle,
-          displayName: nagiProfiles.displayName,
-          avatarCid: nagiProfiles.avatarCid,
-          emojiItem: nagiEmojis,
-        })
-        .from(nagiReactions)
-        .leftJoin(nagiActors, eq(nagiActors.did, nagiReactions.did))
-        .leftJoin(nagiProfiles, eq(nagiProfiles.did, nagiReactions.did))
-        .leftJoin(nagiEmojis, eq(nagiEmojis.uri, nagiReactions.emojiUri))
-        .where(inArray(nagiReactions.subjectUri, uris))
-        .orderBy(desc(nagiReactions.indexedAt))
-    : [];
+  const reactions = await getReactionViews(uris, viewerDid);
   const dids = rows.map((r) => r.post.did);
   const [levels, titles] = await Promise.all([
     getSuperPositiveLevels(dids),
     getCurrentTitles(dids),
   ]);
   const rootUris = [
-    ...new Set(rows.flatMap(({ post }) => (post.replyRootUri ? [post.replyRootUri] : []))),
+    ...new Set(
+      rows.flatMap(({ post }) =>
+        post.replyRootUri ? [post.replyRootUri] : [],
+      ),
+    ),
   ];
   const threadRoots = rootUris.length
     ? new Map(
@@ -94,7 +92,12 @@ export async function hydratePostViews(
               channelOnly: nagiPosts.channelOnly,
             })
             .from(nagiPosts)
-            .where(and(inArray(nagiPosts.uri, rootUris), isNull(nagiPosts.deletedAt)))
+            .where(
+              and(
+                inArray(nagiPosts.uri, rootUris),
+                isNull(nagiPosts.deletedAt),
+              ),
+            )
         ).map((root) => [root.uri, root]),
       )
     : new Map<
@@ -103,7 +106,9 @@ export async function hydratePostViews(
       >();
   // バッジ表示用にチャンネル名を引く（uri→name）。所属 CH のある投稿だけ。
   const channelUris = [
-    ...new Set(rows.flatMap((r) => (r.post.channelUri ? [r.post.channelUri] : []))),
+    ...new Set(
+      rows.flatMap((r) => (r.post.channelUri ? [r.post.channelUri] : [])),
+    ),
   ];
   const channelNames = channelUris.length
     ? new Map(
@@ -144,18 +149,31 @@ export async function hydratePostViews(
             ];
           })
         : undefined;
-    const linkCards = !deleted && Array.isArray((post.recordJson as any)?.linkCards)
-      ? (post.recordJson as any).linkCards.flatMap((card: any) => {
-          if (typeof card?.uri !== "string" || typeof card?.title !== "string") return [];
-          const cid = card.thumb?.ref?.$link;
-          return [{
-            uri: card.uri,
-            title: card.title,
-            ...(typeof card.description === "string" ? { description: card.description } : {}),
-            ...(typeof cid === "string" ? { thumb: `/api/blob/${encodeURIComponent(post.did)}/${encodeURIComponent(cid)}` } : {}),
-          }];
-        })
-      : undefined;
+    const linkCards =
+      !deleted && Array.isArray((post.recordJson as any)?.linkCards)
+        ? (post.recordJson as any).linkCards.flatMap((card: any) => {
+            if (
+              typeof card?.uri !== "string" ||
+              typeof card?.title !== "string"
+            )
+              return [];
+            const cid = card.thumb?.ref?.$link;
+            return [
+              {
+                uri: card.uri,
+                title: card.title,
+                ...(typeof card.description === "string"
+                  ? { description: card.description }
+                  : {}),
+                ...(typeof cid === "string"
+                  ? {
+                      thumb: `/api/blob/${encodeURIComponent(post.did)}/${encodeURIComponent(cid)}`,
+                    }
+                  : {}),
+              },
+            ];
+          })
+        : undefined;
     return {
       uri: post.uri,
       cid: post.cid,
@@ -194,35 +212,7 @@ export async function hydratePostViews(
         : undefined,
       images: images?.length ? images : undefined,
       linkCards: linkCards?.length ? linkCards : undefined,
-      reactions: Object.values(
-        reactions
-          .filter((r) => r.subjectUri === post.uri)
-          .reduce<Record<string, PostView["reactions"][number]>>((out, r) => {
-            const bluemoji = r.emojiItem ? emojiView(r.emojiItem) : null;
-            const item = (out[r.emojiKey] ??= {
-              emoji: r.emoji,
-              ...(bluemoji ? { bluemoji } : {}),
-              reactors: [],
-            });
-            if (item.reactors.length < 5) {
-              item.reactors.push({
-                did: r.did,
-                handle: r.handle ?? r.did,
-                displayName: r.displayName ?? undefined,
-                avatar: r.avatarCid
-                  ? `/api/blob/${encodeURIComponent(r.did)}/${r.avatarCid}`
-                  : undefined,
-              });
-            } else {
-              item.hasMoreReactors = true;
-            }
-            if (viewerDid && r.did === viewerDid) {
-              item.reactedByMe = true;
-              item.viewerReactionUri = r.uri;
-            }
-            return out;
-          }, {}),
-      ),
+      reactions: reactions.get(post.uri) ?? [],
       isBot: post.did === config.botDid,
       isAffirmation: (score ?? -1) >= config.affirmationThreshold,
       kossori: post.kossori || undefined,
@@ -244,7 +234,9 @@ export async function hydratePostViews(
   const quoteUris = [
     ...new Set(
       rows.flatMap(({ post }) =>
-        !post.deletedAt && post.quoteUri?.split("/")[3] === NAGI.post ? [post.quoteUri] : [],
+        !post.deletedAt && post.quoteUri?.split("/")[3] === NAGI.post
+          ? [post.quoteUri]
+          : [],
       ),
     ),
   ];
@@ -255,19 +247,28 @@ export async function hydratePostViews(
   );
   const newsViews = await getNewsQuoteViews(newsRefs);
   if (!quoteUris.length && !newsRefs.length) return views;
-  const quoteViews = quoteUris.length ? await hydratePostViews(await fetchPostRows(quoteUris), viewerDid, quoteDepth + 1) : [];
+  const quoteViews = quoteUris.length
+    ? await hydratePostViews(
+        await fetchPostRows(quoteUris),
+        viewerDid,
+        quoteDepth + 1,
+      )
+    : [];
   const quoteByUri = new Map(quoteViews.map((view) => [view.uri, view]));
   return views.map((view, index) => {
     const quoteUri = rows[index].post.quoteUri;
     const quote = quoteUri ? quoteByUri.get(quoteUri) : undefined;
     const post = rows[index].post;
-    const quotedNews = post.quoteUri && post.quoteCid
-      ? newsViews.get(`${post.quoteUri}|${post.quoteCid}`)
-      : undefined;
+    const quotedNews =
+      post.quoteUri && post.quoteCid
+        ? newsViews.get(`${post.quoteUri}|${post.quoteCid}`)
+        : undefined;
     return {
       ...view,
       ...(quote ? { quote: { kind: "post" as const, post: quote } } : {}),
-      ...(quotedNews ? { quote: { kind: "news" as const, news: quotedNews } } : {}),
+      ...(quotedNews
+        ? { quote: { kind: "news" as const, news: quotedNews } }
+        : {}),
     };
   });
 }
@@ -299,9 +300,12 @@ export async function buildFeedItems(
   for (const row of rows) {
     const replyUri = jobByUri.get(row.post.uri)?.replyUri ?? row.botReplyUri;
     if (groupBotReplies && replyUri) replyUris.add(replyUri);
-    if (includeReplyParents && row.post.replyParentUri) parentUris.add(row.post.replyParentUri);
+    if (includeReplyParents && row.post.replyParentUri)
+      parentUris.add(row.post.replyParentUri);
   }
-  const relatedRows = await fetchPostRows([...new Set([...replyUris, ...parentUris])]);
+  const relatedRows = await fetchPostRows([
+    ...new Set([...replyUris, ...parentUris]),
+  ]);
   const views = await hydratePostViews([...rows, ...relatedRows], viewerDid);
   const viewByUri = new Map(views.map((v) => [v.uri, v]));
   return rows.map((row) => {
@@ -314,7 +318,8 @@ export async function buildFeedItems(
     const job = jobByUri.get(row.post.uri);
     const replyUri = job?.replyUri ?? row.botReplyUri ?? undefined;
     const reply = replyUri ? viewByUri.get(replyUri) : undefined;
-    if (reply && !reply.deleted) return { ...view, botReply: reply, botReplyState: "posted" };
+    if (reply && !reply.deleted)
+      return { ...view, botReply: reply, botReplyState: "posted" };
     // A freshly posted reply can still be in Jetstream flight, so it remains
     // pending until the reply record is available to hydrate.
     // Absence of a job row never yields "pending" so old posts don't spin forever.
@@ -353,16 +358,23 @@ export async function getTimeline(opts: {
   if (opts.tag)
     filters.push(sql`${nagiPosts.tags} @> ARRAY[${opts.tag}]::text[]`);
   if (opts.affirmation)
-    filters.push(sql`${nagiPostScores.score} >= ${config.affirmationThreshold}`);
+    filters.push(
+      sql`${nagiPostScores.score} >= ${config.affirmationThreshold}`,
+    );
   if (opts.filter === "posts") filters.push(isNull(nagiPosts.replyParentUri));
-  if (opts.filter === "replies") filters.push(isNotNull(nagiPosts.replyParentUri));
+  if (opts.filter === "replies")
+    filters.push(isNotNull(nagiPosts.replyParentUri));
   if (opts.filter === "media")
-    filters.push(sql`jsonb_array_length(coalesce(${nagiPosts.embedImages}, '[]'::jsonb)) > 0`);
+    filters.push(
+      sql`jsonb_array_length(coalesce(${nagiPosts.embedImages}, '[]'::jsonb)) > 0`,
+    );
   // Keep Bot replies grouped with their source post on shared timelines. An
   // explicit actor feed still needs them so the Bot profile's replies tab works.
   // CH TL も共有TL扱いで grouping する（botたんの返信は元投稿にまとめる）。
   if (!opts.actorDid)
-    filters.push(or(ne(nagiPosts.did, config.botDid), isNull(nagiPosts.replyParentUri)));
+    filters.push(
+      or(ne(nagiPosts.did, config.botDid), isNull(nagiPosts.replyParentUri)),
+    );
   // こっそりは返信ごとではなくスレッドルートが所有する。旧 channelOnly も互換性のため
   // ルートの非共有設定として扱う。ルート未解決時に true へ倒すのは、壊れた参照によって
   // 本来こっそりだった返信を共有TLへ露出させないため。
@@ -406,15 +418,25 @@ export async function getTimeline(opts: {
     items,
     botActor,
     cursor:
-      rows.length > opts.limit && last ? encodeCursor(last.indexedAt, last.uri) : undefined,
+      rows.length > opts.limit && last
+        ? encodeCursor(last.indexedAt, last.uri)
+        : undefined,
     hasMore: rows.length > opts.limit,
   };
 }
 
 export async function getBotActor(): Promise<FeedItem["author"]> {
   const [actor, profile] = await Promise.all([
-    db.select().from(nagiActors).where(eq(nagiActors.did, config.botDid)).limit(1),
-    db.select().from(nagiProfiles).where(eq(nagiProfiles.did, config.botDid)).limit(1),
+    db
+      .select()
+      .from(nagiActors)
+      .where(eq(nagiActors.did, config.botDid))
+      .limit(1),
+    db
+      .select()
+      .from(nagiProfiles)
+      .where(eq(nagiProfiles.did, config.botDid))
+      .limit(1),
   ]);
   return {
     did: config.botDid,

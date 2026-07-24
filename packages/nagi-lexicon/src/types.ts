@@ -105,6 +105,7 @@ export type NewsView = {
   lang: "ja" | "en";
   createdAt: string;
   indexedAt: string;
+  reactions: ReactionView[];
   unavailable?: boolean;
 };
 export type BluemojiRef = {
@@ -223,9 +224,7 @@ export type PostView = {
     description?: string;
     thumb?: string;
   }>;
-  quote?:
-    | { kind: "post"; post: PostView }
-    | { kind: "news"; news: NewsView };
+  quote?: { kind: "post"; post: PostView } | { kind: "news"; news: NewsView };
   reactions: ReactionView[];
   isBot: boolean;
   isAffirmation: boolean;
@@ -257,7 +256,12 @@ export type ProfileDetail = ActorView & {
   firstPostAt?: string;
   joinedAt?: string;
 };
-export type ProfilePage = { profile: ProfileDetail; feed: Page<FeedItem> };
+export type ProfileNewsReactionItem = { kind: "news"; news: NewsView };
+export type ProfileFeedItem = FeedItem | ProfileNewsReactionItem;
+export type ProfilePage = {
+  profile: ProfileDetail;
+  feed: Page<ProfileFeedItem>;
+};
 export type ThreadView = { post: PostView; replies: PostView[] };
 export type NotificationView = {
   id: string;

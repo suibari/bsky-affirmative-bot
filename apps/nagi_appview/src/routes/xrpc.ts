@@ -6,7 +6,11 @@ import {
   requiredServiceAuth,
 } from "../auth/serviceAuth.js";
 import { getTimeline } from "../queries/timeline.js";
-import { getChannel, getChannelTimeline, getChannels } from "../queries/channels.js";
+import {
+  getChannel,
+  getChannelTimeline,
+  getChannels,
+} from "../queries/channels.js";
 import { getActorProfile, getReactedFeed } from "../queries/profile.js";
 import { searchActors } from "../queries/actors.js";
 import { getThread } from "../queries/thread.js";
@@ -24,7 +28,11 @@ import {
 import { translatePost } from "../services/translation.js";
 import { ApiError } from "../middleware/errors.js";
 import { deleteAccountData } from "../services/deleteAccountData.js";
-import { getAppIcon, getLinkMetadata, getLinkThumbnail } from "../services/linkMetadata.js";
+import {
+  getAppIcon,
+  getLinkMetadata,
+  getLinkThumbnail,
+} from "../services/linkMetadata.js";
 import { getEmoji, searchEmojis } from "../services/emoji.js";
 import { resolveLexicon } from "../queries/resolveLexicon.js";
 import { config } from "../config.js";
@@ -81,6 +89,9 @@ xrpc.get(
       if (!["posts", "replies", "media", "reactions"].includes(filter))
         throw new ApiError(400, "invalid_request", "Invalid filter");
       const cursor = String(req.query.cursor ?? "") || undefined;
+      const lang = String(req.query.lang ?? "ja");
+      if (lang !== "ja" && lang !== "en")
+        throw new ApiError(400, "invalid_request", "lang must be ja or en");
       const [profile, feed] = await Promise.all([
         getActorProfile(actor),
         filter === "reactions"
@@ -89,6 +100,7 @@ xrpc.get(
               limit: limit(req.query.limit),
               cursor,
               viewerDid: req.viewerDid,
+              lang,
             })
           : getTimeline({
               limit: limit(req.query.limit),
@@ -138,8 +150,7 @@ xrpc.get(
       const uri = String(req.query.uri ?? "");
       if (!uri) throw new ApiError(400, "invalid_request", "uri is required");
       const channel = await getChannel(uri);
-      if (!channel)
-        throw new ApiError(404, "not_found", "Channel not found");
+      if (!channel) throw new ApiError(404, "not_found", "Channel not found");
       res
         .set(
           "Cache-Control",
@@ -181,7 +192,9 @@ xrpc.get(
   optionalServiceAuth(NAGI.searchPosts),
   async (req, res, next) => {
     try {
-      const tag = String(req.query.tag ?? "").trim().toLowerCase();
+      const tag = String(req.query.tag ?? "")
+        .trim()
+        .toLowerCase();
       if (!tag) throw new ApiError(400, "invalid_request", "tag is required");
       res
         .set(
@@ -284,15 +297,32 @@ xrpc.get(`/${NAGI.getDiaries}`, async (req, res, next) => {
     next(e);
   }
 });
-xrpc.get(`/${NAGI.getPositiveNews}`, async (req, res, next) => {
-  try {
-    const lang = String(req.query.lang ?? "ja");
-    if (lang !== "ja" && lang !== "en") throw new ApiError(400, "invalid_request", "lang must be ja or en");
-    res.set("Cache-Control", "public, max-age=60").json(await getPositiveNews({
-      limit: Math.min(20, limit(req.query.limit)), cursor: String(req.query.cursor ?? "") || undefined, lang,
-    }));
-  } catch (e) { next(e); }
-});
+xrpc.get(
+  `/${NAGI.getPositiveNews}`,
+  optionalServiceAuth(NAGI.getPositiveNews),
+  async (req, res, next) => {
+    try {
+      const lang = String(req.query.lang ?? "ja");
+      if (lang !== "ja" && lang !== "en")
+        throw new ApiError(400, "invalid_request", "lang must be ja or en");
+      res
+        .set(
+          "Cache-Control",
+          req.viewerDid ? "private, no-store" : "public, max-age=60",
+        )
+        .json(
+          await getPositiveNews({
+            limit: Math.min(20, limit(req.query.limit)),
+            cursor: String(req.query.cursor ?? "") || undefined,
+            lang,
+            viewerDid: req.viewerDid,
+          }),
+        );
+    } catch (e) {
+      next(e);
+    }
+  },
+);
 xrpc.get(`/${NAGI.searchActors}`, async (req, res, next) => {
   try {
     const query = String(req.query.q ?? "");
@@ -357,10 +387,17 @@ xrpc.post(
       const endpoint = req.body?.endpoint;
       const p256dh = req.body?.keys?.p256dh;
       const auth = req.body?.keys?.auth;
-      if (typeof endpoint !== "string" || typeof p256dh !== "string" || typeof auth !== "string")
+      if (
+        typeof endpoint !== "string" ||
+        typeof p256dh !== "string" ||
+        typeof auth !== "string"
+      )
         throw new ApiError(400, "invalid_request", "Invalid push subscription");
       res.json(
-        await upsertSubscription(req.viewerDid!, { endpoint, keys: { p256dh, auth } }),
+        await upsertSubscription(req.viewerDid!, {
+          endpoint,
+          keys: { p256dh, auth },
+        }),
       );
     } catch (e) {
       next(e);
