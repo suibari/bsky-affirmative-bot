@@ -6,6 +6,16 @@ import {
   getTimeline,
   hydratePostViews,
 } from "./timeline.js";
+import { embedQuery, hybridConditions } from "./hybridSearch.js";
+
+// 検索は関連順のため offset ベースのページング（tag/一覧の keyset とは別系統）。
+const encodeOffset = (offset: number) =>
+  Buffer.from(String(offset)).toString("base64url");
+const decodeOffset = (cursor?: string): number => {
+  if (!cursor) return 0;
+  const n = Number(Buffer.from(cursor, "base64url").toString());
+  return Number.isFinite(n) && n >= 0 ? Math.floor(n) : 0;
+};
 
 /** 活動順ソート用の下限（投稿ゼロの CH はここに沈む）。 */
 const EPOCH = "1970-01-01T00:00:00.000Z";
@@ -108,6 +118,54 @@ export async function getChannels(opts: { limit: number; cursor?: string }) {
         ? encodeCursor(iso(last.lastPostAt ?? EPOCH), last.uri)
         : undefined,
     hasMore: rows.length > opts.limit,
+  };
+}
+
+/**
+ * チャンネルの自然文検索。name+description を対象に意味検索(pgvector)+trgm 語彙一致の
+ * ハイブリッド。出力形状は getChannels と同じ。
+ */
+export async function searchChannels(opts: {
+  q: string;
+  limit: number;
+  cursor?: string;
+}) {
+  const q = opts.q.trim();
+  const offset = decodeOffset(opts.cursor);
+  const embedding = await embedQuery(q);
+  const textExpr = sql`coalesce(${nagiChannels.name}, '') || ' ' || coalesce(${nagiChannels.description}, '')`;
+  const { match, orderBy } = hybridConditions({
+    embedding,
+    q,
+    embeddingCol: nagiChannels.embedding,
+    textExpr,
+  });
+  const rows = await db
+    .select({
+      uri: nagiChannels.uri,
+      cid: nagiChannels.cid,
+      did: nagiChannels.did,
+      name: nagiChannels.name,
+      description: nagiChannels.description,
+      bannerCid: nagiChannels.bannerCid,
+      pinnedPostUri: nagiChannels.pinnedPostUri,
+      pinnedPostCid: nagiChannels.pinnedPostCid,
+      recordCreatedAt: nagiChannels.recordCreatedAt,
+      indexedAt: nagiChannels.indexedAt,
+      lastPostAt: lastPostSub.lastPostAt,
+    })
+    .from(nagiChannels)
+    .leftJoin(lastPostSub, eq(lastPostSub.channelUri, nagiChannels.uri))
+    .where(and(isNull(nagiChannels.deletedAt), match))
+    .orderBy(orderBy, sql`${nagiChannels.uri} desc`)
+    .limit(opts.limit + 1)
+    .offset(offset);
+  const page = rows.slice(0, opts.limit);
+  const hasMore = rows.length > opts.limit;
+  return {
+    channels: page.map(channelView),
+    cursor: hasMore ? encodeOffset(offset + opts.limit) : undefined,
+    hasMore,
   };
 }
 

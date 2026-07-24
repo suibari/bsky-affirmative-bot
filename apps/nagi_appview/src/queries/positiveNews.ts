@@ -7,8 +7,18 @@ import type { NewsView, Page } from "@bsky-affirmative-bot/nagi-lexicon";
 import { and, desc, eq, inArray, isNull, lt, or, sql } from "drizzle-orm";
 import { decodeCursor, encodeCursor, getBotActor } from "./timeline.js";
 import { getReactionViews } from "./reactions.js";
+import { embedQuery, hybridConditions } from "./hybridSearch.js";
 
 export type NewsLang = "ja" | "en";
+
+// 検索は関連順のため offset ベースのページング（一覧の keyset とは別系統）。
+const encodeOffset = (offset: number) =>
+  Buffer.from(String(offset)).toString("base64url");
+const decodeOffset = (cursor?: string): number => {
+  if (!cursor) return 0;
+  const n = Number(Buffer.from(cursor, "base64url").toString());
+  return Number.isFinite(n) && n >= 0 ? Math.floor(n) : 0;
+};
 
 function view(
   row: {
@@ -83,6 +93,60 @@ export async function getPositiveNews(opts: {
       rows.length > opts.limit && last
         ? encodeCursor(last.indexedAt, last.uri)
         : undefined,
+  };
+}
+
+/**
+ * ニュースの自然文検索。承認済みニュースの titleJa を対象に意味検索(pgvector)+trgm 語彙一致の
+ * ハイブリッド。出力形状は getPositiveNews と同じ（14日制限は設けず、承認済みなら全期間対象）。
+ */
+export async function searchNews(opts: {
+  q: string;
+  limit: number;
+  cursor?: string;
+  lang: NewsLang;
+  viewerDid?: string;
+}): Promise<Page<NewsView>> {
+  const q = opts.q.trim();
+  const offset = decodeOffset(opts.cursor);
+  const embedding = await embedQuery(q);
+  const { match, orderBy } = hybridConditions({
+    embedding,
+    q,
+    embeddingCol: nagiNews.embedding,
+    textExpr: nagiNews.titleJa,
+  });
+  const rows = await db
+    .select({ news: nagiNews, approval: nagiNewsApprovals })
+    .from(nagiNews)
+    .innerJoin(nagiNewsApprovals, eq(nagiNewsApprovals.newsUri, nagiNews.uri))
+    .where(
+      and(
+        isNull(nagiNews.deletedAt),
+        eq(nagiNewsApprovals.status, "approved"),
+        eq(nagiNewsApprovals.newsCid, nagiNews.cid),
+        match,
+      ),
+    )
+    .orderBy(orderBy, sql`${nagiNews.uri} desc`)
+    .limit(opts.limit + 1)
+    .offset(offset);
+  const page = rows.slice(0, opts.limit);
+  const hasMore = rows.length > opts.limit;
+  const [reactions, botActor] = await Promise.all([
+    getReactionViews(
+      page.map((row) => row.news.uri),
+      opts.viewerDid,
+    ),
+    getBotActor(),
+  ]);
+  return {
+    items: page.map((row) =>
+      view(row, opts.lang, reactions.get(row.news.uri) ?? []),
+    ),
+    botActor,
+    hasMore,
+    cursor: hasMore ? encodeOffset(offset + opts.limit) : undefined,
   };
 }
 

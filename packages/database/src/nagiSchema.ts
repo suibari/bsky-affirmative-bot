@@ -129,6 +129,9 @@ export const nagiChannels = nagiSchema.table(
     bannerCid: text("banner_cid"),
     pinnedPostUri: text("pinned_post_uri"),
     pinnedPostCid: text("pinned_post_cid"),
+    // NL検索(意味検索)用。ソースは name+description。EmbeddingWorker が生成し、CH 編集で
+    // name/description が変わったら NULL に戻して再生成する。
+    embedding: vector("embedding", { dimensions: 1024 }),
     recordCreatedAt: timestamp("record_created_at", {
       withTimezone: true,
     }).notNull(),
@@ -137,7 +140,14 @@ export const nagiChannels = nagiSchema.table(
       .notNull(),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
   },
-  (t) => [index("nagi_channels_idx").on(t.indexedAt)],
+  (t) => [
+    index("nagi_channels_idx").on(t.indexedAt),
+    index("nagi_channels_embedding_hnsw_idx").using(
+      "hnsw",
+      t.embedding.op("vector_cosine_ops"),
+    ),
+    index("nagi_channels_name_trgm_idx").using("gin", t.name.op("gin_trgm_ops")),
+  ],
 );
 /** PDSから取り込んだニュース本体。承認はCID単位で別表に保持する。 */
 export const nagiNews = nagiSchema.table(
@@ -155,6 +165,9 @@ export const nagiNews = nagiSchema.table(
     sourceUrl: text("source_url"),
     publishedAt: timestamp("published_at", { withTimezone: true }),
     langs: jsonb("langs"),
+    // NL検索(意味検索)用。ソースは titleJa[+sourceName]。EmbeddingWorker が生成し、titleJa が
+    // 変わったら NULL に戻して再生成する。
+    embedding: vector("embedding", { dimensions: 1024 }),
     recordCreatedAt: timestamp("record_created_at", { withTimezone: true }).notNull(),
     indexedAt: timestamp("indexed_at", { withTimezone: true }).defaultNow().notNull(),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
@@ -163,6 +176,11 @@ export const nagiNews = nagiSchema.table(
     index("nagi_news_article_id_idx").on(t.articleId),
     index("nagi_news_normalized_url_idx").on(t.normalizedUrl),
     index("nagi_news_feed_idx").on(t.indexedAt, t.uri),
+    index("nagi_news_embedding_hnsw_idx").using(
+      "hnsw",
+      t.embedding.op("vector_cosine_ops"),
+    ),
+    index("nagi_news_title_trgm_idx").using("gin", t.titleJa.op("gin_trgm_ops")),
   ],
 );
 /** AI・管理者による審査結果。ニュース編集でCIDが変わると古い承認は適用されない。 */
@@ -267,16 +285,33 @@ export const nagiEmojis = nagiSchema.table(
     index("nagi_emoji_name_idx").on(t.name),
   ],
 );
-export const nagiProfiles = nagiSchema.table("profiles", {
-  did: text("did").primaryKey(),
-  displayName: text("display_name").notNull(),
-  description: text("description"),
-  avatarCid: text("avatar_cid"),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
-  indexedAt: timestamp("indexed_at", { withTimezone: true })
-    .defaultNow()
-    .notNull(),
-});
+export const nagiProfiles = nagiSchema.table(
+  "profiles",
+  {
+    did: text("did").primaryKey(),
+    displayName: text("display_name").notNull(),
+    description: text("description"),
+    avatarCid: text("avatar_cid"),
+    // NL検索(意味検索)用のプロフィール埋め込み。ソースは displayName+description に、あれば
+    // botたん分析(nagiActorAnalyses.analysisJa)を連結したもの。EmbeddingWorker が生成し、
+    // プロフィール編集・分析更新で NULL に戻して再生成する。
+    embedding: vector("embedding", { dimensions: 1024 }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+    indexedAt: timestamp("indexed_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [
+    index("nagi_profiles_embedding_hnsw_idx").using(
+      "hnsw",
+      t.embedding.op("vector_cosine_ops"),
+    ),
+    index("nagi_profiles_display_name_trgm_idx").using(
+      "gin",
+      t.displayName.op("gin_trgm_ops"),
+    ),
+  ],
+);
 /**
  * botたんが書いたユーザーの日記（com.suibari.nagi.diary）。
  * ポストではないのでタイムラインには一切出ず、通知とプロフィールの日記タブからのみ参照する。

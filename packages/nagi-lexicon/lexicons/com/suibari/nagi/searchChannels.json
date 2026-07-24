@@ -1,0 +1,30 @@
+{
+  "lexicon": 1,
+  "id": "com.suibari.nagi.searchChannels",
+  "defs": {
+    "main": {
+      "type": "query",
+      "parameters": {
+        "type": "params",
+        "required": ["q"],
+        "properties": {
+          "q": { "type": "string", "maxLength": 200, "description": "自由文キーワード。name+description を意味検索(埋め込み)+語彙一致で検索する。" },
+          "limit": { "type": "integer", "minimum": 1, "maximum": 100, "default": 50 },
+          "cursor": { "type": "string" }
+        }
+      },
+      "output": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "required": ["channels", "hasMore"],
+          "properties": {
+            "channels": { "type": "array", "items": { "type": "unknown" } },
+            "cursor": { "type": "string" },
+            "hasMore": { "type": "boolean" }
+          }
+        }
+      }
+    }
+  }
+}

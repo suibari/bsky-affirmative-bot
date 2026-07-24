@@ -11,6 +11,7 @@ import {
   getChannel,
   getChannelTimeline,
   getChannels,
+  searchChannels,
 } from "../queries/channels.js";
 import { getActorProfile, getReactedFeed } from "../queries/profile.js";
 import { searchActors } from "../queries/actors.js";
@@ -21,7 +22,7 @@ import {
   updateSeen,
 } from "../queries/notifications.js";
 import { getDiaries } from "../queries/diaries.js";
-import { getPositiveNews } from "../queries/positiveNews.js";
+import { getPositiveNews, searchNews } from "../queries/positiveNews.js";
 import {
   deleteSubscription,
   upsertSubscription,
@@ -134,6 +135,32 @@ xrpc.get(
         )
         .json(
           await getChannels({
+            limit: limit(req.query.limit),
+            cursor: String(req.query.cursor ?? "") || undefined,
+          }),
+        );
+    } catch (e) {
+      next(e);
+    }
+  },
+);
+xrpc.get(
+  `/${NAGI.searchChannels}`,
+  optionalServiceAuth(NAGI.searchChannels),
+  async (req, res, next) => {
+    try {
+      const q = String(req.query.q ?? "")
+        .trim()
+        .slice(0, 200);
+      if (!q) throw new ApiError(400, "invalid_request", "q is required");
+      res
+        .set(
+          "Cache-Control",
+          req.viewerDid ? "private, no-store" : "public, max-age=15",
+        )
+        .json(
+          await searchChannels({
+            q,
             limit: limit(req.query.limit),
             cursor: String(req.query.cursor ?? "") || undefined,
           }),
@@ -328,6 +355,37 @@ xrpc.get(
         )
         .json(
           await getPositiveNews({
+            limit: Math.min(20, limit(req.query.limit)),
+            cursor: String(req.query.cursor ?? "") || undefined,
+            lang,
+            viewerDid: req.viewerDid,
+          }),
+        );
+    } catch (e) {
+      next(e);
+    }
+  },
+);
+xrpc.get(
+  `/${NAGI.searchNews}`,
+  optionalServiceAuth(NAGI.searchNews),
+  async (req, res, next) => {
+    try {
+      const q = String(req.query.q ?? "")
+        .trim()
+        .slice(0, 200);
+      if (!q) throw new ApiError(400, "invalid_request", "q is required");
+      const lang = String(req.query.lang ?? "ja");
+      if (lang !== "ja" && lang !== "en")
+        throw new ApiError(400, "invalid_request", "lang must be ja or en");
+      res
+        .set(
+          "Cache-Control",
+          req.viewerDid ? "private, no-store" : "public, max-age=60",
+        )
+        .json(
+          await searchNews({
+            q,
             limit: Math.min(20, limit(req.query.limit)),
             cursor: String(req.query.cursor ?? "") || undefined,
             lang,

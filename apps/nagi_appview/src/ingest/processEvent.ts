@@ -251,7 +251,9 @@ export async function processEvent(evt: any) {
           set: { cid: commit.cid, url: value.url, normalizedUrl: normalizedUrl.toString(), titleJa: value.titleJa,
             sourceName: value.sourceName ?? null, sourceUrl: value.sourceUrl ?? null,
             publishedAt: value.publishedAt ? new Date(value.publishedAt) : null,
-            langs: value.langs, recordCreatedAt: createdAt, deletedAt: null },
+            langs: value.langs, recordCreatedAt: createdAt, deletedAt: null,
+            // 意味検索の埋め込みソース(titleJa)が変わったら再生成させる。
+            embedding: sql`case when ${nagiNews.titleJa} is distinct from excluded.title_ja then null else ${nagiNews.embedding} end` },
         });
       }
       if (collection === NAGI.channel) {
@@ -281,6 +283,8 @@ export async function processEvent(evt: any) {
               pinnedPostCid: value.pinnedPost?.cid ?? null,
               recordCreatedAt: createdAt,
               deletedAt: null,
+              // 意味検索の埋め込みソース(name/description)が変わったら再生成させる。
+              embedding: sql`case when (${nagiChannels.name} is distinct from excluded.name) or (${nagiChannels.description} is distinct from excluded.description) then null else ${nagiChannels.embedding} end`,
             },
           });
       }
@@ -377,6 +381,9 @@ export async function processEvent(evt: any) {
               displayName: value.displayName,
               description: value.description,
               avatarCid: value.avatar?.ref?.$link,
+              // 意味検索の埋め込みソース(displayName/description)が変わったら再生成させる
+              // （analysisJa 側の更新は NagiAnalysisFeature が別途 NULL リセットする）。
+              embedding: sql`case when (${nagiProfiles.displayName} is distinct from excluded.display_name) or (${nagiProfiles.description} is distinct from excluded.description) then null else ${nagiProfiles.embedding} end`,
             },
           });
         // 初回登録（プロフィール新規作成）時のみ、Bluesky 投稿を対象に自動分析をキューする。

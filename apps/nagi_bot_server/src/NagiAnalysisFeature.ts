@@ -159,4 +159,11 @@ export async function runNagiAnalysis(job: AnalysisJobLike): Promise<void> {
         updatedAt: now,
       },
     });
+
+  // 分析(analysisJa)は意味検索のプロフィール埋め込みソースなので、更新したら該当ユーザーの
+  // 埋め込みを NULL に戻し、AppView の EmbeddingWorker に新しい分析込みで再生成させる。
+  await db
+    .update(nagiProfiles)
+    .set({ embedding: null })
+    .where(eq(nagiProfiles.did, job.did));
 }
