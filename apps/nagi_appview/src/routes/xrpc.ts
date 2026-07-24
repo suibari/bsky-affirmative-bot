@@ -52,6 +52,8 @@ for (const [nsid, affirmation] of [
         cursor: String(req.query.cursor ?? "") || undefined,
         viewerDid: req.viewerDid,
         affirmation,
+        // 会話グループ化はメイン共有TLのみ。全肯定TLは Phase 2 まで従来表示。
+        group: !affirmation,
       });
       res
         .set(

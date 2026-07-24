@@ -9,6 +9,7 @@ import {
 } from "@bsky-affirmative-bot/database";
 import {
   NAGI,
+  type ConversationView,
   type FeedItem,
   type PostView,
 } from "@bsky-affirmative-bot/nagi-lexicon";
@@ -273,29 +274,34 @@ export async function hydratePostViews(
     };
   });
 }
+type BotReplyJob = { state: string; replyUri: string | null };
+/** 元投稿 uri → botたん返信ジョブ（state/replyUri）。返信の indexed 済み判定・待機表示に使う。 */
+export async function fetchBotReplyJobs(
+  sourceUris: string[],
+): Promise<Map<string, BotReplyJob>> {
+  if (!sourceUris.length) return new Map();
+  const jobs = await db
+    .select({
+      sourceUri: nagiBotReplyJobs.sourceUri,
+      state: nagiBotReplyJobs.state,
+      replyUri: nagiBotReplyJobs.replyUri,
+    })
+    .from(nagiBotReplyJobs)
+    .where(inArray(nagiBotReplyJobs.sourceUri, sourceUris));
+  return new Map(
+    jobs.map((j) => [j.sourceUri, { state: j.state, replyUri: j.replyUri }]),
+  );
+}
 export async function buildFeedItems(
   rows: PostRow[],
   viewerDid?: string,
   groupBotReplies = true,
   includeReplyParents = false,
 ): Promise<FeedItem[]> {
-  const jobs =
+  const jobByUri =
     groupBotReplies && rows.length
-      ? await db
-          .select({
-            sourceUri: nagiBotReplyJobs.sourceUri,
-            state: nagiBotReplyJobs.state,
-            replyUri: nagiBotReplyJobs.replyUri,
-          })
-          .from(nagiBotReplyJobs)
-          .where(
-            inArray(
-              nagiBotReplyJobs.sourceUri,
-              rows.map((r) => r.post.uri),
-            ),
-          )
-      : [];
-  const jobByUri = new Map(jobs.map((j) => [j.sourceUri, j]));
+      ? await fetchBotReplyJobs(rows.map((r) => r.post.uri))
+      : new Map<string, BotReplyJob>();
   const replyUris = new Set<string>();
   const parentUris = new Set<string>();
   for (const row of rows) {
@@ -333,6 +339,133 @@ export async function buildFeedItems(
     return view;
   });
 }
+/** スレッドキー = coalesce(replyRootUri, uri)。代表述語と揃える。 */
+const threadKeyOf = (post: {
+  uri: string;
+  replyRootUri: string | null;
+}): string => post.replyRootUri ?? post.uri;
+/** 指定スレッド(ルートURI)群に属する非削除投稿を全部引く。bot返信も含む（バブルにするため）。 */
+async function fetchThreadRows(threadKeys: string[]): Promise<PostRow[]> {
+  if (!threadKeys.length) return [];
+  return db
+    .select(postSelection)
+    .from(nagiPosts)
+    .leftJoin(nagiActors, eq(nagiActors.did, nagiPosts.did))
+    .leftJoin(nagiProfiles, eq(nagiProfiles.did, nagiPosts.did))
+    .leftJoin(nagiPostScores, eq(nagiPostScores.postUri, nagiPosts.uri))
+    .where(
+      and(
+        isNull(nagiPosts.deletedAt),
+        or(
+          inArray(nagiPosts.replyRootUri, threadKeys),
+          inArray(nagiPosts.uri, threadKeys),
+        ),
+      ),
+    );
+}
+/**
+ * 代表投稿(各スレッドの最新の共有可視投稿)群を、会話グループ FeedItem に組み立てる。
+ * ルート + 最新3バブル(bot返信含む・createdAt昇順)に畳み、hiddenCount/totalCount を付ける。
+ * botたん返信がまだ indexed されていない代表には awaitingBotReply を載せる。
+ */
+export async function buildConversationItems(
+  reps: PostRow[],
+  viewerDid?: string,
+): Promise<FeedItem[]> {
+  if (!reps.length) return [];
+  const threadKeys = [...new Set(reps.map((r) => threadKeyOf(r.post)))];
+  const threadRows = await fetchThreadRows(threadKeys);
+  // スレッドキーごとに投稿を集める（createdAt昇順・uriタイブレークで安定ソート）。
+  const byThread = new Map<string, PostRow[]>();
+  for (const row of threadRows) {
+    const key = threadKeyOf(row.post);
+    const list = byThread.get(key) ?? [];
+    if (!byThread.has(key)) byThread.set(key, list);
+    list.push(row);
+  }
+  const cmp = (a: PostRow, b: PostRow) => {
+    const t =
+      a.post.recordCreatedAt.getTime() - b.post.recordCreatedAt.getTime();
+    return t !== 0 ? t : a.post.uri < b.post.uri ? -1 : 1;
+  };
+  // ルートからの返信ホップ数(=depth)。中間が畳まれても正しい深さを出すため、スレッド全体で計算。
+  const parentByUri = new Map(
+    threadRows.map((r) => [r.post.uri, r.post.replyParentUri]),
+  );
+  const depthFrom = (rootUri: string, uri: string): number => {
+    let d = 0;
+    let cur: string | null | undefined = uri;
+    const seen = new Set<string>();
+    while (cur && cur !== rootUri && !seen.has(cur)) {
+      seen.add(cur);
+      cur = parentByUri.get(cur);
+      d++;
+      if (d > 64) break; // 壊れた/循環参照の保険
+    }
+    return d;
+  };
+  // 表示対象(root + 最新3バブル + 代表)だけをまとめて1回でハイドレート。
+  const displayRows = new Map<string, PostRow>();
+  const plan = new Map<
+    string,
+    { rootUri: string; bubbleUris: string[]; bubbleDepths: number[]; total: number }
+  >();
+  for (const key of threadKeys) {
+    const list = (byThread.get(key) ?? []).slice().sort(cmp);
+    const root = list.find((r) => r.post.uri === key);
+    if (!root) continue; // ルート削除済みスレッドは代表述語で除外済み。安全側でスキップ。
+    const nonRoot = list.filter((r) => r.post.uri !== key);
+    const bubbles = nonRoot.slice(-3);
+    plan.set(key, {
+      rootUri: key,
+      bubbleUris: bubbles.map((r) => r.post.uri),
+      bubbleDepths: bubbles.map((r) => depthFrom(key, r.post.uri)),
+      total: list.length,
+    });
+    for (const r of [root, ...bubbles]) displayRows.set(r.post.uri, r);
+  }
+  for (const rep of reps) displayRows.set(rep.post.uri, rep);
+  const views = await hydratePostViews([...displayRows.values()], viewerDid);
+  const viewByUri = new Map(views.map((v) => [v.uri, v]));
+  const jobByUri = await fetchBotReplyJobs(reps.map((r) => r.post.uri));
+  return reps.flatMap((rep) => {
+    const key = threadKeyOf(rep.post);
+    const p = plan.get(key);
+    const root = viewByUri.get(key);
+    if (!p || !root) return []; // ルート未解決なら共有TLに出さない（安全側）。
+    const bubbles = p.bubbleUris.flatMap((uri, i) => {
+      const post = viewByUri.get(uri);
+      return post ? [{ post, depth: p.bubbleDepths[i] }] : [];
+    });
+    const hiddenCount = Math.max(0, p.total - 1 - bubbles.length);
+    // botたん返信が既にスレッド投稿として存在するなら待機表示は出さない。
+    const threadUris = new Set(
+      (byThread.get(key) ?? []).map((r) => r.post.uri),
+    );
+    const job = jobByUri.get(rep.post.uri);
+    const replyUri = job?.replyUri ?? rep.botReplyUri ?? undefined;
+    const awaitingBotReply =
+      replyUri && threadUris.has(replyUri)
+        ? undefined
+        : job?.state === "failed"
+          ? ("failed" as const)
+          : job
+            ? job.state === "processing"
+              ? ("processing" as const)
+              : ("pending" as const)
+            : undefined;
+    const conversation: ConversationView = {
+      threadRootUri: key,
+      root,
+      bubbles,
+      hiddenCount,
+      totalCount: p.total,
+      ...(awaitingBotReply ? { awaitingBotReply } : {}),
+    };
+    const repView = (viewByUri.get(rep.post.uri) ?? root) as FeedItem;
+    return [{ ...repView, conversation }];
+  });
+}
 export async function getTimeline(opts: {
   limit: number;
   cursor?: string;
@@ -344,6 +477,11 @@ export async function getTimeline(opts: {
   /** タグ検索(/search): この小文字タグを含む投稿だけを出す。呼び出し側で小文字化済みであること。 */
   tag?: string;
   filter?: "posts" | "replies" | "media";
+  /**
+   * 会話グループ化。メイン共有TLでのみ true。各スレッドの最新の共有可視投稿だけを代表として
+   * 1回だけ返し、buildConversationItems で会話ブロックに畳む。プロフィール/CH/検索/filter は false。
+   */
+  group?: boolean;
 }) {
   const point = decodeCursor(opts.cursor);
   const filters: any[] = [isNull(nagiPosts.deletedAt)];
@@ -395,6 +533,23 @@ export async function getTimeline(opts: {
     // 将来チャンネル投稿をグローバル/全肯定TLへ流さない方針に変える場合は、
     // ここに filters.push(isNull(nagiPosts.channelUri)); を1行足すだけでよい。
   }
+  // 会話グループ化: 同スレッドに自分より後の共有可視投稿(=非削除・非bot返信)が無い投稿=代表
+  // だけを残す。これで1スレッド1回・最新活動順になる。cursor/orderBy はそのまま代表に効く。
+  // kossori判定は上の case 式が担うので、ここでは重複して書かない。
+  if (opts.group)
+    filters.push(sql`
+      not exists (
+        select 1 from nagi.posts as sib
+        where coalesce(sib.reply_root_uri, sib.uri)
+            = coalesce(${nagiPosts.replyRootUri}, ${nagiPosts.uri})
+          and sib.deleted_at is null
+          and (sib.did <> ${config.botDid} or sib.reply_parent_uri is null)
+          and (
+            sib.indexed_at > ${nagiPosts.indexedAt}
+            or (sib.indexed_at = ${nagiPosts.indexedAt} and sib.uri > ${nagiPosts.uri})
+          )
+      )
+    `);
   const rows = await db
     .select(postSelection)
     .from(nagiPosts)
@@ -406,12 +561,14 @@ export async function getTimeline(opts: {
     .limit(opts.limit + 1);
   const page = rows.slice(0, opts.limit);
   const [items, botActor] = await Promise.all([
-    buildFeedItems(
-      page,
-      opts.viewerDid,
-      true,
-      opts.filter === "replies" || Boolean(opts.channelUri),
-    ),
+    opts.group
+      ? buildConversationItems(page, opts.viewerDid)
+      : buildFeedItems(
+          page,
+          opts.viewerDid,
+          true,
+          opts.filter === "replies" || Boolean(opts.channelUri),
+        ),
     getBotActor(),
   ]);
   const last = page.at(-1)?.post;

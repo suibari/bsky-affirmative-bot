@@ -247,10 +247,32 @@ export type PostView = {
   deleted?: boolean;
 };
 export type BotReplyState = "pending" | "processing" | "posted" | "failed";
+/**
+ * 会話グループ化ビュー。共有TL(group モード)でのみ付き、1スレッドを
+ * 「ルート + 最新数件のバブル」に畳んで表示する。bot返信もバブルとして時刻順に含む。
+ */
+/** 会話グループ内の1バブル。depth はルートからの返信ホップ数(root=0, 直リプ=1, ...)。 */
+export type ConversationBubble = { post: PostView; depth: number };
+export type ConversationView = {
+  /** スレッドルートURI。dedup/マージ/DOMキーの安定キー。 */
+  threadRootUri: string;
+  /** スレッドの起点。常に先頭に表示する。 */
+  root: PostView;
+  /** ルート以降の共有可視バブル（時刻昇順・bot返信含む・最大3件・深さ付き）。 */
+  bubbles: ConversationBubble[];
+  /** ルートと最新群の間に畳まれた件数。0 なら区切りを出さない。 */
+  hiddenCount: number;
+  /** 共有可視バブルの総数（root 含む）。1 なら単独投稿。 */
+  totalCount: number;
+  /** 代表(最新の人間投稿)が botたんの返信を待っている状態。返信 indexed 済みなら付かない。 */
+  awaitingBotReply?: "pending" | "processing" | "failed";
+};
 export type FeedItem = PostView & {
   replyParent?: PostView;
   botReply?: PostView;
   botReplyState?: BotReplyState;
+  /** group モード時のみ。会話ブロックとして描画するためのデータ。 */
+  conversation?: ConversationView;
 };
 export type Page<T> = {
   items: T[];
