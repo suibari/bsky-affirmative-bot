@@ -6,8 +6,9 @@
       "type": "query",
       "parameters": {
         "type": "params",
-        "required": ["tag"],
+        "description": "q（自由文キーワード検索）と tag（タグ絞り込み）のどちらか一方を指定する。q 優先。",
         "properties": {
+          "q": { "type": "string", "maxLength": 200, "description": "自由文キーワード。意味検索(埋め込み)＋語彙一致のハイブリッドで検索する。" },
           "tag": { "type": "string", "description": "小文字で正規化したタグ（# は含まない）。" },
           "limit": { "type": "integer", "minimum": 1, "maximum": 100, "default": 50 },
           "cursor": { "type": "string" }

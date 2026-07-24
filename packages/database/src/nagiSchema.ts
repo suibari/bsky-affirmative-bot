@@ -1,6 +1,7 @@
 import {
   bigint,
   boolean,
+  customType,
   index,
   integer,
   jsonb,
@@ -14,6 +15,27 @@ import {
 } from "drizzle-orm/pg-core";
 
 export const nagiSchema = pgSchema("nagi");
+
+// pgvector 型（affirmative_bot 側 schema.ts と同じ定義）。snowflake-arctic-embed2 = 1024次元。
+const vector = customType<{
+  data: number[];
+  driverData: string;
+  config: { dimensions: number };
+}>({
+  dataType(config) {
+    return `vector(${config?.dimensions ?? 1024})`;
+  },
+  toDriver(value: number[]): string {
+    return `[${value.join(",")}]`;
+  },
+  fromDriver(value: string): number[] {
+    return value
+      .replace(/^\[/, "")
+      .replace(/\]$/, "")
+      .split(",")
+      .map(Number);
+  },
+});
 export const notificationType = nagiSchema.enum("notification_type", [
   "reply",
   "reaction",
@@ -73,6 +95,10 @@ export const nagiPosts = nagiSchema.table(
     // 投稿後編集の検知フラグ。ライブで cid 変化を観測した編集で true になり、以後戻さない
     // （単調）。バックフィルなし＝機能導入後に観測した編集のみ。UI の「編集済み」バッジ用。
     edited: boolean("edited").default(false).notNull(),
+    // 意味検索(NL検索の土台)用の本文埋め込み。Ollama(snowflake-arctic-embed2/1024次元)で
+    // 生成し、EmbeddingWorker が embedding IS NULL を非同期で埋める。編集(cid変化)時は NULL に
+    // 戻して再生成対象化する。バックフィルは同 worker が兼ねる。
+    embedding: vector("embedding", { dimensions: 1024 }),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
   },
   (t) => [
@@ -81,6 +107,13 @@ export const nagiPosts = nagiSchema.table(
     index("nagi_posts_actor_idx").on(t.did, t.indexedAt),
     index("nagi_posts_channel_idx").on(t.channelUri, t.indexedAt),
     index("nagi_posts_tags_idx").using("gin", t.tags),
+    // 意味検索: cosine 近傍。小さいテーブルでも使える HNSW。
+    index("nagi_posts_embedding_hnsw_idx").using(
+      "hnsw",
+      t.embedding.op("vector_cosine_ops"),
+    ),
+    // 語彙検索: 日本語も部分一致できるよう trigram GIN（要 pg_trgm 拡張）。
+    index("nagi_posts_text_trgm_idx").using("gin", t.text.op("gin_trgm_ops")),
   ],
 );
 /** ユーザーが作るチャンネル（com.suibari.nagi.channel）。作成者の PDS が真実源。 */

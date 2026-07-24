@@ -6,6 +6,7 @@ import {
   requiredServiceAuth,
 } from "../auth/serviceAuth.js";
 import { getTimeline } from "../queries/timeline.js";
+import { searchPostsByText } from "../queries/search.js";
 import {
   getChannel,
   getChannelTimeline,
@@ -192,23 +193,38 @@ xrpc.get(
   optionalServiceAuth(NAGI.searchPosts),
   async (req, res, next) => {
     try {
+      // 自由文検索(q)を優先。無ければ従来のタグ検索(tag)にフォールバック。
+      const q = String(req.query.q ?? "")
+        .trim()
+        .slice(0, 200);
       const tag = String(req.query.tag ?? "")
         .trim()
         .toLowerCase();
-      if (!tag) throw new ApiError(400, "invalid_request", "tag is required");
-      res
-        .set(
-          "Cache-Control",
-          req.viewerDid ? "private, no-store" : "public, max-age=15",
-        )
-        .json(
-          await getTimeline({
-            tag,
+      if (!q && !tag) {
+        throw new ApiError(400, "invalid_request", "q or tag is required");
+      }
+      const cacheControl = req.viewerDid
+        ? "private, no-store"
+        : "public, max-age=15";
+      if (q) {
+        res.set("Cache-Control", cacheControl).json(
+          await searchPostsByText({
+            q,
             limit: limit(req.query.limit),
             cursor: String(req.query.cursor ?? "") || undefined,
             viewerDid: req.viewerDid,
           }),
         );
+        return;
+      }
+      res.set("Cache-Control", cacheControl).json(
+        await getTimeline({
+          tag,
+          limit: limit(req.query.limit),
+          cursor: String(req.query.cursor ?? "") || undefined,
+          viewerDid: req.viewerDid,
+        }),
+      );
     } catch (e) {
       next(e);
     }

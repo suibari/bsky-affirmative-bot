@@ -8,6 +8,7 @@ import { wellKnownDid } from "./routes/wellKnownDid.js";
 import { getBlob } from "./routes/blob.js";
 import { errorHandler, notFound } from "./middleware/errors.js";
 import { startJetstream } from "./ingest/jetstream.js";
+import { startEmbeddingWorker } from "./ingest/embeddingWorker.js";
 const app = express();
 app.set("trust proxy", 1);
 // atproto-proxy 経由の authed リクエストは送信元 IP がユーザの PDS になり、IP キーだと
@@ -60,6 +61,9 @@ app.use(notFound);
 app.use(errorHandler);
 await initializeDatabases();
 const stream = await startJetstream();
+// NL検索(意味検索)用の投稿本文埋め込みを非同期生成（既存投稿のバックフィルも兼ねる）。
+// OLLAMA_BASE_URL 未設定なら実質 no-op。
+startEmbeddingWorker();
 const onListen = () =>
   console.log(`Nagi AppView listening on ${config.host ?? "(default)"}:${config.port}`);
 const server = config.host

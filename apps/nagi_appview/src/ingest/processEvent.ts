@@ -207,6 +207,9 @@ export async function processEvent(evt: any) {
               recordCreatedAt: createdAt,
               // cid 変化を観測した編集で true。cid 不変の再処理ではフラグを戻さない（単調）。
               edited: isEdit ? true : sql`${nagiPosts.edited}`,
+              // 本文が変わった編集では意味検索の埋め込みを無効化し、EmbeddingWorker に
+              // 新しい本文で再生成させる。cid 不変の再処理では既存埋め込みを保持する。
+              ...(isEdit ? { embedding: null } : {}),
               deletedAt: null,
             },
           });

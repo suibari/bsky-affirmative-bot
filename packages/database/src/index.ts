@@ -5,7 +5,7 @@ import { LanguageName, LIMIT_REQUEST_PER_DAY_GEMINI, DailyReport, Stats } from '
 
 export { initializeDatabases, db, subscribers, followers };
 export * from './nagiSchema.js';
-export { filterRelatedHistory } from './ollamaEmbed.js';
+export { filterRelatedHistory, generateEmbedding, generateEmbeddings } from './ollamaEmbed.js';
 export type { DailyReport, Stats };
 
 export class MemoryService {
