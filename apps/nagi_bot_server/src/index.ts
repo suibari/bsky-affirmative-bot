@@ -12,6 +12,8 @@ import {
   startNagiChannelTopicScheduler,
 } from "./NagiChannelFeature.js";
 import { startNagiReplyWorker } from "./NagiReplyWorker.js";
+import { startNagiAnalysisWorker } from "./NagiAnalysisWorker.js";
+import { enqueueAnalysis } from "./NagiAnalysisFeature.js";
 import express from "express";
 import type { ScheduledPostRequest } from "@bsky-affirmative-bot/clients";
 import { publishScheduledPost } from "./ScheduledPostFeature.js";
@@ -41,6 +43,8 @@ async function start() {
     },
   });
   startNagiReplyWorker();
+  // 自動分析（プロフィールの「botたんのひとこと」）ワーカー。エンキューは AppView ingest が担う。
+  startNagiAnalysisWorker();
   // 過疎チャンネルへの話題提供（Phase 2）。作成時の盛り上げ投稿は onNagiChannel が担う。
   startNagiChannelTopicScheduler();
 
@@ -93,6 +97,31 @@ async function start() {
       res.status(200).json({ ok: true });
     } catch (error) {
       res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
+    }
+  });
+  // 100投稿・初回登録を待たずに分析をキューする（動作確認・手動リカバリ用）。
+  app.post("/analysis/run", async (req, res) => {
+    try {
+      const did = String(req.body?.did ?? "");
+      const source = String(req.body?.source ?? "");
+      if (!did.startsWith("did:")) {
+        res.status(400).json({ error: "did is required" });
+        return;
+      }
+      if (source !== "bluesky" && source !== "nagi") {
+        res.status(400).json({ error: "source must be 'bluesky' or 'nagi'" });
+        return;
+      }
+      const postCountAt =
+        typeof req.body?.postCountAt === "number"
+          ? req.body.postCountAt
+          : undefined;
+      await enqueueAnalysis({ did, source, postCountAt });
+      res.status(200).json({ ok: true });
+    } catch (error) {
+      res
+        .status(500)
+        .json({ error: error instanceof Error ? error.message : String(error) });
     }
   });
   // データ削除時に bot リポジトリから当該ユーザーの日記を消す。

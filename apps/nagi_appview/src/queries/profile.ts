@@ -1,5 +1,6 @@
 import {
   db,
+  nagiActorAnalyses,
   nagiActors,
   nagiNews,
   nagiNewsApprovals,
@@ -35,8 +36,11 @@ import {
   type PostRow,
 } from "./timeline.js";
 import { getApprovedNewsViews, type NewsLang } from "./positiveNews.js";
-export async function getActorProfile(did: string): Promise<ProfileDetail> {
-  const [[actor], [profile], [stats], superPositiveLevel, currentTitle] =
+export async function getActorProfile(
+  did: string,
+  lang: "ja" | "en" = "ja",
+): Promise<ProfileDetail> {
+  const [[actor], [profile], [stats], superPositiveLevel, currentTitle, [analysis]] =
     await Promise.all([
       db.select().from(nagiActors).where(eq(nagiActors.did, did)),
       db.select().from(nagiProfiles).where(eq(nagiProfiles.did, did)),
@@ -49,11 +53,21 @@ export async function getActorProfile(did: string): Promise<ProfileDetail> {
         .where(and(eq(nagiPosts.did, did), isNull(nagiPosts.deletedAt))),
       getSuperPositiveLevel(did),
       getCurrentTitle(did),
+      db
+        .select({
+          analysisJa: nagiActorAnalyses.analysisJa,
+          analysisEn: nagiActorAnalyses.analysisEn,
+        })
+        .from(nagiActorAnalyses)
+        .where(eq(nagiActorAnalyses.did, did)),
     ]);
   if (!actor && !profile && !stats?.postCount)
     throw new ApiError(404, "not_found", "Actor not found");
   const firstPostAt = stats?.firstPostAt
     ? new Date(stats.firstPostAt).toISOString()
+    : undefined;
+  const comment = analysis
+    ? (lang === "en" ? analysis.analysisEn : analysis.analysisJa) || undefined
     : undefined;
   return {
     did,
@@ -69,6 +83,7 @@ export async function getActorProfile(did: string): Promise<ProfileDetail> {
     postCount: stats?.postCount ?? 0,
     firstPostAt,
     joinedAt: profile?.createdAt?.toISOString() ?? firstPostAt,
+    comment,
   };
 }
 export async function getReactedFeed(opts: {

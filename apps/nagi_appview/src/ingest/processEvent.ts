@@ -1,5 +1,7 @@
 import {
   db,
+  nagiActorAnalyses,
+  nagiAnalysisJobs,
   nagiChannels,
   nagiDiaries,
   nagiEmojis,
@@ -13,7 +15,7 @@ import {
   nagiTranslations,
 } from "@bsky-affirmative-bot/database";
 import { BLUEMOJI_ITEM, NAGI } from "@bsky-affirmative-bot/nagi-lexicon";
-import { and, eq, inArray, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import { config } from "../config.js";
 import { indexEmoji, resolveEmoji, type EmojiRow } from "../services/emoji.js";
 import { dispatchPushAll, type PushJob } from "../services/pushDispatch.js";
@@ -97,6 +99,15 @@ export async function processEvent(evt: any) {
             .select({ cid: nagiPosts.cid })
             .from(nagiPosts)
             .where(eq(nagiPosts.uri, uri))
+            .limit(1)
+        : [];
+    // プロフィールの初回作成＝Nagi 初回登録。初回だけ自動分析（Bluesky投稿）をキューする。
+    const existingProfile =
+      collection === NAGI.profile
+        ? await tx
+            .select({ did: nagiProfiles.did })
+            .from(nagiProfiles)
+            .where(eq(nagiProfiles.did, did))
             .limit(1)
         : [];
     if (commit.operation === "delete") {
@@ -194,6 +205,27 @@ export async function processEvent(evt: any) {
               deletedAt: null,
             },
           });
+        // 新規投稿が 100 の倍数に到達したら自動分析（Nagi投稿+リアクション）をキューする。
+        // 編集(existingPost)ではカウントが変わらないので発火させない。件数は
+        // プロフィールの postCount と同条件（非削除の全投稿）で数える。
+        if (!existingPost[0] && did !== config.botDid) {
+          const [counted] = await tx
+            .select({ count: sql<number>`count(*)::int` })
+            .from(nagiPosts)
+            .where(and(eq(nagiPosts.did, did), isNull(nagiPosts.deletedAt)));
+          const count = counted?.count ?? 0;
+          if (count > 0 && count % 100 === 0) {
+            await tx
+              .insert(nagiAnalysisJobs)
+              .values({
+                id: `${did}#nagi#${count}`,
+                did,
+                source: "nagi",
+                postCountAt: count,
+              })
+              .onConflictDoNothing();
+          }
+        }
       }
       if (collection === NAGI.news) {
         const normalizedUrl = new URL(value.url);
@@ -317,7 +349,7 @@ export async function processEvent(evt: any) {
         if (profile[0])
           await indexEmoji(tx, { uri, cid: commit.cid, did, record: value });
       }
-      if (collection === NAGI.profile)
+      if (collection === NAGI.profile) {
         await tx
           .insert(nagiProfiles)
           .values({
@@ -335,6 +367,22 @@ export async function processEvent(evt: any) {
               avatarCid: value.avatar?.ref?.$link,
             },
           });
+        // 初回登録（プロフィール新規作成）時のみ、Bluesky 投稿を対象に自動分析をキューする。
+        // 既に分析済みなら再登録でも再実行しない（job id と分析行の両方で冪等）。
+        if (!existingProfile[0] && did !== config.botDid) {
+          const existingAnalysis = await tx
+            .select({ did: nagiActorAnalyses.did })
+            .from(nagiActorAnalyses)
+            .where(eq(nagiActorAnalyses.did, did))
+            .limit(1);
+          if (!existingAnalysis[0]) {
+            await tx
+              .insert(nagiAnalysisJobs)
+              .values({ id: `${did}#first`, did, source: "bluesky" })
+              .onConflictDoNothing();
+          }
+        }
+      }
       let replyRecipientDid: string | undefined;
       if (collection === NAGI.post && value.reply?.parent?.uri) {
         const parent = await tx

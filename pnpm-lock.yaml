@@ -331,6 +331,9 @@ importers:
       '@bsky-affirmative-bot/nagi-linkcard':
         specifier: workspace:*
         version: link:../../packages/nagi-linkcard
+      '@bsky-affirmative-bot/shared-configs':
+        specifier: workspace:*
+        version: link:../../packages/shared-configs
       async-retry:
         specifier: ^1.3.3
         version: 1.3.3

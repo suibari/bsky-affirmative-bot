@@ -1,0 +1,47 @@
+import { safeFetch } from "@bsky-affirmative-bot/shared-configs";
+
+interface DidDocument {
+  service?: { type: string; serviceEndpoint: string }[];
+}
+
+/** DID ドキュメントから PDS のエンドポイントを解決する（bsky_bot_server と同等）。 */
+export async function getPds(did: string): Promise<string> {
+  did = decodeURIComponent(did);
+
+  if (!did.startsWith("did:")) {
+    throw new Error(`${did} is an invalid DID`);
+  }
+
+  let doc: DidDocument;
+
+  if (did.startsWith("did:plc:")) {
+    doc = await safeFetch(`https://plc.directory/${did}`, {
+      headers: { "Cache-Control": "no-cache" },
+    }).then((res: any) => {
+      if (!res.ok)
+        throw new Error(`Failed to fetch PLC document: ${res.statusText}`);
+      return res.json() as Promise<DidDocument>;
+    });
+  } else if (did.startsWith("did:web:")) {
+    const didDomain = did.split(":")[2];
+    doc = await safeFetch(
+      `https://${decodeURIComponent(didDomain)}/.well-known/did.json`,
+      { headers: { "Cache-Control": "no-cache" } },
+    ).then((res: any) => {
+      if (!res.ok)
+        throw new Error(`Failed to fetch DID document: ${res.statusText}`);
+      return res.json() as Promise<DidDocument>;
+    });
+  } else {
+    throw new Error("Unsupported DID method");
+  }
+
+  const pdsService = doc.service?.findLast(
+    (s: any) => s.type === "AtprotoPersonalDataServer",
+  );
+  if (!pdsService || !pdsService.serviceEndpoint) {
+    throw new Error(`PDS service not found in the DID document for ${did}`);
+  }
+
+  return pdsService.serviceEndpoint;
+}

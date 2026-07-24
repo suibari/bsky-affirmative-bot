@@ -340,6 +340,54 @@ export const nagiBotReplyJobs = nagiSchema.table(
   },
   (t) => [index("nagi_bot_jobs_ready_idx").on(t.state, t.nextAttemptAt)],
 );
+/**
+ * botたんの自動分析（プロフィールの「ひとこと」吹き出し）。did 単位で最新1件を upsert 保存する。
+ * source='bluesky'（Nagi初回登録時、Bluesky投稿を分析）/ 'nagi'（Nagi投稿100到達ごと、Nagi投稿+リアクションを分析）。
+ * 称号(currentTitle)には干渉しない（本文のみ）。閲覧者の lang で ja/en を出し分ける。
+ */
+export const nagiActorAnalyses = nagiSchema.table("actor_analyses", {
+  did: text("did").primaryKey(),
+  analysisJa: text("analysis_ja").notNull(),
+  analysisEn: text("analysis_en").notNull(),
+  source: text("source").notNull(),
+  postCountAt: integer("post_count_at"),
+  model: text("model"),
+  promptVersion: text("prompt_version"),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+/**
+ * 自動分析のリースキュー（nagiBotReplyJobs と同型）。エンキューは AppView ingest が担い、
+ * 処理は nagi_bot_server の NagiAnalysisWorker が担う。id は冪等キー
+ * （初回=`${did}#first` / 100到達=`${did}#nagi#${count}`）で二重投入を防ぐ。
+ */
+export const nagiAnalysisJobs = nagiSchema.table(
+  "analysis_jobs",
+  {
+    id: text("id").primaryKey(),
+    did: text("did").notNull(),
+    source: text("source").notNull(),
+    postCountAt: integer("post_count_at"),
+    state: botJobState("state").default("pending").notNull(),
+    attempts: integer("attempts").default(0).notNull(),
+    leaseExpiresAt: timestamp("lease_expires_at", { withTimezone: true }),
+    nextAttemptAt: timestamp("next_attempt_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    lastError: text("last_error"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [index("nagi_analysis_jobs_ready_idx").on(t.state, t.nextAttemptAt)],
+);
 // Web Push の購読。endpoint がプッシュサービス上の宛先で自然な一意キー。同一ユーザーが
 // 複数デバイス/ブラウザから購読するため did ごとに複数行を持ちうる（did で索引）。
 export const nagiPushSubscriptions = nagiSchema.table(

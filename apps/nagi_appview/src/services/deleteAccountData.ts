@@ -1,6 +1,8 @@
 import {
   db,
   nagiActors,
+  nagiActorAnalyses,
+  nagiAnalysisJobs,
   nagiDiaries,
   nagiBotReplyJobs,
   nagiEmojis,
@@ -65,6 +67,8 @@ export async function deleteAccountData(did: string) {
     await tx.delete(nagiEmojis).where(eq(nagiEmojis.did, did));
     await tx.delete(nagiDiaries).where(eq(nagiDiaries.subjectDid, did));
     await tx.delete(nagiPosts).where(eq(nagiPosts.did, did));
+    await tx.delete(nagiAnalysisJobs).where(eq(nagiAnalysisJobs.did, did));
+    await tx.delete(nagiActorAnalyses).where(eq(nagiActorAnalyses.did, did));
     await tx.delete(nagiProfiles).where(eq(nagiProfiles.did, did));
     await tx.delete(nagiActors).where(eq(nagiActors.did, did));
   });

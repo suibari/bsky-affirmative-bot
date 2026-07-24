@@ -93,7 +93,7 @@ xrpc.get(
       if (lang !== "ja" && lang !== "en")
         throw new ApiError(400, "invalid_request", "lang must be ja or en");
       const [profile, feed] = await Promise.all([
-        getActorProfile(actor),
+        getActorProfile(actor, lang),
         filter === "reactions"
           ? getReactedFeed({
               actorDid: actor,
