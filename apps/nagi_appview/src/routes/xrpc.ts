@@ -177,6 +177,31 @@ xrpc.get(
   },
 );
 xrpc.get(
+  `/${NAGI.searchPosts}`,
+  optionalServiceAuth(NAGI.searchPosts),
+  async (req, res, next) => {
+    try {
+      const tag = String(req.query.tag ?? "").trim().toLowerCase();
+      if (!tag) throw new ApiError(400, "invalid_request", "tag is required");
+      res
+        .set(
+          "Cache-Control",
+          req.viewerDid ? "private, no-store" : "public, max-age=15",
+        )
+        .json(
+          await getTimeline({
+            tag,
+            limit: limit(req.query.limit),
+            cursor: String(req.query.cursor ?? "") || undefined,
+            viewerDid: req.viewerDid,
+          }),
+        );
+    } catch (e) {
+      next(e);
+    }
+  },
+);
+xrpc.get(
   `/${NAGI.searchEmojis}`,
   optionalServiceAuth(NAGI.searchEmojis),
   async (req, res, next) => {

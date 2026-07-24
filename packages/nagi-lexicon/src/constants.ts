@@ -33,6 +33,8 @@ export const NAGI = {
   getChannels: "com.suibari.nagi.getChannels",
   getChannel: "com.suibari.nagi.getChannel",
   getChannelTimeline: "com.suibari.nagi.getChannelTimeline",
+  /** タグ検索。公開コンテンツなのでクライアントは AppView 直読み（getChannelTimeline と同方針）。 */
+  searchPosts: "com.suibari.nagi.searchPosts",
 } as const;
 
 /** Bluemoji (moji.blue) の絵文字定義レコード。カスタム絵文字はユーザー自身のPDSに置く。 */

@@ -1,0 +1,22 @@
+{
+  "lexicon": 1,
+  "id": "com.suibari.nagi.searchPosts",
+  "defs": {
+    "main": {
+      "type": "query",
+      "parameters": {
+        "type": "params",
+        "required": ["tag"],
+        "properties": {
+          "tag": { "type": "string", "description": "小文字で正規化したタグ（# は含まない）。" },
+          "limit": { "type": "integer", "minimum": 1, "maximum": 100, "default": 50 },
+          "cursor": { "type": "string" }
+        }
+      },
+      "output": {
+        "encoding": "application/json",
+        "schema": { "type": "ref", "ref": "com.suibari.nagi.getTimeline#output" }
+      }
+    }
+  }
+}

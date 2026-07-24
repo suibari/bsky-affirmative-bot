@@ -45,6 +45,9 @@ export const nagiPosts = nagiSchema.table(
     did: text("did").notNull(),
     text: text("text").notNull(),
     facets: jsonb("facets"),
+    // facets の #tag feature から抽出した小文字タグ配列。タグ絞り込み（/search）用。
+    // 既存行は NULL（バックフィルなし）。新規/更新投稿から populate される。
+    tags: text("tags").array(),
     langs: jsonb("langs"),
     recordJson: jsonb("record_json"),
     replyRootUri: text("reply_root_uri"),
@@ -74,6 +77,7 @@ export const nagiPosts = nagiSchema.table(
     index("nagi_posts_parent_idx").on(t.replyParentUri),
     index("nagi_posts_actor_idx").on(t.did, t.indexedAt),
     index("nagi_posts_channel_idx").on(t.channelUri, t.indexedAt),
+    index("nagi_posts_tags_idx").using("gin", t.tags),
   ],
 );
 /** ユーザーが作るチャンネル（com.suibari.nagi.channel）。作成者の PDS が真実源。 */

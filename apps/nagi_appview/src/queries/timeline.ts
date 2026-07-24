@@ -335,6 +335,8 @@ export async function getTimeline(opts: {
   actorDid?: string;
   /** CH タイムライン: この URI の channel を持つ投稿だけを、kossori/channelOnly に関係なく出す。 */
   channelUri?: string;
+  /** タグ検索(/search): この小文字タグを含む投稿だけを出す。呼び出し側で小文字化済みであること。 */
+  tag?: string;
   filter?: "posts" | "replies" | "media";
 }) {
   const point = decodeCursor(opts.cursor);
@@ -348,6 +350,8 @@ export async function getTimeline(opts: {
     );
   if (opts.actorDid) filters.push(eq(nagiPosts.did, opts.actorDid));
   if (opts.channelUri) filters.push(eq(nagiPosts.channelUri, opts.channelUri));
+  if (opts.tag)
+    filters.push(sql`${nagiPosts.tags} @> ARRAY[${opts.tag}]::text[]`);
   if (opts.affirmation)
     filters.push(sql`${nagiPostScores.score} >= ${config.affirmationThreshold}`);
   if (opts.filter === "posts") filters.push(isNull(nagiPosts.replyParentUri));

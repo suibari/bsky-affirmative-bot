@@ -14,9 +14,15 @@ export type MentionFacetFeature = {
   $type: "app.bsky.richtext.facet#mention";
   did: string;
 };
+export type TagFacetFeature = {
+  $type: "app.bsky.richtext.facet#tag";
+  tag: string;
+};
 export type Facet = {
   index: { byteStart: number; byteEnd: number };
-  features: Array<LinkFacetFeature | MentionFacetFeature | unknown>;
+  features: Array<
+    LinkFacetFeature | MentionFacetFeature | TagFacetFeature | unknown
+  >;
 };
 export type NagiImage = {
   image: BlobRef;

@@ -25,6 +25,28 @@ const preview = (text: unknown, max = 80): string => {
   return s.length > max ? `${s.slice(0, max)}…` : s;
 };
 
+/**
+ * facets の #tag feature から小文字タグ配列を抽出する（/search 用のインデックス列）。
+ * マッチングは小文字で正規化し、重複は除く。tag が無ければ null（列は NULL のまま）。
+ */
+const extractTags = (facets: unknown): string[] | null => {
+  if (!Array.isArray(facets)) return null;
+  const tags = new Set<string>();
+  for (const facet of facets) {
+    if (!Array.isArray(facet?.features)) continue;
+    for (const feature of facet.features) {
+      if (
+        feature?.$type === "app.bsky.richtext.facet#tag" &&
+        typeof feature.tag === "string"
+      ) {
+        const tag = feature.tag.trim().toLowerCase();
+        if (tag) tags.add(tag);
+      }
+    }
+  }
+  return tags.size ? [...tags] : null;
+};
+
 export async function processEvent(evt: any) {
   const commit = evt.commit;
   if (!commit) return;
@@ -135,6 +157,7 @@ export async function processEvent(evt: any) {
             did,
             text: value.text,
             facets: value.facets,
+            tags: extractTags(value.facets),
             langs: value.langs,
             recordJson: value,
             replyRootUri: value.reply?.root.uri,
@@ -155,6 +178,7 @@ export async function processEvent(evt: any) {
               cid: commit.cid,
               text: value.text,
               facets: value.facets,
+              tags: extractTags(value.facets),
               langs: value.langs,
               recordJson: value,
               replyRootUri: value.reply?.root.uri ?? null,
