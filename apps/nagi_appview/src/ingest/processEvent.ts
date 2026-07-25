@@ -350,6 +350,7 @@ export async function processEvent(evt: any) {
               recipientDid: value.subject,
               type: "diary",
               actorDid: did,
+              notificationId: inserted[0].id,
               bodyText: preview(value.titleJa ?? value.titleEn ?? value.text),
             });
         }
@@ -432,6 +433,7 @@ export async function processEvent(evt: any) {
               recipientDid: parent[0].did,
               type: "reply",
               actorDid: did,
+              notificationId: inserted[0].id,
               bodyText: preview(value.text),
             });
         }
@@ -477,6 +479,7 @@ export async function processEvent(evt: any) {
                 recipientDid,
                 type: "mention",
                 actorDid: did,
+                notificationId: inserted[0].id,
                 bodyText: preview(value.text),
               });
           }
@@ -510,6 +513,7 @@ export async function processEvent(evt: any) {
               recipientDid: subject[0].did,
               type: "reaction",
               actorDid: did,
+              notificationId: inserted[0].id,
               bodyText: bluemoji ? `:${bluemoji.name}:` : preview(value.emoji, 8),
             });
         }
