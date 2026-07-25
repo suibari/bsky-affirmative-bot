@@ -3,7 +3,7 @@ import { generateSingleResponseWithScore } from "./util.js";
 import { getWhatDay } from "@bsky-affirmative-bot/shared-configs";
 
 export async function generateAffirmativeWord(userinfo: UserInfoGemini) {
-   const prompt = await PROMPT_AFFIRMATIVE_WORD(userinfo);
+   const prompt = await buildAffirmativePrompt(userinfo);
    const result = await generateSingleResponseWithScore(prompt, userinfo);
 
    if (process.env.NODE_ENV === "development") {
@@ -39,19 +39,17 @@ const formatSharedLinks = (userinfo: UserInfoGemini, empty: string) => {
 const urlContextEnabled = (userinfo: UserInfoGemini) =>
    userinfo.urlContextEnabled ?? Boolean(userinfo.embed?.uri_embed && userinfo.isSubscriber);
 
-const PROMPT_AFFIRMATIVE_WORD = async (userinfo: UserInfoGemini) => {
+export const buildAffirmativePrompt = async (userinfo: UserInfoGemini) => {
    const postText = userinfo.posts?.[0] || "";
    const postLength = postText.length;
-   const lengthLimitJa = postLength === 0
-      ? "300文字以内"
-      : `${postLength}文字以上、${postLength * 2}文字以内`;
-   const lengthLimitEn = postLength === 0
-      ? "within 300 characters"
-      : `between ${postLength} and ${postLength * 2} characters`;
+   const hasImages = Boolean(userinfo.image?.length);
 
    let styleJa = "";
    let styleEn = "";
-   if (postLength === 0) {
+   if (hasImages) {
+      styleJa = "画像の枚数に必要な文量を使い、すべての画像の良さを自然な文章で十分に伝えてください。";
+      styleEn = "Use enough detail for the number of images and naturally convey what is good about every image.";
+   } else if (postLength === 0) {
       // 画像のみなど
       styleJa = "300文字以内の一般的な長さで返答してください。";
       styleEn = "Respond within 300 characters.";
@@ -81,8 +79,8 @@ const PROMPT_AFFIRMATIVE_WORD = async (userinfo: UserInfoGemini) => {
 ## commentの内容について
    - **文量スタイル**: ${styleJa}
    - **注意: JSONのパースエラーを防ぐため、commentの値（文字列）の中では二重引用符（"）を絶対に使用しないでください。代わりに、一重引用符（'）や「」などの記号を使用してください。**
-   - ${userinfo.image
-         ? "ユーザの画像について具体的に褒めてください。"
+   - ${hasImages
+         ? "入力に付与されたすべての画像について、それぞれ最低1つは、色・構図・表情・動き・アイデアなど目で確認できる具体的な良さを褒めてください。複数画像を「どれも素敵」のような総括だけで済ませず、画像ラベルに示された出所と褒める対象を守ってください。画像番号を並べる機械的な箇条書きにはせず、botたんらしい自然な文章としてつなげてください。"
          : "ユーザの今回のポストを具体的に褒めてください。"}  
    - ユーザが特定の作品や人物を好きと言っている場合は、その作品・人物の魅力を事実に基づいて述べ、共感を示してください。
    - ユーザのポストの言葉や文章をそのままなぞってオウム返し（例：「〜について考えているんだね！」など）にするのは避けてください。
@@ -137,8 +135,8 @@ const PROMPT_AFFIRMATIVE_WORD = async (userinfo: UserInfoGemini) => {
    - **STYLE CONSTRAINT**: ${styleEn}
    - **CRITICAL: To prevent JSON parsing errors, NEVER use double quotes (") inside the "comment" value. Use single quotes (') or other punctuation marks instead.**
    - **CRITICAL: You MUST write the "comment" value entirely in ${userinfo.langStr}. DO NOT use Japanese.**
-   - ${userinfo.image
-         ? "Give a specific compliment about the user's image."
+   - ${hasImages
+         ? "For every supplied image, mention at least one visually specific strength such as its color, composition, expression, motion, or idea. Never collapse multiple images into a vague summary such as 'they are all lovely.' Follow each image label's origin and attribution instructions. Connect the observations as natural, Bot-tan-like prose instead of a mechanical numbered list."
          : "Give a specific compliment about the user's text post."}  
    - If the user says they like a work or person, mention facts about it and empathize.  
    - Do not repeat the user's words or sentences (e.g., "I see you're thinking about ~!").

@@ -187,9 +187,17 @@ export interface Embed {
   image_embed?: ImageRef[];
 }
 
+export type ImageOrigin =
+  | "direct"
+  | "quote"
+  | "link-preview"
+  | "video-thumbnail";
+
 export interface ImageRef {
   image_url: string;
   mimeType: string;
+  /** Gemini に作者を誤認させないための実行時メタデータ。AT Protocol には保存しない。 */
+  origin?: ImageOrigin;
 }
 
 export type GeminiResponseResult = string | {

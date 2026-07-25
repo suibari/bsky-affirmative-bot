@@ -2,7 +2,7 @@ import { $Typed, AppBskyEmbedDefs, AppBskyEmbedExternal, AppBskyEmbedImages, App
 import { AppBskyFeedDefs } from "@atproto/api"; type PostView = AppBskyFeedDefs.PostView; type FeedViewPost = AppBskyFeedDefs.FeedViewPost;
 import { AppBskyFeedPost } from "@atproto/api";
 
-import { ImageRef, localeToTimezone } from "@bsky-affirmative-bot/shared-configs";
+import { ImageOrigin, ImageRef, localeToTimezone } from "@bsky-affirmative-bot/shared-configs";
 import { getPds } from "./getPds.js";
 import { blobImagesToImageRefs } from "@bsky-affirmative-bot/bot-runtime";
 import { agent } from "./agent.js";
@@ -191,7 +191,11 @@ export { getLangStr } from "@bsky-affirmative-bot/clients";
  * 画像、外部リンクOGP画像、動画サムネイルに対応
  * 公式/自前問わずPDSのBlob APIを使用する
  */
-export async function getImageUrl(did: string, embed: any): Promise<ImageRef[]> {
+export async function getImageUrl(
+  did: string,
+  embed: any,
+  originOverride?: ImageOrigin,
+): Promise<ImageRef[]> {
   let result: ImageRef[] = [];
 
   // PDSエンドポイントを取得
@@ -210,7 +214,10 @@ export async function getImageUrl(did: string, embed: any): Promise<ImageRef[]> 
         did,
         pdsEndpoint,
         (embed as AppBskyEmbedImages.Main).images,
-      ),
+      ).map((image) => ({
+        ...image,
+        origin: originOverride ?? "direct" as const,
+      })),
     );
   } else if (AppBskyEmbedExternal.isMain(embed)) {
     const thumb = (embed as AppBskyEmbedExternal.Main).external.thumb;
@@ -218,7 +225,11 @@ export async function getImageUrl(did: string, embed: any): Promise<ImageRef[]> 
       const cid = (thumb.ref as any).$link ?? thumb.ref?.toString(); // ref or IPLD
       const image_url = `https://cdn.bsky.app/img/feed_thumbnail/plain/${did}/${cid}`; // 回避策
       const mimeType = thumb.mimeType;
-      result.push({ image_url, mimeType });
+      result.push({
+        image_url,
+        mimeType,
+        origin: originOverride ?? "link-preview",
+      });
     }
   } else if (AppBskyEmbedVideo.isMain(embed)) {
     const video = (embed as AppBskyEmbedVideo.Main).video;
@@ -226,12 +237,16 @@ export async function getImageUrl(did: string, embed: any): Promise<ImageRef[]> 
       const cid = (video.ref as any).$link ?? video.ref?.toString(); // ref or IPLD
       const image_url = `https://video.bsky.app/watch/${did}/${cid}/thumbnail.jpg`; // 回避策
       const mimeType = "image/jpeg"; // 動画のサムネイルはJPEG
-      result.push({ image_url, mimeType });
+      result.push({
+        image_url,
+        mimeType,
+        origin: originOverride ?? "video-thumbnail",
+      });
     }
   } else if (AppBskyEmbedRecordWithMedia.isMain(embed)) {
     const media = (embed as AppBskyEmbedRecordWithMedia.Main).media;
     if (AppBskyEmbedImages.isMain(media) || AppBskyEmbedExternal.isMain(media) || AppBskyEmbedVideo.isMain(media)) {
-      const mediaImages = await getImageUrl(did, media);
+      const mediaImages = await getImageUrl(did, media, originOverride);
       result.push(...mediaImages);
     }
   }

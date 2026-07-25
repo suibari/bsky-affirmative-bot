@@ -10,6 +10,7 @@ import {
   blobImagesToImageRefs,
   resolvePdsUrl,
 } from "@bsky-affirmative-bot/bot-runtime";
+import type { ImageRef } from "@bsky-affirmative-bot/shared-configs";
 import { and, desc, eq, isNull, ne } from "drizzle-orm";
 
 type ContextLink = { uri: string; title?: string; description?: string };
@@ -191,18 +192,18 @@ export async function buildNagiReplyContext(job: any) {
   const authorPds =
     author.actor?.pdsUrl ??
     (await resolvePdsUrl(job.authorDid).catch(() => ""));
-  const image = blobImagesToImageRefs(
+  const image: ImageRef[] = blobImagesToImageRefs(
     job.authorDid,
     authorPds,
     record.embed?.images,
-  );
+  ).map((item) => ({ ...item, origin: "direct" as const }));
   const linkThumbnails = blobImagesToImageRefs(
     job.authorDid,
     authorPds,
     Array.isArray(record.linkCards)
       ? record.linkCards.map((card: any) => ({ image: card?.thumb }))
       : undefined,
-  );
+  ).map((item) => ({ ...item, origin: "link-preview" as const }));
   image.push(...linkThumbnails);
   const embed: any = {};
   const quote = quoteRows[0];
@@ -220,7 +221,7 @@ export async function buildNagiReplyContext(job: any) {
       quote.post.did,
       quotePds,
       quote.post.embedImages as any,
-    );
+    ).map((item) => ({ ...item, origin: "quote" as const }));
     embed.image_embed = quoteImages;
     image.push(...quoteImages);
   }
@@ -245,6 +246,8 @@ export async function buildNagiReplyContext(job: any) {
     urlContextEnabled: links.length > 0,
     diagnostics: {
       imageCount: image.length,
+      directImageCount: image.filter((item) => item.origin === "direct").length,
+      quoteImageCount: image.filter((item) => item.origin === "quote").length,
       linkThumbnailCount: linkThumbnails.length,
       relatedPostCount: relatedPosts.length,
       hasQuote: Boolean(quote),

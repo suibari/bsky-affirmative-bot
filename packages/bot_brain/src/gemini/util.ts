@@ -3,6 +3,7 @@ import { gemini } from "./index.js";
 import { MODEL_GEMINI, SYSTEM_INSTRUCTION, POST_TEXT_LIMIT, safeFetch } from "@bsky-affirmative-bot/shared-configs";
 import { UserInfoGemini, GeminiScore, BotContext, LanguageName } from "@bsky-affirmative-bot/shared-configs";
 import { MemoryService } from "@bsky-affirmative-bot/database";
+import { buildAffirmativeImageParts } from "./affirmativeImages.js";
 
 function energyLabel(energy: number, ja: boolean): string {
   if (energy >= 80) return ja ? "めちゃくちゃ元気！" : "Super energetic!";
@@ -140,26 +141,15 @@ export async function generateSingleResponseWithScore(prompt: string, userinfo?:
   const contents: PartListUnion = [prompt];
   // const responseSchema = { ... } // Removed due to conflict with Google Search
 
-  if (userinfo?.image) {
-    for (const img of userinfo.image) {
-      try {
-        const response = await safeFetch(img.image_url);
-        if (!response.ok) {
-          console.warn(`[WARN] Failed to fetch image: ${img.image_url} (Status: ${response.status})`);
-          continue;
-        }
-        const imageArrayBuffer = await response.arrayBuffer();
-        const base64ImageData = Buffer.from(imageArrayBuffer).toString("base64");
-        contents.push({
-          inlineData: {
-            mimeType: img.mimeType,
-            data: base64ImageData,
-          }
-        });
-      } catch (e) {
-        console.warn(`[WARN] Error fetching image: ${img.image_url}`, e);
-        continue;
-      }
+  if (userinfo?.image?.length) {
+    const { parts, stats } = await buildAffirmativeImageParts(
+      userinfo.image,
+      userinfo.langStr,
+    );
+    contents.push(...parts);
+    console.log("[INFO][GEMINI] Affirmative image input:", stats);
+    if (!parts.length) {
+      console.warn("[WARN][GEMINI] No auxiliary images could be loaded");
     }
   }
 
