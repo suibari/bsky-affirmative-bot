@@ -6,6 +6,7 @@ import {
   nagiDiaries,
   nagiBotReplyJobs,
   nagiEmojis,
+  nagiMutes,
   nagiNotifications,
   nagiPosts,
   nagiPostScores,
@@ -42,6 +43,19 @@ export async function deleteAccountData(did: string) {
   await db.transaction(async (tx) => {
     const postUri = `at://${did}/${NAGI.post}/%`;
     const reactionUri = `at://${did}/${NAGI.reaction}/%`;
+    const channelUri = `at://${did}/${NAGI.channel}/%`;
+
+    // ミュートは2方向消す。自分がしたミュートだけでなく、他人が自分/自分の CH に対して
+    // 設定したミュート行も残さない（退会後に他人の DB 行として残り続けないようにする）。
+    await tx
+      .delete(nagiMutes)
+      .where(
+        or(
+          eq(nagiMutes.muterDid, did),
+          eq(nagiMutes.subject, did),
+          like(nagiMutes.subject, channelUri),
+        ),
+      );
 
     await tx.delete(nagiTranslations).where(like(nagiTranslations.postUri, postUri));
     await tx.delete(nagiPostScores).where(like(nagiPostScores.postUri, postUri));

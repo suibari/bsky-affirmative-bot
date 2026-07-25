@@ -86,6 +86,11 @@ export type ChannelView = {
   pinnedPostRef?: StrongRef;
   /** 非削除かつこのチャンネル所属であることを確認して hydrate した投稿。 */
   pinnedPost?: PostView;
+  /**
+   * ビューアがこの CH をミュートしているか。ミュート済み CH は一覧・検索から消えるが、
+   * URL 直打ちでは開けるので、そのページで解除できるように getChannel だけが返す。
+   */
+  viewerMuted?: boolean;
 };
 export type NagiNews = {
   $type: "com.suibari.nagi.news";
@@ -313,3 +318,13 @@ export type SearchActorsResult = { actors: ActorView[] };
 export type SearchEmojisResult = { emojis: EmojiView[]; cursor?: string };
 export type GetEmojiResult = { emoji: EmojiView };
 export type DeleteAccountDataResult = { success: true };
+/** ミュート対象の種別。actor は相手の DID、channel はチャンネルの AT-URI を指す。 */
+export type MuteSubjectType = "actor" | "channel";
+/** 自分のミュート一覧。本人以外には決して返さない。 */
+export type MutesView = { actors: ActorView[]; channels: ChannelView[] };
+export type SetMuteInput = {
+  subjectType: MuteSubjectType;
+  subject: string;
+  muted: boolean;
+};
+export type SetMuteResult = { muted: boolean };

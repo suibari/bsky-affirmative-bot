@@ -1,0 +1,22 @@
+{
+  "lexicon": 1,
+  "id": "com.suibari.nagi.getMutes",
+  "defs": {
+    "main": {
+      "type": "query",
+      "description": "自分がミュートしているユーザーとチャンネルの一覧。ミュートは非公開情報なので、認証した本人の分だけを返す。",
+      "output": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "required": ["actors", "channels"],
+          "properties": {
+            "actors": { "type": "array", "items": { "type": "unknown" } },
+            "channels": { "type": "array", "items": { "type": "unknown" } }
+          }
+        }
+      },
+      "errors": [{ "name": "AuthRequired" }]
+    }
+  }
+}

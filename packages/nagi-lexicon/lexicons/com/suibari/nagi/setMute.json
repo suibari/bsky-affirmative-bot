@@ -1,0 +1,34 @@
+{
+  "lexicon": 1,
+  "id": "com.suibari.nagi.setMute",
+  "defs": {
+    "main": {
+      "type": "procedure",
+      "description": "ユーザーまたはチャンネルのミュートを設定・解除する。ミュートは AppView にのみ保存され、他ユーザーからは参照できない。",
+      "input": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "required": ["subjectType", "subject", "muted"],
+          "properties": {
+            "subjectType": { "type": "string", "knownValues": ["actor", "channel"] },
+            "subject": {
+              "type": "string",
+              "description": "actor なら対象の DID、channel なら com.suibari.nagi.channel の AT-URI。"
+            },
+            "muted": { "type": "boolean" }
+          }
+        }
+      },
+      "output": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "required": ["muted"],
+          "properties": { "muted": { "type": "boolean" } }
+        }
+      },
+      "errors": [{ "name": "AuthRequired" }, { "name": "InvalidRequest" }]
+    }
+  }
+}

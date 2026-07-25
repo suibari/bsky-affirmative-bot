@@ -48,6 +48,11 @@ export const botJobState = nagiSchema.enum("bot_job_state", [
   "posted",
   "failed",
 ]);
+/** ミュート対象の種別。actor は相手の DID、channel はチャンネルの AT-URI を指す。 */
+export const muteSubjectType = nagiSchema.enum("mute_subject_type", [
+  "actor",
+  "channel",
+]);
 
 export const nagiActors = nagiSchema.table("actors", {
   did: text("did").primaryKey(),
@@ -475,4 +480,26 @@ export const nagiPushSubscriptions = nagiSchema.table(
       .notNull(),
   },
   (t) => [index("nagi_push_subscription_did_idx").on(t.recipientDid)],
+);
+/**
+ * ビューア単位のミュート。**他ユーザーに公開してはならない情報**なので、PDS レコード
+ * （= listRecords で誰でも読める）にはせず AppView だけが持つ。所有者本人の getMutes
+ * 以外からは決して外に出さないこと。ミュートは PDS に残らないので他アプリとは共有されず、
+ * この DB を作り直すと失われる（Bluesky のミュートと同じトレードオフ）。
+ */
+export const nagiMutes = nagiSchema.table(
+  "mutes",
+  {
+    muterDid: text("muter_did").notNull(),
+    subjectType: muteSubjectType("subject_type").notNull(),
+    /** actor なら対象の DID、channel なら channel レコードの AT-URI。 */
+    subject: text("subject").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.muterDid, t.subjectType, t.subject] }),
+    index("nagi_mutes_muter_idx").on(t.muterDid, t.subjectType),
+  ],
 );

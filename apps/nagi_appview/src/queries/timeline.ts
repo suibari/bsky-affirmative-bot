@@ -22,11 +22,19 @@ import {
   isNull,
   lt,
   ne,
+  notInArray,
   or,
   sql,
 } from "drizzle-orm";
 import { config } from "../config.js";
 import { getCurrentTitles, getSuperPositiveLevels } from "./badges.js";
+import {
+  EMPTY_MUTES,
+  loadMutes,
+  muteVisibility,
+  sibNotMuted,
+  type MuteSet,
+} from "./mutes.js";
 import { getNewsQuoteViews } from "./positiveNews.js";
 import { getReactionViews } from "./reactions.js";
 export const encodeCursor = (date: Date, uri: string) =>
@@ -63,10 +71,19 @@ export async function fetchPostRows(uris: string[]): Promise<PostRow[]> {
     .leftJoin(nagiPostScores, eq(nagiPostScores.postUri, nagiPosts.uri))
     .where(inArray(nagiPosts.uri, uris));
 }
+/**
+ * ミュート著者の投稿を落とす。mutes は呼び出し側が明示的に渡したときだけ効く（既定は空）＝
+ * スレッド詳細・プロフィールはミュート非適用という仕様どおり、渡さなければ素通しになる。
+ */
+const dropMutedRows = (rows: PostRow[], mutes: MuteSet) =>
+  mutes.actors.length
+    ? rows.filter((r) => !mutes.actors.includes(r.post.did))
+    : rows;
 export async function hydratePostViews(
   rows: PostRow[],
   viewerDid?: string,
   quoteDepth = 0,
+  mutes: MuteSet = EMPTY_MUTES,
 ): Promise<PostView[]> {
   const uris = rows.map((r) => r.post.uri);
   const reactions = await getReactionViews(uris, viewerDid);
@@ -249,12 +266,12 @@ export async function hydratePostViews(
   );
   const newsViews = await getNewsQuoteViews(newsRefs);
   if (!quoteUris.length && !newsRefs.length) return views;
-  const quoteViews = quoteUris.length
-    ? await hydratePostViews(
-        await fetchPostRows(quoteUris),
-        viewerDid,
-        quoteDepth + 1,
-      )
+  // 引用元がミュート著者なら引用カードだけを落とす（引用している投稿自体は残す）。
+  const quoteRows = quoteUris.length
+    ? dropMutedRows(await fetchPostRows(quoteUris), mutes)
+    : [];
+  const quoteViews = quoteRows.length
+    ? await hydratePostViews(quoteRows, viewerDid, quoteDepth + 1, mutes)
     : [];
   const quoteByUri = new Map(quoteViews.map((view) => [view.uri, view]));
   return views.map((view, index) => {
@@ -297,6 +314,7 @@ export async function buildFeedItems(
   viewerDid?: string,
   groupBotReplies = true,
   includeReplyParents = false,
+  mutes: MuteSet = EMPTY_MUTES,
 ): Promise<FeedItem[]> {
   const jobByUri =
     groupBotReplies && rows.length
@@ -310,10 +328,17 @@ export async function buildFeedItems(
     if (includeReplyParents && row.post.replyParentUri)
       parentUris.add(row.post.replyParentUri);
   }
-  const relatedRows = await fetchPostRows([
-    ...new Set([...replyUris, ...parentUris]),
-  ]);
-  const views = await hydratePostViews([...rows, ...relatedRows], viewerDid);
+  // 返信先がミュート著者なら replyParent を付けない（bot返信は bot 宛なので影響しない）。
+  const relatedRows = dropMutedRows(
+    await fetchPostRows([...new Set([...replyUris, ...parentUris])]),
+    mutes,
+  );
+  const views = await hydratePostViews(
+    [...rows, ...relatedRows],
+    viewerDid,
+    0,
+    mutes,
+  );
   const viewByUri = new Map(views.map((v) => [v.uri, v]));
   return rows.map((row) => {
     let view = viewByUri.get(row.post.uri)! as FeedItem;
@@ -344,8 +369,15 @@ const threadKeyOf = (post: {
   uri: string;
   replyRootUri: string | null;
 }): string => post.replyRootUri ?? post.uri;
-/** 指定スレッド(ルートURI)群に属する非削除投稿を全部引く。bot返信も含む（バブルにするため）。 */
-async function fetchThreadRows(threadKeys: string[]): Promise<PostRow[]> {
+/**
+ * 指定スレッド(ルートURI)群に属する非削除投稿を全部引く。bot返信も含む（バブルにするため）。
+ * ミュート著者の投稿はここで落とすので、バブルからその発言だけが抜け、totalCount/hiddenCount も
+ * 自動的に整合する。ルートがミュートならルート行自体が引けず、呼び出し側でスレッドごと落ちる。
+ */
+async function fetchThreadRows(
+  threadKeys: string[],
+  mutes: MuteSet,
+): Promise<PostRow[]> {
   if (!threadKeys.length) return [];
   return db
     .select(postSelection)
@@ -356,6 +388,9 @@ async function fetchThreadRows(threadKeys: string[]): Promise<PostRow[]> {
     .where(
       and(
         isNull(nagiPosts.deletedAt),
+        ...(mutes.actors.length
+          ? [notInArray(nagiPosts.did, mutes.actors)]
+          : []),
         or(
           inArray(nagiPosts.replyRootUri, threadKeys),
           inArray(nagiPosts.uri, threadKeys),
@@ -371,10 +406,11 @@ async function fetchThreadRows(threadKeys: string[]): Promise<PostRow[]> {
 export async function buildConversationItems(
   reps: PostRow[],
   viewerDid?: string,
+  mutes: MuteSet = EMPTY_MUTES,
 ): Promise<FeedItem[]> {
   if (!reps.length) return [];
   const threadKeys = [...new Set(reps.map((r) => threadKeyOf(r.post)))];
-  const threadRows = await fetchThreadRows(threadKeys);
+  const threadRows = await fetchThreadRows(threadKeys, mutes);
   // スレッドキーごとに投稿を集める（createdAt昇順・uriタイブレークで安定ソート）。
   const byThread = new Map<string, PostRow[]>();
   for (const row of threadRows) {
@@ -413,7 +449,9 @@ export async function buildConversationItems(
   for (const key of threadKeys) {
     const list = (byThread.get(key) ?? []).slice().sort(cmp);
     const root = list.find((r) => r.post.uri === key);
-    if (!root) continue; // ルート削除済みスレッドは代表述語で除外済み。安全側でスキップ。
+    // ルート削除済み/ルート著者ミュートのスレッドはここで落ちる（＝会話ごと非表示）。
+    // どちらも getTimeline の filters で SQL 段階から除外済みなので、ここは安全網。
+    if (!root) continue;
     const nonRoot = list.filter((r) => r.post.uri !== key);
     const bubbles = nonRoot.slice(-3);
     plan.set(key, {
@@ -425,7 +463,12 @@ export async function buildConversationItems(
     for (const r of [root, ...bubbles]) displayRows.set(r.post.uri, r);
   }
   for (const rep of reps) displayRows.set(rep.post.uri, rep);
-  const views = await hydratePostViews([...displayRows.values()], viewerDid);
+  const views = await hydratePostViews(
+    [...displayRows.values()],
+    viewerDid,
+    0,
+    mutes,
+  );
   const viewByUri = new Map(views.map((v) => [v.uri, v]));
   const jobByUri = await fetchBotReplyJobs(reps.map((r) => r.post.uri));
   return reps.flatMap((rep) => {
@@ -482,7 +525,21 @@ export async function getTimeline(opts: {
    * 1回だけ返し、buildConversationItems で会話ブロックに畳む。プロフィール/CH/検索/filter は false。
    */
   group?: boolean;
+  /** 呼び出し側が既に引いている場合に渡す。省略時は viewerDid から自分で引く。 */
+  mutes?: MuteSet;
 }) {
+  const mutes = opts.mutes ?? (await loadMutes(opts.viewerDid));
+  // ミュートの適用範囲: プロフィールフィード(actorDid)は「自分で開いた」ので一切適用しない。
+  // CH TL(channelUri)も同じ理由で CH ミュートは適用しないが、ユーザーミュートは効かせる。
+  const muteActors = !opts.actorDid && mutes.actors.length > 0;
+  const muteChannels =
+    !opts.actorDid && !opts.channelUri && mutes.channels.length > 0;
+  // ハイドレート側(バブル・引用・返信元)へ渡す実効ミュート。適用外の経路では空になるので、
+  // プロフィールフィードでは SQL だけでなく後段の絞り込みも一切効かない。
+  const appliedMutes: MuteSet = {
+    actors: muteActors ? mutes.actors : [],
+    channels: muteChannels ? mutes.channels : [],
+  };
   const point = decodeCursor(opts.cursor);
   const filters: any[] = [isNull(nagiPosts.deletedAt)];
   if (point)
@@ -507,6 +564,10 @@ export async function getTimeline(opts: {
     filters.push(
       sql`jsonb_array_length(coalesce(${nagiPosts.embedImages}, '[]'::jsonb)) > 0`,
     );
+  // ミュート（投稿者・スレッドルート著者・所属CH）。条件の組み立ては検索と共通。
+  filters.push(
+    ...muteVisibility(mutes, { actors: muteActors, channels: muteChannels }),
+  );
   // Keep Bot replies grouped with their source post on shared timelines. An
   // explicit actor feed still needs them so the Bot profile's replies tab works.
   // CH TL も共有TL扱いで grouping する（botたんの返信は元投稿にまとめる）。
@@ -536,6 +597,8 @@ export async function getTimeline(opts: {
   // 会話グループ化: 同スレッドに自分より後の共有可視投稿(=非削除・非bot返信)が無い投稿=代表
   // だけを残す。これで1スレッド1回・最新活動順になる。cursor/orderBy はそのまま代表に効く。
   // kossori判定は上の case 式が担うので、ここでは重複して書かない。
+  // ミュート著者の投稿は代表になれないので sib からも除く（1つ前へフォールバックさせる）。
+  const sibMuteFilter = sibNotMuted(mutes, muteActors);
   if (opts.group)
     filters.push(sql`
       not exists (
@@ -543,7 +606,7 @@ export async function getTimeline(opts: {
         where coalesce(sib.reply_root_uri, sib.uri)
             = coalesce(${nagiPosts.replyRootUri}, ${nagiPosts.uri})
           and sib.deleted_at is null
-          and (sib.did <> ${config.botDid} or sib.reply_parent_uri is null)
+          and (sib.did <> ${config.botDid} or sib.reply_parent_uri is null)${sibMuteFilter}
           and (
             sib.indexed_at > ${nagiPosts.indexedAt}
             or (sib.indexed_at = ${nagiPosts.indexedAt} and sib.uri > ${nagiPosts.uri})
@@ -562,12 +625,13 @@ export async function getTimeline(opts: {
   const page = rows.slice(0, opts.limit);
   const [items, botActor] = await Promise.all([
     opts.group
-      ? buildConversationItems(page, opts.viewerDid)
+      ? buildConversationItems(page, opts.viewerDid, appliedMutes)
       : buildFeedItems(
           page,
           opts.viewerDid,
           true,
           opts.filter === "replies" || Boolean(opts.channelUri),
+          appliedMutes,
         ),
     getBotActor(),
   ]);

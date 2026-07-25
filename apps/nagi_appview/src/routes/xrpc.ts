@@ -37,6 +37,7 @@ import {
 } from "../services/linkMetadata.js";
 import { getEmoji, searchEmojis } from "../services/emoji.js";
 import { resolveLexicon } from "../queries/resolveLexicon.js";
+import { getMutesView, setMute } from "../queries/mutes.js";
 import { config } from "../config.js";
 export const xrpc = Router();
 const limit = (value: unknown) =>
@@ -139,6 +140,7 @@ xrpc.get(
           await getChannels({
             limit: limit(req.query.limit),
             cursor: String(req.query.cursor ?? "") || undefined,
+            viewerDid: req.viewerDid,
           }),
         );
     } catch (e) {
@@ -165,6 +167,7 @@ xrpc.get(
             q,
             limit: limit(req.query.limit),
             cursor: String(req.query.cursor ?? "") || undefined,
+            viewerDid: req.viewerDid,
           }),
         );
     } catch (e) {
@@ -444,6 +447,43 @@ xrpc.post(
       if (Number.isNaN(seenAt.valueOf()))
         throw new ApiError(400, "invalid_request", "Invalid seenAt");
       res.json(await updateSeen(req.viewerDid!, seenAt));
+    } catch (e) {
+      next(e);
+    }
+  },
+);
+// ミュートは非公開情報。requiredServiceAuth により、JWT で本人だと証明できたリクエストに
+// しか返さない（他ユーザーが誰かのミュート一覧を引く経路は存在しない）。
+xrpc.get(
+  `/${NAGI.getMutes}`,
+  requiredServiceAuth(NAGI.getMutes),
+  async (req, res, next) => {
+    try {
+      res
+        .set("Cache-Control", "private, no-store")
+        .json(await getMutesView(req.viewerDid!));
+    } catch (e) {
+      next(e);
+    }
+  },
+);
+xrpc.post(
+  `/${NAGI.setMute}`,
+  requiredServiceAuth(NAGI.setMute),
+  async (req, res, next) => {
+    try {
+      const subjectType = req.body?.subjectType;
+      const subject = req.body?.subject;
+      const muted = req.body?.muted;
+      if (subjectType !== "actor" && subjectType !== "channel")
+        throw new ApiError(400, "invalid_request", "Invalid subjectType");
+      if (typeof subject !== "string" || !subject)
+        throw new ApiError(400, "invalid_request", "subject is required");
+      if (typeof muted !== "boolean")
+        throw new ApiError(400, "invalid_request", "muted must be a boolean");
+      res
+        .set("Cache-Control", "private, no-store")
+        .json(await setMute(req.viewerDid!, subjectType, subject, muted));
     } catch (e) {
       next(e);
     }

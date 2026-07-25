@@ -39,6 +39,13 @@ export const NAGI = {
   searchChannels: "com.suibari.nagi.searchChannels",
   /** ニュースの自由文検索（意味検索+語彙）。 */
   searchNews: "com.suibari.nagi.searchNews",
+  /**
+   * 自分のミュート一覧。ミュートは他ユーザーに公開してはならないので PDS レコードにはせず
+   * AppView だけが持ち、認証した本人にしか返さない（requiredServiceAuth）。
+   */
+  getMutes: "com.suibari.nagi.getMutes",
+  /** ユーザー/チャンネルのミュート設定・解除。 */
+  setMute: "com.suibari.nagi.setMute",
 } as const;
 
 /** Bluemoji (moji.blue) の絵文字定義レコード。カスタム絵文字はユーザー自身のPDSに置く。 */

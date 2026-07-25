@@ -40,7 +40,11 @@
             "com.suibari.nagi.getChannels",
             "com.suibari.nagi.getChannel",
             "com.suibari.nagi.getChannelTimeline",
-            "com.suibari.nagi.getPositiveNews"
+            "com.suibari.nagi.getPositiveNews",
+            "com.suibari.nagi.searchPosts",
+            "com.suibari.nagi.searchChannels",
+            "com.suibari.nagi.getMutes",
+            "com.suibari.nagi.setMute"
           ]
         }
       ]

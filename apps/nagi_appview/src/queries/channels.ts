@@ -1,12 +1,14 @@
 import { db, nagiChannels, nagiPosts } from "@bsky-affirmative-bot/database";
 import type { ChannelView } from "@bsky-affirmative-bot/nagi-lexicon";
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, eq, isNull, notInArray, sql } from "drizzle-orm";
 import {
   fetchPostRows,
   getTimeline,
   hydratePostViews,
 } from "./timeline.js";
 import { embedQuery, hybridConditions } from "./hybridSearch.js";
+import { channelView, iso } from "./channelView.js";
+import { isChannelMuted, loadMutes } from "./mutes.js";
 
 // 検索は関連順のため offset ベースのページング（tag/一覧の keyset とは別系統）。
 const encodeOffset = (offset: number) =>
@@ -19,44 +21,6 @@ const decodeOffset = (cursor?: string): number => {
 
 /** 活動順ソート用の下限（投稿ゼロの CH はここに沈む）。 */
 const EPOCH = "1970-01-01T00:00:00.000Z";
-
-// max(indexed_at) など生 SQL 式の結果は drizzle が Date へ変換せず文字列で返すことがある。
-// timestamp 列も含め new Date() で包んでから ISO 化する（Date でも文字列でも安全）。
-const iso = (value: Date | string) => new Date(value).toISOString();
-
-const channelView = (row: {
-  uri: string;
-  cid: string;
-  did: string;
-  name: string;
-  description: string | null;
-  bannerCid: string | null;
-  pinnedPostUri: string | null;
-  pinnedPostCid: string | null;
-  recordCreatedAt: Date | string;
-  indexedAt: Date | string;
-  lastPostAt: Date | string | null;
-}): ChannelView => ({
-  uri: row.uri,
-  cid: row.cid,
-  did: row.did,
-  name: row.name,
-  ...(row.description ? { description: row.description } : {}),
-  ...(row.bannerCid
-    ? { banner: `/api/blob/${encodeURIComponent(row.did)}/${row.bannerCid}` }
-    : {}),
-  createdAt: iso(row.recordCreatedAt),
-  indexedAt: iso(row.indexedAt),
-  ...(row.lastPostAt ? { lastPostAt: iso(row.lastPostAt) } : {}),
-  ...(row.pinnedPostUri && row.pinnedPostCid
-    ? {
-        pinnedPostRef: {
-          uri: row.pinnedPostUri,
-          cid: row.pinnedPostCid,
-        },
-      }
-    : {}),
-});
 
 /** 各 CH の最新投稿時刻（活動順・過疎判定に再利用できる）。削除済み投稿は除く。 */
 const lastPostSub = db
@@ -83,9 +47,17 @@ const decodeCursor = (cursor?: string): [string, string] | undefined => {
   }
 };
 
-export async function getChannels(opts: { limit: number; cursor?: string }) {
+export async function getChannels(opts: {
+  limit: number;
+  cursor?: string;
+  viewerDid?: string;
+}) {
   const point = decodeCursor(opts.cursor);
+  const mutes = await loadMutes(opts.viewerDid);
   const filters: any[] = [isNull(nagiChannels.deletedAt)];
+  // ミュートした CH は一覧に出さない（URL 直打ちの getChannel だけは通す）。
+  if (mutes.channels.length)
+    filters.push(notInArray(nagiChannels.uri, mutes.channels));
   if (point)
     filters.push(
       sql`(${sortAt}, ${nagiChannels.uri}) < (${point[0]}::timestamptz, ${point[1]})`,
@@ -129,10 +101,14 @@ export async function searchChannels(opts: {
   q: string;
   limit: number;
   cursor?: string;
+  viewerDid?: string;
 }) {
   const q = opts.q.trim();
   const offset = decodeOffset(opts.cursor);
-  const embedding = await embedQuery(q);
+  const [embedding, mutes] = await Promise.all([
+    embedQuery(q),
+    loadMutes(opts.viewerDid),
+  ]);
   const textExpr = sql`coalesce(${nagiChannels.name}, '') || ' ' || coalesce(${nagiChannels.description}, '')`;
   const { match, orderBy } = hybridConditions({
     embedding,
@@ -156,7 +132,15 @@ export async function searchChannels(opts: {
     })
     .from(nagiChannels)
     .leftJoin(lastPostSub, eq(lastPostSub.channelUri, nagiChannels.uri))
-    .where(and(isNull(nagiChannels.deletedAt), match))
+    .where(
+      and(
+        isNull(nagiChannels.deletedAt),
+        ...(mutes.channels.length
+          ? [notInArray(nagiChannels.uri, mutes.channels)]
+          : []),
+        match,
+      ),
+    )
     .orderBy(orderBy, sql`${nagiChannels.uri} desc`)
     .limit(opts.limit + 1)
     .offset(offset);
@@ -192,7 +176,13 @@ export async function getChannel(
     .where(and(eq(nagiChannels.uri, uri), isNull(nagiChannels.deletedAt)))
     .limit(1);
   if (!rows[0]) return null;
-  const channel = channelView(rows[0]);
+  // ミュート済みでも URL 直打ちなら開ける（プロフィールと同じ方針）。その画面で解除できるよう
+  // viewerMuted だけ返す。ミュートは非公開情報なので、あくまで本人のリクエストにしか付かない。
+  const muted = await isChannelMuted(viewerDid, uri);
+  const channel: ChannelView = {
+    ...channelView(rows[0]),
+    ...(muted ? { viewerMuted: true } : {}),
+  };
   if (!rows[0].pinnedPostUri) return channel;
   const [pinnedPost] = await hydratePostViews(
     await fetchPostRows([rows[0].pinnedPostUri]),

@@ -6,17 +6,30 @@ import {
   nagiProfiles,
   nagiReactions,
 } from "@bsky-affirmative-bot/database";
-import { and, count, desc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, count, desc, eq, inArray, isNull, notInArray, sql } from "drizzle-orm";
 import { emojiView } from "../services/emoji.js";
 import { fetchPostRows, hydratePostViews } from "./timeline.js";
 import { diaryView, fetchDiaryRows } from "./diaries.js";
+import { loadMutes } from "./mutes.js";
+
+/**
+ * ミュート相手からの通知を除く条件。行は残すので、ミュートを解除すれば過去分も復活する。
+ * 未読数(getUnreadCount)と必ず同じ条件を使うこと。片方だけだとバッジと一覧が食い違う。
+ */
+const muteFilter = (mutedActors: string[]) =>
+  mutedActors.length
+    ? [notInArray(nagiNotifications.actorDid, mutedActors)]
+    : [];
+
 export async function getNotifications(did: string, limit: number) {
+  const mutes = await loadMutes(did);
   const rows = await db
     .select({ notification: nagiNotifications, actor: nagiActors, profile: nagiProfiles })
     .from(nagiNotifications)
     .leftJoin(nagiActors, eq(nagiActors.did, nagiNotifications.actorDid))
     .leftJoin(nagiProfiles, eq(nagiProfiles.did, nagiNotifications.actorDid))
-    .where(eq(nagiNotifications.recipientDid, did))
+    // JS 側で後から filter すると1ページの件数が減るので、必ず SQL で落とす。
+    .where(and(eq(nagiNotifications.recipientDid, did), ...muteFilter(mutes.actors)))
     .orderBy(desc(nagiNotifications.createdAt))
     .limit(limit);
   const postRows = await fetchPostRows([
@@ -87,11 +100,16 @@ export async function getNotifications(did: string, limit: number) {
   };
 }
 export async function getUnreadCount(did: string) {
+  const mutes = await loadMutes(did);
   const [row] = await db
     .select({ value: count() })
     .from(nagiNotifications)
     .where(
-      and(eq(nagiNotifications.recipientDid, did), isNull(nagiNotifications.readAt)),
+      and(
+        eq(nagiNotifications.recipientDid, did),
+        isNull(nagiNotifications.readAt),
+        ...muteFilter(mutes.actors),
+      ),
     );
   return { count: row?.value ?? 0 };
 }

@@ -5,10 +5,11 @@ import {
   nagiPosts,
   nagiProfiles,
 } from "@bsky-affirmative-bot/database";
-import { and, eq, isNull, ne, or, sql } from "drizzle-orm";
+import { and, eq, isNull, ne, notInArray, or, sql } from "drizzle-orm";
 import { config } from "../config.js";
 import { buildFeedItems, getBotActor, postSelection } from "./timeline.js";
 import { embedQuery, hybridConditions } from "./hybridSearch.js";
+import { loadMutes, muteVisibility } from "./mutes.js";
 
 const encodeCursor = (offset: number) =>
   Buffer.from(String(offset)).toString("base64url");
@@ -33,13 +34,17 @@ export async function searchPostsByText(opts: {
 }) {
   const q = opts.q.trim();
   const offset = decodeCursor(opts.cursor);
-  const embedding = await embedQuery(q);
-
+  const [embedding, mutes] = await Promise.all([
+    embedQuery(q),
+    loadMutes(opts.viewerDid),
+  ]);
   // 共有TLと同じ可視性フィルタ（getTimeline の !actorDid && !channelUri 経路を踏襲）。
   const visibility = [
     isNull(nagiPosts.deletedAt),
     // botたんの返信は元投稿にまとめるため単独では出さない。
     or(ne(nagiPosts.did, config.botDid), isNull(nagiPosts.replyParentUri)),
+    // ミュート。条件の組み立ては getTimeline と共通（規則がズレないよう mutes.ts に集約）。
+    ...muteVisibility(mutes, { actors: true, channels: true }),
     // こっそり/CH限定はスレッドルートが所有。未解決の返信は非共有側へ倒す。
     sql`
       case
@@ -75,7 +80,7 @@ export async function searchPostsByText(opts: {
 
   const page = rows.slice(0, opts.limit);
   const [items, botActor] = await Promise.all([
-    buildFeedItems(page, opts.viewerDid, true, false),
+    buildFeedItems(page, opts.viewerDid, true, false, mutes),
     getBotActor(),
   ]);
   const hasMore = rows.length > opts.limit;

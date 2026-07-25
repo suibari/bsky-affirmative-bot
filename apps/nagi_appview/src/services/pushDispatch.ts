@@ -3,6 +3,7 @@ import { db, nagiActors, nagiProfiles } from "@bsky-affirmative-bot/database";
 import { eq } from "drizzle-orm";
 import { config } from "../config.js";
 import { deleteSubscription, listSubscriptions } from "../queries/pushSubscriptions.js";
+import { loadMutes } from "../queries/mutes.js";
 
 let configured = false;
 let warnedMissingConfig = false;
@@ -73,6 +74,10 @@ function compose(type: PushNotificationType, name: string, body: string) {
  */
 export async function dispatchPush(job: PushJob): Promise<void> {
   if (!ensureConfigured()) return;
+  // 通知一覧に出ないものはプッシュも送らない。ingest のトランザクション外なので、
+  // ここでミュートを引いてもホットパスは重くならない。
+  const mutes = await loadMutes(job.recipientDid);
+  if (mutes.actors.includes(job.actorDid)) return;
   const subs = await listSubscriptions(job.recipientDid);
   if (!subs.length) return;
   const name = await actorName(job.actorDid);

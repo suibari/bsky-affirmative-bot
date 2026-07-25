@@ -12,7 +12,8 @@
     }
   },
   "scripts": {
-    "build": "tsc"
+    "build": "tsc",
+    "drizzle:push": "pnpm drizzle-kit push --config=./drizzle.config.cjs"
   },
   "dependencies": {
     "@bsky-affirmative-bot/shared-configs": "workspace:*",
