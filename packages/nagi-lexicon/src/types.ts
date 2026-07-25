@@ -328,3 +328,66 @@ export type SetMuteInput = {
   muted: boolean;
 };
 export type SetMuteResult = { muted: boolean };
+
+// ---------------------------------------------------------------------------
+// 全肯定カード（1日1回引けるトレカ）
+// ---------------------------------------------------------------------------
+/** N < R < SR < UR < AAR(All-Affirmation Rare)。 */
+export type CardRarity = "N" | "R" | "SR" | "UR" | "AAR";
+export type CardAttribute = "light" | "dark" | "fire" | "water" | "wind" | "earth";
+/**
+ * カード1枚のビュー。定義（名前/フレーバー/ATK）は shared-configs の JSON 由来、
+ * owned 以下は所持情報。未所持でもコレクション表示のため定義部分だけ返す。
+ * ja/en 双方を積んで返すのは、クライアントのロケール切替が再フェッチ無しで効くようにするため。
+ */
+export type CardView = {
+  /** 段内の通し番号。カードの同一性は (volume, id) の組で決まる。表示は v1-001 形式。 */
+  id: number;
+  volume: number;
+  rarity: CardRarity;
+  attribute: CardAttribute;
+  atk: number;
+  def: number;
+  nameJa: string;
+  nameEn: string;
+  raceJa: string;
+  raceEn: string;
+  textJa: string;
+  textEn: string;
+  owned: boolean;
+  /** 以下は owned のときだけ入る。 */
+  instanceId?: string;
+  /** botたんが引いた瞬間に付けたコメント。生成待ちの間は undefined。 */
+  commentJa?: string;
+  commentEn?: string;
+  /** 同じカードを引いた回数（初回=1）。 */
+  duplicateCount?: number;
+  acquiredAt?: string;
+  /** 最初にこの1枚を引いた人の DID。交換で流通しても出所が追える。 */
+  firstOwnerDid?: string;
+};
+/** 本日引けるか。自分のコレクションを見ているときだけ返す。 */
+export type CardDrawStatus = {
+  canDraw: boolean;
+  /** 次に引ける時刻（ISO8601）。JST 4:00 が境界。 */
+  nextDrawAt: string;
+  /** 本日すでに引いている場合、そのカードの段と番号。 */
+  todayCardVolume?: number;
+  todayCardId?: number;
+};
+export type CardCollectionView = {
+  cards: CardView[];
+  ownedCount: number;
+  totalCount: number;
+  drawStatus?: CardDrawStatus;
+};
+export type DrawCardResult = {
+  card: CardView;
+  /** true なら本日は引き済みで、返っているのはその日のカード（冪等応答）。 */
+  alreadyDrawn: boolean;
+  /** コレクション初登場か。 */
+  isNew: boolean;
+  /** true の間は botたんコメントを生成中。クライアントは getCards で取り直す。 */
+  commentPending: boolean;
+  drawStatus: CardDrawStatus;
+};

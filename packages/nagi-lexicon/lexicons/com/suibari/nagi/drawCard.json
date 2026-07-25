@@ -1,0 +1,37 @@
+{
+  "lexicon": 1,
+  "id": "com.suibari.nagi.drawCard",
+  "defs": {
+    "main": {
+      "type": "procedure",
+      "description": "全肯定カードを1枚引く。1日1回（JST 4:00 が日付境界）。本日ぶんを既に引いている場合はエラーにせず、その日引いたカードをそのまま返す（冪等）。抽選はサーバ側で行い、結果は AppView にのみ保存される。",
+      "output": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "required": ["card", "alreadyDrawn", "drawStatus"],
+          "properties": {
+            "card": {
+              "type": "unknown",
+              "description": "引いたカード（定義 + 所持情報）。botたんコメントは非同期生成なので初回は空。"
+            },
+            "alreadyDrawn": {
+              "type": "boolean",
+              "description": "true なら本日は既に引き済みで、返しているのはそのカード。"
+            },
+            "isNew": {
+              "type": "boolean",
+              "description": "コレクション初登場なら true。既に持っているカードなら false。"
+            },
+            "commentPending": {
+              "type": "boolean",
+              "description": "true の間は botたんコメントを生成中。クライアントは getCards で取り直す。"
+            },
+            "drawStatus": { "type": "unknown" }
+          }
+        }
+      },
+      "errors": [{ "name": "AuthRequired" }]
+    }
+  }
+}

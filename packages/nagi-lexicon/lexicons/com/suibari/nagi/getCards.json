@@ -1,0 +1,38 @@
+{
+  "lexicon": 1,
+  "id": "com.suibari.nagi.getCards",
+  "defs": {
+    "main": {
+      "type": "query",
+      "description": "指定ユーザーの全肯定カードコレクション。未所持のカードも定義だけ返す（コレクション表示のため）。所持状況は公開情報。自分自身を指定したときだけ drawStatus（本日引けるか）を含む。",
+      "parameters": {
+        "type": "params",
+        "required": ["actor"],
+        "properties": {
+          "actor": { "type": "string", "description": "対象ユーザーの DID。" }
+        }
+      },
+      "output": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "required": ["cards", "ownedCount", "totalCount"],
+          "properties": {
+            "cards": {
+              "type": "array",
+              "items": { "type": "unknown" },
+              "description": "全カード定義に所持情報（owned / comment / acquiredAt）を合成したもの。"
+            },
+            "ownedCount": { "type": "integer" },
+            "totalCount": { "type": "integer" },
+            "drawStatus": {
+              "type": "unknown",
+              "description": "actor がビューア本人のときのみ。canDraw / nextDrawAt / todayCardId。"
+            }
+          }
+        }
+      },
+      "errors": [{ "name": "InvalidRequest" }]
+    }
+  }
+}

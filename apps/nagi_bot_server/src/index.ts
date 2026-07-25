@@ -13,6 +13,7 @@ import {
 } from "./NagiChannelFeature.js";
 import { startNagiReplyWorker } from "./NagiReplyWorker.js";
 import { startNagiAnalysisWorker } from "./NagiAnalysisWorker.js";
+import { startNagiCardCommentWorker } from "./NagiCardCommentWorker.js";
 import { enqueueAnalysis } from "./NagiAnalysisFeature.js";
 import express from "express";
 import type { ScheduledPostRequest } from "@bsky-affirmative-bot/clients";
@@ -45,6 +46,8 @@ async function start() {
   startNagiReplyWorker();
   // 自動分析（プロフィールの「botたんのひとこと」）ワーカー。エンキューは AppView ingest が担う。
   startNagiAnalysisWorker();
+  // 全肯定カードを引いたときの吹き出しコメント。エンキューは AppView の drawCard が担う。
+  startNagiCardCommentWorker();
   // 過疎チャンネルへの話題提供（Phase 2）。作成時の盛り上げ投稿は onNagiChannel が担う。
   startNagiChannelTopicScheduler();
 

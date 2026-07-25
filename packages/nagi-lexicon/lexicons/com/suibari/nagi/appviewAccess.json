@@ -44,7 +44,9 @@
             "com.suibari.nagi.searchPosts",
             "com.suibari.nagi.searchChannels",
             "com.suibari.nagi.getMutes",
-            "com.suibari.nagi.setMute"
+            "com.suibari.nagi.setMute",
+            "com.suibari.nagi.getCards",
+            "com.suibari.nagi.drawCard"
           ]
         }
       ]

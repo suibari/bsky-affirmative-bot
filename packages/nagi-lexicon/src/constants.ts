@@ -46,6 +46,16 @@ export const NAGI = {
   getMutes: "com.suibari.nagi.getMutes",
   /** ユーザー/チャンネルのミュート設定・解除。 */
   setMute: "com.suibari.nagi.setMute",
+  /**
+   * 全肯定カードのコレクション。所持は公開情報なのでクライアントは AppView 直読みでも取れる
+   * （getChannelTimeline と同方針）。自分を指定したときだけ drawStatus が付く。
+   */
+  getCards: "com.suibari.nagi.getCards",
+  /**
+   * カードを1枚引く（1日1回）。抽選結果が改竄されては困るので AppView が権威を持ち、
+   * PDS レコードにはしない。要認証。
+   */
+  drawCard: "com.suibari.nagi.drawCard",
 } as const;
 
 /** Bluemoji (moji.blue) の絵文字定義レコード。カスタム絵文字はユーザー自身のPDSに置く。 */

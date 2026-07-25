@@ -38,6 +38,7 @@ import {
 import { getEmoji, searchEmojis } from "../services/emoji.js";
 import { resolveLexicon } from "../queries/resolveLexicon.js";
 import { getMutesView, setMute } from "../queries/mutes.js";
+import { drawCard, getCards } from "../queries/cards.js";
 import { config } from "../config.js";
 export const xrpc = Router();
 const limit = (value: unknown) =>
@@ -484,6 +485,38 @@ xrpc.post(
       res
         .set("Cache-Control", "private, no-store")
         .json(await setMute(req.viewerDid!, subjectType, subject, muted));
+    } catch (e) {
+      next(e);
+    }
+  },
+);
+// カードの所持状況は公開情報（他人のコレクションも見える）なので optional 認証。
+// 自分を指定したときだけ drawStatus が付くので、キャッシュは常に private にしておく。
+xrpc.get(
+  `/${NAGI.getCards}`,
+  optionalServiceAuth(NAGI.getCards),
+  async (req, res, next) => {
+    try {
+      const actor = String(req.query.actor ?? "");
+      if (!actor) throw new ApiError(400, "invalid_request", "actor is required");
+      res
+        .set("Cache-Control", "private, no-store")
+        .json(await getCards(actor, req.viewerDid));
+    } catch (e) {
+      next(e);
+    }
+  },
+);
+// 抽選はサーバ側でしか行わない。入力を一切取らないのは、引くカードをクライアントが
+// 指定できる余地を作らないため。
+xrpc.post(
+  `/${NAGI.drawCard}`,
+  requiredServiceAuth(NAGI.drawCard),
+  async (req, res, next) => {
+    try {
+      res
+        .set("Cache-Control", "private, no-store")
+        .json(await drawCard(req.viewerDid!));
     } catch (e) {
       next(e);
     }

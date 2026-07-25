@@ -8,6 +8,7 @@ export * from './embeddingTexts.js';
 export * from './generateAffirmativeWord.js';
 export * from './generateAnalyzeResult.js';
 export * from './generateNagiAnalysis.js';
+export * from './generateNagiCardComment.js';
 export * from './generateAnniversary.js';
 export * from './generateCheerResult.js';
 export * from './generateUserDiary.js';

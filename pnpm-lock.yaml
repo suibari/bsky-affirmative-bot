@@ -264,6 +264,9 @@ importers:
       '@bsky-affirmative-bot/nagi-linkcard':
         specifier: workspace:*
         version: link:../../packages/nagi-linkcard
+      '@bsky-affirmative-bot/shared-configs':
+        specifier: workspace:*
+        version: link:../../packages/shared-configs
       '@skyware/jetstream':
         specifier: ^0.2.5
         version: 0.2.5

@@ -503,3 +503,102 @@ export const nagiMutes = nagiSchema.table(
     index("nagi_mutes_muter_idx").on(t.muterDid, t.subjectType),
   ],
 );
+
+/**
+ * 全肯定カード（1日1回引けるトレカ）の「世界に1枚」の実体。
+ *
+ * **PDS レコードにはしない**（ミュートと同じ判断だが理由は別）。ガチャ結果をユーザー自身の
+ * repo に置くと、クライアントが createRecord で AAR を自作できてしまい非改竄性が保てない。
+ * また将来の交換は2つの repo にまたがるため原子的に行えない。よって AppView が権威を持つ。
+ * この DB を作り直すと所持カードは失われる。
+ *
+ * id は交換しても不変（所有者が変わっても「その1枚」であり続ける）。botたんコメントは
+ * この行に紐づくので、owner_did を差し替えるだけで「交換してもコメントは維持される」が成立する。
+ * どのカードかは (card_volume, card_number) で決まり、shared-configs の cards_v{n}.json を指す。
+ * **一度リリースした番号は変更禁止**（振り直すとこの列の指す先が変わる）。
+ */
+export const nagiCardInstances = nagiSchema.table(
+  "card_instances",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    /** カード段。cards_v{volume}.json に対応。 */
+    cardVolume: integer("card_volume").notNull(),
+    /** 段内の通し番号。定義本体（名前/フレーバー/ATK）は JSON 側が真実源で DB には持たない。 */
+    cardNumber: integer("card_number").notNull(),
+    /** 現所有者。交換で書き換わる唯一の列。 */
+    ownerDid: text("owner_did").notNull(),
+    /** 最初にこの1枚を引いた人。交換で流通しても出所が追える。 */
+    firstOwnerDid: text("first_owner_did").notNull(),
+    /** 引いた瞬間に botたんが付けるコメント。NULL = まだ生成待ち（UI はコメント無しで表示）。 */
+    commentJa: text("comment_ja"),
+    commentEn: text("comment_en"),
+    commentModel: text("comment_model"),
+    commentPromptVersion: text("comment_prompt_version"),
+    /** 同じカードを引き直した回数（初回=1）。将来の交換素材にも使える。 */
+    duplicateCount: integer("duplicate_count").default(1).notNull(),
+    /** 現所有者がこの1枚を手にした時刻（引き直し・交換で更新される）。 */
+    acquiredAt: timestamp("acquired_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [
+    // コレクションは「集合」。同種を引き直しても行は増やさず duplicate_count を上げる。
+    // 先頭が owner_did なので、コレクション一覧の owner_did 検索もこの索引で足りる。
+    uniqueIndex("nagi_card_instance_owner_card_idx").on(
+      t.ownerDid,
+      t.cardVolume,
+      t.cardNumber,
+    ),
+  ],
+);
+
+/**
+ * 日次ドローの記録。(did, draw_date) の主キーそのものが「1日1回」の強制になっている
+ * （アプリ側のチェックではなく DB 制約で担保するので、同時押しでも二重ドローにならない）。
+ * draw_date は JST 4:00 始まりの "YYYY-MM-DD"（shared-configs の cardDrawDate が算出）。
+ */
+export const nagiCardDraws = nagiSchema.table(
+  "card_draws",
+  {
+    did: text("did").notNull(),
+    drawDate: text("draw_date").notNull(),
+    cardVolume: integer("card_volume").notNull(),
+    cardNumber: integer("card_number").notNull(),
+    /**
+     * 引き当てた実体。日次ロックを先に取る必要があるので insert 時点では未確定で、
+     * 同一トランザクション内の直後に埋める（= 実際に NULL のまま残ることはない）。
+     */
+    instanceId: uuid("instance_id"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  // 主キー (did, draw_date) が「今日引いたか」の検索索引そのものなので、追加の索引は要らない。
+  (t) => [primaryKey({ columns: [t.did, t.drawDate] })],
+);
+
+/**
+ * botたんコメント生成のリースキュー（nagiAnalysisJobs と同型）。
+ * エンキューは AppView の drawCard、処理は nagi_bot_server の NagiCardCommentWorker。
+ * instance_id が主キーなので、同じ1枚に対するジョブは常に1件（引き直しでも上書き）。
+ */
+export const nagiCardCommentJobs = nagiSchema.table(
+  "card_comment_jobs",
+  {
+    instanceId: uuid("instance_id").primaryKey(),
+    state: botJobState("state").default("pending").notNull(),
+    attempts: integer("attempts").default(0).notNull(),
+    leaseExpiresAt: timestamp("lease_expires_at", { withTimezone: true }),
+    nextAttemptAt: timestamp("next_attempt_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    lastError: text("last_error"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [index("nagi_card_comment_jobs_ready_idx").on(t.state, t.nextAttemptAt)],
+);
