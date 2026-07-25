@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@atproto/api": "^0.18.21",
+    "@atproto/lexicon": "^0.6.1",
     "@bsky-affirmative-bot/bot-brain": "workspace:*",
     "@bsky-affirmative-bot/bot-runtime": "workspace:*",
     "@bsky-affirmative-bot/clients": "workspace:*",

@@ -66,8 +66,15 @@ export async function buildLinkCards(urls: string[]): Promise<NagiLinkCardRecord
           // サイズ (1MB) と mime 種別の検証は getLinkThumbnail 側で担保されており、
           // Nagi の validateRecord が要求する制約と一致する。
           const { data, contentType } = await getLinkThumbnail(metadata.image);
-          const response = await agent.uploadBlob(data, { encoding: contentType });
-          thumb = response.data.blob as NagiLinkCardRecord["thumb"];
+          const { blob } = (await agent.uploadBlob(data, { encoding: contentType })).data;
+          // uploadBlob が返すのは BlobRef クラス (ref は CID、$type は toJSON でしか付かない)
+          // なので、レコードに載せる JSON 形へ明示的に変換する。
+          thumb = {
+            $type: "blob",
+            ref: { $link: blob.ref.toString() },
+            mimeType: blob.mimeType,
+            size: blob.size,
+          };
         } catch (error) {
           console.warn(`[WARN][NAGI] Failed to upload link thumbnail for ${url}:`, error);
         }

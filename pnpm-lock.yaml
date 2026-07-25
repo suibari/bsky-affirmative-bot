@@ -316,6 +316,9 @@ importers:
       '@atproto/api':
         specifier: ^0.18.21
         version: 0.18.21
+      '@atproto/lexicon':
+        specifier: ^0.6.1
+        version: 0.6.1
       '@bsky-affirmative-bot/bot-brain':
         specifier: workspace:*
         version: link:../../packages/bot_brain
@@ -3503,7 +3506,7 @@ snapshots:
 
   '@atproto/lexicon@0.6.1':
     dependencies:
-      '@atproto/common-web': 0.4.16
+      '@atproto/common-web': 0.4.21
       '@atproto/syntax': 0.4.3
       iso-datestring-validator: 2.2.2
       multiformats: 9.9.0
