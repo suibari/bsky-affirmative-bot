@@ -129,7 +129,9 @@ export const OHAYO_WORDS = ["おは"];
 export const OYASUMI_WORDS = ["おやす"];
 export const OTSUKARE_WORDS = ["お疲れ", "おつ", "しごおわ"];
 
-export const EXEC_PER_COUNTS = 10; // 何回に1回AI応答するか
+// 非サブスクへのGemini応答は方針上いったん停止中（Infinityで永久に発火しない）。
+// 再開する場合はここを 10 などの有限値に戻す。
+export const EXEC_PER_COUNTS = Infinity; // 何回に1回AI応答するか
 export const LIMIT_REQUEST_PER_DAY_GEMINI = 2000;
 export const POST_TEXT_LIMIT = 2100;
 
