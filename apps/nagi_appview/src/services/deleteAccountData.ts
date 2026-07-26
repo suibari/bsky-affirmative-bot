@@ -26,7 +26,7 @@ import {
   nagiReactions,
   nagiTranslations,
 } from "@bsky-affirmative-bot/database";
-import { BLUEMOJI_ITEM, NAGI } from "@bsky-affirmative-bot/nagi-lexicon";
+import { NAGI } from "@bsky-affirmative-bot/nagi-lexicon";
 import { eq, inArray, like, or } from "drizzle-orm";
 
 const NAGI_BOT_SERVER_URL = process.env.NAGI_BOT_SERVER_URL || "http://localhost:3003";
@@ -110,10 +110,8 @@ export async function deleteAccountData(did: string) {
         ),
       );
     await tx.delete(nagiReactions).where(eq(nagiReactions.did, did));
-    // 自分のカスタム絵文字と、それを使った他ユーザーのリアクションも消す。
-    await tx
-      .delete(nagiReactions)
-      .where(like(nagiReactions.emojiUri, `at://${did}/${BLUEMOJI_ITEM}/%`));
+    // 本人所有 Bluemoji の複製は消すが、それを使った他ユーザーのリアクションは
+    // そのユーザーのデータなので残す。表示時は emoji のフォールバック文字列を使う。
     await tx.delete(nagiEmojis).where(eq(nagiEmojis.did, did));
     await tx.delete(nagiDiaries).where(eq(nagiDiaries.subjectDid, did));
     await tx.delete(nagiPosts).where(eq(nagiPosts.did, did));

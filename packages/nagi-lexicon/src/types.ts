@@ -132,6 +132,12 @@ export type NagiReaction = {
   bluemoji?: BluemojiRef;
   createdAt: string;
 };
+/** Nagi で作成した Bluemoji を識別する、同じ rkey のサイドカーレコード。 */
+export type NagiBluemoji = {
+  $type: "com.suibari.nagi.bluemoji";
+  subject: string;
+  createdAt: string;
+};
 /** blue.moji.collection.item のうち Nagi が利用するラスタ形式（lottie は非対応）。 */
 export type BluemojiFormats = {
   png_128?: string;

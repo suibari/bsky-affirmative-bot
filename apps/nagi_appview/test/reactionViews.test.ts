@@ -63,3 +63,20 @@ test("keeps custom emoji and subjects in separate groups", () => {
   assert.deepEqual(grouped.values().next().value?.[0].bluemoji, bluemoji);
   assert.equal(grouped.get(otherSubject)?.[0].emoji, "🎉");
 });
+
+test("keeps a reaction with fallback text when its custom emoji is unavailable", () => {
+  const emojiUri =
+    "at://did:example:deleted/blue.moji.collection.item/party";
+  const reaction = groupReactionViews([
+    row("did:example:reactor", {
+      emoji: ":party:",
+      emojiKey: emojiUri,
+    }),
+  ])
+    .values()
+    .next().value?.[0];
+
+  assert.equal(reaction?.emoji, ":party:");
+  assert.equal(reaction?.bluemoji, undefined);
+  assert.equal(reaction?.reactors[0]?.did, "did:example:reactor");
+});

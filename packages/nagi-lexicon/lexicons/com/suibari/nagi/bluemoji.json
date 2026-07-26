@@ -1,0 +1,23 @@
+{
+  "lexicon": 1,
+  "id": "com.suibari.nagi.bluemoji",
+  "defs": {
+    "main": {
+      "type": "record",
+      "key": "any",
+      "description": "Marks a blue.moji.collection.item record created by Nagi. Uses the same record key as the referenced Bluemoji.",
+      "record": {
+        "type": "object",
+        "required": ["subject", "createdAt"],
+        "properties": {
+          "subject": {
+            "type": "string",
+            "format": "at-uri",
+            "description": "AT-URI of the blue.moji.collection.item record created by Nagi."
+          },
+          "createdAt": { "type": "string", "format": "datetime" }
+        }
+      }
+    }
+  }
+}

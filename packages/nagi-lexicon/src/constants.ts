@@ -10,6 +10,8 @@ export const NAGI = {
   news: "com.suibari.nagi.news",
   /** ユーザーが作る同好の集まり（チャンネル）。作成者のPDSに置く。post.channel から参照する。 */
   channel: "com.suibari.nagi.channel",
+  /** Nagi で作成した Bluemoji を識別するサイドカー。対象 item と同じ rkey で本人の PDS に置く。 */
+  bluemoji: "com.suibari.nagi.bluemoji",
   getTimeline: "com.suibari.nagi.getTimeline",
   getAffirmation: "com.suibari.nagi.getAffirmation",
   getThread: "com.suibari.nagi.getThread",
@@ -108,14 +110,15 @@ export const NAGI_COLLECTIONS = [
   NAGI.profile,
   NAGI.appLinks,
   NAGI.channel,
+  NAGI.bluemoji,
   BLUEMOJI_ITEM,
 ] as const;
 /**
  * jetstream で購読するコレクション。
  * 日記は bot だけが書くのでユーザーの書き込みスコープ（NAGI_COLLECTIONS）には無いが、
  * AppView は取り込む必要があるためここにだけ足す。
- * 逆に appLinks はユーザー書き込み可能（NAGI_COLLECTIONS に含む）だが、表示はクライアント直読み
- * のため AppView では取り込まない。よって NAGI_COLLECTIONS を spread せず明示列挙する。
+ * 逆に appLinks と bluemoji サイドカーはユーザー書き込み可能（NAGI_COLLECTIONS に含む）だが、
+ * AppView では使わない。よって NAGI_COLLECTIONS を spread せず明示列挙する。
  */
 export const NAGI_INGEST_COLLECTIONS = [
   NAGI.post,
