@@ -160,3 +160,24 @@ export const NAGI_OAUTH_SCOPE = [
   `include:${NAGI_PERMISSION_SET}`,
   `repo:${BLUEMOJI_ITEM}`,
 ].join(" ");
+
+/**
+ * オプトイン時にだけ追加で要求するスコープ。通常のサインインでは付けない。
+ *
+ * どちらも別 namespace なので appviewAccess(permission set) には入れられず、直接スコープで持つ。
+ * standard.site 側にも site.standard.authFull という permission set があるが、
+ * subscription / recommend まで含む過剰な束なので採らない。
+ * Nagi は記事の作成・編集・削除を投稿に追従させるため、standard.site 側は action を絞らない。
+ */
+export const NAGI_CROSSPOST_SCOPE = "repo:app.bsky.feed.post?action=create";
+export const NAGI_STANDARD_SITE_SCOPES = [
+  "repo:site.standard.publication",
+  "repo:site.standard.document",
+];
+
+/** client-metadata.json に宣言する最大集合（実際に要求するのはオプトインの分だけ）。 */
+export const NAGI_OAUTH_SCOPE_FULL = [
+  NAGI_OAUTH_SCOPE,
+  NAGI_CROSSPOST_SCOPE,
+  ...NAGI_STANDARD_SITE_SCOPES,
+].join(" ");
