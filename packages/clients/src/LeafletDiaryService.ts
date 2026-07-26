@@ -1,6 +1,13 @@
 import { AtpAgent } from '@atproto/api';
+import { TID } from '@atproto/common-web';
 import { generateBotDiary } from '@bsky-affirmative-bot/bot-brain';
 import { fetchDiaryData } from './diaryUtils.js';
+import {
+  buildStandardSiteDocument,
+  findLeafletStandardPublication,
+  STANDARD_SITE_DOCUMENT,
+  standardSiteDocumentUrl,
+} from './LeafletStandardSite.js';
 // Types derived from @atcute/leaflet (pub.leaflet lexicon)
 type LeafletFacet = {
   index: { byteStart: number; byteEnd: number };
@@ -15,21 +22,6 @@ type LeafletBlockText = { $type: 'pub.leaflet.blocks.text'; plaintext: string; f
 type LeafletBlockHeader = { $type: 'pub.leaflet.blocks.header'; plaintext: string; level?: number; facets?: LeafletFacet[] };
 type LeafletBlockHR = { $type: 'pub.leaflet.blocks.horizontalRule' };
 type LeafletLinearBlock = { $type: 'pub.leaflet.pages.linearDocument#block'; block: LeafletBlockText | LeafletBlockHeader | LeafletBlockHR };
-
-function generateRkey(): string {
-  const alphabet = '234567abcdefghijklmnopqrstuvwxyz';
-  // AT Protocol TID: 10-char timestamp (microseconds, base32 big-endian) + 3-char clock ID
-  let ts = BigInt(Date.now()) * 1000n;
-  let rkey = '';
-  for (let i = 0; i < 10; i++) {
-    rkey = alphabet[Number(ts % 32n)] + rkey;
-    ts /= 32n;
-  }
-  for (let i = 0; i < 3; i++) {
-    rkey += alphabet[Math.floor(Math.random() * alphabet.length)];
-  }
-  return rkey;
-}
 
 function parseInline(rawText: string): { plaintext: string; facets: LeafletFacet[] } {
   const facets: LeafletFacet[] = [];
@@ -148,6 +140,15 @@ export class LeafletDiaryService {
       return undefined;
     }
 
+    // Resolve the publication before generating paid content. A document without
+    // this relationship is valid as a loose standard.site document, but it would
+    // not appear in Bot-tan's Leaflet publication.
+    const publication = await findLeafletStandardPublication(
+      agent,
+      botDid,
+      process.env.LEAFLET_PUBLICATION_URL,
+    );
+
     const isJa = lang === 'ja';
     const locale = isJa ? 'ja-JP' : 'en-US';
     const langStr = isJa ? "日本語" : "English";
@@ -167,30 +168,11 @@ export class LeafletDiaryService {
       langStr,
     });
 
-    let publicationUri: string | undefined = undefined;
-    let publicationBaseUrl: string | undefined = undefined;
+    console.log(
+      `[INFO][LEAFLET] Using standard.site publication: ${publication.uri} (URL: ${publication.value.url})`,
+    );
 
-    try {
-      console.log(`[INFO][LEAFLET] Fetching pub.leaflet.publication record for DID: ${botDid}...`);
-      const pubResponse = await agent.api.com.atproto.repo.listRecords({
-        repo: botDid,
-        collection: "pub.leaflet.publication",
-        limit: 1,
-      });
-
-      if (pubResponse.data.records && pubResponse.data.records.length > 0) {
-        const pubRecord = pubResponse.data.records[0];
-        publicationUri = pubRecord.uri;
-        publicationBaseUrl = (pubRecord.value as any)?.url;
-        console.log(`[INFO][LEAFLET] Found parent publication: ${publicationUri} (URL: ${publicationBaseUrl})`);
-      } else {
-        console.warn("[WARN][LEAFLET] No pub.leaflet.publication record found on PDS. Leaflet.pub indexing might fail.");
-      }
-    } catch (err: any) {
-      console.error("[ERROR][LEAFLET] Failed to list pub.leaflet.publication records:", err.message);
-    }
-
-    const rkey = generateRkey();
+    const rkey = TID.nextStr();
     const titleWithDay = isJa
       ? `日記${diaryCount}日目: ${diaryResult.title}`
       : `Diary Day ${diaryCount}: ${diaryResult.title}`;
@@ -199,43 +181,38 @@ export class LeafletDiaryService {
       : `\n\n---\n[Follow Affirmative Bot-tan on Bluesky!](https://bsky.app/profile/bot-tan.suibari.com)`;
     const markdownContent = `${diaryResult.content}${footer}`;
 
-    const record = {
-      $type: "pub.leaflet.document",
+    const pages = [
+      {
+        $type: "pub.leaflet.pages.linearDocument",
+        blocks: markdownToBlocks(markdownContent),
+      },
+    ];
+    const record = buildStandardSiteDocument({
+      rkey,
+      site: publication.uri,
       title: titleWithDay,
-      author: botDid,
       description: diaryResult.title,
-      publication: publicationUri,
       publishedAt: new Date().toISOString(),
-      pages: [
-        {
-          $type: "pub.leaflet.pages.linearDocument",
-          blocks: markdownToBlocks(markdownContent),
-        }
-      ],
-    };
+      pages,
+    });
 
-    console.log(`[INFO][LEAFLET] Publishing pub.leaflet.document record to PDS with rkey: ${rkey}...`);
+    console.log(`[INFO][LEAFLET] Publishing ${STANDARD_SITE_DOCUMENT} record to PDS with rkey: ${rkey}...`);
 
     try {
-      await agent.api.com.atproto.repo.createRecord({
+      await agent.api.com.atproto.repo.putRecord({
         repo: botDid,
-        collection: "pub.leaflet.document",
-        rkey: rkey,
-        record: record,
+        collection: STANDARD_SITE_DOCUMENT,
+        rkey,
+        validate: false,
+        record,
       });
 
-      let leafletUrl = `https://leaflet.pub/p/${leafletUser}/${rkey}`;
-      if (publicationBaseUrl) {
-        const base = publicationBaseUrl.endsWith('/') ? publicationBaseUrl.slice(0, -1) : publicationBaseUrl;
-        leafletUrl = `${base}/${rkey}`;
-      } else if (leafletUser && !leafletUser.includes('.')) {
-        leafletUrl = `https://leaflet.pub/p/${leafletUser}/${rkey}`;
-      }
+      const leafletUrl = standardSiteDocumentUrl(publication.value.url, rkey);
 
       console.log(`[INFO][LEAFLET] Successfully published diary to Leaflet.pub: ${leafletUrl}`);
       return leafletUrl;
     } catch (e: any) {
-      console.error("[ERROR][LEAFLET] Failed to create pub.leaflet.document record on PDS:", e.message);
+      console.error(`[ERROR][LEAFLET] Failed to create ${STANDARD_SITE_DOCUMENT} record on PDS:`, e.message);
       throw e;
     }
   }

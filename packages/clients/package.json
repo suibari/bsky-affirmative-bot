@@ -12,11 +12,13 @@
     }
   },
   "scripts": {
-    "build": "tsc"
+    "build": "tsc",
+    "test": "tsx --test test/LeafletStandardSite.test.ts"
   },
   "dependencies": {
     "@atcute/leaflet": "^2.0.1",
     "@atproto/api": "^0.18.21",
+    "@atproto/common-web": "^0.5.6",
     "@bsky-affirmative-bot/bot-brain": "workspace:*",
     "@bsky-affirmative-bot/database": "workspace:*",
     "@bsky-affirmative-bot/shared-configs": "workspace:*",
@@ -24,6 +26,7 @@
     "dotenv": "^16.4.5"
   },
   "devDependencies": {
+    "tsx": "^4.20.3",
     "typescript": "^5.8.3"
   }
 }

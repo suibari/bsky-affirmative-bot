@@ -169,6 +169,9 @@ importers:
       '@types/ws':
         specifier: ^8.5.10
         version: 8.18.1
+      tsx:
+        specifier: ^4.20.3
+        version: 4.21.0
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
@@ -433,6 +436,9 @@ importers:
       '@atproto/api':
         specifier: ^0.18.21
         version: 0.18.21
+      '@atproto/common-web':
+        specifier: ^0.5.6
+        version: 0.5.6
       '@bsky-affirmative-bot/bot-brain':
         specifier: workspace:*
         version: link:../bot_brain
@@ -449,6 +455,9 @@ importers:
         specifier: ^16.4.5
         version: 16.6.1
     devDependencies:
+      tsx:
+        specifier: ^4.20.3
+        version: 4.21.0
       typescript:
         specifier: ^5.8.3
         version: 5.9.3
@@ -3343,7 +3352,7 @@ snapshots:
 
   '@atproto/common@0.4.12':
     dependencies:
-      '@atproto/common-web': 0.4.16
+      '@atproto/common-web': 0.4.21
       '@ipld/dag-cbor': 7.0.3
       cbor-x: 1.6.4
       iso-datestring-validator: 2.2.2
@@ -3498,7 +3507,7 @@ snapshots:
 
   '@atproto/lexicon@0.4.14':
     dependencies:
-      '@atproto/common-web': 0.4.16
+      '@atproto/common-web': 0.4.21
       '@atproto/syntax': 0.4.3
       iso-datestring-validator: 2.2.2
       multiformats: 9.9.0
