@@ -4,6 +4,15 @@ import { generateEmbedding } from './ollamaEmbed.js';
 import { LanguageName, LIMIT_REQUEST_PER_DAY_GEMINI, DailyReport, Stats } from '@bsky-affirmative-bot/shared-configs';
 
 export { initializeDatabases, db, subscribers, followers };
+// affirmative_bot スキーマの生テーブル。名前が汎用的すぎて nagi 側と紛らわしいので bot* に
+// 揃えて出す。Nagi の退会処理が「Nagi 由来の行だけ」を消すために必要。
+export {
+  posts as botPosts,
+  likes as botLikes,
+  replies as botReplies,
+  interaction as botInteraction,
+  affirmations as botAffirmations,
+};
 export * from './nagiSchema.js';
 export { filterRelatedHistory, generateEmbedding, generateEmbeddings } from './ollamaEmbed.js';
 export type { DailyReport, Stats };

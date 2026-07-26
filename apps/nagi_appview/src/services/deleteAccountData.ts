@@ -1,8 +1,18 @@
 import {
   db,
+  botAffirmations,
+  botInteraction,
+  botLikes,
+  botPosts,
+  botReplies,
+  followers,
   nagiActors,
   nagiActorAnalyses,
   nagiAnalysisJobs,
+  nagiCardCommentJobs,
+  nagiCardDraws,
+  nagiCardInstances,
+  nagiChannels,
   nagiDiaries,
   nagiBotReplyJobs,
   nagiEmojis,
@@ -10,12 +20,14 @@ import {
   nagiNotifications,
   nagiPosts,
   nagiPostScores,
+  nagiProcessedEvents,
   nagiProfiles,
+  nagiPushSubscriptions,
   nagiReactions,
   nagiTranslations,
 } from "@bsky-affirmative-bot/database";
 import { BLUEMOJI_ITEM, NAGI } from "@bsky-affirmative-bot/nagi-lexicon";
-import { eq, like, or } from "drizzle-orm";
+import { eq, inArray, like, or } from "drizzle-orm";
 
 const NAGI_BOT_SERVER_URL = process.env.NAGI_BOT_SERVER_URL || "http://localhost:3003";
 
@@ -36,6 +48,30 @@ async function purgeDiaryRecords(did: string) {
     // /diaries/purge を手で叩けば回収できる。
     console.error(`[ERROR][NAGI][DIARY] Failed to purge diary records for ${did}:`, error);
   }
+}
+
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+/**
+ * botたん側（affirmative_bot スキーマ）に残る本人のデータ。Nagi の投稿は nagi スキーマ
+ * だけで完結していないので、ここを消さないとプライバシーポリシーの「Nagi のサーバ上の
+ * データはすべて消える」が嘘になる。
+ *
+ * followers / posts / likes / replies は did が主キー = 1人1行なので行ごと消す。
+ * Bluesky の botたんとも共有している行だが、Bluesky 側は撤退方針であり、なにより本人が
+ * 「全データを削除」を選んでいる以上、会話履歴や記念日を残す理由がない。
+ *
+ * interaction だけは did を NULL にするに留める。botたんの日次日記が件数の集計に使って
+ * いて（clients/diaryUtils.ts）、did は参照していないため、行を消すと本人と無関係な
+ * 統計まで壊れる。DID を外せば個人との紐付きは消える。
+ */
+async function deleteBotSchemaData(tx: Tx, did: string) {
+  await tx.update(botInteraction).set({ did: null }).where(eq(botInteraction.did, did));
+  await tx.delete(botAffirmations).where(eq(botAffirmations.did, did));
+  await tx.delete(botReplies).where(eq(botReplies.did, did));
+  await tx.delete(botPosts).where(eq(botPosts.did, did));
+  await tx.delete(botLikes).where(eq(botLikes.did, did));
+  await tx.delete(followers).where(eq(followers.did, did));
 }
 
 export async function deleteAccountData(did: string) {
@@ -83,8 +119,39 @@ export async function deleteAccountData(did: string) {
     await tx.delete(nagiPosts).where(eq(nagiPosts.did, did));
     await tx.delete(nagiAnalysisJobs).where(eq(nagiAnalysisJobs.did, did));
     await tx.delete(nagiActorAnalyses).where(eq(nagiActorAnalyses.did, did));
+    // CH の行を消しても、他人の channelOnly 投稿が漏れることはない。可視性は投稿行の
+    // channel_only が持っていて CH 行を参照しないため（queries/timeline.ts）。
+    await tx.delete(nagiChannels).where(eq(nagiChannels.did, did));
+
+    // カード。comment_jobs → draws → instances の順で、instance_id を引ける間に消す。
+    // 交換機能は未実装なので owner_did = first_owner_did であり、owner で消せば
+    // first_owner_did 側に DID が残ることもない。交換を入れるときはここを見直すこと。
+    const cardInstanceIds = (
+      await tx
+        .select({ id: nagiCardInstances.id })
+        .from(nagiCardInstances)
+        .where(eq(nagiCardInstances.ownerDid, did))
+    ).map((row) => row.id);
+    if (cardInstanceIds.length > 0) {
+      await tx
+        .delete(nagiCardCommentJobs)
+        .where(inArray(nagiCardCommentJobs.instanceId, cardInstanceIds));
+    }
+    await tx.delete(nagiCardDraws).where(eq(nagiCardDraws.did, did));
+    await tx.delete(nagiCardInstances).where(eq(nagiCardInstances.ownerDid, did));
+
+    // プッシュ購読。端末を特定しうる唯一の行なので必ず消す。
+    await tx
+      .delete(nagiPushSubscriptions)
+      .where(eq(nagiPushSubscriptions.recipientDid, did));
+
+    // 重複排除ログ。id は `${did}:${time_us}:...` なので前方一致で引ける。
+    await tx.delete(nagiProcessedEvents).where(like(nagiProcessedEvents.id, `${did}:%`));
+
     await tx.delete(nagiProfiles).where(eq(nagiProfiles.did, did));
     await tx.delete(nagiActors).where(eq(nagiActors.did, did));
+
+    await deleteBotSchemaData(tx, did);
   });
 
   return { success: true as const };
