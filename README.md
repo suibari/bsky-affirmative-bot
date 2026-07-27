@@ -2,7 +2,7 @@
 
 ![bot header](https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:qcwhrvzx6wmi5hz775uyi6fh/bafkreic7dxnqovwoytjla37gav4ovphnhmlb3dwqdh3nfsmku4vygxqiia@jpeg)
 
-[全肯定botたん](https://bsky.app/profile/suibari-bot.bsky.social) は、フォロワーを全肯定するリプライを送るBluesky botです。
+[全肯定botたん](https://bsky.app/profile/bot-tan.com) は、フォロワーを全肯定するリプライを送るBluesky botです。
 感情分析および生成AIを活用し、フォロワーを励ますことを目的とします。
 
 Please refer [English README](./README_en.md) for not Japanese speakers.
@@ -159,7 +159,7 @@ DJ機能は1度行うと **5分間** 行えません。
 > **バッジをプロフィールに表示させるための準備**
 > プレゼントされたバッジを自身のBlueskyアカウントに表示させるには、事前に以下のラベラーアカウントを登録（Subscribe）しておく必要があります。
 >
-> 👉 **[botたんラベラー (labeler-bot-tan.suibari.com)](https://bsky.app/profile/labeler-bot-tan.suibari.com)**
+> 👉 **[botたんラベラー (labeler.bot-tan.com)](https://bsky.app/profile/labeler.bot-tan.com)**
 >
 > リンク先のプロフィールから **「Subscribe (登録)」** ボタンを押すだけで準備完了です！
 
@@ -214,7 +214,7 @@ DJ機能は1度行うと **5分間** 行えません。
 
 ### 問い合わせ
 本ボットまたはプライバシーポリシーに関するお問い合わせは、次の連絡先までお願いします：
-[すいばり (suibari.com)](https://bsky.app/profile/suibari-com)
+[すいばり (suibari.com)](https://bsky.app/profile/suibari.com)
 
 ---
 

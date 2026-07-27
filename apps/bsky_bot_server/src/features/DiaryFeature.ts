@@ -161,9 +161,9 @@ async function processUserDiary(userDid: string) {
 
             // 成功メッセージの追加
             if (langStr === "日本語") {
-                replyText += `\n\n🎉「${diaryResult.title_ja}」の称号バッジをプレゼントしたよ！\n※バッジを表示するにはラベラー（ https://bsky.app/profile/labeler-bot-tan.suibari.com ）を登録してね`;
+                replyText += `\n\n🎉「${diaryResult.title_ja}」の称号バッジをプレゼントしたよ！\n※バッジを表示するにはラベラー（ https://bsky.app/profile/labeler.bot-tan.com ）を登録してね`;
             } else {
-                replyText += `\n\n🎉 I've gifted you the title badge "${diaryResult.title_en}"!\n*To show the badge, please subscribe to the labeler ( https://bsky.app/profile/labeler-bot-tan.suibari.com ).`;
+                replyText += `\n\n🎉 I've gifted you the title badge "${diaryResult.title_en}"!\n*To show the badge, please subscribe to the labeler ( https://bsky.app/profile/labeler.bot-tan.com ).`;
             }
         } catch (badgeErr: any) {
             console.error(`[ERROR][BADGE][DIARY] Failed to apply title badge for ${userDid}:`, badgeErr.message);

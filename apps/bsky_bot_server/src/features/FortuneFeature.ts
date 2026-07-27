@@ -93,9 +93,9 @@ export class FortuneFeature implements BotFeature {
 
             // 成功メッセージ（ラベラーの宣伝）の追加
             if (userinfo.langStr === "日本語") {
-                replyText += `\n\n🎉「今日のラッキー: ${emojis}」のラッキーバッジをプレゼントしたよ！\n※バッジを表示するにはラベラー（ https://bsky.app/profile/labeler-bot-tan.suibari.com ）を登録してね`;
+                replyText += `\n\n🎉「今日のラッキー: ${emojis}」のラッキーバッジをプレゼントしたよ！\n※バッジを表示するにはラベラー（ https://bsky.app/profile/labeler.bot-tan.com ）を登録してね`;
             } else {
-                replyText += `\n\n🎉 I've gifted you the "Today's Lucky: ${emojis}" badge!\n*To show the badge, please subscribe to the labeler ( https://bsky.app/profile/labeler-bot-tan.suibari.com ).`;
+                replyText += `\n\n🎉 I've gifted you the "Today's Lucky: ${emojis}" badge!\n*To show the badge, please subscribe to the labeler ( https://bsky.app/profile/labeler.bot-tan.com ).`;
             }
         } catch (badgeErr: any) {
             console.error(`[ERROR][BADGE][FORTUNE] Failed to apply fortune badge for ${userinfo.follower.did}:`, badgeErr.message);

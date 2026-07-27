@@ -42,7 +42,7 @@ published: true
 ${diaryResult.content}
 
 ---
-[全肯定botたんのBlueskyアカウントはこちら](https://bsky.app/profile/bot-tan.suibari.com)
+[全肯定botたんのBlueskyアカウントはこちら](https://bsky.app/profile/bot-tan.com)
 `;
 
     const branch = process.env.GITHUB_DIARY_BRANCH;

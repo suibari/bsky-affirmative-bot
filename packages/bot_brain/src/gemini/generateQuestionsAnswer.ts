@@ -36,8 +36,8 @@ export async function generateQuestionsAnswer(userinfo: UserInfoGemini, question
 
 const PROMPT_QUESTIONSANSWER = (userinfo: UserInfoGemini, questionTheme: string) => {
   const part_promo = userinfo.langStr === "日本語" ?
-    `* あなたのアドバイスや返信メッセージ（reply）の自然な流れの中で、回答の要約（例：「猫派」「朝型」など）を表す「朝トークバッジ」をプレゼントしたことと、そのバッジを表示するにはラベラー（ https://bsky.app/profile/labeler-bot-tan.suibari.com ）の登録（サブスクライブ）が必要であることを、機械的にならず優しく可愛らしく語りかけるように含めてください。` :
-    `* Naturally weave into your reply message that you have gifted them a "Morning Talk Badge" representing their answer (e.g. "Cat Lover"), and that they need to subscribe to your labeler ( https://bsky.app/profile/labeler-bot-tan.suibari.com ) to show the badge. Convey this in a warm, gentle, and lovely tone.`;
+    `* あなたのアドバイスや返信メッセージ（reply）の自然な流れの中で、回答の要約（例：「猫派」「朝型」など）を表す「朝トークバッジ」をプレゼントしたことと、そのバッジを表示するにはラベラー（ https://bsky.app/profile/labeler.bot-tan.com ）の登録（サブスクライブ）が必要であることを、機械的にならず優しく可愛らしく語りかけるように含めてください。` :
+    `* Naturally weave into your reply message that you have gifted them a "Morning Talk Badge" representing their answer (e.g. "Cat Lover"), and that they need to subscribe to your labeler ( https://bsky.app/profile/labeler.bot-tan.com ) to show the badge. Convey this in a warm, gentle, and lovely tone.`;
 
   return `あなたの全肯定質問コーナーにユーザーが回答してくれました。
 ユーザーの回答にあなたなりの意見を述べて、スレッドを盛り上げてください。ただし全肯定スタンスは必須です。

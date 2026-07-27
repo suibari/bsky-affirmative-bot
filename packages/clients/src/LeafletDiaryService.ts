@@ -177,8 +177,8 @@ export class LeafletDiaryService {
       ? `日記${diaryCount}日目: ${diaryResult.title}`
       : `Diary Day ${diaryCount}: ${diaryResult.title}`;
     const footer = isJa
-      ? `\n\n---\n[全肯定botたんのBlueskyアカウントはこちら](https://bsky.app/profile/bot-tan.suibari.com)`
-      : `\n\n---\n[Follow Affirmative Bot-tan on Bluesky!](https://bsky.app/profile/bot-tan.suibari.com)`;
+      ? `\n\n---\n[全肯定botたんのBlueskyアカウントはこちら](https://bsky.app/profile/bot-tan.com)`
+      : `\n\n---\n[Follow Affirmative Bot-tan on Bluesky!](https://bsky.app/profile/bot-tan.com)`;
     const markdownContent = `${diaryResult.content}${footer}`;
 
     const pages = [

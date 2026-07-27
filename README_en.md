@@ -2,7 +2,7 @@
 
 ![bot header](https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:qcwhrvzx6wmi5hz775uyi6fh/bafkreicd74lb33ywyc54lzgqfyotfuzs55x2cnxztpob5ifg2nr4kiji2e@jpeg)
 
-[Zenkoutei Bot-tan](https://bsky.app/profile/bot-tan.suibari.com) is a Bluesky bot designed to send replies that completely affirm its followers. By leveraging sentiment analysis and generative AI, its goal is to encourage and uplift its followers.
+[Zenkoutei Bot-tan](https://bsky.app/profile/bot-tan.com) is a Bluesky bot designed to send replies that completely affirm its followers. By leveraging sentiment analysis and generative AI, its goal is to encourage and uplift its followers.
 
 ---
 
@@ -149,7 +149,7 @@ This bot leverages the Bluesky Labeler protocol to gift special emojis and title
 > **Prerequisites to show badges on your profile**
 > To make the gifted badges appear on your Bluesky profile, you must subscribe to our official Labeler account:
 >
-> 👉 **[Bot-tan Labeler (labeler-bot-tan.suibari.com)](https://bsky.app/profile/labeler-bot-tan.suibari.com)**
+> 👉 **[Bot-tan Labeler (labeler.bot-tan.com)](https://bsky.app/profile/labeler.bot-tan.com)**
 >
 > Go to the profile link above and click the **"Subscribe"** button. That's it!
 

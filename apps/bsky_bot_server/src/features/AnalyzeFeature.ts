@@ -136,9 +136,9 @@ export class AnalyzeFeature implements BotFeature {
 
             // 成功メッセージの追加
             if (userinfo.langStr === "日本語") {
-                replyText += `\n\n🎉「${analyzeResult.title_ja}」の称号バッジをプレゼントしたよ！\n※バッジを表示するにはラベラー（ https://bsky.app/profile/labeler-bot-tan.suibari.com ）を登録してね`;
+                replyText += `\n\n🎉「${analyzeResult.title_ja}」の称号バッジをプレゼントしたよ！\n※バッジを表示するにはラベラー（ https://bsky.app/profile/labeler.bot-tan.com ）を登録してね`;
             } else {
-                replyText += `\n\n🎉 I've gifted you the title badge "${analyzeResult.title_en}"!\n*To show the badge, please subscribe to the labeler ( https://bsky.app/profile/labeler-bot-tan.suibari.com ).`;
+                replyText += `\n\n🎉 I've gifted you the title badge "${analyzeResult.title_en}"!\n*To show the badge, please subscribe to the labeler ( https://bsky.app/profile/labeler.bot-tan.com ).`;
             }
         } catch (badgeErr: any) {
             console.error(`[ERROR][BADGE][ANALYZE] Failed to apply title badge for ${userinfo.follower.did}:`, badgeErr.message);
