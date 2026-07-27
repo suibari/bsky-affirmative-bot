@@ -261,11 +261,6 @@ export async function applyMutation(
               channelOnly: value.channelOnly === true,
               repoRev: commit.rev,
               recordCreatedAt: createdAt,
-              ...(reconciledPostIndexedAt
-                ? {
-                    indexedAt: sql`least(${nagiPosts.indexedAt}, excluded.indexed_at)`,
-                  }
-                : {}),
               // cid 変化を観測した編集で true。cid 不変の再処理ではフラグを戻さない（単調）。
               edited: isEdit ? true : sql`${nagiPosts.edited}`,
               // 本文が変わった編集では意味検索の埋め込みを無効化し、EmbeddingWorker に
