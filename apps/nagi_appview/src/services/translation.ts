@@ -4,7 +4,7 @@ import {
   nagiTranslations,
 } from "@bsky-affirmative-bot/database";
 import { NAGI, NAGI_LANGUAGES } from "@bsky-affirmative-bot/nagi-lexicon";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { config } from "../config.js";
 import { ApiError } from "../middleware/errors.js";
 
@@ -15,6 +15,7 @@ type Language = (typeof NAGI_LANGUAGES)[number];
 type Post = typeof nagiPosts.$inferSelect;
 export type TranslationFailureCode =
   | "not_found"
+  | "not_cached"
   | "empty_post"
   | "rate_limited"
   | "upstream_unavailable"
@@ -27,6 +28,28 @@ export type TranslationBatchResult = {
 const languageByCode = new Map(
   NAGI_LANGUAGES.map((language) => [language.code, language]),
 );
+const englishLanguage = languageByCode.get("en")!;
+
+const sourceLanguageFrom = (langs: unknown): Language | undefined => {
+  const sourceCode = Array.isArray(langs) ? String(langs[0] ?? "") : "";
+  return languageByCode.get(
+    sourceCode
+      .split("-")[0]
+      ?.toLowerCase() as (typeof NAGI_LANGUAGES)[number]["code"],
+  );
+};
+
+/** 対応言語として明示された、英語以外の投稿だけを事前英訳する。 */
+export const shouldPrewarmEnglish = (langs: unknown) => {
+  const source = sourceLanguageFrom(langs);
+  return Boolean(source && source.code !== "en");
+};
+
+export const shouldStartEnglishPrewarm = (
+  existing: boolean,
+  reconcile: boolean,
+  langs: unknown,
+) => !existing && !reconcile && shouldPrewarmEnglish(langs);
 
 function targetLanguage(value: unknown): Language {
   if (typeof value !== "string") {
@@ -180,16 +203,7 @@ const translationSlots = new Semaphore(config.translationConcurrency);
 const generationRequests = new SingleFlight<string>();
 const requestKey = (uri: string, target: Language) => `${uri}\n${target.code}`;
 
-const sourceLanguage = (post: Post) => {
-  const sourceCode = Array.isArray(post.langs)
-    ? String(post.langs[0] ?? "")
-    : "";
-  return languageByCode.get(
-    sourceCode
-      .split("-")[0]
-      ?.toLowerCase() as (typeof NAGI_LANGUAGES)[number]["code"],
-  );
-};
+const sourceLanguage = (post: Post) => sourceLanguageFrom(post.langs);
 
 type TranslationRequestDependencies = {
   fetcher?: typeof fetch;
@@ -317,10 +331,59 @@ function generateAndCache(post: Post, target: Language): Promise<string> {
   });
 }
 
+/** 新規投稿向けのbest-effort英訳。公開リクエストのIP生成枠は消費しない。 */
+export async function prewarmEnglishTranslation(uri: string): Promise<void> {
+  const cached = await db
+    .select({ postUri: nagiTranslations.postUri })
+    .from(nagiTranslations)
+    .where(
+      and(
+        eq(nagiTranslations.postUri, uri),
+        eq(nagiTranslations.targetLang, englishLanguage.code),
+        eq(nagiTranslations.cacheVersion, TRANSLATION_CACHE_VERSION),
+      ),
+    )
+    .limit(1);
+  if (cached[0]) return;
+
+  const posts = await db
+    .select()
+    .from(nagiPosts)
+    .where(and(eq(nagiPosts.uri, uri), isNull(nagiPosts.deletedAt)))
+    .limit(1);
+  const post = posts[0];
+  if (!post?.text.trim() || !shouldPrewarmEnglish(post.langs)) return;
+  await generateAndCache(post, englishLanguage);
+}
+
+/** 呼び出し元の投稿取り込みを待たせず、失敗も伝播させない。 */
+export function startEnglishPrewarm(
+  uri: string,
+  task: (uri: string) => Promise<void> = prewarmEnglishTranslation,
+): void {
+  void task(uri).catch(() => undefined);
+}
+
+export function cachedTranslationResult(
+  uris: string[],
+  translations: Map<string, string>,
+): TranslationBatchResult {
+  return {
+    translations: uris.flatMap((uri) => {
+      const text = translations.get(uri);
+      return text ? [{ uri, text }] : [];
+    }),
+    failures: uris.flatMap((uri) =>
+      translations.has(uri) ? [] : [{ uri, code: "not_cached" as const }],
+    ),
+  };
+}
+
 export async function translatePosts(
   uris: unknown,
   targetLang: unknown,
   quotaKey: string,
+  cacheOnly = false,
 ): Promise<TranslationBatchResult> {
   const normalizedUris = postUris(uris);
   const target = targetLanguage(targetLang);
@@ -336,6 +399,7 @@ export async function translatePosts(
     );
   const translations = new Map(cached.map((row) => [row.postUri, row.text]));
   const missingUris = normalizedUris.filter((uri) => !translations.has(uri));
+  if (cacheOnly) return cachedTranslationResult(normalizedUris, translations);
   const posts = missingUris.length
     ? await db
         .select()

@@ -19,6 +19,10 @@ import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import { config } from "../config.js";
 import { indexEmoji, resolveEmoji, type EmojiRow } from "../services/emoji.js";
 import { dispatchPushAll, type PushJob } from "../services/pushDispatch.js";
+import {
+  shouldStartEnglishPrewarm,
+  startEnglishPrewarm,
+} from "../services/translation.js";
 import { reconciledIndexedAt } from "./reconcileOrder.js";
 import { validateRecord } from "./validateRecord.js";
 
@@ -102,6 +106,7 @@ export async function applyMutation(
   // トランザクション内で実際に挿入できた通知だけを収集し、コミット成功後に
   // fire-and-forget でプッシュ配信する（重複挿入時は returning が空なので送らない）。
   const pushJobs: PushJob[] = [];
+  const englishPrewarmUris: string[] = [];
   await db.transaction(async (tx) => {
     const processed = id
       ? await tx
@@ -269,6 +274,15 @@ export async function applyMutation(
               deletedAt: null,
             },
           });
+        if (
+          shouldStartEnglishPrewarm(
+            Boolean(existingPost[0]),
+            reconcile,
+            value.langs,
+          )
+        ) {
+          englishPrewarmUris.push(uri);
+        }
         // 新規投稿が 100 の倍数に到達したら自動分析（Nagi投稿+リアクション）をキューする。
         // 編集(existingPost)ではカウントが変わらないので発火させない。件数は
         // プロフィールの postCount と同条件（非削除の全投稿）で数える。
@@ -639,5 +653,6 @@ export async function applyMutation(
   });
   // コミット後に配信。送信失敗はイングェストに影響させない。
   if (emitPush && pushJobs.length) dispatchPushAll(pushJobs);
+  for (const postUri of englishPrewarmUris) startEnglishPrewarm(postUri);
   return { cursorAdvanced: trackJetstream };
 }

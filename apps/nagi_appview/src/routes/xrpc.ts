@@ -622,6 +622,7 @@ xrpc.post(`/${NAGI.translatePosts}`, async (req, res, next) => {
         req.body?.uris,
         req.body?.targetLang,
         req.ip ?? "unknown",
+        req.body?.cacheOnly === true,
       ),
     );
   } catch (e) {

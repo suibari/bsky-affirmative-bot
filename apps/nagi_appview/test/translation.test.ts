@@ -5,10 +5,14 @@ process.env.DATABASE_URL ??= "postgres://user:pass@localhost:5432/test";
 process.env.NAGI_BOT_DID ??= "did:plc:testbot";
 
 const {
+  cachedTranslationResult,
   hasTranslationText,
   MAX_TRANSLATION_BATCH_SIZE,
   requestTranslationWithRetry,
+  shouldPrewarmEnglish,
+  shouldStartEnglishPrewarm,
   SingleFlight,
+  startEnglishPrewarm,
   TRANSLATION_CACHE_VERSION,
   TranslationMissQuota,
   translatePosts,
@@ -38,6 +42,46 @@ test("uses the TranslateGemma source/target prompt and preserves two blank lines
   );
   assert.match(prompt, /日本語 \(ja\) to English \(en\) translator/);
   assert.ok(prompt.endsWith("English:\n\n\nこんにちは"));
+});
+
+test("prewarms only new supported non-English posts outside reconciliation", () => {
+  assert.equal(shouldPrewarmEnglish(["ja"]), true);
+  assert.equal(shouldPrewarmEnglish(["ja-JP"]), true);
+  assert.equal(shouldPrewarmEnglish(["en"]), false);
+  assert.equal(shouldPrewarmEnglish(["xx"]), false);
+  assert.equal(shouldPrewarmEnglish(undefined), false);
+
+  assert.equal(shouldStartEnglishPrewarm(false, false, ["ja"]), true);
+  assert.equal(shouldStartEnglishPrewarm(true, false, ["ja"]), false);
+  assert.equal(shouldStartEnglishPrewarm(false, true, ["ja"]), false);
+  assert.equal(shouldStartEnglishPrewarm(false, false, ["en"]), false);
+});
+
+test("background prewarm failures do not propagate to the caller", async () => {
+  let attempted = false;
+  assert.doesNotThrow(() => {
+    startEnglishPrewarm(validUri, async () => {
+      attempted = true;
+      throw new Error("temporary");
+    });
+  });
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  assert.equal(attempted, true);
+});
+
+test("cache-only results mark misses without generating replacements", () => {
+  const missingUri =
+    "at://did:plc:example/com.suibari.nagi.post/3mtranslation-missing";
+  assert.deepEqual(
+    cachedTranslationResult(
+      [validUri, missingUri],
+      new Map([[validUri, "Cached translation"]]),
+    ),
+    {
+      translations: [{ uri: validUri, text: "Cached translation" }],
+      failures: [{ uri: missingUri, code: "not_cached" }],
+    },
+  );
 });
 
 test("cache hits consume no miss quota and the fixed window resets", () => {

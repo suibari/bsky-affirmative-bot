@@ -16,7 +16,8 @@
               "maxLength": 50,
               "items": { "type": "string", "format": "at-uri" }
             },
-            "targetLang": { "type": "string", "format": "language" }
+            "targetLang": { "type": "string", "format": "language" },
+            "cacheOnly": { "type": "boolean" }
           }
         }
       },
