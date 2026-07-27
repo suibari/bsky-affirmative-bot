@@ -373,6 +373,7 @@ export const nagiTranslations = nagiSchema.table(
     postUri: text("post_uri").notNull(),
     targetLang: text("target_lang").notNull(),
     text: text("text").notNull(),
+    cacheVersion: integer("cache_version").default(1).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
       .notNull(),

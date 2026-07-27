@@ -78,7 +78,14 @@ export const config = {
     100,
   ),
   ollamaUrl: url("OLLAMA_BASE_URL", "http://localhost:11434"),
-  translationModel: process.env.OLLAMA_TRANSLATION_MODEL ?? "gemma3:4b",
+  translationModel: process.env.OLLAMA_TRANSLATION_MODEL ?? "translategemma:4b",
+  translationConcurrency: integer("TRANSLATION_CONCURRENCY", 2, 1, 8),
+  translationMissLimitPerMinute: integer(
+    "TRANSLATION_MISS_LIMIT_PER_MINUTE",
+    60,
+    1,
+    1_000,
+  ),
   // Web Push（VAPID）。未設定ならプッシュ配信は無効化し、通知の挿入だけ従来どおり続ける。
   vapid:
     process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY

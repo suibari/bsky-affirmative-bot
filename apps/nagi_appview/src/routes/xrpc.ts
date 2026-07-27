@@ -27,7 +27,7 @@ import {
   deleteSubscription,
   upsertSubscription,
 } from "../queries/pushSubscriptions.js";
-import { translatePost } from "../services/translation.js";
+import { translatePost, translatePosts } from "../services/translation.js";
 import { ApiError } from "../middleware/errors.js";
 import { deleteAccountData } from "../services/deleteAccountData.js";
 import {
@@ -612,26 +612,35 @@ xrpc.post(
     }
   },
 );
-// 未サインインユーザーでも翻訳できるよう意図的に無認証にしている。キャッシュミス
-// ごとに LLM 呼び出しが走るため、共有の /xrpc レート制限に加えて、乱用を抑える専用の
-// より厳しいレート制限をこのエンドポイントに設ける。
-const translateLimiter = rateLimit({
-  windowMs: 60_000,
-  limit: 10,
-  standardHeaders: "draft-8",
-  legacyHeaders: false,
+// 未サインインユーザーでも翻訳できるよう意図的に無認証にしている。
+// キャッシュヒットまで一律に数えるHTTPリクエスト単位のLimiterは使わず、
+// translation service がDB照会後の未生成投稿数だけをIP単位で制限する。
+xrpc.post(`/${NAGI.translatePosts}`, async (req, res, next) => {
+  try {
+    res.json(
+      await translatePosts(
+        req.body?.uris,
+        req.body?.targetLang,
+        req.ip ?? "unknown",
+      ),
+    );
+  } catch (e) {
+    next(e);
+  }
 });
-xrpc.post(
-  `/${NAGI.translatePost}`,
-  translateLimiter,
-  async (req, res, next) => {
-    try {
-      res.json(await translatePost(req.body?.uri, req.body?.targetLang));
-    } catch (e) {
-      next(e);
-    }
-  },
-);
+xrpc.post(`/${NAGI.translatePost}`, async (req, res, next) => {
+  try {
+    res.json(
+      await translatePost(
+        req.body?.uri,
+        req.body?.targetLang,
+        req.ip ?? "unknown",
+      ),
+    );
+  } catch (e) {
+    next(e);
+  }
+});
 xrpc.get(
   `/${NAGI.getLinkMetadata}`,
   requiredServiceAuth(NAGI.getLinkMetadata),
