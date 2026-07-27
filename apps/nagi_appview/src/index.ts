@@ -10,6 +10,10 @@ import { errorHandler, notFound } from "./middleware/errors.js";
 import { startJetstream } from "./ingest/jetstream.js";
 import { startEmbeddingWorker } from "./ingest/embeddingWorker.js";
 import { startActorResolveWorker } from "./ingest/actorResolveWorker.js";
+import {
+  startReconcileWorker,
+  stopReconcileWorker,
+} from "./ingest/reconcileWorker.js";
 const app = express();
 app.set("trust proxy", 1);
 // atproto-proxy 経由の authed リクエストは送信元 IP がユーザの PDS になり、IP キーだと
@@ -69,14 +73,23 @@ const stream = await startJetstream();
 startEmbeddingWorker();
 // did→handle/pds を解決して nagiActors をインデックス（searchActors とハンドル表示に必要）。
 startActorResolveWorker();
+startReconcileWorker();
 const onListen = () =>
   console.log(`Nagi AppView listening on ${config.host ?? "(default)"}:${config.port}`);
 const server = config.host
   ? app.listen(config.port, config.host, onListen)
   : app.listen(config.port, onListen);
-const shutdown = () => {
-  stream.close();
-  server.close(() => process.exit(0));
+let shuttingDown = false;
+const shutdown = async () => {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  const serverClosed = new Promise<void>((resolve) => server.close(() => resolve()));
+  await Promise.allSettled([
+    serverClosed,
+    stream.close(),
+    stopReconcileWorker(),
+  ]);
+  process.exit(0);
 };
-process.on("SIGTERM", shutdown);
-process.on("SIGINT", shutdown);
+process.on("SIGTERM", () => void shutdown());
+process.on("SIGINT", () => void shutdown());

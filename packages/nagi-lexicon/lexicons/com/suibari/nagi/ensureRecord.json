@@ -1,0 +1,34 @@
+{
+  "lexicon": 1,
+  "id": "com.suibari.nagi.ensureRecord",
+  "defs": {
+    "main": {
+      "type": "procedure",
+      "description": "本人のPDSにある現在レコードを取得し、Nagi AppViewへ即時反映する。",
+      "input": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "required": ["uri", "cid"],
+          "properties": {
+            "uri": { "type": "string", "format": "at-uri", "maxLength": 2048 },
+            "cid": { "type": "string", "format": "cid", "maxLength": 128 }
+          }
+        }
+      },
+      "output": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "required": ["uri", "cid", "indexed"],
+          "properties": {
+            "uri": { "type": "string", "format": "at-uri", "maxLength": 2048 },
+            "cid": { "type": "string", "format": "cid", "maxLength": 128 },
+            "indexed": { "type": "boolean", "const": true }
+          }
+        }
+      },
+      "errors": [{ "name": "AuthRequired" }, { "name": "InvalidRecord" }]
+    }
+  }
+}

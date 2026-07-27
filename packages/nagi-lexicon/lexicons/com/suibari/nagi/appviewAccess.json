@@ -34,6 +34,7 @@
             "com.suibari.nagi.registerPushSubscription",
             "com.suibari.nagi.deletePushSubscription",
             "com.suibari.nagi.deleteAccountData",
+            "com.suibari.nagi.ensureRecord",
             "com.suibari.nagi.getLinkMetadata",
             "com.suibari.nagi.getLinkThumbnail",
             "com.suibari.nagi.searchEmojis",

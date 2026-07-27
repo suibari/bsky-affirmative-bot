@@ -40,9 +40,54 @@ import { resolveLexicon } from "../queries/resolveLexicon.js";
 import { getMutesView, setMute } from "../queries/mutes.js";
 import { drawCard, getCards } from "../queries/cards.js";
 import { config } from "../config.js";
+import {
+  ensurePdsRecord,
+  isReconcilableCollection,
+} from "../ingest/reconcileRepo.js";
+import { prioritizeReconcile } from "../ingest/reconcileWorker.js";
+import { parseRecordUri } from "../ingest/recordUri.js";
 export const xrpc = Router();
 const limit = (value: unknown) =>
   Math.min(100, Math.max(1, Number(value ?? 50) || 50));
+
+xrpc.post(
+  `/${NAGI.ensureRecord}`,
+  requiredServiceAuth(NAGI.ensureRecord),
+  async (req, res, next) => {
+    try {
+      const uri = req.body?.uri;
+      const expectedCid = req.body?.cid;
+      if (typeof uri !== "string" || typeof expectedCid !== "string")
+        throw new ApiError(400, "invalid_request", "uri and cid are required");
+      const parsed = parseRecordUri(uri);
+      if (!parsed)
+        throw new ApiError(400, "invalid_request", "Invalid record URI");
+      const { did, collection, rkey } = parsed;
+      if (did !== req.viewerDid)
+        throw new ApiError(403, "forbidden", "Record owner does not match");
+      if (!isReconcilableCollection(did, collection))
+        throw new ApiError(
+          400,
+          "invalid_request",
+          "Collection is not supported",
+        );
+
+      const current = await ensurePdsRecord(did, collection, rkey);
+      if (current.uri !== uri)
+        throw new ApiError(
+          409,
+          "invalid_record",
+          "PDS returned a different record URI",
+        );
+      prioritizeReconcile(did);
+      res
+        .set("Cache-Control", "private, no-store")
+        .json({ uri: current.uri, cid: current.cid, indexed: true });
+    } catch (e) {
+      next(e);
+    }
+  },
+);
 for (const [nsid, affirmation] of [
   [NAGI.getTimeline, false],
   [NAGI.getAffirmation, true],
@@ -89,8 +134,7 @@ xrpc.get(
   async (req, res, next) => {
     try {
       const actor = String(req.query.actor ?? "");
-      if (!actor)
-        throw new ApiError(400, "invalid_request", "actor is required");
+      if (!actor) throw new ApiError(400, "invalid_request", "actor is required");
       const filter = String(req.query.filter ?? "posts");
       if (!["posts", "replies", "media", "reactions"].includes(filter))
         throw new ApiError(400, "invalid_request", "Invalid filter");
@@ -498,7 +542,8 @@ xrpc.get(
   async (req, res, next) => {
     try {
       const actor = String(req.query.actor ?? "");
-      if (!actor) throw new ApiError(400, "invalid_request", "actor is required");
+      if (!actor)
+        throw new ApiError(400, "invalid_request", "actor is required");
       res
         .set("Cache-Control", "private, no-store")
         .json(await getCards(actor, req.viewerDid));

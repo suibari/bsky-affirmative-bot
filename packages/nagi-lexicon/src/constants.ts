@@ -23,6 +23,8 @@ export const NAGI = {
   registerPushSubscription: "com.suibari.nagi.registerPushSubscription",
   deletePushSubscription: "com.suibari.nagi.deletePushSubscription",
   translatePost: "com.suibari.nagi.translatePost",
+  /** PDS書き込み直後に本人の正本をAppViewへ即時反映する。 */
+  ensureRecord: "com.suibari.nagi.ensureRecord",
   getLinkMetadata: "com.suibari.nagi.getLinkMetadata",
   getLinkThumbnail: "com.suibari.nagi.getLinkThumbnail",
   deleteAccountData: "com.suibari.nagi.deleteAccountData",

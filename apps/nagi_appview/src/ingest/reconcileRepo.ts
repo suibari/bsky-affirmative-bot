@@ -1,0 +1,338 @@
+import {
+  db,
+  nagiChannels,
+  nagiDiaries,
+  nagiEmojis,
+  nagiNews,
+  nagiPosts,
+  nagiProfiles,
+  nagiReactions,
+} from "@bsky-affirmative-bot/database";
+import { BLUEMOJI_ITEM, NAGI } from "@bsky-affirmative-bot/nagi-lexicon";
+import { eq } from "drizzle-orm";
+import { config } from "../config.js";
+import { resolvePdsUrl } from "../util/pds.js";
+import { applyMutation } from "./applyMutation.js";
+import { withDidLock } from "./didLock.js";
+import { validateRecord } from "./validateRecord.js";
+
+type RepoRecord = {
+  uri: string;
+  cid: string;
+  value: unknown;
+};
+
+type ReconcileStats = {
+  created: number;
+  updated: number;
+  deleted: number;
+  unchanged: number;
+};
+
+class RecordNotFound extends Error {}
+
+const USER_COLLECTIONS = [
+  NAGI.profile,
+  NAGI.channel,
+  BLUEMOJI_ITEM,
+  NAGI.post,
+  NAGI.reaction,
+] as const;
+
+const BOT_COLLECTIONS = [...USER_COLLECTIONS, NAGI.diary, NAGI.news] as const;
+
+export const isReconcilableCollection = (
+  did: string,
+  collection: string,
+): boolean => {
+  const allowed: readonly string[] =
+    did === config.botDid ? BOT_COLLECTIONS : USER_COLLECTIONS;
+  return allowed.includes(collection);
+};
+
+const recordKey = (uri: string): string => uri.slice(uri.lastIndexOf("/") + 1);
+
+async function xrpc<T>(
+  pds: URL,
+  method: string,
+  params: URLSearchParams,
+): Promise<T> {
+  const url = new URL(`/xrpc/${method}`, pds);
+  url.search = params.toString();
+  const response = await fetch(url, {
+    headers: { accept: "application/json" },
+    signal: AbortSignal.timeout(15_000),
+  });
+  if (!response.ok) {
+    const body = (await response.json().catch(() => ({}))) as {
+      error?: string;
+      message?: string;
+    };
+    if (
+      method === "com.atproto.repo.getRecord" &&
+      (response.status === 404 ||
+        body.error === "RecordNotFound" ||
+        /record not found/i.test(body.message ?? ""))
+    ) {
+      throw new RecordNotFound();
+    }
+    throw new Error(
+      `${method} failed (${response.status}): ${body.error ?? body.message ?? "unknown error"}`,
+    );
+  }
+  return response.json() as Promise<T>;
+}
+
+async function listRecords(
+  pds: URL,
+  did: string,
+  collection: string,
+): Promise<RepoRecord[]> {
+  const records: RepoRecord[] = [];
+  let cursor: string | undefined;
+  do {
+    const params = new URLSearchParams({
+      repo: did,
+      collection,
+      limit: "100",
+    });
+    if (cursor) params.set("cursor", cursor);
+    const page = await xrpc<{ records: RepoRecord[]; cursor?: string }>(
+      pds,
+      "com.atproto.repo.listRecords",
+      params,
+    );
+    records.push(...page.records);
+    cursor = page.cursor;
+  } while (cursor);
+  return records;
+}
+
+async function getRecord(
+  pds: URL,
+  did: string,
+  collection: string,
+  rkey: string,
+): Promise<RepoRecord> {
+  return xrpc<RepoRecord>(
+    pds,
+    "com.atproto.repo.getRecord",
+    new URLSearchParams({ repo: did, collection, rkey }),
+  );
+}
+
+async function localRecords(
+  did: string,
+  collection: string,
+): Promise<Map<string, { cid?: string; active: boolean }>> {
+  if (collection === NAGI.profile) {
+    const rows = await db
+      .select({ did: nagiProfiles.did })
+      .from(nagiProfiles)
+      .where(eq(nagiProfiles.did, did));
+    return new Map(
+      rows.map(
+        () => [`at://${did}/${NAGI.profile}/self`, { active: true }] as const,
+      ),
+    );
+  }
+  if (collection === NAGI.post) {
+    const rows = await db
+      .select({
+        uri: nagiPosts.uri,
+        cid: nagiPosts.cid,
+        deletedAt: nagiPosts.deletedAt,
+      })
+      .from(nagiPosts)
+      .where(eq(nagiPosts.did, did));
+    return new Map(
+      rows.map((row) => [
+        row.uri,
+        { cid: row.cid, active: row.deletedAt === null },
+      ]),
+    );
+  }
+  if (collection === NAGI.reaction) {
+    const rows = await db
+      .select({ uri: nagiReactions.uri, cid: nagiReactions.cid })
+      .from(nagiReactions)
+      .where(eq(nagiReactions.did, did));
+    return new Map(
+      rows.map((row) => [row.uri, { cid: row.cid, active: true }]),
+    );
+  }
+  if (collection === NAGI.channel) {
+    const rows = await db
+      .select({
+        uri: nagiChannels.uri,
+        cid: nagiChannels.cid,
+        deletedAt: nagiChannels.deletedAt,
+      })
+      .from(nagiChannels)
+      .where(eq(nagiChannels.did, did));
+    return new Map(
+      rows.map((row) => [
+        row.uri,
+        { cid: row.cid, active: row.deletedAt === null },
+      ]),
+    );
+  }
+  if (collection === BLUEMOJI_ITEM) {
+    const rows = await db
+      .select({ uri: nagiEmojis.uri, cid: nagiEmojis.cid })
+      .from(nagiEmojis)
+      .where(eq(nagiEmojis.did, did));
+    return new Map(
+      rows.map((row) => [row.uri, { cid: row.cid, active: true }]),
+    );
+  }
+  if (collection === NAGI.diary) {
+    const rows = await db
+      .select({ uri: nagiDiaries.uri, cid: nagiDiaries.cid })
+      .from(nagiDiaries)
+      .where(eq(nagiDiaries.did, did));
+    return new Map(
+      rows.map((row) => [row.uri, { cid: row.cid, active: true }]),
+    );
+  }
+  if (collection === NAGI.news) {
+    const rows = await db
+      .select({
+        uri: nagiNews.uri,
+        cid: nagiNews.cid,
+        deletedAt: nagiNews.deletedAt,
+      })
+      .from(nagiNews)
+      .where(eq(nagiNews.did, did));
+    return new Map(
+      rows.map((row) => [
+        row.uri,
+        { cid: row.cid, active: row.deletedAt === null },
+      ]),
+    );
+  }
+  return new Map();
+}
+
+const eventFor = (
+  did: string,
+  collection: string,
+  operation: "create" | "update" | "delete",
+  record: RepoRecord | { uri: string },
+) => ({
+  did,
+  time_us: Date.now() * 1_000,
+  commit: {
+    operation,
+    collection,
+    rkey: recordKey(record.uri),
+    ...("cid" in record ? { cid: record.cid, record: record.value } : {}),
+  },
+});
+
+async function applyCurrentRecord(
+  pds: URL,
+  did: string,
+  collection: string,
+  uri: string,
+): Promise<"upserted" | "deleted"> {
+  return withDidLock(did, async () => {
+    try {
+      const current = await getRecord(pds, did, collection, recordKey(uri));
+      if (!validateRecord(collection, current.value)) {
+        await applyMutation(eventFor(did, collection, "delete", { uri }));
+        return "deleted";
+      }
+      await applyMutation(eventFor(did, collection, "update", current));
+      return "upserted";
+    } catch (error) {
+      if (!(error instanceof RecordNotFound)) throw error;
+      await applyMutation(eventFor(did, collection, "delete", { uri }));
+      return "deleted";
+    }
+  });
+}
+
+export async function ensurePdsRecord(
+  did: string,
+  collection: string,
+  rkey: string,
+): Promise<RepoRecord> {
+  if (!isReconcilableCollection(did, collection)) {
+    throw new Error("Unsupported collection");
+  }
+  const pds = await resolvePdsUrl(did);
+  return withDidLock(did, async () => {
+    const current = await getRecord(pds, did, collection, rkey);
+    if (!validateRecord(collection, current.value)) {
+      throw new Error("Record failed validation");
+    }
+    await applyMutation(eventFor(did, collection, "update", current), {
+      emitPush: true,
+    });
+    return current;
+  });
+}
+
+export async function reconcileRepo(
+  did: string,
+  onlyCollection?: string,
+): Promise<ReconcileStats> {
+  const startedAt = Date.now();
+  const pds = await resolvePdsUrl(did);
+  const allowed = did === config.botDid ? BOT_COLLECTIONS : USER_COLLECTIONS;
+  const collections = onlyCollection
+    ? allowed.filter((collection) => collection === onlyCollection)
+    : allowed;
+  if (onlyCollection && collections.length === 0)
+    throw new Error(
+      `Collection is not reconcilable for ${did}: ${onlyCollection}`,
+    );
+
+  const stats: ReconcileStats = {
+    created: 0,
+    updated: 0,
+    deleted: 0,
+    unchanged: 0,
+  };
+
+  for (const collection of collections) {
+    const [remote, local] = await Promise.all([
+      listRecords(pds, did, collection),
+      localRecords(did, collection),
+    ]);
+    const remoteUris = new Set(remote.map((record) => record.uri));
+
+    for (const record of remote) {
+      const localRecord = local.get(record.uri);
+      if (
+        validateRecord(collection, record.value) &&
+        localRecord?.active &&
+        localRecord.cid === record.cid
+      ) {
+        stats.unchanged++;
+        continue;
+      }
+      const result = await applyCurrentRecord(pds, did, collection, record.uri);
+      if (result === "deleted") stats.deleted++;
+      else if (local.has(record.uri)) stats.updated++;
+      else stats.created++;
+    }
+
+    // listRecords が全ページ成功した後にだけ、欠落候補を個別確認する。
+    for (const uri of local.keys()) {
+      if (remoteUris.has(uri)) continue;
+      const result = await applyCurrentRecord(pds, did, collection, uri);
+      if (result === "deleted") stats.deleted++;
+      else stats.updated++;
+    }
+  }
+
+  console.log("[INFO][reconcile] Repository reconciled", {
+    did,
+    collections,
+    ...stats,
+    durationMs: Date.now() - startedAt,
+  });
+  return stats;
+}
