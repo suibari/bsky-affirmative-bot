@@ -14,6 +14,7 @@ import { config } from "../config.js";
 import { resolvePdsUrl } from "../util/pds.js";
 import { applyMutation } from "./applyMutation.js";
 import { withDidLock } from "./didLock.js";
+import { needsReconcileOrderRepair } from "./reconcileOrder.js";
 import { validateRecord } from "./validateRecord.js";
 
 type RepoRecord = {
@@ -25,6 +26,7 @@ type RepoRecord = {
 type ReconcileStats = {
   created: number;
   updated: number;
+  reordered: number;
   deleted: number;
   unchanged: number;
 };
@@ -124,7 +126,17 @@ async function getRecord(
 async function localRecords(
   did: string,
   collection: string,
-): Promise<Map<string, { cid?: string; active: boolean }>> {
+): Promise<
+  Map<
+    string,
+    {
+      cid?: string;
+      active: boolean;
+      recordCreatedAt?: Date;
+      indexedAt?: Date;
+    }
+  >
+> {
   if (collection === NAGI.profile) {
     const rows = await db
       .select({ did: nagiProfiles.did })
@@ -142,13 +154,20 @@ async function localRecords(
         uri: nagiPosts.uri,
         cid: nagiPosts.cid,
         deletedAt: nagiPosts.deletedAt,
+        recordCreatedAt: nagiPosts.recordCreatedAt,
+        indexedAt: nagiPosts.indexedAt,
       })
       .from(nagiPosts)
       .where(eq(nagiPosts.did, did));
     return new Map(
       rows.map((row) => [
         row.uri,
-        { cid: row.cid, active: row.deletedAt === null },
+        {
+          cid: row.cid,
+          active: row.deletedAt === null,
+          recordCreatedAt: row.recordCreatedAt,
+          indexedAt: row.indexedAt,
+        },
       ]),
     );
   }
@@ -243,7 +262,9 @@ async function applyCurrentRecord(
         await applyMutation(eventFor(did, collection, "delete", { uri }));
         return "deleted";
       }
-      await applyMutation(eventFor(did, collection, "update", current));
+      await applyMutation(eventFor(did, collection, "update", current), {
+        reconcile: true,
+      });
       return "upserted";
     } catch (error) {
       if (!(error instanceof RecordNotFound)) throw error;
@@ -292,6 +313,7 @@ export async function reconcileRepo(
   const stats: ReconcileStats = {
     created: 0,
     updated: 0,
+    reordered: 0,
     deleted: 0,
     unchanged: 0,
   };
@@ -305,16 +327,25 @@ export async function reconcileRepo(
 
     for (const record of remote) {
       const localRecord = local.get(record.uri);
+      const needsOrderRepair =
+        localRecord?.recordCreatedAt &&
+        localRecord.indexedAt &&
+        needsReconcileOrderRepair(
+          localRecord.recordCreatedAt,
+          localRecord.indexedAt,
+        );
       if (
         validateRecord(collection, record.value) &&
         localRecord?.active &&
-        localRecord.cid === record.cid
+        localRecord.cid === record.cid &&
+        !needsOrderRepair
       ) {
         stats.unchanged++;
         continue;
       }
       const result = await applyCurrentRecord(pds, did, collection, record.uri);
       if (result === "deleted") stats.deleted++;
+      else if (needsOrderRepair) stats.reordered++;
       else if (local.has(record.uri)) stats.updated++;
       else stats.created++;
     }

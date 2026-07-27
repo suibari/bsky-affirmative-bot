@@ -19,6 +19,7 @@ import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import { config } from "../config.js";
 import { indexEmoji, resolveEmoji, type EmojiRow } from "../services/emoji.js";
 import { dispatchPushAll, type PushJob } from "../services/pushDispatch.js";
+import { reconciledIndexedAt } from "./reconcileOrder.js";
 import { validateRecord } from "./validateRecord.js";
 
 /** プッシュ本文用に長い本文を詰める。 */
@@ -52,11 +53,16 @@ const extractTags = (facets: unknown): string[] | null => {
 export type ApplyMutationOptions = {
   trackJetstream?: boolean;
   emitPush?: boolean;
+  reconcile?: boolean;
 };
 
 export async function applyMutation(
   evt: any,
-  { trackJetstream = false, emitPush = false }: ApplyMutationOptions = {},
+  {
+    trackJetstream = false,
+    emitPush = false,
+    reconcile = false,
+  }: ApplyMutationOptions = {},
 ): Promise<{ cursorAdvanced: boolean }> {
   const commit = evt.commit;
   if (!commit) return { cursorAdvanced: false };
@@ -184,6 +190,10 @@ export async function applyMutation(
     } else if (validateRecord(collection, commit.record)) {
       const value: any = commit.record;
       const createdAt = new Date(value.createdAt);
+      const reconciledPostIndexedAt =
+        reconcile && collection === NAGI.post
+          ? reconciledIndexedAt(createdAt)
+          : undefined;
       if (collection === NAGI.post) {
         // 既存投稿 かつ cid が変わった＝投稿後編集。翻訳キャッシュ破棄と edited フラグ立てに使う。
         const isEdit = !!existingPost[0] && existingPost[0].cid !== commit.cid;
@@ -220,6 +230,9 @@ export async function applyMutation(
             channelOnly: value.channelOnly === true,
             repoRev: commit.rev,
             recordCreatedAt: createdAt,
+            ...(reconciledPostIndexedAt
+              ? { indexedAt: reconciledPostIndexedAt }
+              : {}),
             edited: false,
             deletedAt: null,
           })
@@ -248,6 +261,11 @@ export async function applyMutation(
               channelOnly: value.channelOnly === true,
               repoRev: commit.rev,
               recordCreatedAt: createdAt,
+              ...(reconciledPostIndexedAt
+                ? {
+                    indexedAt: sql`least(${nagiPosts.indexedAt}, excluded.indexed_at)`,
+                  }
+                : {}),
               // cid 変化を観測した編集で true。cid 不変の再処理ではフラグを戻さない（単調）。
               edited: isEdit ? true : sql`${nagiPosts.edited}`,
               // 本文が変わった編集では意味検索の埋め込みを無効化し、EmbeddingWorker に
