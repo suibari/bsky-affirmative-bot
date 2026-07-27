@@ -12,8 +12,10 @@ const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.resolve(__dirname, "../../../.env") });
 
 const PORT = Number(process.env.LABELER_SERVER_PORT || 3400);
-const DID = process.env.LABELER_DID;
-const SIGNING_KEY = process.env.LABELER_SIGNING_KEY;
+// 空文字で受けて下の guard に集約する。undefined のままだと、下の guard で narrowing しても
+// getAgent のクロージャ内までは型が持ち越されない。
+const DID: string = process.env.LABELER_DID ?? "";
+const SIGNING_KEY: string = process.env.LABELER_SIGNING_KEY ?? "";
 
 if (!DID || !SIGNING_KEY) {
   console.error("[CRITICAL] LABELER_DID and LABELER_SIGNING_KEY must be provided in .env.");
@@ -33,12 +35,12 @@ let loggedIn = false;
 
 async function getAgent() {
   if (!loggedIn) {
-    const identifier = process.env.LABELER_IDENTIFIER;
+    // 識別子は起動時に検証済みの LABELER_DID を使い回す。ハンドルは可変なので識別子には使わない。
     const password = process.env.LABELER_PASSWORD;
-    if (!identifier || !password) {
-      throw new Error("Missing LABELER_IDENTIFIER or LABELER_PASSWORD in env");
+    if (!password) {
+      throw new Error("Missing LABELER_PASSWORD in env");
     }
-    await agent.login({ identifier, password });
+    await agent.login({ identifier: DID, password });
     loggedIn = true;
   }
   return agent;

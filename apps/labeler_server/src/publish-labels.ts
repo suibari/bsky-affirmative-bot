@@ -10,12 +10,13 @@ const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.resolve(__dirname, "../../../.env") });
 
 async function main() {
-  const identifier = process.env.LABELER_IDENTIFIER || process.env.BSKY_IDENTIFIER;
+  // 識別子はハンドルではなく DID。ハンドルは可変なので、変更のたびにログインが黙って壊れる。
+  const identifier = process.env.LABELER_DID || process.env.BSKY_DID;
   const password = process.env.LABELER_PASSWORD || process.env.BSKY_APP_PASSWORD;
 
   if (!identifier || !password) {
     console.error(
-      "[ERROR] Credentials not found. Please set BSKY_IDENTIFIER and BSKY_APP_PASSWORD (or LABELER_IDENTIFIER and LABELER_PASSWORD) in your .env file."
+      "[ERROR] Credentials not found. Please set BSKY_DID and BSKY_APP_PASSWORD (or LABELER_DID and LABELER_PASSWORD) in your .env file."
     );
     process.exit(1);
   }

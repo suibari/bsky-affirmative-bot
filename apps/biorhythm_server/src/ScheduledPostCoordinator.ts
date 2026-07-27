@@ -137,7 +137,7 @@ export async function postWhimsical(currentMood: string) {
 export async function postGoodNight(currentMood: string) {
   let currentFollowers = 0;
   try {
-    const actor = process.env.BSKY_IDENTIFIER || process.env.BSKY_DID;
+    const actor = process.env.BSKY_DID;
     const response = await fetch(`https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile?actor=${encodeURIComponent(actor || "")}`);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const profile = await response.json() as { followersCount?: number };

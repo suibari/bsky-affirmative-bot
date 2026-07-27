@@ -56,7 +56,7 @@ export async function updateFollowers() {
   isUpdating = true;
 
   console.log("[INFO] Fetching followers...");
-  const actor = process.env.BSKY_IDENTIFIER!;
+  const actor = process.env.BSKY_DID!;
   try {
     const followArray = await getConcatFollowers({ actor });
     followerMap.clear();
