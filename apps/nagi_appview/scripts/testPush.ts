@@ -1,7 +1,7 @@
 /**
  * 指定 DID の全購読へテスト通知を送る。
  *
- *   pnpm --filter nagi-appview test:push did:plc:xxxx [reply|reaction|mention|diary]
+ *   pnpm --filter nagi-appview test:push did:plc:xxxx [reply|reaction|mention|diary|analysis]
  *
  * 「サーバーは送っているのに端末に出ない」を切り分けるための手段。ログの accepted は
  * プッシュサービスが受理した数でしかなく、端末に表示されたかはサーバーから観測できない。
@@ -15,13 +15,13 @@ import { randomUUID } from "node:crypto";
 import { dispatchPush } from "../src/services/pushDispatch.js";
 import type { PushNotificationType } from "../src/services/pushPayload.js";
 
-const TYPES: PushNotificationType[] = ["reply", "reaction", "mention", "diary"];
+const TYPES: PushNotificationType[] = ["reply", "reaction", "mention", "diary", "analysis"];
 
 const recipientDid = process.argv[2];
 const type = (process.argv[3] ?? "reply") as PushNotificationType;
 
 if (!recipientDid?.startsWith("did:")) {
-  console.error("usage: test:push <recipient-did> [reply|reaction|mention|diary]");
+  console.error("usage: test:push <recipient-did> [reply|reaction|mention|diary|analysis]");
   process.exit(1);
 }
 if (!TYPES.includes(type)) {

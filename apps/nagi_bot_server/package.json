@@ -9,7 +9,8 @@
     "build": "tsc -p tsconfig.json",
     "test": "tsx --test test/*.test.ts",
     "start": "node --env-file=../../.env dist/index.js",
-    "dev": "tsx watch --env-file=../../.env src/index.ts"
+    "dev": "tsx watch --env-file=../../.env src/index.ts",
+    "analysis": "tsx --env-file=../../.env scripts/runAnalysis.ts"
   },
   "dependencies": {
     "@atproto/api": "^0.18.21",

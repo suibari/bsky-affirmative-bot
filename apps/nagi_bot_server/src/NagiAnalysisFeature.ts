@@ -11,6 +11,7 @@ import {
   generateNagiAnalysis,
   NAGI_ANALYSIS_PROMPT_VERSION,
   type NagiAnalysisInput,
+  type NagiAnalysisResult,
 } from "@bsky-affirmative-bot/bot-brain";
 import { MODEL_GEMINI } from "@bsky-affirmative-bot/shared-configs";
 import { and, desc, eq, isNull } from "drizzle-orm";
@@ -18,6 +19,13 @@ import { agent } from "./agent.js";
 import { getConcatAuthorFeed } from "./bsky/getConcatAuthorFeed.js";
 import { getConcatPosts } from "./bsky/getConcatPosts.js";
 import { getPds } from "./bsky/getPds.js";
+
+/**
+ * 通知を作らせるための AppView 内部 API の宛先（deleteAccountData の逆方向）。
+ * AppView 側は 127.0.0.1 のみに束縛した専用リスナーで、公開ポート(3002)とは別。
+ */
+const NAGI_APPVIEW_INTERNAL_URL =
+  process.env.NAGI_APPVIEW_INTERNAL_URL || "http://127.0.0.1:3004";
 
 export type AnalysisSource = "bluesky" | "nagi";
 
@@ -33,9 +41,16 @@ export async function enqueueAnalysis(params: {
   did: string;
   source: AnalysisSource;
   postCountAt?: number;
+  /**
+   * 開発用。冪等キーを毎回ユニークにして必ず再エンキューする。
+   * 通常の ID は did と postCount で決まるため、同じ条件では2回目以降が
+   * onConflictDoNothing で黙って消える（名刺デザインの詰めで再実行できない）。
+   */
+  force?: boolean;
 }): Promise<void> {
-  const id =
-    params.source === "bluesky"
+  const id = params.force
+    ? `${params.did}#manual#${Date.now()}`
+    : params.source === "bluesky"
       ? `${params.did}#first`
       : `${params.did}#nagi#${params.postCountAt ?? 0}`;
   await db
@@ -112,11 +127,18 @@ async function gatherNagiInput(did: string): Promise<NagiAnalysisInput> {
   };
 }
 
+/** runNagiAnalysis の結果。--sync 実行で中身を目視するために返す。 */
+export type NagiAnalysisRunResult =
+  | { skipped: true; reason: "no posts" }
+  | { skipped: false; result: NagiAnalysisResult; updatedAt: string };
+
 /**
- * 1件の分析ジョブを処理する。投稿を集め、botたんの「ひとこと」を ja/en で生成し、
- * nagi.actor_analyses に did 単位で upsert する（最新で上書き）。
+ * 1件の分析ジョブを処理する。投稿を集め、botたんの「ひとこと」と名刺用の短文・タグを
+ * ja/en で生成し、nagi.actor_analyses に did 単位で upsert する（最新で上書き）。
  */
-export async function runNagiAnalysis(job: AnalysisJobLike): Promise<void> {
+export async function runNagiAnalysis(
+  job: AnalysisJobLike,
+): Promise<NagiAnalysisRunResult> {
   const input =
     job.source === "bluesky"
       ? await gatherBlueskyInput(job.did)
@@ -127,7 +149,7 @@ export async function runNagiAnalysis(job: AnalysisJobLike): Promise<void> {
     console.log(
       `[INFO][NAGI][ANALYSIS] No posts for ${job.did} (source=${job.source}); skipping.`,
     );
-    return;
+    return { skipped: true, reason: "no posts" };
   }
 
   const result = await generateNagiAnalysis(input);
@@ -136,22 +158,33 @@ export async function runNagiAnalysis(job: AnalysisJobLike): Promise<void> {
   }
 
   const now = new Date();
+  // 名刺用の4項目は v1 プロンプト時代の行では NULL。生成できなかったときも
+  // 空配列/空文字ではなく NULL に倒し、「未生成」と「生成した結果が空」を区別できるようにする。
+  const cardFields = {
+    taglineJa: result.taglineJa || null,
+    taglineEn: result.taglineEn || null,
+    tagsJa: result.tagsJa.length ? result.tagsJa : null,
+    tagsEn: result.tagsEn.length ? result.tagsEn : null,
+  };
   await db
     .insert(nagiActorAnalyses)
     .values({
       did: job.did,
       analysisJa: result.analysisJa,
       analysisEn: result.analysisEn,
+      ...cardFields,
       source: job.source,
       postCountAt: job.postCountAt,
       model: MODEL_GEMINI,
       promptVersion: NAGI_ANALYSIS_PROMPT_VERSION,
+      updatedAt: now,
     })
     .onConflictDoUpdate({
       target: nagiActorAnalyses.did,
       set: {
         analysisJa: result.analysisJa,
         analysisEn: result.analysisEn,
+        ...cardFields,
         source: job.source,
         postCountAt: job.postCountAt,
         model: MODEL_GEMINI,
@@ -166,4 +199,46 @@ export async function runNagiAnalysis(job: AnalysisJobLike): Promise<void> {
     .update(nagiProfiles)
     .set({ embedding: null })
     .where(eq(nagiProfiles.did, job.did));
+
+  const updatedAt = now.toISOString();
+  await notifyAnalysisUpdated(job.did, updatedAt, result.taglineJa);
+
+  return { skipped: false, result, updatedAt };
+}
+
+/**
+ * 名刺が更新されたことを AppView に伝えて通知を作らせる。
+ *
+ * 分析結果は PDS レコードではなく AppView の Postgres にしか無いため、他の通知と違って
+ * Jetstream ingest のイベントが発生しない。通知行の挿入と Web Push の送出は AppView 側に
+ * しか実装が無いので、ここから内部エンドポイントを叩いて所有者を AppView のままにする。
+ *
+ * 通知が飛ばなくても分析自体は成功しているので、失敗してもジョブは失敗させない
+ * （リトライすると Gemini を無駄に叩き直すことになる）。
+ */
+async function notifyAnalysisUpdated(
+  did: string,
+  updatedAt: string,
+  bodyText: string,
+): Promise<void> {
+  try {
+    const response = await fetch(
+      `${NAGI_APPVIEW_INTERNAL_URL}/internal/notifications/analysis`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ did, updatedAt, bodyText }),
+      },
+    );
+    if (!response.ok) {
+      console.warn(
+        `[WARN][NAGI][ANALYSIS] Notification failed for ${did}: ${response.status} ${await response.text()}`,
+      );
+    }
+  } catch (error) {
+    console.warn(
+      `[WARN][NAGI][ANALYSIS] Notification request failed for ${did}:`,
+      error,
+    );
+  }
 }

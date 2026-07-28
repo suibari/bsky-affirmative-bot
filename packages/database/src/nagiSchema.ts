@@ -42,6 +42,9 @@ export const notificationType = nagiSchema.enum("notification_type", [
   "reaction",
   "mention",
   "diary",
+  // 自動分析（名刺）の更新。ingest 起点ではなく nagi_bot_server → AppView の
+  // 内部エンドポイント経由で作られる唯一の種別。
+  "analysis",
 ]);
 export const botJobState = nagiSchema.enum("bot_job_state", [
   "pending",
@@ -457,6 +460,12 @@ export const nagiActorAnalyses = nagiSchema.table("actor_analyses", {
   did: text("did").primaryKey(),
   analysisJa: text("analysis_ja").notNull(),
   analysisEn: text("analysis_en").notNull(),
+  // 以下4列は名刺カード用（prompt_version >= nagi-analysis-v2 で埋まる）。
+  // v1 時代の既存行は NULL のままバックフィルしない（次の分析で自然に埋まる）。
+  taglineJa: text("tagline_ja"),
+  taglineEn: text("tagline_en"),
+  tagsJa: text("tags_ja").array(),
+  tagsEn: text("tags_en").array(),
   source: text("source").notNull(),
   postCountAt: integer("post_count_at"),
   model: text("model"),

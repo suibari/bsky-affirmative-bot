@@ -44,6 +44,15 @@ const clientOrigins = (name: string, fallback: string) => {
   return [...origins];
 };
 
+/**
+ * 開発環境かどうか。DEV 系のフラグを増やさないための単一の判定。
+ *
+ * 未設定・未知の値はすべて「開発ではない」に倒す。旧 Bluesky bot スタックには
+ * `=== "production"` と `!== "development"` が混在していて、未設定時にどちらへ倒れるかが
+ * 場所によって違う。ここは必ず「明示的に development のときだけ true」で統一する。
+ */
+const isDev = process.env.NODE_ENV === "development";
+
 export const config = {
   port: integer("NAGI_PORT", 3002, 1, 65_535),
   // 待ち受けホスト。未設定なら Node 既定（unspecified）。WSL2 等で localhost が ::1(IPv6) に
@@ -67,9 +76,19 @@ export const config = {
   appviewDid: did("NAGI_APPVIEW_DID", "did:web:nagi-api.suibari.com"),
   appviewServiceId: "nagi_appview",
   botDid: did("NAGI_BOT_DID"),
+  // 開発補助をまとめて有効にする唯一のスイッチ。フラグを増やさないため、
+  // 個別の DEV 系環境変数はできるだけこれに寄せる。
+  dev: isDev,
   // 開発専用: local appview へ直接当てる際、service-auth JWT の代わりに
-  // x-viewer-did ヘッダーを viewerDid として信用する。本番では絶対に設定しないこと。
-  devTrustViewer: process.env.APPVIEW_DEV_TRUST_VIEWER === "true",
+  // x-viewer-did ヘッダーを viewerDid として信用する。
+  //
+  // これは JWT 検証を丸ごと迂回する「読み取り側の認証バイパス」で、他の開発フラグとは
+  // 危険度が違う。NODE_ENV=development との AND にしてあるので、本番の .env に
+  // APPVIEW_DEV_TRUST_VIEWER=true が紛れ込んでも単独では有効にならない。
+  devTrustViewer: isDev && process.env.APPVIEW_DEV_TRUST_VIEWER === "true",
+  // 内部エンドポイント(/internal)専用のループバックポート。nagi_bot_server と同じく
+  // 127.0.0.1 に束縛して OS にアクセス制御させるので、共有シークレットは持たない。
+  internalPort: integer("NAGI_APPVIEW_INTERNAL_PORT", 3004, 1, 65_535),
   clientOrigins: clientOrigins("NAGI_CLIENT_ORIGIN", "http://localhost:5173"),
   affirmationThreshold: integer(
     "NAGI_AFFIRMATION_THRESHOLD",

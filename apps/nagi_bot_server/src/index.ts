@@ -14,7 +14,7 @@ import {
 import { startNagiReplyWorker } from "./NagiReplyWorker.js";
 import { startNagiAnalysisWorker } from "./NagiAnalysisWorker.js";
 import { startNagiCardCommentWorker } from "./NagiCardCommentWorker.js";
-import { enqueueAnalysis } from "./NagiAnalysisFeature.js";
+import { enqueueAnalysis, runNagiAnalysis } from "./NagiAnalysisFeature.js";
 import express from "express";
 import type { ScheduledPostRequest } from "@bsky-affirmative-bot/clients";
 import { publishScheduledPost } from "./ScheduledPostFeature.js";
@@ -24,6 +24,12 @@ import {
   scheduleAllNagiDiaries,
 } from "./NagiDiaryFeature.js";
 import { publishNews } from "./NagiNewsFeature.js";
+
+/**
+ * 開発環境かどうか。DEV 系のフラグを増やさないための単一の判定。
+ * 未設定・未知の値はすべて「開発ではない」に倒す（nagi_appview の config.dev と同じ規則）。
+ */
+const isDev = process.env.NODE_ENV === "development";
 
 async function start() {
   await initializeDatabases();
@@ -103,6 +109,10 @@ async function start() {
     }
   });
   // 100投稿・初回登録を待たずに分析をキューする（動作確認・手動リカバリ用）。
+  //
+  // force / sync は名刺デザインを詰めるための開発用で、NODE_ENV=development の
+  // ときだけ受け付ける（専用の環境変数は増やさない）。フラグ無しの素の呼び出しは
+  // 従来どおり本番でも手動リカバリに使える。
   app.post("/analysis/run", async (req, res) => {
     try {
       const did = String(req.body?.did ?? "");
@@ -119,7 +129,26 @@ async function start() {
         typeof req.body?.postCountAt === "number"
           ? req.body.postCountAt
           : undefined;
-      await enqueueAnalysis({ did, source, postCountAt });
+      const force = req.body?.force === true;
+      const sync = req.body?.sync === true;
+      if ((force || sync) && !isDev) {
+        res.status(403).json({
+          error: "force and sync require NODE_ENV=development",
+        });
+        return;
+      }
+      if (sync) {
+        // キューを介さず直接実行し、生成物をそのまま返す。ワーカーの10秒待ちが無く、
+        // 投稿0件のスキップも呼び出し側から見えるようになる。
+        const result = await runNagiAnalysis({
+          did,
+          source,
+          postCountAt: postCountAt ?? null,
+        });
+        res.status(200).json(result);
+        return;
+      }
+      await enqueueAnalysis({ did, source, postCountAt, force });
       res.status(200).json({ ok: true });
     } catch (error) {
       res

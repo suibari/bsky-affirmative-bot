@@ -20,7 +20,12 @@
  */
 
 /** 通知種別。nagi.notifications.type と対応する。 */
-export type PushNotificationType = "reply" | "reaction" | "mention" | "diary";
+export type PushNotificationType =
+  | "reply"
+  | "reaction"
+  | "mention"
+  | "diary"
+  | "analysis";
 
 export interface PushPayload {
   title: string;
@@ -71,5 +76,8 @@ function compose(
       return { title: `${name}さんがリアクションしました`, body };
     case "diary":
       return { title: "botたんが日記を書きました", body };
+    case "analysis":
+      // 分析＝名刺の更新。actorName は常に botたんなので使わない。
+      return { title: "botたんがあなたの名刺を更新しました", body };
   }
 }

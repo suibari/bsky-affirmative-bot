@@ -57,6 +57,11 @@ export async function getActorProfile(
         .select({
           analysisJa: nagiActorAnalyses.analysisJa,
           analysisEn: nagiActorAnalyses.analysisEn,
+          taglineJa: nagiActorAnalyses.taglineJa,
+          taglineEn: nagiActorAnalyses.taglineEn,
+          tagsJa: nagiActorAnalyses.tagsJa,
+          tagsEn: nagiActorAnalyses.tagsEn,
+          updatedAt: nagiActorAnalyses.updatedAt,
         })
         .from(nagiActorAnalyses)
         .where(eq(nagiActorAnalyses.did, did)),
@@ -68,6 +73,14 @@ export async function getActorProfile(
     : undefined;
   const comment = analysis
     ? (lang === "en" ? analysis.analysisEn : analysis.analysisJa) || undefined
+    : undefined;
+  // 名刺用の3項目。prompt_version が v1 のままの行では NULL なので undefined を返し、
+  // クライアント側で comment からのフォールバックに落とす。
+  const tagline = analysis
+    ? (lang === "en" ? analysis.taglineEn : analysis.taglineJa) || undefined
+    : undefined;
+  const tags = analysis
+    ? (lang === "en" ? analysis.tagsEn : analysis.tagsJa) || undefined
     : undefined;
   return {
     did,
@@ -84,6 +97,9 @@ export async function getActorProfile(
     firstPostAt,
     joinedAt: profile?.createdAt?.toISOString() ?? firstPostAt,
     comment,
+    tagline,
+    tags,
+    cardUpdatedAt: analysis?.updatedAt?.toISOString(),
   };
 }
 export async function getReactedFeed(opts: {

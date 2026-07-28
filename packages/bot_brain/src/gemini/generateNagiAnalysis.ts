@@ -14,13 +14,29 @@ export interface NagiAnalysisInput {
   isSubscriber?: boolean;
 }
 
-/** 自動分析の結果。称号は生成しない（本文のみ / ja・en を1リクエストで取得）。 */
+/**
+ * 自動分析の結果。称号は生成しない（本文のみ / ja・en を1リクエストで取得）。
+ *
+ * analysis はプロフィールの長文＆意味検索の埋め込みソース、tagline と tags は名刺カード用。
+ * 名刺は面積が限られるので、長文を切り詰めるのではなく専用の短文を同じリクエストで作らせる。
+ */
 export interface NagiAnalysisResult {
   analysisJa: string;
   analysisEn: string;
+  /** 名刺に載せる紹介文（日本語・最大120文字）。 */
+  taglineJa: string;
+  /** taglineJa の英訳（最大240文字）。 */
+  taglineEn: string;
+  /** ユーザーを表すハッシュタグ3つ（`#` は含まない）。 */
+  tagsJa: string[];
+  /** tagsJa と同じ順・同じ意味の英語タグ3つ。 */
+  tagsEn: string[];
 }
 
-export const NAGI_ANALYSIS_PROMPT_VERSION = "nagi-analysis-v1";
+export const NAGI_ANALYSIS_PROMPT_VERSION = "nagi-analysis-v2";
+
+/** 名刺タグは3つちょうど。多すぎ/少なすぎはレイアウトが崩れるのでここで揃える。 */
+const TAG_COUNT = 3;
 
 /**
  * botたんとしてユーザーの性格分析（「ひとこと」）を生成する。
@@ -53,29 +69,97 @@ export async function generateNagiAnalysis(
             description:
               "analysisJa と同じ意味・情報量の自然な英訳（最大1000文字・空行を含めない）。",
           },
+          taglineJa: {
+            type: Type.STRING,
+            description:
+              "名刺に載せる紹介文（日本語・80〜120文字・改行なし）。このユーザーを第三者に紹介する言い回しで、人となりが伝わる具体的な内容を書くこと。",
+          },
+          taglineEn: {
+            type: Type.STRING,
+            description:
+              "taglineJa と同じ意味・情報量の自然な英訳（最大240文字・改行なし）。",
+          },
+          tagsJa: {
+            type: Type.ARRAY,
+            items: { type: Type.STRING },
+            minItems: String(TAG_COUNT),
+            maxItems: String(TAG_COUNT),
+            description:
+              "このユーザーを表すハッシュタグ3つ（日本語）。'#' や空白を含めず、各12文字以内の単語にすること。",
+          },
+          tagsEn: {
+            type: Type.ARRAY,
+            items: { type: Type.STRING },
+            minItems: String(TAG_COUNT),
+            maxItems: String(TAG_COUNT),
+            description:
+              "tagsJa と同じ順・同じ意味の英語タグ3つ。'#' や空白を含めず、各20文字以内にすること。",
+          },
         },
-        required: ["analysisJa", "analysisEn"],
-        propertyOrdering: ["analysisJa", "analysisEn"],
+        required: [
+          "analysisJa",
+          "analysisEn",
+          "taglineJa",
+          "taglineEn",
+          "tagsJa",
+          "tagsEn",
+        ],
+        propertyOrdering: [
+          "analysisJa",
+          "analysisEn",
+          "taglineJa",
+          "taglineEn",
+          "tagsJa",
+          "tagsEn",
+        ],
       },
     },
   }, 3);
 
   try {
-    const responseText = response.text || "{}";
-    const cleanedText = responseText.replace(/\[.*?\]/gs, "");
-    const json = JSON.parse(cleanedText) as NagiAnalysisResult;
+    const json = JSON.parse(response.text || "{}") as Partial<NagiAnalysisResult>;
     return {
-      analysisJa: json.analysisJa || "",
-      analysisEn: json.analysisEn || "",
+      // 本文中の [...] は表示に不要な注記なので落とす。JSON 全体に対して
+      // 掛けると配列リテラルまで壊れるため、パース後の文字列にだけ適用する。
+      analysisJa: stripBrackets(json.analysisJa),
+      analysisEn: stripBrackets(json.analysisEn),
+      taglineJa: stripBrackets(json.taglineJa),
+      taglineEn: stripBrackets(json.taglineEn),
+      tagsJa: normalizeTags(json.tagsJa),
+      tagsEn: normalizeTags(json.tagsEn),
     };
   } catch (e) {
     console.error(
       "[ERROR] Failed to parse Structured Outputs JSON in generateNagiAnalysis:",
       e,
     );
-    return { analysisJa: response.text || "", analysisEn: "" };
+    // 本文だけでも拾えれば分析としては成立する（名刺側は欠損にフォールバックする）。
+    return {
+      analysisJa: response.text || "",
+      analysisEn: "",
+      taglineJa: "",
+      taglineEn: "",
+      tagsJa: [],
+      tagsEn: [],
+    };
   }
 }
+
+const stripBrackets = (value: unknown): string =>
+  typeof value === "string" ? value.replace(/\[.*?\]/gs, "").trim() : "";
+
+/**
+ * モデルが '#タグ' やスペース混じりで返すことがあるので、名刺に出せる形へ整える。
+ * 3つに満たなければ足さない（空配列扱いにせず、あるぶんだけ出す）。
+ */
+const normalizeTags = (value: unknown): string[] => {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((tag): tag is string => typeof tag === "string")
+    .map((tag) => tag.replace(/^[#＃]+/, "").replace(/\s+/g, "").trim())
+    .filter((tag) => tag.length > 0)
+    .slice(0, TAG_COUNT);
+};
 
 const PROMPT_NAGI_ANALYSIS = (input: NagiAnalysisInput) =>
   `ユーザ自身のポストと、ユーザがいいね/リアクションしたポストを基に、性格分析をしてください。
@@ -86,6 +170,14 @@ const PROMPT_NAGI_ANALYSIS = (input: NagiAnalysisInput) =>
 * どんな趣味を持っているか（ユーザのポストおよびいいね/リアクションから分析する）
 * 相性の良さそうな人（いいね/リアクションから分析する）
 * 心がけるといいこと
+# 名刺用の出力
+このユーザーの「名刺」に載せる項目も一緒に作ってください。
+* taglineJa / taglineEn … このユーザーを第三者に紹介する紹介文。日本語は80〜120文字、英語は最大240文字。
+  分析本文の丸ごとの要約ではなく、名刺に載せて読み応えのある紹介文にしてください。
+  趣味や人柄が具体的に伝わる内容にし、改行は入れないでください。
+* tagsJa / tagsEn … このユーザーを表すハッシュタグを **ちょうど3つ**。
+  '#' や空白は含めず、単語だけにしてください。日本語は各12文字以内、英語は各20文字以内。
+  tagsJa[i] と tagsEn[i] は同じ意味になるよう対応させてください。
 # ルール
 * 悪い内容は含まず、全肯定のスタンスで分析してください。
 * ユーザがいいね/リアクションしたポストは、ユーザ自身のポストではありません。趣味の参考としてのみ参照してください。

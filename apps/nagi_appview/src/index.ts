@@ -4,6 +4,7 @@ import { rateLimit, ipKeyGenerator } from "express-rate-limit";
 import { initializeDatabases } from "@bsky-affirmative-bot/database";
 import { config } from "./config.js";
 import { xrpc } from "./routes/xrpc.js";
+import { internal } from "./routes/internal.js";
 import { wellKnownDid } from "./routes/wellKnownDid.js";
 import { getBlob } from "./routes/blob.js";
 import { errorHandler, notFound } from "./middleware/errors.js";
@@ -74,18 +75,41 @@ startEmbeddingWorker();
 // did→handle/pds を解決して nagiActors をインデックス（searchActors とハンドル表示に必要）。
 startActorResolveWorker();
 startReconcileWorker();
+// 本番機がうっかり NODE_ENV=development で起動していたら、ここで気づけるようにする。
+// 開発補助は config.dev に集約してあるので、この1行が「何が開いているか」の一覧になる。
+if (config.dev) {
+  console.warn(
+    `[dev] development mode is ON (trustViewerHeader=${config.devTrustViewer}). Never run production like this.`,
+  );
+}
 const onListen = () =>
   console.log(`Nagi AppView listening on ${config.host ?? "(default)"}:${config.port}`);
 const server = config.host
   ? app.listen(config.port, config.host, onListen)
   : app.listen(config.port, onListen);
+
+// サービス間通信(/internal)は公開アプリとは別のリスナーに載せ、127.0.0.1 だけに束縛する。
+// 認可はこの束縛そのもの。公開 app 側に mount すると誰でも叩けるようになるので分ける。
+const internalApp = express();
+internalApp.use(express.json({ limit: "32kb" }));
+internalApp.use("/internal", internal);
+internalApp.use(notFound);
+internalApp.use(errorHandler);
+const internalServer = internalApp.listen(config.internalPort, "127.0.0.1", () =>
+  console.log(`Nagi AppView internal API listening on 127.0.0.1:${config.internalPort}`),
+);
+
 let shuttingDown = false;
 const shutdown = async () => {
   if (shuttingDown) return;
   shuttingDown = true;
   const serverClosed = new Promise<void>((resolve) => server.close(() => resolve()));
+  const internalClosed = new Promise<void>((resolve) =>
+    internalServer.close(() => resolve()),
+  );
   await Promise.allSettled([
     serverClosed,
+    internalClosed,
     stream.close(),
     stopReconcileWorker(),
   ]);

@@ -21,6 +21,13 @@ const muteFilter = (mutedActors: string[]) =>
     ? [notInArray(nagiNotifications.actorDid, mutedActors)]
     : [];
 
+/**
+ * その通知がポストを指しているか。日記(diary)と名刺更新(analysis)の subjectUri は
+ * ポストの URI ではないので、引き当ての対象からも返り値からも外す。
+ */
+const hasPost = (type: (typeof nagiNotifications.$inferSelect)["type"]) =>
+  type !== "diary" && type !== "analysis";
+
 export async function getNotifications(did: string, limit: number) {
   const mutes = await loadMutes(did);
   const rows = await db
@@ -35,10 +42,10 @@ export async function getNotifications(did: string, limit: number) {
   const postRows = await fetchPostRows([
     ...new Set(
       rows.flatMap(({ notification }) =>
-        // 日記はポストではないので post の引き直し対象から外す。
-        notification.type === "diary"
-          ? []
-          : [notification.type === "reply" ? notification.reasonUri : notification.subjectUri],
+        // 日記と分析はポストではないので post の引き直し対象から外す。
+        hasPost(notification.type)
+          ? [notification.type === "reply" ? notification.reasonUri : notification.subjectUri]
+          : [],
       ),
     ),
   ]);
@@ -89,10 +96,9 @@ export async function getNotifications(did: string, limit: number) {
           ? `/api/blob/${encodeURIComponent(n.actorDid)}/${profile.avatarCid}`
           : undefined,
       },
-      post:
-        n.type === "diary"
-          ? undefined
-          : postByUri.get(n.type === "reply" ? n.reasonUri : n.subjectUri),
+      post: hasPost(n.type)
+        ? postByUri.get(n.type === "reply" ? n.reasonUri : n.subjectUri)
+        : undefined,
       diary: n.type === "diary" ? diaryByUri.get(n.subjectUri) : undefined,
       reaction: n.type === "reaction" ? reactionByUri.get(n.reasonUri) : undefined,
     })),
