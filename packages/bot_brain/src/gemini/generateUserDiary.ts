@@ -1,6 +1,6 @@
 import { Type, ServiceTier } from "@google/genai";
 import { generateContentWithRetry } from "./util.js";
-import { UserInfoGemini, MODEL_GEMINI, SYSTEM_INSTRUCTION, safeFetch } from "@bsky-affirmative-bot/shared-configs";
+import { UserInfoGemini, MODEL_GEMINI, SYSTEM_INSTRUCTION, TONE_RULES_JA, safeFetch } from "@bsky-affirmative-bot/shared-configs";
 
 export interface DiaryResult {
   diary: string;
@@ -23,6 +23,10 @@ ${maxLength}
 * 今日一番よかったこと、心が動いたこと
 * 明日の目標
 悪い内容は含まず、全肯定のスタンスで出力してください。
+
+# 口調
+ユーザのポストがどんな文体でも、日記本文は必ずあなた自身の口調で書いてください。
+${TONE_RULES_JA}
 
 また、ユーザの今日1日のポスト内容や様子から、今日1日を象徴するユーザにふさわしい「称号」を考えてください。
 称号は、日本語（20字以内）と、その英語訳（30字以内）の両方を考えてください。

@@ -41,7 +41,13 @@ export async function postMorning() {
     kind: "morning",
     contentByTarget: {
       bsky: { text: `${textJa}\n\n${textEn}\n\n${hashtags}` },
-      nagi: { text: `${textJa}\n\n${hashtags}`, langs: ["ja"] },
+      // Nagi は日本語で投稿し、英語版は Gemini が作ったこの textEn を翻訳キャッシュへ
+      // 投入する（機械翻訳させない）。ハッシュタグは日本語側と揃える。
+      nagi: {
+        text: `${textJa}\n\n${hashtags}`,
+        langs: ["ja"],
+        translations: [{ lang: "en", text: `${textEn}\n\n${hashtags}` }],
+      },
     },
   });
   if (results.bsky) {
@@ -111,7 +117,7 @@ export async function postWhimsical(currentMood: string) {
     kind: "whimsical",
     contentByTarget: {
       bsky: { text: isJapanesePost ? textJa : textEn },
-      nagi: { text: textJa, langs: ["ja"] },
+      nagi: { text: textJa, langs: ["ja"], translations: [{ lang: "en", text: textEn }] },
     },
   });
   const published = Object.keys(results).length > 0;
@@ -183,7 +189,13 @@ export async function postGoodNight(currentMood: string) {
         kind: "good-night",
         contentByTarget: {
           bsky: { text: `${generated.textJa}\n\n${generated.textEn}` },
-          nagi: { text: generated.textJa, langs: ["ja"] },
+          nagi: {
+            text: generated.textJa,
+            langs: ["ja"],
+            ...(generated.textEn
+              ? { translations: [{ lang: "en", text: generated.textEn }] }
+              : {}),
+          },
         },
         sourcePost: { network: candidate.network, uri: candidate.uri, cid: candidate.cid },
       });

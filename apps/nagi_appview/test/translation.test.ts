@@ -5,8 +5,11 @@ process.env.DATABASE_URL ??= "postgres://user:pass@localhost:5432/test";
 process.env.NAGI_BOT_DID ??= "did:plc:testbot";
 
 const {
+  botTranslationPrompt,
   cachedTranslationResult,
   hasTranslationText,
+  isNagiPostUri,
+  normalizeSeedEntries,
   MAX_TRANSLATION_BATCH_SIZE,
   requestTranslationWithRetry,
   shouldPrewarmEnglish,
@@ -34,7 +37,7 @@ test("rejects only empty translation output and leaves content judgment to the m
   assert.equal(hasTranslationText("x".repeat(100_000)), true);
 });
 
-test("uses the TranslateGemma source/target prompt and preserves two blank lines", () => {
+test("uses the TranslateGemma source/target prompt for posts by other users", () => {
   const prompt = translationPrompt(
     { code: "ja", name: "日本語" } as any,
     { code: "en", name: "English" } as any,
@@ -42,6 +45,21 @@ test("uses the TranslateGemma source/target prompt and preserves two blank lines
   );
   assert.match(prompt, /日本語 \(ja\) to English \(en\) translator/);
   assert.ok(prompt.endsWith("English:\n\n\nこんにちは"));
+  // 他人の投稿を botたん口調にすると発言の捏造になるので、ペルソナは絶対に混ぜない。
+  assert.ok(!prompt.includes("Bot-tan"));
+});
+
+test("bot-authored posts get a voice-preserving prompt that forbids changing the content", () => {
+  const prompt = botTranslationPrompt(
+    { code: "en", name: "English" } as any,
+    { code: "ja", name: "日本語" } as any,
+    "Good morning!",
+  );
+  assert.match(prompt, /Bot-tan/);
+  assert.match(prompt, /NEVER uses keigo/);
+  assert.match(prompt, /from English \(en\) into 日本語 \(ja\)/);
+  assert.match(prompt, /Do not add, remove, or invent any information/);
+  assert.ok(prompt.endsWith("Post:\n\n\nGood morning!"));
 });
 
 test("prewarms only new supported non-English posts outside reconciliation", () => {
@@ -127,6 +145,24 @@ test("single-flight shares one task and removes failed requests for retry", asyn
     await requests.run("retry", async () => "recovered"),
     "recovered",
   );
+});
+
+test("sends the requested model and temperature, defaulting to the MT model at 0", async () => {
+  const bodies: any[] = [];
+  const fetcher = (async (_url: any, init: any) => {
+    bodies.push(JSON.parse(init.body));
+    return successResponse();
+  }) as any;
+  await requestTranslationWithRetry("prompt", english, { fetcher });
+  await requestTranslationWithRetry("prompt", english, {
+    fetcher,
+    model: "gemma3:4b",
+    temperature: 0.3,
+  });
+  assert.equal(bodies[0].model, "translategemma:4b");
+  assert.equal(bodies[0].temperature, 0);
+  assert.equal(bodies[1].model, "gemma3:4b");
+  assert.equal(bodies[1].temperature, 0.3);
 });
 
 test("retries once after a timeout without holding the retry delay", async () => {
@@ -235,6 +271,30 @@ test("validates batch size, URI, and target language before database access", as
   );
 });
 
-test("new translation cache generation is version 3", () => {
-  assert.equal(TRANSLATION_CACHE_VERSION, 3);
+test("new translation cache generation is version 4", () => {
+  assert.equal(TRANSLATION_CACHE_VERSION, 4);
+});
+
+test("seed entries keep only supported languages with non-empty text", () => {
+  assert.deepEqual(
+    normalizeSeedEntries([
+      { lang: "en", text: "Good morning!" },
+      { lang: "EN-US", text: "duplicate" },
+      { lang: "xx", text: "unsupported" },
+      { lang: "ja", text: "   " },
+      { lang: "ja", text: 42 },
+      "not an object",
+      null,
+    ]),
+    [{ lang: "en", text: "Good morning!" }],
+  );
+  assert.deepEqual(normalizeSeedEntries(undefined), []);
+  assert.deepEqual(normalizeSeedEntries("en"), []);
+});
+
+test("only Nagi post URIs may be seeded", () => {
+  assert.equal(isNagiPostUri(validUri), true);
+  assert.equal(isNagiPostUri("at://did:plc:example/app.bsky.feed.post/3m"), false);
+  assert.equal(isNagiPostUri("https://example.com/post"), false);
+  assert.equal(isNagiPostUri(undefined), false);
 });

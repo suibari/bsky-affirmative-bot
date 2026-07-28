@@ -98,6 +98,12 @@ export const config = {
   ),
   ollamaUrl: url("OLLAMA_BASE_URL", "http://localhost:11434"),
   translationModel: process.env.OLLAMA_TRANSLATION_MODEL ?? "translategemma:4b",
+  // botたん本人の投稿だけに使うペルソナ翻訳用モデル。translategemma は純粋なMTで
+  // 口調の指示に従えないので、instruct系（既に配備済みの gemma3 等）を使う。
+  botTranslationModel:
+    process.env.OLLAMA_BOT_TRANSLATION_MODEL ??
+    process.env.OLLAMA_MODEL ??
+    "gemma3:4b",
   translationConcurrency: integer("TRANSLATION_CONCURRENCY", 2, 1, 8),
   translationMissLimitPerMinute: integer(
     "TRANSLATION_MISS_LIMIT_PER_MINUTE",

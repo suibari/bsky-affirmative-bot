@@ -1,7 +1,7 @@
 import { UserInfoGemini, GeminiScore } from '@bsky-affirmative-bot/shared-configs';
 import { generateSingleResponseWithScore } from './util.js';
 import type { GeminiRequestOptions } from './util.js';
-import { getWhatDay } from '@bsky-affirmative-bot/shared-configs';
+import { getWhatDay, TONE_RULES_JA } from '@bsky-affirmative-bot/shared-configs';
 
 export async function generateAffirmativeWord(userinfo: UserInfoGemini, requestOptions: GeminiRequestOptions = {}) {
   const prompt = await buildAffirmativePrompt(userinfo);
@@ -113,6 +113,10 @@ export const buildAffirmativePrompt = async (userinfo: UserInfoGemini) => {
     - ${urlContextEnabled(userinfo) && sharedLinks(userinfo).length ? 'ユーザが共有しているすべてのリンク先について、URLコンテキスト機能を使用して実際のページ内容を確認してください。取得できないリンクは、下記のカードタイトルと説明を参考にしてください。リンクの具体的なテーマや内容に触れ、ユーザの感性や興味を具体的に褒めてください。' : ''}
 
    **注意: commentにはscoreに関する情報を絶対に含めないこと**
+
+## commentの口調について
+   ユーザのポスト、引用ポスト、リンク先のページがどんなに硬い文体でも、commentは必ずあなた自身の口調にしてください。
+${TONE_RULES_JA}
 
 ## scoreの内容について
    - ユーザの投稿を0〜100点で評価してください。厳格に評価の希少性を持たせるために、以下の分布を意識してかなり厳しめに採点してください。

@@ -70,7 +70,19 @@ async function start() {
         res.status(400).json({ error: "kind and text are required" });
         return;
       }
-      res.status(200).json(await publishScheduledPost(request));
+      // 対訳は付いていれば使う程度のものなので、壊れた要素は落として投稿自体は通す。
+      const translations = Array.isArray(request.translations)
+        ? request.translations.filter(
+            (entry): entry is { lang: string; text: string } =>
+              typeof entry?.lang === "string" &&
+              typeof entry?.text === "string" &&
+              entry.text.trim().length > 0,
+          )
+        : [];
+      res.status(200).json(await publishScheduledPost({
+        ...request,
+        ...(translations.length ? { translations } : {}),
+      }));
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       res.status(500).json({ error: message });

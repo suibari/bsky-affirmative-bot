@@ -19,13 +19,7 @@ import { agent } from "./agent.js";
 import { getConcatAuthorFeed } from "./bsky/getConcatAuthorFeed.js";
 import { getConcatPosts } from "./bsky/getConcatPosts.js";
 import { getPds } from "./bsky/getPds.js";
-
-/**
- * 通知を作らせるための AppView 内部 API の宛先（deleteAccountData の逆方向）。
- * AppView 側は 127.0.0.1 のみに束縛した専用リスナーで、公開ポート(3002)とは別。
- */
-const NAGI_APPVIEW_INTERNAL_URL =
-  process.env.NAGI_APPVIEW_INTERNAL_URL || "http://127.0.0.1:3004";
+import { notifyAnalysisUpdated } from "./appviewInternal.js";
 
 export type AnalysisSource = "bluesky" | "nagi";
 
@@ -206,39 +200,3 @@ export async function runNagiAnalysis(
   return { skipped: false, result, updatedAt };
 }
 
-/**
- * 名刺が更新されたことを AppView に伝えて通知を作らせる。
- *
- * 分析結果は PDS レコードではなく AppView の Postgres にしか無いため、他の通知と違って
- * Jetstream ingest のイベントが発生しない。通知行の挿入と Web Push の送出は AppView 側に
- * しか実装が無いので、ここから内部エンドポイントを叩いて所有者を AppView のままにする。
- *
- * 通知が飛ばなくても分析自体は成功しているので、失敗してもジョブは失敗させない
- * （リトライすると Gemini を無駄に叩き直すことになる）。
- */
-async function notifyAnalysisUpdated(
-  did: string,
-  updatedAt: string,
-  bodyText: string,
-): Promise<void> {
-  try {
-    const response = await fetch(
-      `${NAGI_APPVIEW_INTERNAL_URL}/internal/notifications/analysis`,
-      {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ did, updatedAt, bodyText }),
-      },
-    );
-    if (!response.ok) {
-      console.warn(
-        `[WARN][NAGI][ANALYSIS] Notification failed for ${did}: ${response.status} ${await response.text()}`,
-      );
-    }
-  } catch (error) {
-    console.warn(
-      `[WARN][NAGI][ANALYSIS] Notification request failed for ${did}:`,
-      error,
-    );
-  }
-}

@@ -331,9 +331,10 @@ export class BiorhythmManager extends EventEmitter {
       ? `今日の服装を自由に選んでください（ミント色のカーディガン以外のものも積極的に選ぶこと）。`
       : `服装は前回から変わっていないため、服装の描写は不要です。`;
 
+    // キャラクター設定は generateStatus 側で systemInstruction として渡す。
+    // ここに埋め込むとユーザ入力の一部として扱われ、モデルが設定文の文体に引っ張られる。
     return `
-以下のキャラクターの行動を描写してほしいです。
-${SYSTEM_INSTRUCTION}
+以下のキャラクター（System Instruction に設定されている「全肯定botたん」）の行動を描写してほしいです。
 このキャラクターが現在どんな気分でなにをしているか、現在時刻・天候・ステータス・行動欲求・前回した行動をもとにして、具体的に考えてください。
 * ルール
 - 結果はJSON形式で出力してください。
@@ -385,6 +386,11 @@ ${JSON.stringify(unreadReply)}
       model: MODEL_GEMINI,
       contents: prompt,
       config: {
+        // ペルソナはシステムターンに置く（ユーザ入力として扱わせない）。
+        // ただし TONE_RULES_JA は当てない。status_text は「全肯定たんは〜しています」という
+        // 三人称の描写文で、botたん自身の発話ではなく下流で画像/ステータス生成の
+        // プロンプトとして使われるため、口調を当てると壊れる。
+        systemInstruction: SYSTEM_INSTRUCTION,
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,

@@ -9,16 +9,27 @@ export interface ScheduledPostSource {
   cid: string;
 }
 
+/**
+ * 生成済みの対訳。Gemini が textJa と textEn を同時に作っている定時投稿で、
+ * 英語版を機械翻訳させず本人の文章のまま出すために翻訳キャッシュへ投入する。
+ */
+export interface ScheduledPostTranslation {
+  lang: string;
+  text: string;
+}
+
 export interface ScheduledPostRequest {
   kind: ScheduledPostKind;
   text: string;
   langs?: string[];
+  translations?: ScheduledPostTranslation[];
   sourcePost?: ScheduledPostSource;
 }
 
 export interface ScheduledPostContent {
   text: string;
   langs?: string[];
+  translations?: ScheduledPostTranslation[];
 }
 
 export interface ScheduledPostPublishRequest {

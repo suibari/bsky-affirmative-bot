@@ -3,6 +3,7 @@ import { generateContentWithRetry } from "./util.js";
 import {
   MODEL_GEMINI,
   SYSTEM_INSTRUCTION,
+  TONE_RULES_JA,
   type CardDefinition,
 } from "@bsky-affirmative-bot/shared-configs";
 
@@ -25,7 +26,7 @@ export interface NagiCardCommentResult {
  * v2: 「カードに書かれた行いを、引いた人がやったことにして褒めてしまう」問題を修正。
  * カードの内容は引いた人の出来事ではない、と明示していなかったのが原因。
  */
-export const NAGI_CARD_COMMENT_PROMPT_VERSION = "nagi-card-comment-v2";
+export const NAGI_CARD_COMMENT_PROMPT_VERSION = "nagi-card-comment-v3";
 
 /**
  * カードを引いた人へ向けた botたんのひとことを生成する。
@@ -60,7 +61,7 @@ export async function generateNagiCardComment(
             commentJa: {
               type: Type.STRING,
               description:
-                "カードを引いた人への、botたんとしてのひとこと（日本語・1〜2文・最大80文字・改行なし）。",
+                "カードを引いた人への、botたんとしてのひとこと（日本語・1〜2文・最大80文字・改行なし）。**敬語は使わず、botたんの口調（〜だよ/〜だね）で書くこと。**",
             },
             commentEn: {
               type: Type.STRING,
@@ -124,6 +125,9 @@ const PROMPT_NAGI_CARD_COMMENT = (input: NagiCardCommentInput) =>
 * レアリティに応じて喜び方の強さを変えてください。${RARITY_HINT[input.card.rarity] ?? ""}
 * 名前を呼ぶときは「${input.displayName}」をそのまま使ってください。プレースホルダを出力しないこと。
 * 改行を入れないでください。
+* commentJa は必ずbotたんの口調にしてください。カードのフレーバーテキストは文語調ですが、
+  その文体には引きずられないこと。
+${TONE_RULES_JA}
 ${
   input.isDuplicate
     ? "* この人がこのカードを引くのは2回目以降です。「また来たね」という文脈を入れてください。"

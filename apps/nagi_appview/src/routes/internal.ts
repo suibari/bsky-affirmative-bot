@@ -2,6 +2,11 @@ import { Router } from "express";
 import { db, nagiNotifications } from "@bsky-affirmative-bot/database";
 import { config } from "../config.js";
 import { dispatchPush } from "../services/pushDispatch.js";
+import {
+  isNagiPostUri,
+  normalizeSeedEntries,
+  seedAuthoredTranslations,
+} from "../services/translation.js";
 
 /**
  * サービス間通信専用のルーター。ユーザー向け XRPC とは違い service auth を持たない。
@@ -66,6 +71,30 @@ internal.post("/notifications/analysis", async (req, res, next) => {
     });
 
     res.status(200).json({ created: true, notificationId: inserted[0].id });
+  } catch (e) {
+    next(e);
+  }
+});
+
+/**
+ * botたん本人が生成した対訳を翻訳キャッシュへ投入する。
+ *
+ * 定時投稿は Gemini が textJa と textEn を同時に生成しているのに、Nagi へは日本語しか
+ * 投げていなかったため、英語圏のユーザーには機械翻訳が表示されていた。投稿と同時に
+ * ここへ本物の英文を渡してもらうことで、追加のLLMコストなしで本人の声のまま届く。
+ *
+ * 投稿レコードがまだ ingest されていなくても投入できる（translations に posts への
+ * 外部キーは無い）。むしろ ingest 直後の英訳プリウォームより先に入れたい。
+ */
+internal.post("/translations", async (req, res, next) => {
+  try {
+    const uri = req.body?.uri;
+    const entries = normalizeSeedEntries(req.body?.translations);
+    if (!isNagiPostUri(uri) || !entries.length) {
+      res.status(400).json({ error: "uri and translations are required" });
+      return;
+    }
+    res.status(200).json({ seeded: await seedAuthoredTranslations(uri, entries) });
   } catch (e) {
     next(e);
   }

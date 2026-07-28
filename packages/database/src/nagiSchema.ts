@@ -382,6 +382,11 @@ export const nagiTranslations = nagiSchema.table(
     targetLang: text("target_lang").notNull(),
     text: text("text").notNull(),
     cacheVersion: integer("cache_version").default(1).notNull(),
+    // "mt" = 翻訳モデルの出力。"authored" = botたん本人が生成した対訳の投入。
+    // 投稿直後の英訳プリウォームが数秒遅れて完了するため、何もしないと MT が
+    // シード済みの対訳を上書きしてしまう。authored は MT に上書きさせない
+    // （generateAndCache の setWhere で守る）。
+    source: text("source").default("mt").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
       .notNull(),

@@ -1,6 +1,6 @@
 import { Type, ServiceTier } from "@google/genai";
 import { generateContentWithRetry } from "./util.js";
-import { MODEL_GEMINI, SYSTEM_INSTRUCTION } from "@bsky-affirmative-bot/shared-configs";
+import { MODEL_GEMINI, SYSTEM_INSTRUCTION, TONE_RULES_JA } from "@bsky-affirmative-bot/shared-configs";
 
 /** 自動分析（プロフィールの「botたんのひとこと」）の入力。 */
 export interface NagiAnalysisInput {
@@ -33,7 +33,7 @@ export interface NagiAnalysisResult {
   tagsEn: string[];
 }
 
-export const NAGI_ANALYSIS_PROMPT_VERSION = "nagi-analysis-v2";
+export const NAGI_ANALYSIS_PROMPT_VERSION = "nagi-analysis-v3";
 
 /** 名刺タグは3つちょうど。多すぎ/少なすぎはレイアウトが崩れるのでここで揃える。 */
 const TAG_COUNT = 3;
@@ -62,13 +62,14 @@ export async function generateNagiAnalysis(
           analysisJa: {
             type: Type.STRING,
             description:
-              "性格分析の本文（日本語・最大500文字・空行を含めない）。具体的なポストやいいね/リアクション内容に言及し、全肯定のスタンスで分析すること。",
+              "性格分析の本文（日本語・最大500文字・空行を含めない）。具体的なポストやいいね/リアクション内容に言及し、全肯定のスタンスで分析すること。**敬語は使わず、botたんの口調（〜だよ/〜だね）で書くこと。**",
           },
           analysisEn: {
             type: Type.STRING,
             description:
               "analysisJa と同じ意味・情報量の自然な英訳（最大1000文字・空行を含めない）。",
           },
+          // tagline は名刺のデザインに合わせた現状の文体を維持する（口調ルールは意図的に当てない）。
           taglineJa: {
             type: Type.STRING,
             description:
@@ -182,6 +183,11 @@ const PROMPT_NAGI_ANALYSIS = (input: NagiAnalysisInput) =>
 * 悪い内容は含まず、全肯定のスタンスで分析してください。
 * ユーザがいいね/リアクションしたポストは、ユーザ自身のポストではありません。趣味の参考としてのみ参照してください。
 * 称号は考えなくてよいです（本文のみ）。
+
+# 口調
+分析対象のポストがどんな文体でも、**analysisJa** は必ずbotたんの口調にしてください。
+（taglineJa / tagsJa は名刺のデザインに合わせた現状の文体のままでよく、この口調ルールの対象外です。）
+${TONE_RULES_JA}
 
 以下がユーザ名およびポスト、いいね/リアクションしたポストです。
 -----

@@ -1,7 +1,7 @@
 import { AppBskyActorDefs } from "@atproto/api";
 type ProfileView = AppBskyActorDefs.ProfileView;
 import { Type } from "@google/genai";
-import { MODEL_GEMINI, SYSTEM_INSTRUCTION } from "@bsky-affirmative-bot/shared-configs";
+import { MODEL_GEMINI, SYSTEM_INSTRUCTION, TONE_RULES_JA } from "@bsky-affirmative-bot/shared-configs";
 import { generateContentWithRetry, normalizeUrlSpacing } from "./util.js";
 
 interface GoodNightInfo {
@@ -104,6 +104,7 @@ const PROMPT_GOODNIGHT_WORD = async (param: GoodNightInfo) => {
     `* ポストを紹介する際はフォロワーを楽しませることを考えてください。**正義感にもとづいて特定个人、団体への攻撃を扇動したりしてはなりません。**` +
     `* 読みやすくするために、適切に改行を入れてください。` +
     `* **絶対厳守**: textJaとtextEnのテキストにマークダウン記法を一切使わないでください。見出し(#)、太字(**)、斜体(*)、リスト(-)、リンク([text](url))などは禁止です。URLはそのまま https://... の形式で本文中に含めてください。` +
+    `\n# 口調\n紹介するポストがどんな文体でも、textJa は必ずあなた自身の口調にしてください。\n${TONE_RULES_JA}\n` +
     `---今日のあなたが全肯定されたポスト---` +
     `* ポストしたユーザ名: ${param.topFollower?.displayName ?? ""}` +
     `* ポスト内容: ${param.topPost ?? ""}`;

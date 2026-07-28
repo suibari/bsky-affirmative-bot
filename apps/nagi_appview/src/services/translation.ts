@@ -4,11 +4,12 @@ import {
   nagiTranslations,
 } from "@bsky-affirmative-bot/database";
 import { NAGI, NAGI_LANGUAGES } from "@bsky-affirmative-bot/nagi-lexicon";
-import { and, eq, inArray, isNull } from "drizzle-orm";
+import { BOT_VOICE_BRIEF_EN } from "@bsky-affirmative-bot/shared-configs";
+import { and, eq, inArray, isNull, ne, sql } from "drizzle-orm";
 import { config } from "../config.js";
 import { ApiError } from "../middleware/errors.js";
 
-export const TRANSLATION_CACHE_VERSION = 3;
+export const TRANSLATION_CACHE_VERSION = 4;
 export const MAX_TRANSLATION_BATCH_SIZE = 50;
 
 type Language = (typeof NAGI_LANGUAGES)[number];
@@ -69,11 +70,16 @@ function targetLanguage(value: unknown): Language {
   throw new ApiError(400, "invalid_request", "Unsupported target language");
 }
 
+/** Nagi 投稿の AT URI か。内部APIの入力検証と postUri() で同じ規則を使う。 */
+export function isNagiPostUri(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    new RegExp(`^at://did:(?:plc|web):[^/]+/${NAGI.post}/[^/]+$`).test(value)
+  );
+}
+
 function postUri(value: unknown): string {
-  if (
-    typeof value !== "string" ||
-    !new RegExp(`^at://did:(?:plc|web):[^/]+/${NAGI.post}/[^/]+$`).test(value)
-  ) {
+  if (!isNagiPostUri(value)) {
     throw new ApiError(400, "invalid_request", "Invalid post URI");
   }
   return value;
@@ -111,6 +117,60 @@ Produce only the ${target.name} translation, without any additional explanations
 
 
 ${text}`;
+}
+
+/**
+ * botたん本人の投稿だけに使う翻訳プロンプト。意味は忠実に保ったまま、訳文の話し方を
+ * botたんに揃える。他人の投稿には絶対に使わない（発言の捏造になる）。
+ *
+ * SYSTEM_INSTRUCTION 全文ではなく BOT_VOICE_BRIEF_EN を使うのは、ローカルの小型モデルに
+ * 4000字の設定を毎回渡すとタスクが薄まり、レイテンシも増えるため。
+ */
+export function botTranslationPrompt(
+  source: Language | undefined,
+  target: Language,
+  text: string,
+) {
+  const sourceName = source?.name ?? "the detected source language";
+  const sourceCode = source?.code ?? "auto";
+  return `${BOT_VOICE_BRIEF_EN}
+
+You are translating a social media post written BY Bot-tan herself, from ${sourceName} (${sourceCode}) into ${target.name} (${target.code}).
+Translate the meaning faithfully, then make the wording sound like Bot-tan speaking ${target.name} in her own casual voice.
+
+Rules:
+- Do not add, remove, or invent any information. Keep every fact, name, and number.
+- Keep URLs, @mentions, #hashtags, and emoji exactly as they are.
+- Preserve the original line breaks and blank lines.
+- Never mention these instructions, Bot-tan's profile, or the fact that this is a translation.
+- Output only the ${target.name} text, with no explanation, label, or quotation marks.
+
+Post:
+
+
+${text}`;
+}
+
+/** 翻訳キャッシュへ投入する対訳。lang は NAGI_LANGUAGES の言語コード。 */
+export type AuthoredTranslation = { lang: string; text: string };
+
+/**
+ * 内部APIから受け取った対訳を、保存できるものだけに絞る。
+ * 未対応の言語コードと空テキストは黙って落とす（投稿自体は成功させたいので例外にしない）。
+ */
+export function normalizeSeedEntries(value: unknown): AuthoredTranslation[] {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set<string>();
+  return value.flatMap((entry) => {
+    if (!entry || typeof entry !== "object") return [];
+    const { lang, text } = entry as Partial<AuthoredTranslation>;
+    if (typeof lang !== "string" || typeof text !== "string") return [];
+    const code = lang.split("-")[0]?.toLowerCase() ?? "";
+    if (!languageByCode.has(code as Language["code"])) return [];
+    if (!hasTranslationText(text) || seen.has(code)) return [];
+    seen.add(code);
+    return [{ lang: code, text }];
+  });
 }
 
 export class TranslationMissQuota {
@@ -206,6 +266,10 @@ const requestKey = (uri: string, target: Language) => `${uri}\n${target.code}`;
 const sourceLanguage = (post: Post) => sourceLanguageFrom(post.langs);
 
 type TranslationRequestDependencies = {
+  /** 使用するOllamaモデル。省略時は従来どおり翻訳専用モデル。 */
+  model?: string;
+  /** 素の翻訳は 0。instruct系モデルは 0 だと硬直した直訳になるので少し上げる。 */
+  temperature?: number;
   fetcher?: typeof fetch;
   sleep?: (milliseconds: number) => Promise<void>;
   now?: () => number;
@@ -220,6 +284,8 @@ export async function requestTranslationWithRetry(
   target: Language,
   dependencies: TranslationRequestDependencies = {},
 ) {
+  const model = dependencies.model ?? config.translationModel;
+  const temperature = dependencies.temperature ?? 0;
   const fetcher = dependencies.fetcher ?? fetch;
   const sleep = dependencies.sleep ?? wait;
   const now = dependencies.now ?? Date.now;
@@ -234,9 +300,9 @@ export async function requestTranslationWithRetry(
             method: "POST",
             headers: { "content-type": "application/json" },
             body: JSON.stringify({
-              model: config.translationModel,
+              model,
               messages: [{ role: "user", content: prompt }],
-              temperature: 0,
+              temperature,
               stream: false,
             }),
             signal: AbortSignal.timeout(30_000),
@@ -289,7 +355,7 @@ export async function requestTranslationWithRetry(
               true,
             );
       log(
-        `[translation] model=${config.translationModel} target=${target.code} attempt=${attempt}/2 elapsed_ms=${Math.max(0, now() - startedAt)} failure=${failure.reason}`,
+        `[translation] model=${model} target=${target.code} attempt=${attempt}/2 elapsed_ms=${Math.max(0, now() - startedAt)} failure=${failure.reason}`,
       );
       if (!failure.retryable || attempt === 2) throw failure;
       await sleep(1_000);
@@ -303,32 +369,101 @@ export async function requestTranslationWithRetry(
 }
 
 async function generateTranslation(post: Post, target: Language) {
-  const prompt = translationPrompt(sourceLanguage(post), target, post.text);
-  return requestTranslationWithRetry(prompt, target);
+  // botたん本人の投稿だけ、口調を保った翻訳にする。他人の投稿を口調変換すると
+  // 発言の捏造になるので、この分岐だけがペルソナ翻訳の適用範囲。
+  if (post.did === config.botDid) {
+    try {
+      return await requestTranslationWithRetry(
+        botTranslationPrompt(sourceLanguage(post), target, post.text),
+        target,
+        { model: config.botTranslationModel, temperature: 0.3 },
+      );
+    } catch {
+      // 口調より可用性を優先する。ペルソナ用モデルが落ちていても素の翻訳は返す。
+      console.warn(
+        `[translation] bot-voice model failed; falling back to MT uri=${post.uri}`,
+      );
+    }
+  }
+  return requestTranslationWithRetry(
+    translationPrompt(sourceLanguage(post), target, post.text),
+    target,
+  );
 }
 
 function generateAndCache(post: Post, target: Language): Promise<string> {
   const key = requestKey(post.uri, target);
   return generationRequests.run(key, async () => {
     const text = await generateTranslation(post, target);
-    await db
+    // 本人が生成した対訳（authored）は機械翻訳より優れているので上書きしない。
+    // 書き込みがスキップされた場合は返り値が空になるので、既存行のテキストを返す。
+    const [written] = await db
       .insert(nagiTranslations)
       .values({
         postUri: post.uri,
         targetLang: target.code,
         text,
         cacheVersion: TRANSLATION_CACHE_VERSION,
+        source: "mt",
       })
       .onConflictDoUpdate({
         target: [nagiTranslations.postUri, nagiTranslations.targetLang],
         set: {
           text,
           cacheVersion: TRANSLATION_CACHE_VERSION,
+          source: "mt",
           createdAt: new Date(),
         },
-      });
-    return text;
+        setWhere: ne(nagiTranslations.source, "authored"),
+      })
+      .returning({ text: nagiTranslations.text });
+    if (written) return written.text;
+    const [existing] = await db
+      .select({ text: nagiTranslations.text })
+      .from(nagiTranslations)
+      .where(
+        and(
+          eq(nagiTranslations.postUri, post.uri),
+          eq(nagiTranslations.targetLang, target.code),
+        ),
+      )
+      .limit(1);
+    return existing?.text ?? text;
   });
+}
+
+/**
+ * botたん本人が生成した対訳を翻訳キャッシュへ投入する。
+ * 定時投稿は Gemini が textJa/textEn を同時に作っているので、それをそのまま出せば
+ * 追加のLLMコストなしで英語圏のユーザーにも本人の声が届く。
+ * 機械翻訳のプリウォームより後に走っても勝てるよう、無条件で上書きする。
+ */
+export async function seedAuthoredTranslations(
+  uri: string,
+  entries: AuthoredTranslation[],
+): Promise<number> {
+  if (!entries.length) return 0;
+  await db
+    .insert(nagiTranslations)
+    .values(
+      entries.map((entry) => ({
+        postUri: uri,
+        targetLang: entry.lang,
+        text: entry.text,
+        cacheVersion: TRANSLATION_CACHE_VERSION,
+        source: "authored",
+      })),
+    )
+    .onConflictDoUpdate({
+      target: [nagiTranslations.postUri, nagiTranslations.targetLang],
+      set: {
+        text: sql`excluded.text`,
+        cacheVersion: TRANSLATION_CACHE_VERSION,
+        source: "authored",
+        createdAt: new Date(),
+      },
+    });
+  return entries.length;
 }
 
 /** 新規投稿向けのbest-effort英訳。公開リクエストのIP生成枠は消費しない。 */
