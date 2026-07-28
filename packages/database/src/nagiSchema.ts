@@ -1,5 +1,6 @@
 import {
   bigint,
+  bigserial,
   boolean,
   customType,
   index,
@@ -47,6 +48,10 @@ export const botJobState = nagiSchema.enum("bot_job_state", [
   "processing",
   "posted",
   "failed",
+]);
+export const nagiAiReplyMode = nagiSchema.enum("ai_reply_mode", [
+  "ai",
+  "template",
 ]);
 /** ミュート対象の種別。actor は相手の DID、channel はチャンネルの AT-URI を指す。 */
 export const muteSubjectType = nagiSchema.enum("mute_subject_type", [
@@ -410,6 +415,9 @@ export const nagiBotReplyJobs = nagiSchema.table(
     replyUri: text("reply_uri"),
     score: integer("score"),
     lastError: text("last_error"),
+    generationMode: nagiAiReplyMode("generation_mode"),
+    limitReason: text("limit_reason"),
+    modeDecidedAt: timestamp("mode_decided_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
       .notNull(),
@@ -417,7 +425,28 @@ export const nagiBotReplyJobs = nagiSchema.table(
       .defaultNow()
       .notNull(),
   },
-  (t) => [index("nagi_bot_jobs_ready_idx").on(t.state, t.nextAttemptAt)],
+  (t) => [
+    index("nagi_bot_jobs_ready_idx").on(t.state, t.nextAttemptAt),
+    index("nagi_bot_jobs_ai_quota_idx").on(
+      t.authorDid,
+      t.generationMode,
+      t.modeDecidedAt,
+    ),
+  ],
+);
+/**
+ * Nagi の有料AI返信が Gemini へ実際に送信される直前の予約台帳。
+ * サービス全体枠だけに使うため、DID・投稿URI・本文は保存しない。
+ */
+export const nagiAiReplyRequests = nagiSchema.table(
+  "ai_reply_requests",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    requestedAt: timestamp("requested_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [index("nagi_ai_reply_requests_time_idx").on(t.requestedAt)],
 );
 /**
  * botたんの自動分析（プロフィールの「ひとこと」吹き出し）。did 単位で最新1件を upsert 保存する。

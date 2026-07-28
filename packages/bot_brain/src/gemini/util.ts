@@ -1,21 +1,26 @@
-import { PartListUnion, Type, ServiceTier } from "@google/genai";
-import { gemini } from "./index.js";
-import { MODEL_GEMINI, SYSTEM_INSTRUCTION, POST_TEXT_LIMIT, safeFetch } from "@bsky-affirmative-bot/shared-configs";
-import { UserInfoGemini, GeminiScore, BotContext, LanguageName } from "@bsky-affirmative-bot/shared-configs";
-import { MemoryService } from "@bsky-affirmative-bot/database";
-import { buildAffirmativeImageParts } from "./affirmativeImages.js";
+import { PartListUnion, Type, ServiceTier } from '@google/genai';
+import { gemini } from './index.js';
+import { MODEL_GEMINI, SYSTEM_INSTRUCTION, POST_TEXT_LIMIT, safeFetch } from '@bsky-affirmative-bot/shared-configs';
+import { UserInfoGemini, GeminiScore, BotContext, LanguageName } from '@bsky-affirmative-bot/shared-configs';
+import { MemoryService } from '@bsky-affirmative-bot/database';
+import { buildAffirmativeImageParts } from './affirmativeImages.js';
+
+export type GeminiRequestOptions = {
+  /** 実際の Gemini HTTP リクエストを送る直前に呼ぶ。 */
+  beforeRequest?: () => Promise<void>;
+};
 
 function energyLabel(energy: number, ja: boolean): string {
-  if (energy >= 80) return ja ? "めちゃくちゃ元気！" : "Super energetic!";
-  if (energy >= 60) return ja ? "元気" : "Energetic";
-  if (energy >= 40) return ja ? "まあまあ" : "So-so";
-  if (energy >= 20) return ja ? "ちょっとお疲れ気味…" : "A bit tired...";
-  return ja ? "ぐったり…" : "Exhausted...";
+  if (energy >= 80) return ja ? 'めちゃくちゃ元気！' : 'Super energetic!';
+  if (energy >= 60) return ja ? '元気' : 'Energetic';
+  if (energy >= 40) return ja ? 'まあまあ' : 'So-so';
+  if (energy >= 20) return ja ? 'ちょっとお疲れ気味…' : 'A bit tired...';
+  return ja ? 'ぐったり…' : 'Exhausted...';
 }
 
 export function formatBotContext(botContext?: BotContext, langStr?: LanguageName): string {
-  if (!botContext) return "";
-  if (langStr === "日本語") {
+  if (!botContext) return '';
+  if (langStr === '日本語') {
     return `\n---\n## botたんの現在状況（参考にして返答をパーソナライズしてください）\n- 日時：${botContext.datetime}\n- 天気：${botContext.weather}\n- いまやってること：${botContext.botActivity}\n- 元気度：${energyLabel(botContext.botEnergy, true)}\n`;
   }
   return `\n---\n## Bot's current situation (use this to personalize your response)\n- Date/Time: ${botContext.datetime}\n- Weather: ${botContext.weather}\n- Currently: ${botContext.botActivityEn}\n- Energy: ${energyLabel(botContext.botEnergy, false)}\n`;
@@ -25,11 +30,19 @@ export function formatBotContext(botContext?: BotContext, langStr?: LanguageName
  * POST_TEXT_LIMITを超える場合はリトライするgenerateContentのラッパー
  * userinfo が渡された場合、プロンプトの末尾に共通コンテキスト（日時・天気・bot状態）を自動付与する
  */
-export async function generateContentWithRetry(params: any, retryCount = 3, userinfo?: UserInfoGemini): Promise<any> {
+export async function generateContentWithRetry(
+  params: any,
+  retryCount = 3,
+  userinfo?: UserInfoGemini,
+  requestOptions: GeminiRequestOptions = {},
+): Promise<any> {
   if (userinfo?.botContext) {
     const botCtx = formatBotContext(userinfo.botContext, userinfo.langStr);
     if (Array.isArray(params.contents) && typeof params.contents[0] === 'string') {
-      params = { ...params, contents: [params.contents[0] + botCtx, ...params.contents.slice(1)] };
+      params = {
+        ...params,
+        contents: [params.contents[0] + botCtx, ...params.contents.slice(1)],
+      };
     } else if (typeof params.contents === 'string') {
       params = { ...params, contents: params.contents + botCtx };
     }
@@ -39,23 +52,30 @@ export async function generateContentWithRetry(params: any, retryCount = 3, user
   for (let i = 0; i <= retryCount; i++) {
     // APIの接続や高負荷エラー（503等）は内部リトライせず、上位関数（callbacks.ts）の一元リトライに即座に委ねる
     try {
+      await requestOptions.beforeRequest?.();
       response = await gemini.models.generateContent(params);
     } catch (e) {
-      MemoryService.incrementStats('rpdError', 1).catch((err: any) => console.error("Failed to increment rpdError:", err));
+      MemoryService.incrementStats('rpdError', 1).catch((err: any) =>
+        console.error('Failed to increment rpdError:', err),
+      );
       throw e;
     }
-    const text = response.text || "";
+    const text = response.text || '';
 
     // Increment RPD on success
-    MemoryService.incrementStats('rpd', 1).catch((e: any) => console.error("Failed to increment RPD:", e));
+    MemoryService.incrementStats('rpd', 1).catch((e: any) => console.error('Failed to increment RPD:', e));
 
     // 文字数制限チェック（文字数超過時のみ、モデル生成のやり直しとして内部リトライを許容）
     if (text.length <= POST_TEXT_LIMIT) {
       return response;
     }
-    console.warn(`[WARN] Generated content exceeded ${POST_TEXT_LIMIT} characters (${text.length}). Retrying... (${i + 1}/${retryCount})`);
+    console.warn(
+      `[WARN] Generated content exceeded ${POST_TEXT_LIMIT} characters (${text.length}). Retrying... (${i + 1}/${retryCount})`,
+    );
   }
-  console.warn(`[WARN] Failed to generate content under 2000 characters after ${retryCount} retries. Returning last response.`);
+  console.warn(
+    `[WARN] Failed to generate content under 2000 characters after ${retryCount} retries. Returning last response.`,
+  );
   return response;
 }
 
@@ -74,12 +94,12 @@ export async function generateSingleResponse(prompt: string, userinfo?: UserInfo
           continue;
         }
         const imageArrayBuffer = await response.arrayBuffer();
-        const base64ImageData = Buffer.from(imageArrayBuffer).toString("base64");
+        const base64ImageData = Buffer.from(imageArrayBuffer).toString('base64');
         contents.push({
           inlineData: {
             mimeType: img.mimeType,
             data: base64ImageData,
-          }
+          },
         });
       } catch (e) {
         console.warn(`[WARN] Error fetching image: ${img.image_url}`, e);
@@ -88,22 +108,26 @@ export async function generateSingleResponse(prompt: string, userinfo?: UserInfo
     }
   }
 
-  const response = await generateContentWithRetry({
-    model: MODEL_GEMINI,
-    contents,
-    config: {
-      systemInstruction: SYSTEM_INSTRUCTION,
-      serviceTier: userinfo?.isSubscriber ? ServiceTier.STANDARD : ServiceTier.FLEX,
-      tools: [
-        {
-          googleSearch: {},
-        }
-      ]
-    }
-  }, 3, userinfo);
+  const response = await generateContentWithRetry(
+    {
+      model: MODEL_GEMINI,
+      contents,
+      config: {
+        systemInstruction: SYSTEM_INSTRUCTION,
+        serviceTier: userinfo?.isSubscriber ? ServiceTier.STANDARD : ServiceTier.FLEX,
+        tools: [
+          {
+            googleSearch: {},
+          },
+        ],
+      },
+    },
+    3,
+    userinfo,
+  );
 
   // Gemini出力の"["から"]"まで囲われたすべての部分を除去
-  const responseText = response.text || "";
+  const responseText = response.text || '';
   const cleanedText = responseText.replace(/\[.*?\]/gs, '');
 
   return cleanedText;
@@ -129,34 +153,35 @@ export function extractJSON(text: string): any {
     // 3. そのままパースを試みる
     return JSON.parse(text);
   } catch (e) {
-    console.warn("JSON parse failed:", text);
-    throw new Error("Failed to extract JSON from response");
+    console.warn('JSON parse failed:', text);
+    throw new Error('Failed to extract JSON from response');
   }
 }
 
 /**
  * 必要に応じて画像を付与して、botたんスコア付きのシングルレスポンスを得る
  */
-export async function generateSingleResponseWithScore(prompt: string, userinfo?: UserInfoGemini) {
+export async function generateSingleResponseWithScore(
+  prompt: string,
+  userinfo?: UserInfoGemini,
+  requestOptions: GeminiRequestOptions = {},
+) {
   const contents: PartListUnion = [prompt];
   // const responseSchema = { ... } // Removed due to conflict with Google Search
 
   if (userinfo?.image?.length) {
-    const { parts, stats } = await buildAffirmativeImageParts(
-      userinfo.image,
-      userinfo.langStr,
-    );
+    const { parts, stats } = await buildAffirmativeImageParts(userinfo.image, userinfo.langStr);
     contents.push(...parts);
-    console.log("[INFO][GEMINI] Affirmative image input:", stats);
+    console.log('[INFO][GEMINI] Affirmative image input:', stats);
     if (!parts.length) {
-      console.warn("[WARN][GEMINI] No auxiliary images could be loaded");
+      console.warn('[WARN][GEMINI] No auxiliary images could be loaded');
     }
   }
 
   const tools: any[] = [
     {
       googleSearch: {},
-    }
+    },
   ];
 
   const links = userinfo?.embed?.links_embed?.map((link) => link.uri) ?? [];
@@ -164,42 +189,47 @@ export async function generateSingleResponseWithScore(prompt: string, userinfo?:
     links.push(userinfo.embed.uri_embed);
   }
   const useUrlContext = Boolean(
-    links.length &&
-    (userinfo?.urlContextEnabled ?? Boolean(userinfo?.embed?.uri_embed && userinfo?.isSubscriber))
+    links.length && (userinfo?.urlContextEnabled ?? Boolean(userinfo?.embed?.uri_embed && userinfo?.isSubscriber)),
   );
   if (useUrlContext) {
     tools.push({
       urlContext: {},
     });
-    console.log(`[INFO][GEMINI] URL Context tool enabled for ${links.length} URL(s): ${links.join(", ")}`);
+    console.log(`[INFO][GEMINI] URL Context tool enabled for ${links.length} URL(s): ${links.join(', ')}`);
   }
 
-  const request = (requestTools: any[]) => generateContentWithRetry({
-    model: MODEL_GEMINI,
-    contents,
-    config: {
-      systemInstruction: SYSTEM_INSTRUCTION,
-      serviceTier: userinfo?.isSubscriber ? ServiceTier.STANDARD : ServiceTier.FLEX,
-      // responseMimeType: "application/json", // Removed
-      // responseSchema, // Removed
-      tools: requestTools
-    }
-  }, 3, userinfo);
+  const request = (requestTools: any[]) =>
+    generateContentWithRetry(
+      {
+        model: MODEL_GEMINI,
+        contents,
+        config: {
+          systemInstruction: SYSTEM_INSTRUCTION,
+          serviceTier: userinfo?.isSubscriber ? ServiceTier.STANDARD : ServiceTier.FLEX,
+          // responseMimeType: "application/json", // Removed
+          // responseSchema, // Removed
+          tools: requestTools,
+        },
+      },
+      3,
+      userinfo,
+      requestOptions,
+    );
   let response;
   try {
     response = await request(tools);
   } catch (error) {
     if (!useUrlContext) throw error;
-    console.warn("[WARN][GEMINI] URL Context request failed; retrying with card metadata only", error);
+    console.warn('[WARN][GEMINI] URL Context request failed; retrying with card metadata only', error);
     response = await request([{ googleSearch: {} }]);
   }
 
-  const result = extractJSON(response.text || "") as GeminiScore[];
+  const result = extractJSON(response.text || '') as GeminiScore[];
 
   // Gemini出力の"["から"]"まで囲われたすべての部分を除去
   // (検索引用などが残っていた場合のクリーニング)
   if (Array.isArray(result)) {
-    result.forEach(item => {
+    result.forEach((item) => {
       if (item.comment) {
         item.comment = item.comment.replace(/\[.*?\]/gs, '');
       }
@@ -223,9 +253,7 @@ export async function generateSingleResponseWithScore(prompt: string, userinfo?:
  */
 export const normalizeUrlSpacing = (text: string): string =>
   text
-    .replace(/https?:\/\/[^\s]+/g, (url) =>
-      url.replace(/[.。、，,！？!?「」『』【】（）\[\]{}]+$/, '')
-    )
+    .replace(/https?:\/\/[^\s]+/g, (url) => url.replace(/[.。、，,！？!?「」『』【】（）\[\]{}]+$/, ''))
     .replace(/([^\s])(https?:\/\/)/g, '$1 $2')
     .replace(/(https?:\/\/[\x21-\x7E]+)([^\s\x00-\x7F])/g, '$1 $2');
 
@@ -236,7 +264,7 @@ export const normalizeUrlSpacing = (text: string): string =>
 export async function generateSingleResponseJSON<T>(
   prompt: string,
   userinfo: UserInfoGemini | undefined,
-  parser: (text: string) => T
+  parser: (text: string) => T,
 ): Promise<T> {
   const responseText = await generateSingleResponse(prompt, userinfo);
   return parser(responseText);

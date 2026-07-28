@@ -1,4 +1,5 @@
 export * from './gemini/index.js';
+export * from './predefinedAffirmation.js';
 export * from './api/newsdata/index.js';
 export * from './api/spotify/index.js';
 export * from './api/weather/index.js';

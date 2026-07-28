@@ -64,6 +64,17 @@ const profileView = (
   description: profile?.description ?? undefined,
 });
 
+export async function loadNagiReplyAuthor(did: string) {
+  const [actors, profiles] = await Promise.all([
+    db.select().from(nagiActors).where(eq(nagiActors.did, did)).limit(1),
+    db.select().from(nagiProfiles).where(eq(nagiProfiles.did, did)).limit(1),
+  ]);
+  return {
+    view: profileView(did, actors[0], profiles[0]),
+    pdsUrl: actors[0]?.pdsUrl,
+  };
+}
+
 export async function buildNagiReplyContext(job: any) {
   const record: any = job.recordJson;
   const botDid = process.env.NAGI_BOT_DID!;
@@ -71,21 +82,7 @@ export async function buildNagiReplyContext(job: any) {
 
   const [author, ownRows, globalRows, reactionRows, quoteRows] =
     await Promise.all([
-      Promise.all([
-        db
-          .select()
-          .from(nagiActors)
-          .where(eq(nagiActors.did, job.authorDid))
-          .limit(1),
-        db
-          .select()
-          .from(nagiProfiles)
-          .where(eq(nagiProfiles.did, job.authorDid))
-          .limit(1),
-      ]).then(([actors, profiles]) => ({
-        actor: actors[0],
-        profile: profiles[0],
-      })),
+      loadNagiReplyAuthor(job.authorDid),
       db
         .select({ uri: nagiPosts.uri, text: nagiPosts.text })
         .from(nagiPosts)
@@ -190,8 +187,7 @@ export async function buildNagiReplyContext(job: any) {
   }
 
   const authorPds =
-    author.actor?.pdsUrl ??
-    (await resolvePdsUrl(job.authorDid).catch(() => ""));
+    author.pdsUrl ?? (await resolvePdsUrl(job.authorDid).catch(() => ""));
   const image: ImageRef[] = blobImagesToImageRefs(
     job.authorDid,
     authorPds,
@@ -234,7 +230,7 @@ export async function buildNagiReplyContext(job: any) {
   }
 
   return {
-    follower: profileView(job.authorDid, author.actor, author.profile),
+    follower: author.view,
     posts: [text, ...relatedPosts],
     image: image.length ? image : undefined,
     embed: Object.keys(embed).length ? embed : undefined,

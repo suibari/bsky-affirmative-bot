@@ -1,71 +1,76 @@
-import { UserInfoGemini, GeminiScore } from "@bsky-affirmative-bot/shared-configs";
-import { generateSingleResponseWithScore } from "./util.js";
-import { getWhatDay } from "@bsky-affirmative-bot/shared-configs";
+import { UserInfoGemini, GeminiScore } from '@bsky-affirmative-bot/shared-configs';
+import { generateSingleResponseWithScore } from './util.js';
+import type { GeminiRequestOptions } from './util.js';
+import { getWhatDay } from '@bsky-affirmative-bot/shared-configs';
 
-export async function generateAffirmativeWord(userinfo: UserInfoGemini) {
-   const prompt = await buildAffirmativePrompt(userinfo);
-   const result = await generateSingleResponseWithScore(prompt, userinfo);
+export async function generateAffirmativeWord(userinfo: UserInfoGemini, requestOptions: GeminiRequestOptions = {}) {
+  const prompt = await buildAffirmativePrompt(userinfo);
+  const result = await generateSingleResponseWithScore(prompt, userinfo, requestOptions);
 
-   if (process.env.NODE_ENV === "development") {
-      console.log(`[DEBUG][${userinfo.follower.did}] Score: ${result.score}`);
-   }
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`[DEBUG][${userinfo.follower.did}] Score: ${result.score}`);
+  }
 
-   // Geminiリクエスト数加算
+  // Geminiリクエスト数加算
 
-
-   return result;
+  return result;
 }
 
 const sharedLinks = (userinfo: UserInfoGemini) => {
-   const links = [...(userinfo.embed?.links_embed ?? [])];
-   if (userinfo.embed?.uri_embed && !links.some((link) => link.uri === userinfo.embed?.uri_embed)) {
-      links.push({
-         uri: userinfo.embed.uri_embed,
-         title: userinfo.embed.title_embed,
-         description: userinfo.embed.description_embed,
-      });
-   }
-   return links;
+  const links = [...(userinfo.embed?.links_embed ?? [])];
+  if (userinfo.embed?.uri_embed && !links.some((link) => link.uri === userinfo.embed?.uri_embed)) {
+    links.push({
+      uri: userinfo.embed.uri_embed,
+      title: userinfo.embed.title_embed,
+      description: userinfo.embed.description_embed,
+    });
+  }
+  return links;
 };
 
 const formatSharedLinks = (userinfo: UserInfoGemini, empty: string) => {
-   const links = sharedLinks(userinfo);
-   if (!links.length) return empty;
-   return links.map((link, index) =>
-      `${index + 1}. ${link.title ? `${link.title} ` : ""}(${link.uri})${link.description ? ` ${link.description}` : ""}`
-   ).join("\n");
+  const links = sharedLinks(userinfo);
+  if (!links.length) return empty;
+  return links
+    .map(
+      (link, index) =>
+        `${index + 1}. ${link.title ? `${link.title} ` : ''}(${link.uri})${link.description ? ` ${link.description}` : ''}`,
+    )
+    .join('\n');
 };
 
 const urlContextEnabled = (userinfo: UserInfoGemini) =>
-   userinfo.urlContextEnabled ?? Boolean(userinfo.embed?.uri_embed && userinfo.isSubscriber);
+  userinfo.urlContextEnabled ?? Boolean(userinfo.embed?.uri_embed && userinfo.isSubscriber);
 
 export const buildAffirmativePrompt = async (userinfo: UserInfoGemini) => {
-   const postText = userinfo.posts?.[0] || "";
-   const postLength = postText.length;
-   const hasImages = Boolean(userinfo.image?.length);
+  const postText = userinfo.posts?.[0] || '';
+  const postLength = postText.length;
+  const hasImages = Boolean(userinfo.image?.length);
 
-   let styleJa = "";
-   let styleEn = "";
-   if (hasImages) {
-      styleJa = "画像の枚数に必要な文量を使い、すべての画像の良さを自然な文章で十分に伝えてください。";
-      styleEn = "Use enough detail for the number of images and naturally convey what is good about every image.";
-   } else if (postLength === 0) {
-      // 画像のみなど
-      styleJa = "300文字以内の一般的な長さで返答してください。";
-      styleEn = "Respond within 300 characters.";
-   } else if (postLength <= 30) {
-      // 短文（30文字以内）
-      styleJa = "ユーザーのポストが短いため、必ず1文〜2文程度の一言（50文字以内）で、簡潔かつテンポよく短く返答してください。長文は厳禁です。";
-      styleEn = "Since the user's post is short, keep your response brief and concise (within 50 characters, 1-2 sentences). Absolutely avoid a long reply.";
-   } else {
-      // 中文〜長文（31文字以上）
-      const maxLen = Math.min(postLength * 2, 600);
-      styleJa = `返答は「${maxLen}文字以内」を上限にしてください。同じ内容の繰り返しや、感嘆の言葉の羅列は避けること。`;
-      styleEn = `Keep your reply within ${maxLen} characters. Avoid repeating the same points or stringing together hollow exclamations.`;
-   }
+  let styleJa = '';
+  let styleEn = '';
+  if (hasImages) {
+    styleJa = '画像の枚数に必要な文量を使い、すべての画像の良さを自然な文章で十分に伝えてください。';
+    styleEn = 'Use enough detail for the number of images and naturally convey what is good about every image.';
+  } else if (postLength === 0) {
+    // 画像のみなど
+    styleJa = '300文字以内の一般的な長さで返答してください。';
+    styleEn = 'Respond within 300 characters.';
+  } else if (postLength <= 30) {
+    // 短文（30文字以内）
+    styleJa =
+      'ユーザーのポストが短いため、必ず1文〜2文程度の一言（50文字以内）で、簡潔かつテンポよく短く返答してください。長文は厳禁です。';
+    styleEn =
+      "Since the user's post is short, keep your response brief and concise (within 50 characters, 1-2 sentences). Absolutely avoid a long reply.";
+  } else {
+    // 中文〜長文（31文字以上）
+    const maxLen = Math.min(postLength * 2, 600);
+    styleJa = `返答は「${maxLen}文字以内」を上限にしてください。同じ内容の繰り返しや、感嘆の言葉の羅列は避けること。`;
+    styleEn = `Keep your reply within ${maxLen} characters. Avoid repeating the same points or stringing together hollow exclamations.`;
+  }
 
-   return userinfo.langStr === "日本語" ?
-      `ユーザからの投稿について、以下のJSON形式で出力してください。
+  return userinfo.langStr === '日本語'
+    ? `ユーザからの投稿について、以下のJSON形式で出力してください。
 \`\`\`json
 [
   {
@@ -79,9 +84,11 @@ export const buildAffirmativePrompt = async (userinfo: UserInfoGemini) => {
 ## commentの内容について
    - **文量スタイル**: ${styleJa}
    - **注意: JSONのパースエラーを防ぐため、commentの値（文字列）の中では二重引用符（"）を絶対に使用しないでください。代わりに、一重引用符（'）や「」などの記号を使用してください。**
-   - ${hasImages
-         ? "入力に付与されたすべての画像について、それぞれ最低1つは、色・構図・表情・動き・アイデアなど目で確認できる具体的な良さを褒めてください。複数画像を「どれも素敵」のような総括だけで済ませず、画像ラベルに示された出所と褒める対象を守ってください。画像番号を並べる機械的な箇条書きにはせず、botたんらしい自然な文章としてつなげてください。"
-         : "ユーザの今回のポストを具体的に褒めてください。"}  
+   - ${
+     hasImages
+       ? '入力に付与されたすべての画像について、それぞれ最低1つは、色・構図・表情・動き・アイデアなど目で確認できる具体的な良さを褒めてください。複数画像を「どれも素敵」のような総括だけで済ませず、画像ラベルに示された出所と褒める対象を守ってください。画像番号を並べる機械的な箇条書きにはせず、botたんらしい自然な文章としてつなげてください。'
+       : 'ユーザの今回のポストを具体的に褒めてください。'
+   }
    - ユーザが特定の作品や人物を好きと言っている場合は、その作品・人物の魅力を事実に基づいて述べ、共感を示してください。
    - ユーザのポストの言葉や文章をそのままなぞってオウム返し（例：「〜について考えているんだね！」など）にするのは避けてください。
    - ユーザのポストの文章をそのまま（または一部を）引用して「〜というのは〜」と述べるのは避けてください。あなた自身の言葉でユーザーの意図や感情を解釈して返答してください。
@@ -90,14 +97,20 @@ export const buildAffirmativePrompt = async (userinfo: UserInfoGemini) => {
    - どんなにネガティブな話題や、重い相談であっても、絶対にサンプルの文字をそのまま出力しないでください。必ずあなた自身の言葉でコメントを生成してください。
    - もし相手が自分を卑下していたり、難しい悩みを吐露している場合は、無理にテンション高く励ますのではなく、優しく寄り添って「よく考えていてえらいね」「そういう時もあるよね」といった方向で肯定してください。
    - **過去のポストの扱いについて**: 過去のポストは、ユーザーの普段の関心や人柄を理解するための「バックグラウンド（背景情報）」としてのみ使用してください。過去のポストに直接言及したり、過去の話題を引っ張り出して長々と語ったりすることは絶対に避けてください。今回のポストに対して、すっきりと、しかし熱量高く全肯定することに集中し、無駄に冗長な返答にならないようにしてください。
-   - ${userinfo.likedByFollower !== undefined ? "ユーザがあなたの投稿にイイネしてくれたので、その感謝も伝えてください。" : ""}  
-   - ${userinfo.followersFriend
-         ? `以下は別のbotたんフォロワーのポストです。ユーザを褒める際、このポストとの共通点を踏まえて褒めてください。ポスト内容はそのまま記載しないでください。` : ""}  
-     ${userinfo.followersFriend
+   - ${userinfo.likedByFollower !== undefined ? 'ユーザがあなたの投稿にイイネしてくれたので、その感謝も伝えてください。' : ''}
+   - ${
+     userinfo.followersFriend
+       ? `以下は別のbotたんフォロワーのポストです。ユーザを褒める際、このポストとの共通点を踏まえて褒めてください。ポスト内容はそのまま記載しないでください。`
+       : ''
+   }
+     ${
+       userinfo.followersFriend
          ? `* フォロワー名: ${userinfo.followersFriend[0].profile.displayName}  
-        * ポスト: ${userinfo.followersFriend[0].post}` : ""}
-    - ${userinfo.embed?.text_embed ? "ユーザが引用しているポストとの共通点を踏まえて今回のポストを褒めてください。ポスト内容はそのまま記載しないでください。引用元が「全肯定botたん」に関するポストの場合、言及してくれたことへの感謝も伝えてください。" : ""}
-    - ${urlContextEnabled(userinfo) && sharedLinks(userinfo).length ? "ユーザが共有しているすべてのリンク先について、URLコンテキスト機能を使用して実際のページ内容を確認してください。取得できないリンクは、下記のカードタイトルと説明を参考にしてください。リンクの具体的なテーマや内容に触れ、ユーザの感性や興味を具体的に褒めてください。" : ""}
+        * ポスト: ${userinfo.followersFriend[0].post}`
+         : ''
+     }
+    - ${userinfo.embed?.text_embed ? 'ユーザが引用しているポストとの共通点を踏まえて今回のポストを褒めてください。ポスト内容はそのまま記載しないでください。引用元が「全肯定botたん」に関するポストの場合、言及してくれたことへの感謝も伝えてください。' : ''}
+    - ${urlContextEnabled(userinfo) && sharedLinks(userinfo).length ? 'ユーザが共有しているすべてのリンク先について、URLコンテキスト機能を使用して実際のページ内容を確認してください。取得できないリンクは、下記のカードタイトルと説明を参考にしてください。リンクの具体的なテーマや内容に触れ、ユーザの感性や興味を具体的に褒めてください。' : ''}
 
    **注意: commentにはscoreに関する情報を絶対に含めないこと**
 
@@ -116,11 +129,11 @@ export const buildAffirmativePrompt = async (userinfo: UserInfoGemini) => {
 ## ユーザ投稿
 - ユーザ名: ${userinfo.follower.displayName}
 - 今回のポスト: ${postText}
-- ユーザが引用したポスト: ${userinfo.embed?.text_embed ? userinfo.embed.text_embed + " by " + userinfo.embed.profile_embed?.displayName : "なし"}
-- ユーザが共有したリンク:\n${formatSharedLinks(userinfo, "なし")}
-- 過去のポスト（直接言及しないこと）: ${userinfo.posts?.slice(1) ?? "なし"}
-` :
-      `Please generate the output in the following JSON format in ${userinfo.langStr}.
+- ユーザが引用したポスト: ${userinfo.embed?.text_embed ? userinfo.embed.text_embed + ' by ' + userinfo.embed.profile_embed?.displayName : 'なし'}
+- ユーザが共有したリンク:\n${formatSharedLinks(userinfo, 'なし')}
+- 過去のポスト（直接言及しないこと）: ${userinfo.posts?.slice(1) ?? 'なし'}
+`
+    : `Please generate the output in the following JSON format in ${userinfo.langStr}.
 \`\`\`json
 [
   {
@@ -135,9 +148,11 @@ export const buildAffirmativePrompt = async (userinfo: UserInfoGemini) => {
    - **STYLE CONSTRAINT**: ${styleEn}
    - **CRITICAL: To prevent JSON parsing errors, NEVER use double quotes (") inside the "comment" value. Use single quotes (') or other punctuation marks instead.**
    - **CRITICAL: You MUST write the "comment" value entirely in ${userinfo.langStr}. DO NOT use Japanese.**
-   - ${hasImages
-         ? "For every supplied image, mention at least one visually specific strength such as its color, composition, expression, motion, or idea. Never collapse multiple images into a vague summary such as 'they are all lovely.' Follow each image label's origin and attribution instructions. Connect the observations as natural, Bot-tan-like prose instead of a mechanical numbered list."
-         : "Give a specific compliment about the user's text post."}  
+   - ${
+     hasImages
+       ? "For every supplied image, mention at least one visually specific strength such as its color, composition, expression, motion, or idea. Never collapse multiple images into a vague summary such as 'they are all lovely.' Follow each image label's origin and attribution instructions. Connect the observations as natural, Bot-tan-like prose instead of a mechanical numbered list."
+       : "Give a specific compliment about the user's text post."
+   }
    - If the user says they like a work or person, mention facts about it and empathize.  
    - Do not repeat the user's words or sentences (e.g., "I see you're thinking about ~!").
    - Do not quote the user's sentences (in whole or in part) and then comment on them with phrases like "The fact that you said ~ means ~". Instead, interpret the user's intent or feelings in your own words.
@@ -146,14 +161,20 @@ export const buildAffirmativePrompt = async (userinfo: UserInfoGemini) => {
    - No matter how negative or heavy the topic is, NEVER output the sample text. You must always generate a comment in your own words.
    - If the user is self-deprecating or expressing difficult worries, do not force high-tension encouragement. Instead, gently empathize and affirm them with phrases like "You're thinking so deeply about this, that's amazing" or "Everyone has those days."
    - **Handling of Previous Posts**: Use the previous posts strictly as background context to understand the user's personality and general interests. Do NOT directly mention, bring up, or elaborate on the content of previous posts. Keep the response concise and focused entirely on validating and praising "This Post" without getting bogged down in past details.
-   - ${userinfo.likedByFollower !== undefined ? "The user liked your post. Express gratitude." : ""}  
-   - ${userinfo.followersFriend
-         ? `Below is a post from another Bottan follower. When praising a user, consider the similarities between this post and the user's. Do not copy the exact content of the post.` : ""}  
-     ${userinfo.followersFriend
+   - ${userinfo.likedByFollower !== undefined ? 'The user liked your post. Express gratitude.' : ''}
+   - ${
+     userinfo.followersFriend
+       ? `Below is a post from another Bottan follower. When praising a user, consider the similarities between this post and the user's. Do not copy the exact content of the post.`
+       : ''
+   }
+     ${
+       userinfo.followersFriend
          ? `* Follower Name: ${userinfo.followersFriend[0].profile.displayName}  
-        * Follower's Post: ${userinfo.followersFriend[0].post}` : ""}
-    - ${userinfo.embed?.text_embed ? "The user is quoting a post, so please use that post's content to praise this post." : ""}
-    - ${urlContextEnabled(userinfo) && sharedLinks(userinfo).length ? "Use URL Context to inspect every shared link. If a link cannot be retrieved, use its card title and description below as fallback context. Specifically praise the user's interest or perspective by referring to the links' themes or content." : ""}
+        * Follower's Post: ${userinfo.followersFriend[0].post}`
+         : ''
+     }
+    - ${userinfo.embed?.text_embed ? "The user is quoting a post, so please use that post's content to praise this post." : ''}
+    - ${urlContextEnabled(userinfo) && sharedLinks(userinfo).length ? "Use URL Context to inspect every shared link. If a link cannot be retrieved, use its card title and description below as fallback context. Specifically praise the user's interest or perspective by referring to the links' themes or content." : ''}
 
    **Important: Do not reveal score in the comment.**
 
@@ -172,8 +193,8 @@ export const buildAffirmativePrompt = async (userinfo: UserInfoGemini) => {
 ## User post
 - Username: ${userinfo.follower.displayName}  
 - This Post: ${postText}
-- Posts quoted by this user: ${userinfo.embed?.text_embed ? userinfo.embed.text_embed + " by " + userinfo.embed.profile_embed?.displayName : "None"}
-- Links shared by this user:\n${formatSharedLinks(userinfo, "None")}
-- Previous Posts (do not directly mention): ${userinfo.posts?.slice(1) ?? "None"}
+- Posts quoted by this user: ${userinfo.embed?.text_embed ? userinfo.embed.text_embed + ' by ' + userinfo.embed.profile_embed?.displayName : 'None'}
+- Links shared by this user:\n${formatSharedLinks(userinfo, 'None')}
+- Previous Posts (do not directly mention): ${userinfo.posts?.slice(1) ?? 'None'}
 `;
 };

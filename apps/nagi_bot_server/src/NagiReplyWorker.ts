@@ -9,6 +9,12 @@ import {
   awardSuperPositiveLevel,
 } from "@bsky-affirmative-bot/clients";
 import { createNagiReply } from "./createNagiReply.js";
+import {
+  decideNagiReplyMode,
+  NagiAiQuotaExceededError,
+  reserveNagiAiRequest,
+  switchNagiReplyToTemplate,
+} from "./nagiAiQuota.js";
 
 const MAX_ATTEMPTS = 5;
 const LEASE_DURATION_MS = 120_000;
@@ -65,7 +71,19 @@ export function startNagiReplyWorker() {
       .where(eq(nagiBotReplyJobs.sourceUri, job.sourceUri));
 
     try {
-      const result = await createNagiReply(job);
+      const decision = await decideNagiReplyMode(job.sourceUri, job.authorDid);
+      let result;
+      try {
+        result = await createNagiReply(job, {
+          mode: decision.mode,
+          beforeGeminiRequest:
+            decision.mode === "ai" ? reserveNagiAiRequest : undefined,
+        });
+      } catch (error) {
+        if (!(error instanceof NagiAiQuotaExceededError)) throw error;
+        await switchNagiReplyToTemplate(job.sourceUri, error.reason);
+        result = await createNagiReply(job, { mode: "template" });
+      }
 
       await db.transaction(async (tx) => {
         // 会話モードの返信はスコアを持たないので post_scores には積まない。

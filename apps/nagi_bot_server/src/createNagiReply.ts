@@ -2,8 +2,12 @@ import {
   conversation,
   generateAffirmativeWord,
   getYokohamaWeather,
+  predefinedAffirmation,
 } from "@bsky-affirmative-bot/bot-brain";
-import { botBiothythmManager, MemoryService } from "@bsky-affirmative-bot/clients";
+import {
+  botBiothythmManager,
+  MemoryService,
+} from "@bsky-affirmative-bot/clients";
 import {
   configureBotContext,
   getBotContext,
@@ -15,8 +19,12 @@ import {
   type ConversationTurn,
 } from "./nagiConversationHistory.js";
 import { isReplyToBot } from "./NagiReplyFeature.js";
-import { buildNagiReplyContext } from "./nagiReplyContext.js";
+import {
+  buildNagiReplyContext,
+  loadNagiReplyAuthor,
+} from "./nagiReplyContext.js";
 import { publishNagiPost } from "./nagiPost.js";
+import type { NagiReplyMode } from "./nagiAiQuota.js";
 
 configureBotContext({
   getWeather: getYokohamaWeather,
@@ -42,6 +50,7 @@ async function generateConversationReply(
   job: any,
   context: Awaited<ReturnType<typeof buildNagiReplyContext>>,
   langStr: string,
+  beforeRequest?: () => Promise<void>,
 ) {
   const did = job.authorDid;
   const userText = context.posts[0] ?? "";
@@ -52,17 +61,20 @@ async function generateConversationReply(
 
   await retry(
     async () => {
-      const result = await conversation({
-        follower: context.follower,
-        posts: [userText],
-        image: context.image,
-        embed: context.embed,
-        history,
-        isSubscriber: true,
-        urlContextEnabled: context.urlContextEnabled,
-        botContext: await getBotContext(),
-        langStr,
-      } as any);
+      const result = await conversation(
+        {
+          follower: context.follower,
+          posts: [userText],
+          image: context.image,
+          embed: context.embed,
+          history,
+          isSubscriber: true,
+          urlContextEnabled: context.urlContextEnabled,
+          botContext: await getBotContext(),
+          langStr,
+        } as any,
+        { beforeRequest },
+      );
 
       comment = result.text_bot ?? "";
       newHistory = result.new_history ?? [];
@@ -72,7 +84,9 @@ async function generateConversationReply(
     {
       retries: 2,
       onRetry: (error: any, attempt) => {
-        console.warn(`[WARN][NAGI][${did}] Conversation retry ${attempt}: ${error.message}`);
+        console.warn(
+          `[WARN][NAGI][${did}] Conversation retry ${attempt}: ${error.message}`,
+        );
       },
     },
   );
@@ -87,7 +101,9 @@ async function generateConversationReply(
   // 会話記録に inlineData（画像）が含まれると巨大すぎるので削除しておく。
   for (const content of newHistory) {
     if (!content.parts) continue;
-    content.parts = content.parts.filter((part: any) => !("inlineData" in part));
+    content.parts = content.parts.filter(
+      (part: any) => !("inlineData" in part),
+    );
   }
 
   // Nagi 限定ユーザには followers 行が無いことがある。ensureFollower は
@@ -101,29 +117,56 @@ async function generateConversationReply(
   return { comment, score: undefined };
 }
 
-export async function createNagiReply(job: any) {
+export async function createNagiReply(
+  job: any,
+  options: {
+    mode: NagiReplyMode;
+    beforeGeminiRequest?: () => Promise<void>;
+  },
+) {
   const record: any = job.recordJson;
   const language = replyLanguage(record.langs);
-  const context = await buildNagiReplyContext(job);
   const conversationMode = isReplyToBot(record, process.env.NAGI_BOT_DID!);
-  console.log("[INFO][NAGI] Gemini reply context:", {
-    ...context.diagnostics,
-    mode: conversationMode ? "conversation" : "affirmative",
-  });
-  const generated = conversationMode
-    ? await generateConversationReply(job, context, language.name)
-    : await generateAffirmativeWord({
-        follower: context.follower,
-        posts: context.posts,
-        image: context.image,
-        embed: context.embed,
-        likedByFollower: context.likedByFollower,
-        followersFriend: context.followersFriend,
-        isSubscriber: context.isSubscriber,
-        urlContextEnabled: context.urlContextEnabled,
-        botContext: await getBotContext(),
-        langStr: language.name,
-      } as any);
+  let generated: { comment: string; score?: number };
+
+  if (options.mode === "template") {
+    const author = await loadNagiReplyAuthor(job.authorDid);
+    generated = {
+      comment: await predefinedAffirmation({
+        text: typeof record.text === "string" ? record.text : "",
+        languageName: language.name,
+        displayName: author.view.displayName,
+      }),
+    };
+  } else {
+    const context = await buildNagiReplyContext(job);
+    console.log("[INFO][NAGI] Gemini reply context:", {
+      ...context.diagnostics,
+      mode: conversationMode ? "conversation" : "affirmative",
+    });
+    generated = conversationMode
+      ? await generateConversationReply(
+          job,
+          context,
+          language.name,
+          options.beforeGeminiRequest,
+        )
+      : await generateAffirmativeWord(
+          {
+            follower: context.follower,
+            posts: context.posts,
+            image: context.image,
+            embed: context.embed,
+            likedByFollower: context.likedByFollower,
+            followersFriend: context.followersFriend,
+            isSubscriber: context.isSubscriber,
+            urlContextEnabled: context.urlContextEnabled,
+            botContext: await getBotContext(),
+            langStr: language.name,
+          } as any,
+          { beforeRequest: options.beforeGeminiRequest },
+        );
+  }
 
   const sourceRkey = job.sourceUri.split("/").at(-1)!;
   const root = record.reply?.root ?? {
