@@ -153,6 +153,56 @@ export async function searchChannels(opts: {
   };
 }
 
+/**
+ * Composer の #チャンネル候補。キー入力ごとに呼ばれるため埋め込みは生成せず、
+ * name の完全一致・前方一致・部分一致の順で軽量に返す。同名 CH も URI ごとに残す。
+ */
+export async function searchChannelsTypeahead(opts: {
+  q: string;
+  limit: number;
+  viewerDid?: string;
+}) {
+  const q = opts.q.trim().toLowerCase();
+  const mutes = await loadMutes(opts.viewerDid);
+  const loweredName = sql<string>`lower(${nagiChannels.name})`;
+  const rows = await db
+    .select({
+      uri: nagiChannels.uri,
+      cid: nagiChannels.cid,
+      did: nagiChannels.did,
+      name: nagiChannels.name,
+      description: nagiChannels.description,
+      bannerCid: nagiChannels.bannerCid,
+      pinnedPostUri: nagiChannels.pinnedPostUri,
+      pinnedPostCid: nagiChannels.pinnedPostCid,
+      recordCreatedAt: nagiChannels.recordCreatedAt,
+      indexedAt: nagiChannels.indexedAt,
+      lastPostAt: lastPostSub.lastPostAt,
+    })
+    .from(nagiChannels)
+    .leftJoin(lastPostSub, eq(lastPostSub.channelUri, nagiChannels.uri))
+    .where(
+      and(
+        isNull(nagiChannels.deletedAt),
+        ...(mutes.channels.length
+          ? [notInArray(nagiChannels.uri, mutes.channels)]
+          : []),
+        sql`position(${q} in ${loweredName}) > 0`,
+      ),
+    )
+    .orderBy(
+      sql`case when ${loweredName} = ${q} then 0 when position(${q} in ${loweredName}) = 1 then 1 else 2 end`,
+      sql`position(${q} in ${loweredName})`,
+      sql`${sortAt} desc`,
+      sql`${nagiChannels.uri} desc`,
+    )
+    .limit(Math.min(10, opts.limit));
+  return {
+    channels: rows.map(channelView),
+    hasMore: false,
+  };
+}
+
 export async function getChannel(
   uri: string,
   viewerDid?: string,

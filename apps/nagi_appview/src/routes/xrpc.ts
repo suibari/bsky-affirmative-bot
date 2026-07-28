@@ -12,6 +12,7 @@ import {
   getChannelTimeline,
   getChannels,
   searchChannels,
+  searchChannelsTypeahead,
 } from "../queries/channels.js";
 import { getActorProfile, getReactedFeed } from "../queries/profile.js";
 import { searchActors } from "../queries/actors.js";
@@ -202,18 +203,25 @@ xrpc.get(
         .trim()
         .slice(0, 200);
       if (!q) throw new ApiError(400, "invalid_request", "q is required");
+      const typeahead = String(req.query.typeahead ?? "") === "true";
       res
         .set(
           "Cache-Control",
           req.viewerDid ? "private, no-store" : "public, max-age=15",
         )
         .json(
-          await searchChannels({
-            q,
-            limit: limit(req.query.limit),
-            cursor: String(req.query.cursor ?? "") || undefined,
-            viewerDid: req.viewerDid,
-          }),
+          await (typeahead
+            ? searchChannelsTypeahead({
+                q,
+                limit: Math.min(10, limit(req.query.limit)),
+                viewerDid: req.viewerDid,
+              })
+            : searchChannels({
+                q,
+                limit: limit(req.query.limit),
+                cursor: String(req.query.cursor ?? "") || undefined,
+                viewerDid: req.viewerDid,
+              })),
         );
     } catch (e) {
       next(e);
