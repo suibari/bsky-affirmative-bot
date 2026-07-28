@@ -22,10 +22,11 @@ import {
   nextNagiReplyAttemptAt,
 } from "./nagiReplyRetry.js";
 
-const LEASE_DURATION_MS = 120_000;
+const LEASE_DURATION_MS = 15 * 60_000;
 const WORKER_INTERVAL_MS = 2_000;
 
 let running = false;
+let processing = false;
 
 export function startNagiReplyWorker() {
   if (running) {
@@ -196,6 +197,12 @@ export function startNagiReplyWorker() {
   };
 
   setInterval(() => {
-    void run().catch(console.error);
+    if (processing) return;
+    processing = true;
+    void run()
+      .catch(console.error)
+      .finally(() => {
+        processing = false;
+      });
   }, WORKER_INTERVAL_MS);
 }

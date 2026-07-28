@@ -40,9 +40,11 @@ test("Gemini JSONメッセージと直接添付画像の失敗を一時障害に
 
   const image = new Error(
     "Failed to fetch directly attached image 1; retrying the reply without omitting it",
+    { cause: new Error("HTTP 400") },
   );
   assert.deepEqual(classifyNagiReplyError(image), {
     category: "transient",
+    status: 400,
   });
 });
 

@@ -101,6 +101,15 @@ export function classifyNagiReplyError(
     if (typeof candidate.code === "string") code ??= candidate.code;
   }
 
+  // 直接添付は内側のHTTP状態にかかわらずジョブ全体を一時障害として扱う。
+  // PDS/CDNの伝播待ちを24時間の永続キューで吸収し、画像を黙って省略しない。
+  if (directImageFetchFailure) {
+    return {
+      category: "transient",
+      ...(status !== undefined ? { status } : {}),
+      ...(code ? { code } : {}),
+    };
+  }
   if (status === 400 || status === 401 || status === 403) {
     return { category: "permanent", status, ...(code ? { code } : {}) };
   }
@@ -108,7 +117,6 @@ export function classifyNagiReplyError(
     status === 408 ||
     status === 429 ||
     (status !== undefined && status >= 500 && status <= 599) ||
-    directImageFetchFailure ||
     (code !== undefined && TRANSIENT_NETWORK_CODES.has(code))
   ) {
     return {
