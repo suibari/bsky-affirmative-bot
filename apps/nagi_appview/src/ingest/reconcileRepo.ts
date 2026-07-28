@@ -305,6 +305,16 @@ export async function reconcileRepo(
     ]);
     const remoteUris = new Set(remote.map((record) => record.uri));
 
+    // listRecords が全ページ成功した後にだけ、欠落候補を個別確認する。
+    // PDS にないローカル行を先に外すことで、意味重複の最新レコードが削除された場合も
+    // この sweep 内で PDS に残る次のレコードへ復帰できるようにする。
+    for (const uri of local.keys()) {
+      if (remoteUris.has(uri)) continue;
+      const result = await applyCurrentRecord(pds, did, collection, uri);
+      if (result === "deleted") stats.deleted++;
+      else stats.updated++;
+    }
+
     for (const record of remote) {
       const localRecord = local.get(record.uri);
       if (
@@ -319,14 +329,6 @@ export async function reconcileRepo(
       if (result === "deleted") stats.deleted++;
       else if (local.has(record.uri)) stats.updated++;
       else stats.created++;
-    }
-
-    // listRecords が全ページ成功した後にだけ、欠落候補を個別確認する。
-    for (const uri of local.keys()) {
-      if (remoteUris.has(uri)) continue;
-      const result = await applyCurrentRecord(pds, did, collection, uri);
-      if (result === "deleted") stats.deleted++;
-      else stats.updated++;
     }
   }
 

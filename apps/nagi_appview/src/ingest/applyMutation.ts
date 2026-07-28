@@ -15,7 +15,7 @@ import {
   nagiTranslations,
 } from "@bsky-affirmative-bot/database";
 import { BLUEMOJI_ITEM, NAGI } from "@bsky-affirmative-bot/nagi-lexicon";
-import { and, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { config } from "../config.js";
 import { indexEmoji, resolveEmoji, type EmojiRow } from "../services/emoji.js";
 import { dispatchPushAll, type PushJob } from "../services/pushDispatch.js";
@@ -24,6 +24,7 @@ import {
   startEnglishPrewarm,
 } from "../services/translation.js";
 import { reconciledIndexedAt } from "./reconcileOrder.js";
+import { shouldAcceptSemanticRecord } from "./semanticRecord.js";
 import { validateRecord } from "./validateRecord.js";
 
 /** プッシュ本文用に長い本文を詰める。 */
@@ -108,6 +109,7 @@ export async function applyMutation(
   const pushJobs: PushJob[] = [];
   const englishPrewarmUris: string[] = [];
   await db.transaction(async (tx) => {
+    let semanticRecordAccepted = true;
     const processed = id
       ? await tx
           .select({ id: nagiProcessedEvents.id })
@@ -387,58 +389,173 @@ export async function applyMutation(
       }
       if (collection === NAGI.reaction) {
         const emoji = bluemoji ? bluemoji.name : value.emoji.normalize("NFC");
-        await tx
-          .insert(nagiReactions)
-          .values({
-            uri,
-            cid: commit.cid,
-            did,
-            subjectUri: value.subject.uri,
-            emoji,
-            emojiUri: bluemoji?.uri ?? null,
-            emojiKey: bluemoji?.uri ?? emoji,
-            createdAt,
+        const emojiKey = bluemoji?.uri ?? emoji;
+        const existing = await tx
+          .select({
+            uri: nagiReactions.uri,
+            did: nagiReactions.did,
+            subjectUri: nagiReactions.subjectUri,
+            emojiKey: nagiReactions.emojiKey,
+            createdAt: nagiReactions.createdAt,
           })
-          .onConflictDoUpdate({
-            target: nagiReactions.uri,
-            set: {
+          .from(nagiReactions)
+          .where(
+            or(
+              eq(nagiReactions.uri, uri),
+              and(
+                eq(nagiReactions.did, did),
+                eq(nagiReactions.subjectUri, value.subject.uri),
+                eq(nagiReactions.emojiKey, emojiKey),
+              ),
+            ),
+          );
+        const sameUri = existing.find((row) => row.uri === uri);
+        const sameMeaning = existing.find(
+          (row) =>
+            row.did === did &&
+            row.subjectUri === value.subject.uri &&
+            row.emojiKey === emojiKey,
+        );
+        semanticRecordAccepted = shouldAcceptSemanticRecord(sameMeaning, {
+          uri,
+          createdAt,
+        });
+        if (!semanticRecordAccepted) {
+          // 同じ URI の内容が別の意味キーへ変更された場合、古い投影だけは残さない。
+          if (sameUri && sameUri.uri !== sameMeaning?.uri) {
+            await tx
+              .delete(nagiNotifications)
+              .where(eq(nagiNotifications.reasonUri, sameUri.uri));
+            await tx
+              .delete(nagiReactions)
+              .where(eq(nagiReactions.uri, sameUri.uri));
+          }
+        } else {
+          if (
+            sameUri &&
+            (sameUri.did !== did ||
+              sameUri.subjectUri !== value.subject.uri ||
+              sameUri.emojiKey !== emojiKey)
+          )
+            await tx
+              .delete(nagiNotifications)
+              .where(eq(nagiNotifications.reasonUri, sameUri.uri));
+          if (sameMeaning && sameMeaning.uri !== uri) {
+            await tx
+              .delete(nagiNotifications)
+              .where(eq(nagiNotifications.reasonUri, sameMeaning.uri));
+            await tx
+              .delete(nagiReactions)
+              .where(eq(nagiReactions.uri, sameMeaning.uri));
+          }
+          await tx
+            .insert(nagiReactions)
+            .values({
+              uri,
               cid: commit.cid,
+              did,
               subjectUri: value.subject.uri,
               emoji,
               emojiUri: bluemoji?.uri ?? null,
-              emojiKey: bluemoji?.uri ?? emoji,
+              emojiKey,
               createdAt,
-            },
-          });
+            })
+            .onConflictDoUpdate({
+              target: nagiReactions.uri,
+              set: {
+                cid: commit.cid,
+                subjectUri: value.subject.uri,
+                emoji,
+                emojiUri: bluemoji?.uri ?? null,
+                emojiKey,
+                createdAt,
+              },
+            });
+        }
       }
       if (collection === NAGI.diary) {
-        await tx
-          .insert(nagiDiaries)
-          .values({
-            uri,
-            cid: commit.cid,
-            did,
-            subjectDid: value.subject,
-            diaryDate: value.date,
-            text: value.text,
-            titleJa: value.titleJa ?? null,
-            titleEn: value.titleEn ?? null,
-            langs: value.langs ?? null,
-            recordCreatedAt: createdAt,
+        const existing = await tx
+          .select({
+            uri: nagiDiaries.uri,
+            subjectDid: nagiDiaries.subjectDid,
+            diaryDate: nagiDiaries.diaryDate,
+            createdAt: nagiDiaries.recordCreatedAt,
           })
-          .onConflictDoUpdate({
-            target: nagiDiaries.uri,
-            set: {
+          .from(nagiDiaries)
+          .where(
+            or(
+              eq(nagiDiaries.uri, uri),
+              and(
+                eq(nagiDiaries.subjectDid, value.subject),
+                eq(nagiDiaries.diaryDate, value.date),
+              ),
+            ),
+          );
+        const sameUri = existing.find((row) => row.uri === uri);
+        const sameMeaning = existing.find(
+          (row) =>
+            row.subjectDid === value.subject && row.diaryDate === value.date,
+        );
+        semanticRecordAccepted = shouldAcceptSemanticRecord(sameMeaning, {
+          uri,
+          createdAt,
+        });
+        if (!semanticRecordAccepted) {
+          if (sameUri && sameUri.uri !== sameMeaning?.uri) {
+            await tx
+              .delete(nagiNotifications)
+              .where(eq(nagiNotifications.reasonUri, sameUri.uri));
+            await tx
+              .delete(nagiDiaries)
+              .where(eq(nagiDiaries.uri, sameUri.uri));
+          }
+        } else {
+          if (
+            sameUri &&
+            (sameUri.subjectDid !== value.subject ||
+              sameUri.diaryDate !== value.date)
+          )
+            await tx
+              .delete(nagiNotifications)
+              .where(eq(nagiNotifications.reasonUri, sameUri.uri));
+          if (sameMeaning && sameMeaning.uri !== uri) {
+            await tx
+              .delete(nagiNotifications)
+              .where(eq(nagiNotifications.reasonUri, sameMeaning.uri));
+            await tx
+              .delete(nagiDiaries)
+              .where(eq(nagiDiaries.uri, sameMeaning.uri));
+          }
+          await tx
+            .insert(nagiDiaries)
+            .values({
+              uri,
               cid: commit.cid,
+              did,
+              subjectDid: value.subject,
+              diaryDate: value.date,
               text: value.text,
               titleJa: value.titleJa ?? null,
               titleEn: value.titleEn ?? null,
               langs: value.langs ?? null,
               recordCreatedAt: createdAt,
-            },
-          });
+            })
+            .onConflictDoUpdate({
+              target: nagiDiaries.uri,
+              set: {
+                cid: commit.cid,
+                subjectDid: value.subject,
+                diaryDate: value.date,
+                text: value.text,
+                titleJa: value.titleJa ?? null,
+                titleEn: value.titleEn ?? null,
+                langs: value.langs ?? null,
+                recordCreatedAt: createdAt,
+              },
+            });
+        }
         // 日記はポストではないのでタイムラインには出ない。本人への通知だけが入口。
-        if (value.subject !== did) {
+        if (semanticRecordAccepted && value.subject !== did) {
           const inserted = await tx
             .insert(nagiNotifications)
             .values({
@@ -598,7 +715,7 @@ export async function applyMutation(
           }
         }
       }
-      if (collection === NAGI.reaction) {
+      if (collection === NAGI.reaction && semanticRecordAccepted) {
         const subject = await tx
           .select()
           .from(nagiPosts)

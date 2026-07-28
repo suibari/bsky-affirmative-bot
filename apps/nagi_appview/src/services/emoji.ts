@@ -3,7 +3,7 @@ import {
   BLUEMOJI_ITEM,
   type EmojiView,
 } from "@bsky-affirmative-bot/nagi-lexicon";
-import { and, desc, eq, ilike, lt, or } from "drizzle-orm";
+import { and, desc, eq, ilike, lt, or, sql } from "drizzle-orm";
 import {
   bluemojiFormatCids,
   validateRecord,
@@ -58,10 +58,31 @@ export async function indexEmoji(
     adultOnly: record.adultOnly === true,
     createdAt: new Date(record.createdAt),
   };
+  const sameUri = await executor
+    .select({
+      uri: nagiEmojis.uri,
+      did: nagiEmojis.did,
+      name: nagiEmojis.name,
+    })
+    .from(nagiEmojis)
+    .where(eq(nagiEmojis.uri, uri))
+    .limit(1);
+  // 同じ URI のレコードが名前を変えた場合、旧意味キーの投影を先に外す。
+  if (
+    sameUri[0] &&
+    (sameUri[0].did !== did || sameUri[0].name !== values.name)
+  )
+    await executor.delete(nagiEmojis).where(eq(nagiEmojis.uri, uri));
   await executor
     .insert(nagiEmojis)
     .values(values)
-    .onConflictDoUpdate({ target: nagiEmojis.uri, set: values });
+    .onConflictDoUpdate({
+      target: [nagiEmojis.did, nagiEmojis.name],
+      set: values,
+      // 同じ URI の更新、または別 URI のうち createdAt が新しい方だけを採用する。
+      // 同時取り込みでも一意制約側で原子的に勝者を決める。
+      setWhere: sql`${nagiEmojis.uri} = excluded.uri or (${nagiEmojis.createdAt}, ${nagiEmojis.uri}) < (excluded.created_at, excluded.uri)`,
+    });
 }
 
 const NEGATIVE_TTL_MS = 5 * 60_000;
