@@ -34,6 +34,17 @@ const SERVICE_LOCK_KEY = "nagi-ai-service-quota-v1";
 
 const countOf = (value: unknown) => Number(value ?? 0);
 
+export function quotaCountSince(
+  column:
+    | typeof nagiBotReplyJobs.modeDecidedAt
+    | typeof nagiAiReplyRequests.requestedAt,
+  since: Date,
+) {
+  // sql`` に Date を直接埋めるとカラムの encoder が働かず、postgres-js が
+  // Date を文字列としてbindしようとして ERR_INVALID_ARG_TYPE になる。
+  return sql<number>`count(*) filter (where ${gte(column, since)})`;
+}
+
 export function userLimitReason(
   recentCount: number,
   dailyCount: number,
@@ -97,8 +108,8 @@ export async function decideNagiReplyMode(
     const dayAgo = new Date(now.getTime() - hours(24));
     const [counts] = await tx
       .select({
-        recent: sql<number>`count(*) filter (where ${nagiBotReplyJobs.modeDecidedAt} >= ${tenMinutesAgo})`,
-        daily: sql<number>`count(*) filter (where ${nagiBotReplyJobs.modeDecidedAt} >= ${dayAgo})`,
+        recent: quotaCountSince(nagiBotReplyJobs.modeDecidedAt, tenMinutesAgo),
+        daily: quotaCountSince(nagiBotReplyJobs.modeDecidedAt, dayAgo),
       })
       .from(nagiBotReplyJobs)
       .where(
@@ -172,8 +183,8 @@ export async function reserveNagiAiRequest(now = new Date()): Promise<void> {
     const dayAgo = new Date(now.getTime() - hours(24));
     const [counts] = await tx
       .select({
-        recent: sql<number>`count(*) filter (where ${nagiAiReplyRequests.requestedAt} >= ${tenMinutesAgo})`,
-        daily: sql<number>`count(*) filter (where ${nagiAiReplyRequests.requestedAt} >= ${dayAgo})`,
+        recent: quotaCountSince(nagiAiReplyRequests.requestedAt, tenMinutesAgo),
+        daily: quotaCountSince(nagiAiReplyRequests.requestedAt, dayAgo),
       })
       .from(nagiAiReplyRequests)
       .where(gte(nagiAiReplyRequests.requestedAt, dayAgo));

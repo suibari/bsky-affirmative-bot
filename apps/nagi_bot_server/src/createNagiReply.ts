@@ -13,7 +13,6 @@ import {
   getBotContext,
 } from "@bsky-affirmative-bot/bot-runtime";
 import { NAGI, NAGI_LANGUAGES } from "@bsky-affirmative-bot/nagi-lexicon";
-import retry from "async-retry";
 import {
   buildNagiConversationHistory,
   type ConversationTurn,
@@ -25,6 +24,11 @@ import {
 } from "./nagiReplyContext.js";
 import { publishNagiPost } from "./nagiPost.js";
 import type { NagiReplyMode } from "./nagiAiQuota.js";
+import type { NagiAiRoute } from "./nagiReplyRetry.js";
+import {
+  MODEL_GEMINI,
+  MODEL_GEMINI_HIGH,
+} from "@bsky-affirmative-bot/shared-configs";
 
 configureBotContext({
   getWeather: getYokohamaWeather,
@@ -56,40 +60,23 @@ async function generateConversationReply(
   const userText = context.posts[0] ?? "";
   const history = await buildNagiConversationHistory(job);
 
-  let comment = "";
-  let newHistory: ConversationTurn[] = [];
-
-  await retry(
-    async () => {
-      const result = await conversation(
-        {
-          follower: context.follower,
-          posts: [userText],
-          image: context.image,
-          embed: context.embed,
-          history,
-          isSubscriber: true,
-          urlContextEnabled: context.urlContextEnabled,
-          botContext: await getBotContext(),
-          langStr,
-        } as any,
-        { beforeRequest },
-      );
-
-      comment = result.text_bot ?? "";
-      newHistory = result.new_history ?? [];
-
-      if (!comment) throw new Error("Response text is empty, retrying.");
-    },
+  const result = await conversation(
     {
-      retries: 2,
-      onRetry: (error: any, attempt) => {
-        console.warn(
-          `[WARN][NAGI][${did}] Conversation retry ${attempt}: ${error.message}`,
-        );
-      },
-    },
+      follower: context.follower,
+      posts: [userText],
+      image: context.image,
+      embed: context.embed,
+      history,
+      isSubscriber: true,
+      urlContextEnabled: context.urlContextEnabled,
+      botContext: await getBotContext(),
+      langStr,
+    } as any,
+    { beforeRequest },
   );
+  const comment = result.text_bot ?? "";
+  const newHistory: ConversationTurn[] = result.new_history ?? [];
+  if (!comment) throw new Error("Response text is empty");
 
   // 最後の user ターンをプロンプト全文から純粋な入力テキストのみに置換する。
   for (let i = newHistory.length - 1; i >= 0; i--) {
@@ -122,6 +109,7 @@ export async function createNagiReply(
   options: {
     mode: NagiReplyMode;
     beforeGeminiRequest?: () => Promise<void>;
+    aiRoute?: NagiAiRoute;
   },
 ) {
   const record: any = job.recordJson;
@@ -140,6 +128,7 @@ export async function createNagiReply(
     };
   } else {
     const context = await buildNagiReplyContext(job);
+    const aiRoute = options.aiRoute ?? "lite-flex";
     console.log("[INFO][NAGI] Gemini reply context:", {
       ...context.diagnostics,
       mode: conversationMode ? "conversation" : "affirmative",
@@ -164,7 +153,12 @@ export async function createNagiReply(
             botContext: await getBotContext(),
             langStr: language.name,
           } as any,
-          { beforeRequest: options.beforeGeminiRequest },
+          {
+            beforeRequest: options.beforeGeminiRequest,
+            model:
+              aiRoute === "flash-standard" ? MODEL_GEMINI_HIGH : MODEL_GEMINI,
+            serviceTier: aiRoute === "lite-flex" ? "flex" : "standard",
+          },
         );
   }
 

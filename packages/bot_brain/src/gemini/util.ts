@@ -8,6 +8,10 @@ import { buildAffirmativeImageParts } from './affirmativeImages.js';
 export type GeminiRequestOptions = {
   /** 実際の Gemini HTTP リクエストを送る直前に呼ぶ。 */
   beforeRequest?: () => Promise<void>;
+  /** 呼び出し元が明示した場合だけ既定モデルを上書きする。 */
+  model?: string;
+  /** Nagi の耐障害フォールバック用。未指定時は従来の購読状態に従う。 */
+  serviceTier?: 'flex' | 'standard';
 };
 
 function energyLabel(energy: number, ja: boolean): string {
@@ -201,11 +205,18 @@ export async function generateSingleResponseWithScore(
   const request = (requestTools: any[]) =>
     generateContentWithRetry(
       {
-        model: MODEL_GEMINI,
+        model: requestOptions.model ?? MODEL_GEMINI,
         contents,
         config: {
           systemInstruction: SYSTEM_INSTRUCTION,
-          serviceTier: userinfo?.isSubscriber ? ServiceTier.STANDARD : ServiceTier.FLEX,
+          serviceTier:
+            requestOptions.serviceTier === 'standard'
+              ? ServiceTier.STANDARD
+              : requestOptions.serviceTier === 'flex'
+                ? ServiceTier.FLEX
+                : userinfo?.isSubscriber
+                  ? ServiceTier.STANDARD
+                  : ServiceTier.FLEX,
           // responseMimeType: "application/json", // Removed
           // responseSchema, // Removed
           tools: requestTools,

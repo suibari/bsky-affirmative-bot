@@ -15,11 +15,15 @@ import {
   reserveNagiAiRequest,
   switchNagiReplyToTemplate,
 } from "./nagiAiQuota.js";
+import {
+  classifyNagiReplyError,
+  formatNagiReplyError,
+  nagiAiRouteForAttempt,
+  nextNagiReplyAttemptAt,
+} from "./nagiReplyRetry.js";
 
-const MAX_ATTEMPTS = 5;
 const LEASE_DURATION_MS = 120_000;
 const WORKER_INTERVAL_MS = 2_000;
-const MAX_BACKOFF_MS = 300_000;
 
 let running = false;
 
@@ -60,28 +64,37 @@ export function startNagiReplyWorker() {
       return;
     }
 
+    const attempt = job.attempts + 1;
+    // このワーカーへ入る返信付き投稿は bot 宛会話だけなので、会話は初回から
+    // createNagiReply の実態どおり flash/Standard として扱う。
+    const conversationMode = Boolean((job.recordJson as any)?.reply);
+    const aiRoute = nagiAiRouteForAttempt(conversationMode ? 5 : attempt);
     await db
       .update(nagiBotReplyJobs)
       .set({
         state: "processing",
         leaseExpiresAt: new Date(Date.now() + LEASE_DURATION_MS),
-        attempts: job.attempts + 1,
+        attempts: attempt,
         updatedAt: now,
       })
       .where(eq(nagiBotReplyJobs.sourceUri, job.sourceUri));
 
+    let generationMode: "ai" | "template" | undefined;
     try {
       const decision = await decideNagiReplyMode(job.sourceUri, job.authorDid);
+      generationMode = decision.mode;
       let result;
       try {
         result = await createNagiReply(job, {
           mode: decision.mode,
           beforeGeminiRequest:
             decision.mode === "ai" ? reserveNagiAiRequest : undefined,
+          aiRoute: aiRoute.route,
         });
       } catch (error) {
         if (!(error instanceof NagiAiQuotaExceededError)) throw error;
         await switchNagiReplyToTemplate(job.sourceUri, error.reason);
+        generationMode = "template";
         result = await createNagiReply(job, { mode: "template" });
       }
 
@@ -134,17 +147,49 @@ export function startNagiReplyWorker() {
         }
       }
     } catch (error) {
-      const attempts = job.attempts + 1;
-      const backoffMs = Math.min(MAX_BACKOFF_MS, 2 ** attempts * 5_000);
+      const failedAt = new Date();
+      const classification = classifyNagiReplyError(error);
+      const nextAttemptAt = nextNagiReplyAttemptAt({
+        attempt,
+        category: classification.category,
+        createdAt: job.createdAt,
+        now: failedAt,
+      });
+      const lastError = formatNagiReplyError(error);
+
+      console.warn(
+        JSON.stringify({
+          level: "warn",
+          event: "nagi_reply_failed",
+          sourceUri: job.sourceUri,
+          attempt,
+          generationMode: generationMode ?? "undecided",
+          ...(generationMode === "ai"
+            ? {
+                model: aiRoute.model,
+                serviceTier: aiRoute.serviceTier,
+              }
+            : {}),
+          category: classification.category,
+          ...(classification.status !== undefined
+            ? { status: classification.status }
+            : {}),
+          ...(classification.code ? { code: classification.code } : {}),
+          ...(nextAttemptAt
+            ? { state: "pending", nextAttemptAt: nextAttemptAt.toISOString() }
+            : { state: "failed" }),
+          error: lastError,
+        }),
+      );
 
       await db
         .update(nagiBotReplyJobs)
         .set({
-          state: attempts >= MAX_ATTEMPTS ? "failed" : "pending",
-          lastError: error instanceof Error ? error.message : String(error),
+          state: nextAttemptAt ? "pending" : "failed",
+          lastError,
           leaseExpiresAt: null,
-          nextAttemptAt: new Date(Date.now() + backoffMs),
-          updatedAt: new Date(),
+          nextAttemptAt: nextAttemptAt ?? failedAt,
+          updatedAt: failedAt,
         })
         .where(eq(nagiBotReplyJobs.sourceUri, job.sourceUri));
     }

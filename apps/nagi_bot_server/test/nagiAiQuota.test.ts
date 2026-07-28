@@ -1,6 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { serviceLimitReason, userLimitReason } from "../src/nagiAiQuota.js";
+import {
+  db,
+  nagiAiReplyRequests,
+  nagiBotReplyJobs,
+} from "@bsky-affirmative-bot/database";
+import {
+  quotaCountSince,
+  serviceLimitReason,
+  userLimitReason,
+} from "../src/nagiAiQuota.js";
 
 const limits = {
   user10m: 10,
@@ -44,4 +53,25 @@ test("DIDや返信種別に依存しない共通の件数判定である", () =>
     ),
     "user_10m",
   );
+});
+
+test("クォータ集計の日時はカラムencoderを通してISO文字列になる", () => {
+  const since = new Date("2026-07-29T00:00:00.000Z");
+  const userQuery = db
+    .select({
+      count: quotaCountSince(nagiBotReplyJobs.modeDecidedAt, since),
+    })
+    .from(nagiBotReplyJobs)
+    .toSQL();
+  const serviceQuery = db
+    .select({
+      count: quotaCountSince(nagiAiReplyRequests.requestedAt, since),
+    })
+    .from(nagiAiReplyRequests)
+    .toSQL();
+
+  assert.equal(userQuery.params[0], since.toISOString());
+  assert.equal(serviceQuery.params[0], since.toISOString());
+  assert.equal(userQuery.params[0] instanceof Date, false);
+  assert.equal(serviceQuery.params[0] instanceof Date, false);
 });
