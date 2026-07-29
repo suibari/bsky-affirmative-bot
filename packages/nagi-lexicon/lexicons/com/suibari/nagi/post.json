@@ -20,6 +20,7 @@
             "items": { "type": "string", "format": "language" }
           },
           "createdAt": { "type": "string", "format": "datetime" },
+          "cwRestricted": { "type": "boolean" },
           "kossori": { "type": "boolean" },
           "channel": { "type": "ref", "ref": "com.atproto.repo.strongRef" },
           "channelOnly": { "type": "boolean" },
@@ -77,6 +78,7 @@
           "maxSize": 2000000
         },
         "alt": { "type": "string", "maxGraphemes": 1000, "maxLength": 10000 },
+        "contentWarning": { "type": "boolean" },
         "aspectRatio": { "type": "ref", "ref": "app.bsky.embed.defs#aspectRatio" }
       }
     },

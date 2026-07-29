@@ -8,6 +8,7 @@ import { BOT_VOICE_BRIEF_EN } from "@bsky-affirmative-bot/shared-configs";
 import { and, eq, inArray, isNull, ne, sql } from "drizzle-orm";
 import { config } from "../config.js";
 import { ApiError } from "../middleware/errors.js";
+import { hasContentWarning } from "../util/contentWarning.js";
 
 export const TRANSLATION_CACHE_VERSION = 4;
 export const MAX_TRANSLATION_BATCH_SIZE = 50;
@@ -18,6 +19,7 @@ export type TranslationFailureCode =
   | "not_found"
   | "not_cached"
   | "empty_post"
+  | "content_warning"
   | "rate_limited"
   | "upstream_unavailable"
   | "invalid_output";
@@ -487,7 +489,12 @@ export async function prewarmEnglishTranslation(uri: string): Promise<void> {
     .where(and(eq(nagiPosts.uri, uri), isNull(nagiPosts.deletedAt)))
     .limit(1);
   const post = posts[0];
-  if (!post?.text.trim() || !shouldPrewarmEnglish(post.langs)) return;
+  if (
+    !post?.text.trim() ||
+    hasContentWarning(post.text) ||
+    !shouldPrewarmEnglish(post.langs)
+  )
+    return;
   await generateAndCache(post, englishLanguage);
 }
 
@@ -522,31 +529,54 @@ export async function translatePosts(
 ): Promise<TranslationBatchResult> {
   const normalizedUris = postUris(uris);
   const target = targetLanguage(targetLang);
-  const cached = await db
+  const posts = await db
     .select()
-    .from(nagiTranslations)
-    .where(
-      and(
-        inArray(nagiTranslations.postUri, normalizedUris),
-        eq(nagiTranslations.targetLang, target.code),
-        eq(nagiTranslations.cacheVersion, TRANSLATION_CACHE_VERSION),
-      ),
-    );
-  const translations = new Map(cached.map((row) => [row.postUri, row.text]));
-  const missingUris = normalizedUris.filter((uri) => !translations.has(uri));
-  if (cacheOnly) return cachedTranslationResult(normalizedUris, translations);
-  const posts = missingUris.length
-    ? await db
-        .select()
-        .from(nagiPosts)
-        .where(inArray(nagiPosts.uri, missingUris))
-    : [];
+    .from(nagiPosts)
+    .where(inArray(nagiPosts.uri, normalizedUris));
   const postsByUri = new Map(posts.map((post) => [post.uri, post]));
   const failures = new Map<string, TranslationFailureCode>();
-  for (const uri of missingUris) {
+  const eligibleUris = normalizedUris.filter((uri) => {
     const post = postsByUri.get(uri);
-    if (!post) failures.set(uri, "not_found");
-    else if (!post.text.trim()) failures.set(uri, "empty_post");
+    if (!post) {
+      failures.set(uri, "not_found");
+      return false;
+    }
+    if (!post.text.trim()) {
+      failures.set(uri, "empty_post");
+      return false;
+    }
+    if (hasContentWarning(post.text)) {
+      failures.set(uri, "content_warning");
+      return false;
+    }
+    return true;
+  });
+  const cached = eligibleUris.length
+    ? await db
+        .select()
+        .from(nagiTranslations)
+        .where(
+          and(
+            inArray(nagiTranslations.postUri, eligibleUris),
+            eq(nagiTranslations.targetLang, target.code),
+            eq(nagiTranslations.cacheVersion, TRANSLATION_CACHE_VERSION),
+          ),
+        )
+    : [];
+  const translations = new Map(cached.map((row) => [row.postUri, row.text]));
+  const missingUris = eligibleUris.filter((uri) => !translations.has(uri));
+  if (cacheOnly) {
+    for (const uri of missingUris) failures.set(uri, "not_cached");
+    return {
+      translations: normalizedUris.flatMap((uri) => {
+        const text = translations.get(uri);
+        return text ? [{ uri, text }] : [];
+      }),
+      failures: normalizedUris.flatMap((uri) => {
+        const code = failures.get(uri);
+        return code ? [{ uri, code }] : [];
+      }),
+    };
   }
   const generatable = missingUris.flatMap((uri) => {
     const post = postsByUri.get(uri);
@@ -610,6 +640,13 @@ export async function translatePost(
   }
   if (failure?.code === "empty_post") {
     throw new ApiError(400, "invalid_request", "Post has no text");
+  }
+  if (failure?.code === "content_warning") {
+    throw new ApiError(
+      400,
+      failure.code,
+      "Posts with content warnings cannot be translated",
+    );
   }
   throw new ApiError(
     503,

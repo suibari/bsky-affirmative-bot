@@ -37,6 +37,7 @@ import {
 } from "./mutes.js";
 import { getNewsQuoteViews } from "./positiveNews.js";
 import { getReactionViews } from "./reactions.js";
+import { parseContentWarning } from "../util/contentWarning.js";
 export const encodeCursor = (date: Date, uri: string) =>
   Buffer.from(JSON.stringify([date.toISOString(), uri])).toString("base64url");
 export const decodeCursor = (cursor?: string): [Date, string] | undefined => {
@@ -141,6 +142,10 @@ export async function hydratePostViews(
   const views = rows.map(({ post, actor, profile, score }) => {
     const deleted = Boolean(post.deletedAt);
     const recordReply = (post.recordJson as any)?.reply;
+    const record = post.recordJson as any;
+    const contentWarning = !deleted
+      ? parseContentWarning(post.text)
+      : { status: "none" as const };
     const threadRoot = post.replyRootUri
       ? threadRoots.get(post.replyRootUri)
       : undefined;
@@ -162,6 +167,9 @@ export async function hydratePostViews(
               {
                 url: `/api/blob/${encodeURIComponent(post.did)}/${encodeURIComponent(cid)}`,
                 alt: item.alt,
+                ...(item.contentWarning === true
+                  ? { contentWarning: true }
+                  : {}),
                 ...(item.aspectRatio ? { aspectRatio: item.aspectRatio } : {}),
               },
             ];
@@ -209,6 +217,9 @@ export async function hydratePostViews(
       },
       text: deleted ? "" : post.text,
       facets: (post.facets as PostView["facets"]) ?? undefined,
+      ...(contentWarning.status === "valid"
+        ? { contentWarning: contentWarning.range }
+        : {}),
       langs: (post.langs as string[] | null) ?? undefined,
       createdAt: post.recordCreatedAt.toISOString(),
       indexedAt: post.indexedAt.toISOString(),
@@ -234,6 +245,7 @@ export async function hydratePostViews(
       reactions: reactions.get(post.uri) ?? [],
       isBot: post.did === config.botDid,
       isAffirmation: (score ?? -1) >= config.affirmationThreshold,
+      ...(record?.cwRestricted === true ? { cwRestricted: true } : {}),
       kossori: post.kossori || undefined,
       threadKossori: threadKossori || undefined,
       channel: post.channelUri

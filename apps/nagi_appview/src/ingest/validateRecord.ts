@@ -31,6 +31,8 @@ const image = (value: any) =>
   typeof value.alt === "string" &&
   graphemes(value.alt) <= 1000 &&
   Buffer.byteLength(value.alt) <= 10_000 &&
+  (value.contentWarning === undefined ||
+    typeof value.contentWarning === "boolean") &&
   (!value.aspectRatio ||
     (Number.isInteger(value.aspectRatio.width) &&
       value.aspectRatio.width > 0 &&
@@ -172,6 +174,11 @@ export function validateRecord(
     if (value.facets !== undefined && !facets(value.facets, value.text))
       return false;
     if (value.kossori !== undefined && typeof value.kossori !== "boolean")
+      return false;
+    if (
+      value.cwRestricted !== undefined &&
+      typeof value.cwRestricted !== "boolean"
+    )
       return false;
     if (value.channel !== undefined && !ref(value.channel)) return false;
     if (value.channelOnly !== undefined && typeof value.channelOnly !== "boolean")

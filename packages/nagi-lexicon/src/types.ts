@@ -27,6 +27,7 @@ export type Facet = {
 export type NagiImage = {
   image: BlobRef;
   alt: string;
+  contentWarning?: boolean;
   aspectRatio?: AspectRatio;
 };
 export type NagiLinkCard = {
@@ -41,6 +42,11 @@ export type NagiPost = {
   facets?: Facet[];
   langs?: string[];
   createdAt: string;
+  /**
+   * 作成時に本文または画像へ CW があった投稿。true になった投稿は編集で戻さず、
+   * CW をすべて外した後も外部コピーを作らない。
+   */
+  cwRestricted?: boolean;
   /**
    * こっそりモード。スレッドの公開範囲はルート投稿だけが所有するため、
    * 新しい返信レコードには設定しない。
@@ -230,11 +236,18 @@ export type PostView = {
   author: ActorView;
   text: string;
   facets?: Facet[];
+  /** text 内の ||...|| から導出した、区切りを除く UTF-8 バイト範囲。 */
+  contentWarning?: { byteStart: number; byteEnd: number };
   langs?: string[];
   createdAt: string;
   indexedAt: string;
   reply?: { root: StrongRef; parent: StrongRef };
-  images?: Array<{ url: string; alt: string; aspectRatio?: AspectRatio }>;
+  images?: Array<{
+    url: string;
+    alt: string;
+    contentWarning?: boolean;
+    aspectRatio?: AspectRatio;
+  }>;
   linkCards?: Array<{
     uri: string;
     title: string;
@@ -245,6 +258,8 @@ export type PostView = {
   reactions: ReactionView[];
   isBot: boolean;
   isAffirmation: boolean;
+  /** 作成時から CW 運用であり、外部コピーを永久に作らない投稿。 */
+  cwRestricted?: boolean;
   /** このレコード自身のこっそり値。新規データではスレッドルートだけが持つ。 */
   kossori?: boolean;
   /** ルート投稿から解決した、スレッド全体の有効なこっそり状態。 */

@@ -26,6 +26,10 @@ import {
 import { reconciledIndexedAt } from "./reconcileOrder.js";
 import { shouldAcceptSemanticRecord } from "./semanticRecord.js";
 import { validateRecord } from "./validateRecord.js";
+import {
+  hasContentWarning,
+  parseContentWarning,
+} from "../util/contentWarning.js";
 
 /** プッシュ本文用に長い本文を詰める。 */
 const preview = (text: unknown, max = 80): string => {
@@ -89,6 +93,18 @@ export async function applyMutation(
   if (collection === NAGI.diary && did !== config.botDid)
     return { cursorAdvanced: false };
   const uri = `at://${did}/${collection}/${commit.rkey}`;
+  if (
+    collection === NAGI.post &&
+    commit.operation !== "delete" &&
+    typeof commit.record?.text === "string"
+  ) {
+    const warning = parseContentWarning(commit.record.text);
+    if (warning.status === "invalid") {
+      console.warn(
+        `[content-warning] ignored invalid syntax uri=${uri} reason=${warning.reason}`,
+      );
+    }
+  }
   const id = trackJetstream
     ? `${did}:${evt.time_us}:${commit.rev ?? ""}:${collection}:${commit.rkey}`
     : undefined;
@@ -281,7 +297,8 @@ export async function applyMutation(
             Boolean(existingPost[0]),
             reconcile,
             value.langs,
-          )
+          ) &&
+          !hasContentWarning(value.text)
         ) {
           englishPrewarmUris.push(uri);
         }
@@ -664,7 +681,9 @@ export async function applyMutation(
               type: "reply",
               actorDid: did,
               notificationId: inserted[0].id,
-              bodyText: preview(value.text),
+              bodyText: hasContentWarning(value.text)
+                ? ""
+                : preview(value.text),
             });
         }
       }
@@ -710,7 +729,9 @@ export async function applyMutation(
                 type: "mention",
                 actorDid: did,
                 notificationId: inserted[0].id,
-                bodyText: preview(value.text),
+                bodyText: hasContentWarning(value.text)
+                  ? ""
+                  : preview(value.text),
               });
           }
         }
