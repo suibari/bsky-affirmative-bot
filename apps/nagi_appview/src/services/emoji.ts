@@ -155,10 +155,11 @@ export async function getEmoji(uri: string) {
 export async function searchEmojis(params: {
   q?: string;
   repo?: string;
+  excludeRepo?: string;
   limit: number;
   cursor?: string;
 }) {
-  const { q, repo, limit, cursor } = params;
+  const { q, repo, excludeRepo, limit, cursor } = params;
   const conditions = [
     // adultOnly の絵文字はピッカーに出さない（表示前の警告UIが無いため）。
     eq(nagiEmojis.adultOnly, false),
@@ -180,6 +181,8 @@ export async function searchEmojis(params: {
       ilike(nagiEmojis.name, `%${q.replace(/[%_\\]/g, "\\$&")}%`),
     );
   if (repo) conditions.push(eq(nagiEmojis.did, repo));
+  if (excludeRepo)
+    conditions.push(sql<boolean>`${nagiEmojis.did} <> ${excludeRepo}`);
   if (cursor) {
     const [indexedAt, uri] = cursor.split("::");
     const at = new Date(indexedAt);

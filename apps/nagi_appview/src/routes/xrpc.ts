@@ -135,7 +135,8 @@ xrpc.get(
   async (req, res, next) => {
     try {
       const actor = String(req.query.actor ?? "");
-      if (!actor) throw new ApiError(400, "invalid_request", "actor is required");
+      if (!actor)
+        throw new ApiError(400, "invalid_request", "actor is required");
       const filter = String(req.query.filter ?? "posts");
       if (!["posts", "replies", "media", "reactions"].includes(filter))
         throw new ApiError(400, "invalid_request", "Invalid filter");
@@ -324,6 +325,7 @@ xrpc.get(
         await searchEmojis({
           q: String(req.query.q ?? "") || undefined,
           repo: String(req.query.repo ?? "") || undefined,
+          excludeRepo: String(req.query.excludeRepo ?? "") || undefined,
           limit: limit(req.query.limit),
           cursor: String(req.query.cursor ?? "") || undefined,
         }),

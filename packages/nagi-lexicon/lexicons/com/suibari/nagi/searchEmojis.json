@@ -8,8 +8,20 @@
         "type": "params",
         "properties": {
           "q": { "type": "string", "maxLength": 64 },
-          "repo": { "type": "string", "description": "Restrict results to a single repo (DID)." },
-          "limit": { "type": "integer", "minimum": 1, "maximum": 100, "default": 50 },
+          "repo": {
+            "type": "string",
+            "description": "Restrict results to a single repo (DID)."
+          },
+          "excludeRepo": {
+            "type": "string",
+            "description": "Exclude results from a single repo (DID)."
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "default": 50
+          },
           "cursor": { "type": "string" }
         }
       },
