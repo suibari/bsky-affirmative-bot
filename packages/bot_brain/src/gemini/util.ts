@@ -22,12 +22,22 @@ function energyLabel(energy: number, ja: boolean): string {
   return ja ? 'ぐったり…' : 'Exhausted...';
 }
 
-export function formatBotContext(botContext?: BotContext, langStr?: LanguageName): string {
+export function formatBotContext(
+  botContext?: BotContext,
+  langStr?: LanguageName,
+  options: { conversationHistoryAware?: boolean } = {},
+): string {
   if (!botContext) return '';
-  if (langStr === '日本語') {
-    return `\n---\n## botたんの現在状況（参考にして返答をパーソナライズしてください）\n- 日時：${botContext.datetime}\n- 天気：${botContext.weather}\n- いまやってること：${botContext.botActivity}\n- 元気度：${energyLabel(botContext.botEnergy, true)}\n`;
+  if (!options.conversationHistoryAware) {
+    if (langStr === '日本語') {
+      return `\n---\n## botたんの現在状況（参考にして返答をパーソナライズしてください）\n- 日時：${botContext.datetime}\n- 天気：${botContext.weather}\n- いまやってること：${botContext.botActivity}\n- 元気度：${energyLabel(botContext.botEnergy, true)}\n`;
+    }
+    return `\n---\n## Bot's current situation (use this to personalize your response)\n- Date/Time: ${botContext.datetime}\n- Weather: ${botContext.weather}\n- Currently: ${botContext.botActivityEn}\n- Energy: ${energyLabel(botContext.botEnergy, false)}\n`;
   }
-  return `\n---\n## Bot's current situation (use this to personalize your response)\n- Date/Time: ${botContext.datetime}\n- Weather: ${botContext.weather}\n- Currently: ${botContext.botActivityEn}\n- Energy: ${energyLabel(botContext.botEnergy, false)}\n`;
+  if (langStr === '日本語') {
+    return `\n---\n## botたんの現在状況（必要な場合だけ参照する背景情報）\nこの情報を返答へ必ず盛り込む必要はありません。最新のユーザメッセージと会話の流れを優先してください。\n直近の会話ですでに触れた状況は繰り返さず、状況の時系列を推測で進めないでください。\n- 日時：${botContext.datetime}\n- 天気：${botContext.weather}\n- いまやってること：${botContext.botActivity}\n- 元気度：${energyLabel(botContext.botEnergy, true)}\n`;
+  }
+  return `\n---\n## Bot's current situation (background; use only when needed)\nYou do not need to mention this information in every response. Prioritize the user's latest message and the conversation flow.\nDo not repeat a situation already mentioned recently or invent how this snapshot progressed over time.\n- Date/Time: ${botContext.datetime}\n- Weather: ${botContext.weather}\n- Currently: ${botContext.botActivityEn}\n- Energy: ${energyLabel(botContext.botEnergy, false)}\n`;
 }
 
 /**
