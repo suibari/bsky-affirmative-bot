@@ -22,6 +22,7 @@ import {
   nagiPostScores,
   nagiProcessedEvents,
   nagiProfiles,
+  nagiPrivateListMembers,
   nagiPushSubscriptions,
   nagiReactions,
   nagiTranslations,
@@ -90,6 +91,15 @@ export async function deleteAccountData(did: string) {
           eq(nagiMutes.muterDid, did),
           eq(nagiMutes.subject, did),
           like(nagiMutes.subject, channelUri),
+        ),
+      );
+    // 非公開ホームリストも両方向を消し、退会した人との関係を他人側の行にも残さない。
+    await tx
+      .delete(nagiPrivateListMembers)
+      .where(
+        or(
+          eq(nagiPrivateListMembers.ownerDid, did),
+          eq(nagiPrivateListMembers.memberDid, did),
         ),
       );
 

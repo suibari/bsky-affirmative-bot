@@ -25,6 +25,7 @@ import {
   notInArray,
   or,
   sql,
+  type SQL,
 } from "drizzle-orm";
 import { config } from "../config.js";
 import { getCurrentTitles, getSuperPositiveLevels } from "./badges.js";
@@ -38,6 +39,7 @@ import {
 import { getNewsQuoteViews } from "./positiveNews.js";
 import { getReactionViews } from "./reactions.js";
 import { parseContentWarning } from "../util/contentWarning.js";
+import { loadPrivateListMemberDids } from "./privateList.js";
 export const encodeCursor = (date: Date, uri: string) =>
   Buffer.from(JSON.stringify([date.toISOString(), uri])).toString("base64url");
 export const decodeCursor = (cursor?: string): [Date, string] | undefined => {
@@ -55,6 +57,18 @@ export const postSelection = {
   score: nagiPostScores.score,
   botReplyUri: nagiPostScores.botReplyUri,
 };
+/** ホーム候補の可視性条件。本人の kossori だけを許し、返信と CH 限定は全員分除外する。 */
+export function homeTimelineVisibility(
+  homeDid: string,
+  actorDids: string[],
+): SQL[] {
+  return [
+    isNull(nagiPosts.replyParentUri),
+    inArray(nagiPosts.did, actorDids),
+    eq(nagiPosts.channelOnly, false),
+    or(eq(nagiPosts.did, homeDid), eq(nagiPosts.kossori, false))!,
+  ];
+}
 export type PostRow = {
   post: typeof nagiPosts.$inferSelect;
   actor: typeof nagiActors.$inferSelect | null;
@@ -537,10 +551,22 @@ export async function getTimeline(opts: {
    * 1回だけ返し、buildConversationItems で会話ブロックに畳む。プロフィール/CH/検索/filter は false。
    */
   group?: boolean;
+  /**
+   * 本人向けホーム。指定時は本人・botたん・本人の非公開リストのルート投稿だけを候補にする。
+   * 本人の kossori だけは表示するが、channelOnly は本人分も含めてホームへ出さない。
+   */
+  homeDid?: string;
   /** 呼び出し側が既に引いている場合に渡す。省略時は viewerDid から自分で引く。 */
   mutes?: MuteSet;
 }) {
   const mutes = opts.mutes ?? (await loadMutes(opts.viewerDid));
+  const homeActors = opts.homeDid
+    ? [
+        opts.homeDid,
+        config.botDid,
+        ...(await loadPrivateListMemberDids(opts.homeDid)),
+      ]
+    : undefined;
   // ミュートの適用範囲: プロフィールフィード(actorDid)は「自分で開いた」ので一切適用しない。
   // CH TL(channelUri)も同じ理由で CH ミュートは適用しないが、ユーザーミュートは効かせる。
   const muteActors = !opts.actorDid && mutes.actors.length > 0;
@@ -562,6 +588,9 @@ export async function getTimeline(opts: {
       ),
     );
   if (opts.actorDid) filters.push(eq(nagiPosts.did, opts.actorDid));
+  if (opts.homeDid) {
+    filters.push(...homeTimelineVisibility(opts.homeDid, homeActors!));
+  }
   if (opts.channelUri) filters.push(eq(nagiPosts.channelUri, opts.channelUri));
   if (opts.tag)
     filters.push(sql`${nagiPosts.tags} @> ARRAY[${opts.tag}]::text[]`);
@@ -590,7 +619,7 @@ export async function getTimeline(opts: {
   // こっそりは返信ごとではなくスレッドルートが所有する。旧 channelOnly も互換性のため
   // ルートの非共有設定として扱う。ルート未解決時に true へ倒すのは、壊れた参照によって
   // 本来こっそりだった返信を共有TLへ露出させないため。
-  if (!opts.actorDid && !opts.channelUri) {
+  if (!opts.actorDid && !opts.channelUri && !opts.homeDid) {
     filters.push(sql`
       case
         when ${nagiPosts.replyRootUri} is null
@@ -611,6 +640,9 @@ export async function getTimeline(opts: {
   // kossori判定は上の case 式が担うので、ここでは重複して書かない。
   // ミュート著者の投稿は代表になれないので sib からも除く（1つ前へフォールバックさせる）。
   const sibMuteFilter = sibNotMuted(mutes, muteActors);
+  const homeRootSibling = opts.homeDid
+    ? sql` and sib.reply_parent_uri is null`
+    : sql``;
   if (opts.group)
     filters.push(sql`
       not exists (
@@ -619,6 +651,7 @@ export async function getTimeline(opts: {
             = coalesce(${nagiPosts.replyRootUri}, ${nagiPosts.uri})
           and sib.deleted_at is null
           and (sib.did <> ${config.botDid} or sib.reply_parent_uri is null)${sibMuteFilter}
+          ${homeRootSibling}
           and (
             sib.indexed_at > ${nagiPosts.indexedAt}
             or (sib.indexed_at = ${nagiPosts.indexedAt} and sib.uri > ${nagiPosts.uri})

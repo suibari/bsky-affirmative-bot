@@ -39,6 +39,10 @@ import {
 import { getEmoji, searchEmojis } from "../services/emoji.js";
 import { resolveLexicon } from "../queries/resolveLexicon.js";
 import { getMutesView, setMute } from "../queries/mutes.js";
+import {
+  getPrivateList,
+  setPrivateListMember,
+} from "../queries/privateList.js";
 import { drawCard, getCards } from "../queries/cards.js";
 import { config } from "../config.js";
 import {
@@ -50,6 +54,25 @@ import { parseRecordUri } from "../ingest/recordUri.js";
 export const xrpc = Router();
 const limit = (value: unknown) =>
   Math.min(100, Math.max(1, Number(value ?? 50) || 50));
+
+xrpc.get(
+  `/${NAGI.getHomeTimeline}`,
+  requiredServiceAuth(NAGI.getHomeTimeline),
+  async (req, res, next) => {
+    try {
+      const data = await getTimeline({
+        limit: limit(req.query.limit),
+        cursor: String(req.query.cursor ?? "") || undefined,
+        viewerDid: req.viewerDid!,
+        homeDid: req.viewerDid!,
+        group: true,
+      });
+      res.set("Cache-Control", "private, no-store").json(data);
+    } catch (e) {
+      next(e);
+    }
+  },
+);
 
 xrpc.post(
   `/${NAGI.ensureRecord}`,
@@ -539,6 +562,44 @@ xrpc.post(
       res
         .set("Cache-Control", "private, no-store")
         .json(await setMute(req.viewerDid!, subjectType, subject, muted));
+    } catch (e) {
+      next(e);
+    }
+  },
+);
+// ホームリストは本人以外へ存在すら知らせない。owner DID は入力で受け取らず、
+// requiredServiceAuth が検証した viewerDid だけを使用する。
+xrpc.get(
+  `/${NAGI.getPrivateList}`,
+  requiredServiceAuth(NAGI.getPrivateList),
+  async (req, res, next) => {
+    try {
+      res
+        .set("Cache-Control", "private, no-store")
+        .json(await getPrivateList(req.viewerDid!));
+    } catch (e) {
+      next(e);
+    }
+  },
+);
+xrpc.post(
+  `/${NAGI.setPrivateListMember}`,
+  requiredServiceAuth(NAGI.setPrivateListMember),
+  async (req, res, next) => {
+    try {
+      const memberDid = req.body?.memberDid;
+      const included = req.body?.included;
+      if (typeof memberDid !== "string" || !memberDid)
+        throw new ApiError(400, "invalid_request", "memberDid is required");
+      if (typeof included !== "boolean")
+        throw new ApiError(
+          400,
+          "invalid_request",
+          "included must be a boolean",
+        );
+      res
+        .set("Cache-Control", "private, no-store")
+        .json(await setPrivateListMember(req.viewerDid!, memberDid, included));
     } catch (e) {
       next(e);
     }

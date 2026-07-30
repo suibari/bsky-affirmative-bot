@@ -13,6 +13,8 @@ export const NAGI = {
   /** Nagi で作成した Bluemoji を識別するサイドカー。対象 item と同じ rkey で本人の PDS に置く。 */
   bluemoji: "com.suibari.nagi.bluemoji",
   getTimeline: "com.suibari.nagi.getTimeline",
+  /** 認証した本人向けの、自分・botたん・非公開リストからなるホーム。 */
+  getHomeTimeline: "com.suibari.nagi.getHomeTimeline",
   getAffirmation: "com.suibari.nagi.getAffirmation",
   getThread: "com.suibari.nagi.getThread",
   getProfile: "com.suibari.nagi.getProfile",
@@ -51,6 +53,10 @@ export const NAGI = {
   getMutes: "com.suibari.nagi.getMutes",
   /** ユーザー/チャンネルのミュート設定・解除。 */
   setMute: "com.suibari.nagi.setMute",
+  /** AppView だけが保持する本人の非公開ホームリスト。 */
+  getPrivateList: "com.suibari.nagi.getPrivateList",
+  /** 非公開ホームリストの追加・解除。 */
+  setPrivateListMember: "com.suibari.nagi.setPrivateListMember",
   /**
    * 全肯定カードのコレクション。所持は公開情報なのでクライアントは AppView 直読みでも取れる
    * （getChannelTimeline と同方針）。自分を指定したときだけ drawStatus が付く。

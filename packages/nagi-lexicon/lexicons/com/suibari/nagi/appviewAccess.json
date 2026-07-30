@@ -25,6 +25,7 @@
           "aud": "*",
           "lxm": [
             "com.suibari.nagi.getTimeline",
+            "com.suibari.nagi.getHomeTimeline",
             "com.suibari.nagi.getAffirmation",
             "com.suibari.nagi.getThread",
             "com.suibari.nagi.getProfile",
@@ -47,6 +48,8 @@
             "com.suibari.nagi.searchChannels",
             "com.suibari.nagi.getMutes",
             "com.suibari.nagi.setMute",
+            "com.suibari.nagi.getPrivateList",
+            "com.suibari.nagi.setPrivateListMember",
             "com.suibari.nagi.getCards",
             "com.suibari.nagi.drawCard"
           ]

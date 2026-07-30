@@ -368,6 +368,16 @@ export type SetMuteInput = {
   muted: boolean;
 };
 export type SetMuteResult = { muted: boolean };
+/** ホームに表示するユーザーの非公開一覧。認証した所有者本人にしか返さない。 */
+export type PrivateListView = { members: ActorView[]; limit: 200 };
+export type SetPrivateListMemberInput = {
+  memberDid: string;
+  included: boolean;
+};
+export type SetPrivateListMemberResult = {
+  memberDid: string;
+  included: boolean;
+};
 
 // ---------------------------------------------------------------------------
 // 全肯定カード（1日1回引けるトレカ）

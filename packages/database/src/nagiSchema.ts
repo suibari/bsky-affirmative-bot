@@ -2,6 +2,7 @@ import {
   bigint,
   bigserial,
   boolean,
+  check,
   customType,
   index,
   integer,
@@ -14,6 +15,7 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 export const nagiSchema = pgSchema("nagi");
 
@@ -545,6 +547,33 @@ export const nagiMutes = nagiSchema.table(
   (t) => [
     primaryKey({ columns: [t.muterDid, t.subjectType, t.subject] }),
     index("nagi_mutes_muter_idx").on(t.muterDid, t.subjectType),
+  ],
+);
+
+/**
+ * ホームに表示するユーザーの非公開リスト。PDS に置くと listRecords で関係が公開されるため、
+ * AppView だけが持つ。owner 本人の認証済み API とホーム抽出条件以外から参照しないこと。
+ *
+ * v1 は owner ごとに1リスト。将来複数リスト化するときは list_id を追加し、既存行を既定の
+ * ホームリストへ移す。相互性・承認・通知を持たない一方向の表示設定である。
+ */
+export const nagiPrivateListMembers = nagiSchema.table(
+  "private_list_members",
+  {
+    ownerDid: text("owner_did").notNull(),
+    memberDid: text("member_did").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.ownerDid, t.memberDid] }),
+    check(
+      "private_list_members_not_self",
+      sql`${t.ownerDid} <> ${t.memberDid}`,
+    ),
+    index("nagi_private_list_owner_idx").on(t.ownerDid, t.createdAt),
+    index("nagi_private_list_member_idx").on(t.memberDid),
   ],
 );
 
