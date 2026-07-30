@@ -144,23 +144,31 @@ export type NagiBluemoji = {
   subject: string;
   createdAt: string;
 };
-/** blue.moji.collection.item のうち Nagi が利用するラスタ形式（lottie は非対応）。 */
+export type BluemojiMediaType = `image/${string}` | "application/lottie+zip";
+/** AppView DB に保存する、固定 Bluemoji Lexicon から選んだ表示資産。 */
 export type BluemojiFormats = {
-  png_128?: string;
-  webp_128?: string;
-  gif_128?: string;
-  apng_128?: string;
+  version: 1;
+  asset: {
+    kind: "blob" | "bytes";
+    mediaType: BluemojiMediaType;
+    value: string;
+  };
 };
 export type BluemojiItem = {
   $type: "blue.moji.collection.item";
   name: string;
   alt?: string;
   adultOnly?: boolean;
+  labels?: {
+    $type: "com.atproto.label.defs#selfLabels";
+    values: Array<{ val: string }>;
+  };
+  copyOf?: string;
   fallbackText?: string;
   createdAt: string;
   formats: { $type: string } & Record<string, unknown>;
 };
-/** AppView が返すカスタム絵文字のビュー。url は blob プロキシへの相対パス。 */
+/** AppView が返すカスタム絵文字。url は blob / inline bytes 共通の資産配信URL。 */
 export type EmojiView = {
   uri: string;
   cid: string;
@@ -168,6 +176,7 @@ export type EmojiView = {
   name: string;
   alt?: string;
   url: string;
+  mediaType: BluemojiMediaType;
 };
 /**
  * botたんが書くユーザーの日記。bot のリポジトリに置く。

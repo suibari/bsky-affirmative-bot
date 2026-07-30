@@ -13,6 +13,7 @@ const row = (
   subjectUri: "at://did:example:bot/com.suibari.nagi.news/news-1",
   emoji: "🎉",
   emojiKey: "🎉",
+  emojiUri: null,
   did,
   uri: `at://${did}/com.suibari.nagi.reaction/reaction`,
   handle: null,
@@ -48,12 +49,14 @@ test("keeps custom emoji and subjects in separate groups", () => {
     did: "did:example:emoji",
     name: "party",
     url: "/api/blob/did%3Aexample%3Aemoji/bafyimage",
+    mediaType: "image/png",
   };
   const otherSubject = "at://did:example:bot/com.suibari.nagi.news/news-2";
   const grouped = groupReactionViews([
     row("did:example:a", {
       emoji: "party",
       emojiKey: bluemoji.uri,
+      emojiUri: bluemoji.uri,
       bluemoji,
     }),
     row("did:example:b", { subjectUri: otherSubject }),
@@ -64,19 +67,17 @@ test("keeps custom emoji and subjects in separate groups", () => {
   assert.equal(grouped.get(otherSubject)?.[0].emoji, "🎉");
 });
 
-test("keeps a reaction with fallback text when its custom emoji is unavailable", () => {
-  const emojiUri =
-    "at://did:example:deleted/blue.moji.collection.item/party";
+test("drops a custom reaction when its emoji is unavailable", () => {
+  const emojiUri = "at://did:example:deleted/blue.moji.collection.item/party";
   const reaction = groupReactionViews([
     row("did:example:reactor", {
       emoji: ":party:",
       emojiKey: emojiUri,
+      emojiUri,
     }),
   ])
     .values()
     .next().value?.[0];
 
-  assert.equal(reaction?.emoji, ":party:");
-  assert.equal(reaction?.bluemoji, undefined);
-  assert.equal(reaction?.reactors[0]?.did, "did:example:reactor");
+  assert.equal(reaction, undefined);
 });

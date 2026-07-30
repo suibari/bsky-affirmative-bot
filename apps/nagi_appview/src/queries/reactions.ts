@@ -22,6 +22,7 @@ export async function getReactionViews(
       subjectUri: nagiReactions.subjectUri,
       emoji: nagiReactions.emoji,
       emojiKey: nagiReactions.emojiKey,
+      emojiUri: nagiReactions.emojiUri,
       did: nagiReactions.did,
       uri: nagiReactions.uri,
       handle: nagiActors.handle,

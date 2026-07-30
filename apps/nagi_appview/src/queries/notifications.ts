@@ -6,7 +6,16 @@ import {
   nagiProfiles,
   nagiReactions,
 } from "@bsky-affirmative-bot/database";
-import { and, count, desc, eq, inArray, isNull, notInArray, sql } from "drizzle-orm";
+import {
+  and,
+  count,
+  desc,
+  eq,
+  inArray,
+  isNull,
+  notInArray,
+  sql,
+} from "drizzle-orm";
 import { emojiView } from "../services/emoji.js";
 import { fetchPostRows, hydratePostViews } from "./timeline.js";
 import { diaryView, fetchDiaryRows } from "./diaries.js";
@@ -21,6 +30,17 @@ const muteFilter = (mutedActors: string[]) =>
     ? [notInArray(nagiNotifications.actorDid, mutedActors)]
     : [];
 
+/** 規格外・削除済み Bluemoji の既存リアクション通知は存在しないものとして扱う。 */
+const validReactionNotification = sql`
+  (${nagiNotifications.type} <> 'reaction' or exists (
+    select 1
+    from nagi.reactions reaction
+    left join nagi.emojis emoji on emoji.uri = reaction.emoji_uri
+    where reaction.uri = ${nagiNotifications.reasonUri}
+      and (reaction.emoji_uri is null or emoji.uri is not null)
+  ))
+`;
+
 /**
  * その通知がポストを指しているか。日記(diary)と名刺更新(analysis)の subjectUri は
  * ポストの URI ではないので、引き当ての対象からも返り値からも外す。
@@ -31,12 +51,22 @@ const hasPost = (type: (typeof nagiNotifications.$inferSelect)["type"]) =>
 export async function getNotifications(did: string, limit: number) {
   const mutes = await loadMutes(did);
   const rows = await db
-    .select({ notification: nagiNotifications, actor: nagiActors, profile: nagiProfiles })
+    .select({
+      notification: nagiNotifications,
+      actor: nagiActors,
+      profile: nagiProfiles,
+    })
     .from(nagiNotifications)
     .leftJoin(nagiActors, eq(nagiActors.did, nagiNotifications.actorDid))
     .leftJoin(nagiProfiles, eq(nagiProfiles.did, nagiNotifications.actorDid))
     // JS 側で後から filter すると1ページの件数が減るので、必ず SQL で落とす。
-    .where(and(eq(nagiNotifications.recipientDid, did), ...muteFilter(mutes.actors)))
+    .where(
+      and(
+        eq(nagiNotifications.recipientDid, did),
+        validReactionNotification,
+        ...muteFilter(mutes.actors),
+      ),
+    )
     .orderBy(desc(nagiNotifications.createdAt))
     .limit(limit);
   const postRows = await fetchPostRows([
@@ -44,7 +74,11 @@ export async function getNotifications(did: string, limit: number) {
       rows.flatMap(({ notification }) =>
         // 日記と分析はポストではないので post の引き直し対象から外す。
         hasPost(notification.type)
-          ? [notification.type === "reply" ? notification.reasonUri : notification.subjectUri]
+          ? [
+              notification.type === "reply"
+                ? notification.reasonUri
+                : notification.subjectUri,
+            ]
           : [],
       ),
     ),
@@ -73,6 +107,7 @@ export async function getNotifications(did: string, limit: number) {
         .select({
           uri: nagiReactions.uri,
           emoji: nagiReactions.emoji,
+          emojiUri: nagiReactions.emojiUri,
           emojiItem: nagiEmojis,
         })
         .from(nagiReactions)
@@ -80,9 +115,12 @@ export async function getNotifications(did: string, limit: number) {
         .where(inArray(nagiReactions.uri, reactionUris))
     : [];
   const reactionByUri = new Map(
-    reactionRows.map((r) => {
+    reactionRows.flatMap((r) => {
       const bluemoji = r.emojiItem ? emojiView(r.emojiItem) : null;
-      return [r.uri, { emoji: r.emoji, ...(bluemoji ? { bluemoji } : {}) }];
+      if (r.emojiUri && !bluemoji) return [];
+      return [
+        [r.uri, { emoji: r.emoji, ...(bluemoji ? { bluemoji } : {}) }] as const,
+      ];
     }),
   );
   return {
@@ -100,7 +138,8 @@ export async function getNotifications(did: string, limit: number) {
         ? postByUri.get(n.type === "reply" ? n.reasonUri : n.subjectUri)
         : undefined,
       diary: n.type === "diary" ? diaryByUri.get(n.subjectUri) : undefined,
-      reaction: n.type === "reaction" ? reactionByUri.get(n.reasonUri) : undefined,
+      reaction:
+        n.type === "reaction" ? reactionByUri.get(n.reasonUri) : undefined,
     })),
     hasMore: rows.length === limit,
   };
@@ -114,6 +153,7 @@ export async function getUnreadCount(did: string) {
       and(
         eq(nagiNotifications.recipientDid, did),
         isNull(nagiNotifications.readAt),
+        validReactionNotification,
         ...muteFilter(mutes.actors),
       ),
     );

@@ -7,6 +7,7 @@ export type ReactionViewRow = {
   subjectUri: string;
   emoji: string;
   emojiKey: string;
+  emojiUri: string | null;
   did: string;
   uri: string;
   handle: string | null;
@@ -22,6 +23,8 @@ export function groupReactionViews(
 ): Map<string, ReactionView[]> {
   const grouped = new Map<string, Map<string, ReactionView>>();
   for (const row of rows) {
+    // 規格外・削除済み Bluemoji の参照は無効リアクションとして扱う。
+    if (row.emojiUri && !row.bluemoji) continue;
     let subject = grouped.get(row.subjectUri);
     if (!subject) {
       subject = new Map();

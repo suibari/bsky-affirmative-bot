@@ -1,13 +1,14 @@
 import { db, nagiEmojis } from "@bsky-affirmative-bot/database";
 import {
   BLUEMOJI_ITEM,
+  type BluemojiItem,
   type EmojiView,
 } from "@bsky-affirmative-bot/nagi-lexicon";
 import { and, desc, eq, ilike, lt, or, sql } from "drizzle-orm";
 import {
-  bluemojiFormatCids,
+  isNormalizedBluemojiFormats,
+  normalizeBluemojiFormats,
   validateRecord,
-  type BluemojiFormatCids,
 } from "../ingest/validateRecord.js";
 import { ApiError } from "../middleware/errors.js";
 import { resolvePdsUrl } from "../util/pds.js";
@@ -16,26 +17,20 @@ export type EmojiRow = typeof nagiEmojis.$inferSelect;
 // drizzle のトランザクションもこの形を満たすので、ingest からは tx を渡せる。
 type Executor = Pick<typeof db, "select" | "insert" | "delete">;
 
-// 画像は <img> で直接描画するため、アニメーションするものを優先しつつ
-// どのブラウザでも表示できるラスタ形式のみを使う（lottie は非対応）。
-const FORMAT_PRIORITY = ["apng_128", "gif_128", "webp_128", "png_128"] as const;
-
-export const emojiBlobCid = (formats: unknown) => {
-  const cids = (formats ?? {}) as BluemojiFormatCids;
-  for (const key of FORMAT_PRIORITY) if (cids[key]) return cids[key];
-  return undefined;
-};
-
 export function emojiView(row: EmojiRow): EmojiView | null {
-  const cid = emojiBlobCid(row.formats);
-  if (!cid) return null;
+  if (!isNormalizedBluemojiFormats(row.formats)) return null;
+  const { asset } = row.formats;
+  const url = `/api/emoji-asset/${encodeURIComponent(row.did)}/${encodeURIComponent(
+    row.uri.slice(row.uri.lastIndexOf("/") + 1),
+  )}/${encodeURIComponent(row.cid)}`;
   return {
     uri: row.uri,
     cid: row.cid,
     did: row.did,
     name: row.name,
     alt: row.alt ?? undefined,
-    url: `/api/blob/${encodeURIComponent(row.did)}/${cid}`,
+    url,
+    mediaType: asset.mediaType,
   };
 }
 
@@ -54,7 +49,7 @@ export async function indexEmoji(
     did,
     name: record.name as string,
     alt: typeof record.alt === "string" ? record.alt : null,
-    formats: bluemojiFormatCids(record.formats),
+    formats: normalizeBluemojiFormats(record.formats)!,
     adultOnly: record.adultOnly === true,
     createdAt: new Date(record.createdAt),
   };
@@ -68,10 +63,7 @@ export async function indexEmoji(
     .where(eq(nagiEmojis.uri, uri))
     .limit(1);
   // 同じ URI のレコードが名前を変えた場合、旧意味キーの投影を先に外す。
-  if (
-    sameUri[0] &&
-    (sameUri[0].did !== did || sameUri[0].name !== values.name)
-  )
+  if (sameUri[0] && (sameUri[0].did !== did || sameUri[0].name !== values.name))
     await executor.delete(nagiEmojis).where(eq(nagiEmojis.uri, uri));
   await executor
     .insert(nagiEmojis)
@@ -140,6 +132,17 @@ export async function resolveEmoji(uri: string): Promise<EmojiRow | null> {
   }
 }
 
+/**
+ * 設定一覧はPDS上の準拠レコードをすべて表示する。同名の新しいレコードが意味キーを
+ * 代表していてDBへ入らない旧URIでも、要求CIDのPDSレコード自体を検証して資産を返す。
+ */
+export async function resolveEmojiAsset(uri: string, expectedCid: string) {
+  const fetched = await fetchEmojiRecord(uri);
+  if (!fetched || fetched.cid !== expectedCid) return null;
+  await indexEmoji(db, fetched);
+  return normalizeBluemojiFormats((fetched.record as BluemojiItem).formats);
+}
+
 export async function getEmoji(uri: string) {
   if (!uri.startsWith("at://") || uri.split("/")[3] !== BLUEMOJI_ITEM)
     throw new ApiError(400, "invalid_request", "Invalid Bluemoji URI");
@@ -159,8 +162,23 @@ export async function searchEmojis(params: {
   const conditions = [
     // adultOnly の絵文字はピッカーに出さない（表示前の警告UIが無いため）。
     eq(nagiEmojis.adultOnly, false),
+    // limit/cursor を適用した後に emojiView で旧形式行を落とすと、移行中は
+    // emojis=[] のまま cursor だけ返り、1ページしか読まないピッカーが空になる。
+    // 表示可能な正規化済み行だけをSQLページングの母集団にする。
+    sql<boolean>`
+      ${nagiEmojis.formats}->>'version' = '1'
+      and ${nagiEmojis.formats}->'asset'->>'kind' in ('blob', 'bytes')
+      and length(${nagiEmojis.formats}->'asset'->>'value') > 0
+      and (
+        ${nagiEmojis.formats}->'asset'->>'mediaType' like 'image/%'
+        or ${nagiEmojis.formats}->'asset'->>'mediaType' = 'application/lottie+zip'
+      )
+    `,
   ];
-  if (q) conditions.push(ilike(nagiEmojis.name, `%${q.replace(/[%_\\]/g, "\\$&")}%`));
+  if (q)
+    conditions.push(
+      ilike(nagiEmojis.name, `%${q.replace(/[%_\\]/g, "\\$&")}%`),
+    );
   if (repo) conditions.push(eq(nagiEmojis.did, repo));
   if (cursor) {
     const [indexedAt, uri] = cursor.split("::");

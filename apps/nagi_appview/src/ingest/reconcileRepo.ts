@@ -14,7 +14,10 @@ import { config } from "../config.js";
 import { resolvePdsUrl } from "../util/pds.js";
 import { applyMutation } from "./applyMutation.js";
 import { withDidLock } from "./didLock.js";
-import { validateRecord } from "./validateRecord.js";
+import {
+  isNormalizedBluemojiFormats,
+  validateRecord,
+} from "./validateRecord.js";
 
 type RepoRecord = {
   uri: string;
@@ -27,6 +30,14 @@ type ReconcileStats = {
   updated: number;
   deleted: number;
   unchanged: number;
+};
+
+export type BluemojiAudit = {
+  remote: number;
+  compliant: number;
+  invalid: number;
+  upsert: number;
+  remove: number;
 };
 
 class RecordNotFound extends Error {}
@@ -179,11 +190,18 @@ async function localRecords(
   }
   if (collection === BLUEMOJI_ITEM) {
     const rows = await db
-      .select({ uri: nagiEmojis.uri, cid: nagiEmojis.cid })
+      .select({
+        uri: nagiEmojis.uri,
+        cid: nagiEmojis.cid,
+        formats: nagiEmojis.formats,
+      })
       .from(nagiEmojis)
       .where(eq(nagiEmojis.did, did));
     return new Map(
-      rows.map((row) => [row.uri, { cid: row.cid, active: true }]),
+      rows.map((row) => [
+        row.uri,
+        { cid: row.cid, active: isNormalizedBluemojiFormats(row.formats) },
+      ]),
     );
   }
   if (collection === NAGI.diary) {
@@ -339,4 +357,37 @@ export async function reconcileRepo(
     durationMs: Date.now() - startedAt,
   });
   return stats;
+}
+
+/** 本番適用前に、Bluemoji 派生DBへ加わる変更数だけを読み取りで確認する。 */
+export async function auditBluemojiRepo(did: string): Promise<BluemojiAudit> {
+  const pds = await resolvePdsUrl(did);
+  const [remote, local] = await Promise.all([
+    listRecords(pds, did, BLUEMOJI_ITEM),
+    localRecords(did, BLUEMOJI_ITEM),
+  ]);
+  const remoteUris = new Set(remote.map((record) => record.uri));
+  let compliant = 0;
+  let invalid = 0;
+  let upsert = 0;
+  let invalidLocal = 0;
+  for (const record of remote) {
+    if (!validateRecord(BLUEMOJI_ITEM, record.value)) {
+      invalid++;
+      if (local.has(record.uri)) invalidLocal++;
+      continue;
+    }
+    compliant++;
+    const current = local.get(record.uri);
+    if (!current?.active || current.cid !== record.cid) upsert++;
+  }
+  return {
+    remote: remote.length,
+    compliant,
+    invalid,
+    upsert,
+    remove:
+      [...local.keys()].filter((uri) => !remoteUris.has(uri)).length +
+      invalidLocal,
+  };
 }

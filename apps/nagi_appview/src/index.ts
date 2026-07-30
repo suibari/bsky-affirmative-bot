@@ -7,6 +7,7 @@ import { xrpc } from "./routes/xrpc.js";
 import { internal } from "./routes/internal.js";
 import { wellKnownDid } from "./routes/wellKnownDid.js";
 import { getBlob } from "./routes/blob.js";
+import { getEmojiAsset } from "./routes/emojiAsset.js";
 import { errorHandler, notFound } from "./middleware/errors.js";
 import { startJetstream } from "./ingest/jetstream.js";
 import { startEmbeddingWorker } from "./ingest/embeddingWorker.js";
@@ -64,6 +65,16 @@ app.get(
   "/api/blob/:did/:cid",
   rateLimit({ windowMs: 60_000, limit: 120, standardHeaders: "draft-8", legacyHeaders: false }),
   getBlob,
+);
+app.get(
+  "/api/emoji-asset/:did/:rkey/:cid",
+  rateLimit({
+    windowMs: 60_000,
+    limit: 120,
+    standardHeaders: "draft-8",
+    legacyHeaders: false,
+  }),
+  getEmojiAsset,
 );
 app.use(notFound);
 app.use(errorHandler);

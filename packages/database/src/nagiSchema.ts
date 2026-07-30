@@ -285,7 +285,7 @@ export const nagiEmojis = nagiSchema.table(
     // ":name:" 形式のエイリアス。
     name: text("name").notNull(),
     alt: text("alt"),
-    // { png_128?, webp_128?, gif_128?, apng_128? } の blob CID。
+    // 固定 Bluemoji Lexicon から選んだ表示資産 { version: 1, asset: ... }。
     formats: jsonb("formats").notNull(),
     adultOnly: boolean("adult_only").default(false).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull(),

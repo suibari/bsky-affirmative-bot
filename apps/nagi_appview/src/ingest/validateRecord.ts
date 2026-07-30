@@ -2,6 +2,8 @@ import {
   BLUEMOJI_ITEM,
   NAGI,
   type BluemojiItem,
+  type BluemojiFormats,
+  type BluemojiMediaType,
   type NagiChannel,
   type NagiDiary,
   type NagiNews,
@@ -98,42 +100,104 @@ const linkCard = (value: any) => {
         value.thumb.size <= 1_000_000))
   );
 };
-/** Bluemoji のエイリアスは :foo: 形式。rkey にもそのまま使える文字種に限る。 */
+/** Nagi のリアクション参照で利用できる Bluemoji エイリアス。新規作成UIもこの範囲にする。 */
 const BLUEMOJI_NAME = /^:[a-zA-Z0-9_-]{1,32}:$/;
-const BLUEMOJI_MIME: Record<string, string> = {
-  "image/png": "png_128",
-  "image/webp": "webp_128",
-  "image/gif": "gif_128",
-  "image/apng": "apng_128",
-};
-const BLUEMOJI_FORMAT_KEYS = ["png_128", "webp_128", "gif_128", "apng_128"] as const;
-export type BluemojiFormatCids = Partial<
-  Record<(typeof BLUEMOJI_FORMAT_KEYS)[number], string>
->;
-
-/**
- * formats（v0/v1 どちらでも）から blob として表示できるラスタ形式の CID だけを取り出す。
- * lottie と formats_v0 の生 Bytes 形式は blob プロキシ経由で配信できないため無視する。
- */
-export function bluemojiFormatCids(formats: any): BluemojiFormatCids {
-  const out: BluemojiFormatCids = {};
-  if (!formats || typeof formats !== "object") return out;
-  for (const key of BLUEMOJI_FORMAT_KEYS) {
-    const blob = formats[key];
-    const link = blob?.ref?.$link;
-    if (
-      typeof link === "string" &&
-      link.length > 0 &&
-      /^[a-zA-Z0-9]+$/.test(link) &&
-      BLUEMOJI_MIME[blob.mimeType] === key &&
-      Number.isInteger(blob.size) &&
-      blob.size >= 0 &&
-      blob.size <= 256_000
-    )
-      out[key] = link;
+const FORMATS_V0 = `${BLUEMOJI_ITEM}#formats_v0`;
+const CID = /^[a-zA-Z0-9]+$/;
+const blobAsset = (
+  value: any,
+  maxSize: number,
+  accepts: (mimeType: string) => boolean,
+) =>
+  typeof value?.ref?.$link === "string" &&
+  CID.test(value.ref.$link) &&
+  typeof value.mimeType === "string" &&
+  accepts(value.mimeType) &&
+  Number.isInteger(value.size) &&
+  value.size >= 0 &&
+  value.size <= maxSize;
+const inlineBytes = (value: any) => {
+  if (
+    typeof value?.$bytes !== "string" ||
+    !/^[A-Za-z0-9+/]*={0,2}$/.test(value.$bytes)
+  )
+    return false;
+  try {
+    const decoded = Buffer.from(value.$bytes, "base64");
+    return (
+      decoded.byteLength <= 65_536 &&
+      decoded.toString("base64").replace(/=+$/, "") ===
+        value.$bytes.replace(/=+$/, "")
+    );
+  } catch {
+    return false;
   }
-  return out;
+};
+const selfLabels = (value: any) =>
+  value?.$type === "com.atproto.label.defs#selfLabels" &&
+  Array.isArray(value.values) &&
+  value.values.length <= 20 &&
+  value.values.every(
+    (label: any) =>
+      typeof label?.val === "string" &&
+      label.val.length > 0 &&
+      label.val.length <= 128,
+  );
+const atUri = (value: unknown) =>
+  typeof value === "string" && /^at:\/\/[^/\s]+\/[^/\s]+\/[^/\s]+$/.test(value);
+const normalizedBlob = (
+  value: any,
+  mediaType = value?.mimeType,
+): BluemojiFormats => ({
+  version: 1,
+  asset: { kind: "blob", mediaType, value: value.ref.$link },
+});
+const normalizedBytes = (
+  value: any,
+  mediaType: BluemojiMediaType,
+): BluemojiFormats => ({
+  version: 1,
+  asset: { kind: "bytes", mediaType, value: value.$bytes },
+});
+
+/** 固定した Bluemoji formats_v0 から、Nagi が描画する最優先の資産を選ぶ。 */
+export function normalizeBluemojiFormats(formats: any): BluemojiFormats | null {
+  if (!formats || typeof formats !== "object" || formats.$type !== FORMATS_V0)
+    return null;
+  if (inlineBytes(formats.lottie))
+    return normalizedBytes(formats.lottie, "application/lottie+zip");
+  if (inlineBytes(formats.apng_128))
+    return normalizedBytes(formats.apng_128, "image/apng");
+  if (blobAsset(formats.gif_128, 262_144, (type) => type.length > 0))
+    return normalizedBlob(formats.gif_128, "image/gif");
+  if (blobAsset(formats.webp_128, 262_144, (type) => type.length > 0))
+    return normalizedBlob(formats.webp_128, "image/webp");
+  if (blobAsset(formats.png_128, 262_144, (type) => type.length > 0))
+    return normalizedBlob(formats.png_128, "image/png");
+  if (
+    blobAsset(
+      formats.original,
+      1_000_000,
+      (type) => type.startsWith("image/") || type === "application/lottie+zip",
+    )
+  )
+    return normalizedBlob(formats.original);
+  return null;
 }
+
+export const isNormalizedBluemojiFormats = (
+  value: unknown,
+): value is BluemojiFormats => {
+  const formats = value as BluemojiFormats;
+  return (
+    formats?.version === 1 &&
+    (formats.asset?.kind === "blob" || formats.asset?.kind === "bytes") &&
+    typeof formats.asset.value === "string" &&
+    formats.asset.value.length > 0 &&
+    (formats.asset.mediaType?.startsWith("image/") ||
+      formats.asset.mediaType === "application/lottie+zip")
+  );
+};
 
 const bluemojiRef = (value: any) =>
   typeof value?.uri === "string" &&
@@ -161,7 +225,14 @@ const bannerBlob = (value: any) =>
 export function validateRecord(
   collection: string,
   value: any,
-): value is NagiPost | NagiReaction | NagiProfile | BluemojiItem | NagiDiary | NagiNews | NagiChannel {
+): value is
+  | NagiPost
+  | NagiReaction
+  | NagiProfile
+  | BluemojiItem
+  | NagiDiary
+  | NagiNews
+  | NagiChannel {
   if (!value || value.$type !== collection || !date(value.createdAt))
     return false;
   if (collection === NAGI.post) {
@@ -218,10 +289,15 @@ export function validateRecord(
   if (collection === BLUEMOJI_ITEM)
     return (
       typeof value.name === "string" &&
-      BLUEMOJI_NAME.test(value.name) &&
-      (value.alt === undefined ||
-        (typeof value.alt === "string" && graphemes(value.alt) <= 100)) &&
-      Object.keys(bluemojiFormatCids(value.formats)).length > 0
+      (value.alt === undefined || typeof value.alt === "string") &&
+      (value.adultOnly === undefined || typeof value.adultOnly === "boolean") &&
+      (value.copyOf === undefined || atUri(value.copyOf)) &&
+      (value.labels === undefined || selfLabels(value.labels)) &&
+      (value.fallbackText === undefined ||
+        (typeof value.fallbackText === "string" &&
+          value.fallbackText.length <= 10 &&
+          graphemes(value.fallbackText) <= 1)) &&
+      normalizeBluemojiFormats(value.formats) !== null
     );
   if (collection === NAGI.diary)
     return (

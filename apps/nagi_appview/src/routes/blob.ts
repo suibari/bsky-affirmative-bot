@@ -19,7 +19,7 @@ export const getBlob: RequestHandler = async (req, res, next) => {
         "Blob unavailable",
       );
     const type = upstream.headers.get("content-type") ?? "";
-    if (!type.startsWith("image/"))
+    if (!type.startsWith("image/") && type !== "application/lottie+zip")
       throw new ApiError(415, "invalid_request", "Unsupported blob type");
     res.set({
       "Content-Type": type,
