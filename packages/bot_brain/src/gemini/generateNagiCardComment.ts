@@ -26,7 +26,21 @@ export interface NagiCardCommentResult {
  * v2: 「カードに書かれた行いを、引いた人がやったことにして褒めてしまう」問題を修正。
  * カードの内容は引いた人の出来事ではない、と明示していなかったのが原因。
  */
-export const NAGI_CARD_COMMENT_PROMPT_VERSION = "nagi-card-comment-v3";
+export const NAGI_CARD_COMMENT_PROMPT_VERSION = "nagi-card-comment-v4";
+
+const DEEP_COMMENT_RARITIES = new Set(["SR", "UR", "AAR"]);
+
+function commentFormat(card: CardDefinition) {
+  return DEEP_COMMENT_RARITIES.has(card.rarity)
+    ? {
+        ja: "日本語・2〜3文・最大140文字・改行なし",
+        en: "英語・2〜3文・最大280文字・改行なし",
+      }
+    : {
+        ja: "日本語・1〜2文・最大80文字・改行なし",
+        en: "英語・1〜2文・最大160文字・改行なし",
+      };
+}
 
 /**
  * カードを引いた人へ向けた botたんのひとことを生成する。
@@ -41,10 +55,11 @@ export const NAGI_CARD_COMMENT_PROMPT_VERSION = "nagi-card-comment-v3";
 export async function generateNagiCardComment(
   input: NagiCardCommentInput,
 ): Promise<NagiCardCommentResult> {
+  const format = commentFormat(input.card);
   const response = await generateContentWithRetry(
     {
       model: MODEL_GEMINI,
-      contents: [PROMPT_NAGI_CARD_COMMENT(input)],
+      contents: [buildNagiCardCommentPrompt(input)],
       config: {
         systemInstruction: SYSTEM_INSTRUCTION,
         /*
@@ -60,13 +75,11 @@ export async function generateNagiCardComment(
           properties: {
             commentJa: {
               type: Type.STRING,
-              description:
-                "カードを引いた人への、botたんとしてのひとこと（日本語・1〜2文・最大80文字・改行なし）。**敬語は使わず、botたんの口調（〜だよ/〜だね）で書くこと。**",
+              description: `カードを引いた人への、botたんとしてのひとこと（${format.ja}）。**敬語は使わず、botたんの口調（〜だよ/〜だね）で書くこと。**`,
             },
             commentEn: {
               type: Type.STRING,
-              description:
-                "commentJa と同じ気持ちを伝える自然な英語（1〜2文・最大160文字・改行なし）。直訳ではなく英語として自然な言い回しにすること。",
+              description: `commentJa と同じ気持ちを伝える自然な英語（${format.en}）。直訳ではなく英語として自然な言い回しにすること。`,
             },
           },
           required: ["commentJa", "commentEn"],
@@ -101,8 +114,25 @@ const RARITY_HINT: Record<string, string> = {
   AAR: "1年以上引き続けてやっと出る幻のカード。全力で驚いて、全力で祝ってあげて。",
 };
 
-const PROMPT_NAGI_CARD_COMMENT = (input: NagiCardCommentInput) =>
-  `あなたのアプリ「Nagi」には、1日1回カードを引ける「全肯定カード」があります。
+export const buildNagiCardCommentPrompt = (input: NagiCardCommentInput) => {
+  const format = commentFormat(input.card);
+  const deepCommentRule = DEEP_COMMENT_RARITIES.has(input.card.rarity)
+    ? `# このレアカードで必ず行う掘り下げ
+* レアリティへの驚きだけで終えてはいけません。「すごい」「レアだよ」「おめでとう」だけの
+  汎用コメントは禁止です。
+* カード固有の要素を1つ以上取り上げ、あなたとの関係、覚えているエピソード、名前や姿の由来、
+  またはあなたにとって特別な理由を、引いた人へ自分の言葉で話してください。
+* SYSTEM_INSTRUCTION の人物設定とカード情報だけを根拠にしてください。設定にない思い出や
+  出来事を新しく作ってはいけません。
+* 人物カードでは、単なる第三者紹介ではなく、親友・相棒・過去の自分など、あなた自身との
+  関係が伝わる話し方にしてください。
+* たとえばラテちゃんのカードなら、親友であることや猫に変身しすぎた話など、その絵柄に合う
+  具体的な話をします。「全否定bot」なら別人として紹介せず、支えられて立ち直ったあなた自身の
+  過去として、そのカードが特別な理由を話します。同じ定型文をそのまま使わないでください。
+`
+    : "";
+
+  return `あなたのアプリ「Nagi」には、1日1回カードを引ける「全肯定カード」があります。
 いま ${input.displayName} さんがカードを1枚引いて、下のカードが出ました。
 それを見たあなた（botたん）のひとことを考えてください。
 
@@ -115,19 +145,20 @@ const PROMPT_NAGI_CARD_COMMENT = (input: NagiCardCommentInput) =>
   （例:「この子が出たんだ！」「その属性いいなあ」）。
 
 # 出力するもの
-* commentJa: 日本語で1〜2文（最大80文字）。
-* commentEn: 同じ気持ちを伝える自然な英語（最大160文字）。直訳ではなく英語として自然に。
+* commentJa: ${format.ja}。
+* commentEn: 同じ気持ちを伝える自然な${format.en}。直訳ではなく英語として自然に。
 
 # ルール
 * カードのフレーバーテキストをそのまま繰り返さないでください。フレーバーは「カードの説明」、
   あなたのひとことは「引いた人への言葉」です。役割が違います。
-* 引いた人に語りかけてください。カードの解説にはしないこと。
+* 引いた人に語りかけてください。カード情報の読み上げやステータス解説だけにはしないこと。
 * レアリティに応じて喜び方の強さを変えてください。${RARITY_HINT[input.card.rarity] ?? ""}
 * 名前を呼ぶときは「${input.displayName}」をそのまま使ってください。プレースホルダを出力しないこと。
 * 改行を入れないでください。
 * commentJa は必ずbotたんの口調にしてください。カードのフレーバーテキストは文語調ですが、
   その文体には引きずられないこと。
 ${TONE_RULES_JA}
+${deepCommentRule}
 ${
   input.isDuplicate
     ? "* この人がこのカードを引くのは2回目以降です。「また来たね」という文脈を入れてください。"
@@ -143,3 +174,4 @@ ${
 ATK/DEF: ${input.card.atk}/${input.card.def}
 フレーバーテキスト: ${input.card.textJa}
 `;
+};

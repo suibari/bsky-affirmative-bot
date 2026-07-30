@@ -3,10 +3,21 @@ import type { PositiveNewsCandidate } from "../api/newsdata/index.js";
 export interface SanitizedNewsSelection {
   structure: Record<string, unknown>;
   selectedNewsArticleId?: string;
+  selectedNewsUrl?: string;
 }
 
 function isNoneValue(value: string) {
   return /^(none|なし|該当なし)$/i.test(value.trim());
+}
+
+function validArticleUrl(value: string | undefined) {
+  if (!value) return;
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" || url.protocol === "http:" ? url.href : undefined;
+  } catch {
+    return;
+  }
 }
 
 /**
@@ -35,5 +46,10 @@ export function sanitizePositiveNewsSelection(
   }
 
   structure.positiveNews = positiveNews;
-  return { structure, selectedNewsArticleId: selected.articleId };
+  const selectedNewsUrl = validArticleUrl(selected.link);
+  return {
+    structure,
+    selectedNewsArticleId: selected.articleId,
+    ...(selectedNewsUrl ? { selectedNewsUrl } : {}),
+  };
 }

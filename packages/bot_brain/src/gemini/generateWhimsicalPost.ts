@@ -30,6 +30,7 @@ export interface WhimsicalPostGenerateResult {
   textEn: string;
   usedYoutubeShort: boolean;
   selectedNewsArticleId?: string;
+  selectedNewsUrl?: string;
   newsDiagnostics?: NewsScreeningDiagnostics;
 }
 
@@ -103,7 +104,7 @@ export class WhimsicalPostGenerator {
     }
 
     console.log(`[DEBUG][WHIMSICAL] First call args: ${JSON.stringify(call.args)}`);
-    const { structure, selectedNewsArticleId } = sanitizePositiveNewsSelection(
+    const { structure, selectedNewsArticleId, selectedNewsUrl } = sanitizePositiveNewsSelection(
       call.args,
       wantElement.positiveNewsCandidates,
     );
@@ -160,6 +161,7 @@ Structure: ${JSON.stringify(structure)}`
       textEn,
       usedYoutubeShort,
       selectedNewsArticleId,
+      selectedNewsUrl,
       newsDiagnostics: wantElement.newsDiagnostics,
     };
   }

@@ -2,6 +2,7 @@ import type { AppBskyActorDefs } from "@atproto/api";
 import { MemoryService } from "@bsky-affirmative-bot/clients";
 
 export type CandidateNetwork = "bsky" | "nagi";
+export type GoodNightCandidateSource = CandidateNetwork | "combined";
 
 export interface GoodNightCandidate {
   network: CandidateNetwork;
@@ -58,13 +59,31 @@ async function getNagiCandidates(): Promise<GoodNightCandidate[]> {
   }));
 }
 
-export async function getGoodNightCandidate(): Promise<GoodNightCandidate | null> {
-  const source = process.env.GOOD_NIGHT_TOP_POST_SOURCE || "bsky";
-  const candidates = source === "nagi"
-    ? await getNagiCandidates()
-    : source === "combined"
-      ? [...await getBskyCandidates(), ...await getNagiCandidates()]
-      : await getBskyCandidates();
+export function selectGoodNightCandidate(
+  source: GoodNightCandidateSource,
+  bskyCandidates: GoodNightCandidate[],
+  nagiCandidates: GoodNightCandidate[],
+): GoodNightCandidate | null {
+  const candidates = source === "bsky"
+    ? bskyCandidates
+    : source === "nagi"
+      ? nagiCandidates
+      : [...bskyCandidates, ...nagiCandidates];
 
-  return candidates.sort((a, b) => b.score - a.score)[0] ?? null;
+  return [...candidates].sort((a, b) => b.score - a.score)[0] ?? null;
+}
+
+function candidateSource(value: string | undefined): GoodNightCandidateSource {
+  return value === "bsky" || value === "nagi" || value === "combined"
+    ? value
+    : "combined";
+}
+
+export async function getGoodNightCandidate(): Promise<GoodNightCandidate | null> {
+  const source = candidateSource(process.env.GOOD_NIGHT_TOP_POST_SOURCE);
+  const [bskyCandidates, nagiCandidates] = await Promise.all([
+    source === "nagi" ? Promise.resolve([]) : getBskyCandidates(),
+    source === "bsky" ? Promise.resolve([]) : getNagiCandidates(),
+  ]);
+  return selectGoodNightCandidate(source, bskyCandidates, nagiCandidates);
 }

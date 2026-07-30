@@ -13,6 +13,7 @@ import {
 import retry from "async-retry";
 import { getGoodNightCandidate } from "./GoodNightCandidateProvider.js";
 import { getRecentNewsArticleIds, recordRecentNewsArticle } from "./newsHistory.js";
+import { buildWhimsicalPostTexts } from "./scheduledPostContent.js";
 
 const whimsicalPostGenerator = new WhimsicalPostGenerator();
 const moodSongGenerator = new MyMoodSongGenerator();
@@ -111,13 +112,21 @@ export async function postWhimsical(currentMood: string) {
 
   const songSuffix = songUrl ? songUrl : "(Not found in Youtube...)";
   const moodSong = `MyMoodSong:\n${song.title} - ${song.artist}\n${songSuffix}`;
-  const textJa = `${generated.textJa}\n\n${moodSong}`;
-  const textEn = `${generated.textEn}\n\n${moodSong}`;
+  const texts = buildWhimsicalPostTexts({
+    textJa: generated.textJa,
+    textEn: generated.textEn,
+    moodSong,
+    selectedNewsUrl: generated.selectedNewsUrl,
+  });
   const results = await publish({
     kind: "whimsical",
     contentByTarget: {
-      bsky: { text: isJapanesePost ? textJa : textEn },
-      nagi: { text: textJa, langs: ["ja"], translations: [{ lang: "en", text: textEn }] },
+      bsky: { text: isJapanesePost ? texts.bskyJa : texts.bskyEn },
+      nagi: {
+        text: texts.nagiJa,
+        langs: ["ja"],
+        translations: [{ lang: "en", text: texts.nagiEn }],
+      },
     },
   });
   const published = Object.keys(results).length > 0;
