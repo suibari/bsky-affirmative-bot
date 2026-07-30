@@ -54,6 +54,10 @@ export const botJobState = nagiSchema.enum("bot_job_state", [
   "posted",
   "failed",
 ]);
+export const communityAffirmationState = nagiSchema.enum(
+  "community_affirmation_state",
+  ["pending", "processing", "posted", "rejected", "failed"],
+);
 export const nagiAiReplyMode = nagiSchema.enum("ai_reply_mode", [
   "ai",
   "template",
@@ -442,6 +446,50 @@ export const nagiBotReplyJobs = nagiSchema.table(
       t.generationMode,
       t.modeDecidedAt,
     ),
+  ],
+);
+/**
+ * 右サイドバー「みんなで全肯定」の匿名要約兼リースジョブ。
+ * authorDid を主キーにして、同じ作者から同時に複数候補が出ないようにする。
+ */
+export const nagiCommunityAffirmations = nagiSchema.table(
+  "community_affirmations",
+  {
+    authorDid: text("author_did").primaryKey(),
+    sourceUri: text("source_uri").notNull(),
+    sourceCid: text("source_cid").notNull(),
+    summaryJa: text("summary_ja"),
+    summaryEn: text("summary_en"),
+    state: communityAffirmationState("state").default("pending").notNull(),
+    attempts: integer("attempts").default(0).notNull(),
+    leaseExpiresAt: timestamp("lease_expires_at", { withTimezone: true }),
+    nextAttemptAt: timestamp("next_attempt_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    nextEligibleAt: timestamp("next_eligible_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    lastError: text("last_error"),
+    model: text("model"),
+    promptVersion: text("prompt_version"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [
+    uniqueIndex("nagi_community_affirmations_source_idx").on(
+      t.sourceUri,
+      t.sourceCid,
+    ),
+    index("nagi_community_affirmations_ready_idx").on(
+      t.state,
+      t.nextAttemptAt,
+      t.leaseExpiresAt,
+    ),
+    index("nagi_community_affirmations_eligible_idx").on(t.nextEligibleAt),
   ],
 );
 /**

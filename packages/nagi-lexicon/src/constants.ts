@@ -16,6 +16,8 @@ export const NAGI = {
   /** 認証した本人向けの、自分・botたん・非公開リストからなるホーム。 */
   getHomeTimeline: "com.suibari.nagi.getHomeTimeline",
   getAffirmation: "com.suibari.nagi.getAffirmation",
+  /** 作者名や本文を出さない、右サイドバー用の匿名要約候補。 */
+  getCommunityAffirmations: "com.suibari.nagi.getCommunityAffirmations",
   getThread: "com.suibari.nagi.getThread",
   getProfile: "com.suibari.nagi.getProfile",
   searchActors: "com.suibari.nagi.searchActors",

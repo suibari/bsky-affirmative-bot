@@ -27,6 +27,7 @@
             "com.suibari.nagi.getTimeline",
             "com.suibari.nagi.getHomeTimeline",
             "com.suibari.nagi.getAffirmation",
+            "com.suibari.nagi.getCommunityAffirmations",
             "com.suibari.nagi.getThread",
             "com.suibari.nagi.getProfile",
             "com.suibari.nagi.getNotifications",

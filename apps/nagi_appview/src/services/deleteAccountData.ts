@@ -13,6 +13,7 @@ import {
   nagiCardDraws,
   nagiCardInstances,
   nagiChannels,
+  nagiCommunityAffirmations,
   nagiDiaries,
   nagiBotReplyJobs,
   nagiEmojis,
@@ -30,7 +31,8 @@ import {
 import { NAGI } from "@bsky-affirmative-bot/nagi-lexicon";
 import { eq, inArray, like, or } from "drizzle-orm";
 
-const NAGI_BOT_SERVER_URL = process.env.NAGI_BOT_SERVER_URL || "http://localhost:3003";
+const NAGI_BOT_SERVER_URL =
+  process.env.NAGI_BOT_SERVER_URL || "http://localhost:3003";
 
 /**
  * 日記は botたんのリポジトリにあるので、AppView からは消せない。
@@ -47,7 +49,10 @@ async function purgeDiaryRecords(did: string) {
   } catch (error) {
     // 失敗しても AppView 側の削除は続ける（表示上は消える）。取り残したレコードは
     // /diaries/purge を手で叩けば回収できる。
-    console.error(`[ERROR][NAGI][DIARY] Failed to purge diary records for ${did}:`, error);
+    console.error(
+      `[ERROR][NAGI][DIARY] Failed to purge diary records for ${did}:`,
+      error,
+    );
   }
 }
 
@@ -67,7 +72,10 @@ type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
  * 統計まで壊れる。DID を外せば個人との紐付きは消える。
  */
 async function deleteBotSchemaData(tx: Tx, did: string) {
-  await tx.update(botInteraction).set({ did: null }).where(eq(botInteraction.did, did));
+  await tx
+    .update(botInteraction)
+    .set({ did: null })
+    .where(eq(botInteraction.did, did));
   await tx.delete(botAffirmations).where(eq(botAffirmations.did, did));
   await tx.delete(botReplies).where(eq(botReplies.did, did));
   await tx.delete(botPosts).where(eq(botPosts.did, did));
@@ -81,6 +89,12 @@ export async function deleteAccountData(did: string) {
     const postUri = `at://${did}/${NAGI.post}/%`;
     const reactionUri = `at://${did}/${NAGI.reaction}/%`;
     const channelUri = `at://${did}/${NAGI.channel}/%`;
+    const quotingSourceUris = (
+      await tx
+        .select({ uri: nagiPosts.uri })
+        .from(nagiPosts)
+        .where(like(nagiPosts.quoteUri, postUri))
+    ).map((row) => row.uri);
 
     // ミュートは2方向消す。自分がしたミュートだけでなく、他人が自分/自分の CH に対して
     // 設定したミュート行も残さない（退会後に他人の DB 行として残り続けないようにする）。
@@ -103,11 +117,21 @@ export async function deleteAccountData(did: string) {
         ),
       );
 
-    await tx.delete(nagiTranslations).where(like(nagiTranslations.postUri, postUri));
-    await tx.delete(nagiPostScores).where(like(nagiPostScores.postUri, postUri));
-    await tx.delete(nagiBotReplyJobs).where(like(nagiBotReplyJobs.sourceUri, postUri));
-    await tx.delete(nagiReactions).where(like(nagiReactions.subjectUri, postUri));
-    await tx.delete(nagiBotReplyJobs).where(eq(nagiBotReplyJobs.authorDid, did));
+    await tx
+      .delete(nagiTranslations)
+      .where(like(nagiTranslations.postUri, postUri));
+    await tx
+      .delete(nagiPostScores)
+      .where(like(nagiPostScores.postUri, postUri));
+    await tx
+      .delete(nagiBotReplyJobs)
+      .where(like(nagiBotReplyJobs.sourceUri, postUri));
+    await tx
+      .delete(nagiReactions)
+      .where(like(nagiReactions.subjectUri, postUri));
+    await tx
+      .delete(nagiBotReplyJobs)
+      .where(eq(nagiBotReplyJobs.authorDid, did));
     await tx
       .delete(nagiNotifications)
       .where(
@@ -120,6 +144,13 @@ export async function deleteAccountData(did: string) {
         ),
       );
     await tx.delete(nagiReactions).where(eq(nagiReactions.did, did));
+    await tx
+      .delete(nagiCommunityAffirmations)
+      .where(eq(nagiCommunityAffirmations.authorDid, did));
+    if (quotingSourceUris.length)
+      await tx
+        .delete(nagiCommunityAffirmations)
+        .where(inArray(nagiCommunityAffirmations.sourceUri, quotingSourceUris));
     // 本人所有 Bluemoji の複製は消すが、それを使った他ユーザーのリアクションは
     // そのユーザーのデータなので残す。表示時は emoji のフォールバック文字列を使う。
     await tx.delete(nagiEmojis).where(eq(nagiEmojis.did, did));
@@ -146,7 +177,9 @@ export async function deleteAccountData(did: string) {
         .where(inArray(nagiCardCommentJobs.instanceId, cardInstanceIds));
     }
     await tx.delete(nagiCardDraws).where(eq(nagiCardDraws.did, did));
-    await tx.delete(nagiCardInstances).where(eq(nagiCardInstances.ownerDid, did));
+    await tx
+      .delete(nagiCardInstances)
+      .where(eq(nagiCardInstances.ownerDid, did));
 
     // プッシュ購読。端末を特定しうる唯一の行なので必ず消す。
     await tx
@@ -154,7 +187,9 @@ export async function deleteAccountData(did: string) {
       .where(eq(nagiPushSubscriptions.recipientDid, did));
 
     // 重複排除ログ。id は `${did}:${time_us}:...` なので前方一致で引ける。
-    await tx.delete(nagiProcessedEvents).where(like(nagiProcessedEvents.id, `${did}:%`));
+    await tx
+      .delete(nagiProcessedEvents)
+      .where(like(nagiProcessedEvents.id, `${did}:%`));
 
     await tx.delete(nagiProfiles).where(eq(nagiProfiles.did, did));
     await tx.delete(nagiActors).where(eq(nagiActors.did, did));

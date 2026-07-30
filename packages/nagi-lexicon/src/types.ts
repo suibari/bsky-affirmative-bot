@@ -315,6 +315,17 @@ export type Page<T> = {
   hasMore: boolean;
   botActor?: ActorView;
 };
+export type CommunityAffirmationView = {
+  uri: string;
+  cid: string;
+  summary: string;
+  reactions: ReactionView[];
+};
+export type CommunityAffirmationPage = {
+  items: CommunityAffirmationView[];
+  cursor?: string;
+  hasMore: boolean;
+};
 export type ProfileFeedFilter = "posts" | "replies" | "media" | "reactions";
 export type ProfileDetail = ActorView & {
   postCount: number;
@@ -384,7 +395,8 @@ export type SetPrivateListMemberResult = {
 // ---------------------------------------------------------------------------
 /** N < R < SR < UR < AAR(All-Affirmation Rare)。 */
 export type CardRarity = "N" | "R" | "SR" | "UR" | "AAR";
-export type CardAttribute = "light" | "dark" | "fire" | "water" | "wind" | "earth";
+export type CardAttribute =
+  "light" | "dark" | "fire" | "water" | "wind" | "earth";
 /**
  * カード1枚のビュー。定義（名前/フレーバー/ATK）は shared-configs の JSON 由来、
  * owned 以下は所持情報。未所持でもコレクション表示のため定義部分だけ返す。

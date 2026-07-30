@@ -14,6 +14,7 @@ import {
 import { startNagiReplyWorker } from "./NagiReplyWorker.js";
 import { startNagiAnalysisWorker } from "./NagiAnalysisWorker.js";
 import { startNagiCardCommentWorker } from "./NagiCardCommentWorker.js";
+import { startNagiCommunityAffirmationWorker } from "./NagiCommunityAffirmationWorker.js";
 import { enqueueAnalysis, runNagiAnalysis } from "./NagiAnalysisFeature.js";
 import express from "express";
 import type { ScheduledPostRequest } from "@bsky-affirmative-bot/clients";
@@ -54,6 +55,8 @@ async function start() {
   startNagiAnalysisWorker();
   // 全肯定カードを引いたときの吹き出しコメント。エンキューは AppView の drawCard が担う。
   startNagiCardCommentWorker();
+  // 右サイドバー「みんなで全肯定」の匿名要約。候補選出と生成を作者単位で行う。
+  startNagiCommunityAffirmationWorker();
   // 過疎チャンネルへの話題提供（Phase 2）。作成時の盛り上げ投稿は onNagiChannel が担う。
   startNagiChannelTopicScheduler();
 

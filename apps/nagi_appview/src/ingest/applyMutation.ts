@@ -3,6 +3,7 @@ import {
   nagiActorAnalyses,
   nagiAnalysisJobs,
   nagiChannels,
+  nagiCommunityAffirmations,
   nagiDiaries,
   nagiEmojis,
   nagiIngestState,
@@ -166,6 +167,12 @@ export async function applyMutation(
         : [];
     if (commit.operation === "delete") {
       if (collection === NAGI.post) {
+        const quotingSourceUris = (
+          await tx
+            .select({ uri: nagiPosts.uri })
+            .from(nagiPosts)
+            .where(eq(nagiPosts.quoteUri, uri))
+        ).map((row) => row.uri);
         await tx
           .update(nagiPosts)
           .set({
@@ -182,6 +189,15 @@ export async function applyMutation(
         await tx
           .delete(nagiNotifications)
           .where(eq(nagiNotifications.subjectUri, uri));
+        await tx
+          .delete(nagiCommunityAffirmations)
+          .where(eq(nagiCommunityAffirmations.sourceUri, uri));
+        if (quotingSourceUris.length)
+          await tx
+            .delete(nagiCommunityAffirmations)
+            .where(
+              inArray(nagiCommunityAffirmations.sourceUri, quotingSourceUris),
+            );
       }
       if (collection === NAGI.reaction) {
         await tx.delete(nagiReactions).where(eq(nagiReactions.uri, uri));
@@ -221,9 +237,42 @@ export async function applyMutation(
         // 既存投稿 かつ cid が変わった＝投稿後編集。翻訳キャッシュ破棄と edited フラグ立てに使う。
         const isEdit = !!existingPost[0] && existingPost[0].cid !== commit.cid;
         if (isEdit) {
+          const quotingSourceUris = (
+            await tx
+              .select({ uri: nagiPosts.uri })
+              .from(nagiPosts)
+              .where(eq(nagiPosts.quoteUri, uri))
+          ).map((row) => row.uri);
           await tx
             .delete(nagiTranslations)
             .where(eq(nagiTranslations.postUri, uri));
+          // 旧CIDの要約は即時非表示にするが、作者24時間1生成のクールダウンは残す。
+          // 行を消すと編集直後に再生成できてしまうため、期限後にworkerが新CIDへ差し替える。
+          await tx
+            .update(nagiCommunityAffirmations)
+            .set({
+              state: "rejected",
+              summaryJa: null,
+              summaryEn: null,
+              leaseExpiresAt: null,
+              lastError: "source_edited",
+              updatedAt: new Date(),
+            })
+            .where(eq(nagiCommunityAffirmations.sourceUri, uri));
+          if (quotingSourceUris.length)
+            await tx
+              .update(nagiCommunityAffirmations)
+              .set({
+                state: "rejected",
+                summaryJa: null,
+                summaryEn: null,
+                leaseExpiresAt: null,
+                lastError: "quoted_source_edited",
+                updatedAt: new Date(),
+              })
+              .where(
+                inArray(nagiCommunityAffirmations.sourceUri, quotingSourceUris),
+              );
         }
         await tx
           .insert(nagiPosts)

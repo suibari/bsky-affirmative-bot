@@ -44,6 +44,7 @@ import {
   setPrivateListMember,
 } from "../queries/privateList.js";
 import { drawCard, getCards } from "../queries/cards.js";
+import { getCommunityAffirmations } from "../queries/communityAffirmations.js";
 import { config } from "../config.js";
 import {
   ensurePdsRecord,
@@ -54,6 +55,27 @@ import { parseRecordUri } from "../ingest/recordUri.js";
 export const xrpc = Router();
 const limit = (value: unknown) =>
   Math.min(100, Math.max(1, Number(value ?? 50) || 50));
+
+xrpc.get(
+  `/${NAGI.getCommunityAffirmations}`,
+  requiredServiceAuth(NAGI.getCommunityAffirmations),
+  async (req, res, next) => {
+    try {
+      const lang = String(req.query.lang ?? "ja");
+      if (lang !== "ja" && lang !== "en")
+        throw new ApiError(400, "invalid_request", "lang must be ja or en");
+      const data = await getCommunityAffirmations({
+        viewerDid: req.viewerDid!,
+        lang,
+        limit: Math.min(20, limit(req.query.limit)),
+        cursor: String(req.query.cursor ?? "") || undefined,
+      });
+      res.set("Cache-Control", "private, no-store").json(data);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
 
 xrpc.get(
   `/${NAGI.getHomeTimeline}`,
