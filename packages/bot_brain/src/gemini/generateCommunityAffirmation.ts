@@ -8,7 +8,7 @@ import {
 import { generateContentWithRetry } from "./util.js";
 
 export const COMMUNITY_AFFIRMATION_PROMPT_VERSION =
-  "nagi-community-affirmation-v4";
+  "nagi-community-affirmation-v5";
 
 export interface CommunityAffirmationInput {
   text: string;
@@ -97,7 +97,7 @@ export function parseCommunityAffirmationResponse(
 export async function generateCommunityAffirmation(
   input: CommunityAffirmationInput,
 ): Promise<CommunityAffirmationResult> {
-  const contents: Part[] = [{ text: prompt(input) }];
+  const contents: Part[] = [{ text: buildCommunityAffirmationPrompt(input) }];
   contents.push(...(await imageParts(input.images ?? [])));
   const response = await generateContentWithRetry(
     {
@@ -124,7 +124,7 @@ export async function generateCommunityAffirmation(
             botCommentJa: {
               type: Type.STRING,
               description:
-                "投稿のどこが気になったかを、明るく個性的なbotたんの口調で伝える日本語2〜3文。botたんを主語として含める。",
+                "投稿の具体的などこが気になったかを、明るく個性的なbotたんの口調で伝える日本語2〜3文。紹介行為ではなく内容への反応を書く。",
             },
             postSummaryEn: {
               type: Type.STRING,
@@ -134,7 +134,7 @@ export async function generateCommunityAffirmation(
             botCommentEn: {
               type: Type.STRING,
               description:
-                "Two or three lively English sentences explaining Bot-tan's specific reaction and why she wanted to share the post.",
+                "Two or three lively English sentences explaining Bot-tan's specific reaction to the content, without describing the post or its author as moved into the current space.",
             },
             reasonCode: {
               type: Type.STRING,
@@ -166,11 +166,11 @@ export async function generateCommunityAffirmation(
   return parseCommunityAffirmationResponse(response.text || "{}");
 }
 
-const prompt = (
+export const buildCommunityAffirmationPrompt = (
   input: CommunityAffirmationInput,
 ) => `Nagiの「みんなで全肯定」に表示する匿名要約を作成してください。
 
-これは投稿者への返信ではありません。Nagiで見かけたポストを、botたんが「みんなにも聞いてほしい」と感じて別の利用者へ紹介する文章です。
+これは投稿者への返信ではありません。投稿内容を匿名で要約し、その内容の具体的などこが気になったかを、botたんが別の利用者へ伝える文章です。
 
 出力する内容:
 1. postSummaryJa: Nagiで見つけた投稿内容を、作者名を出さず第三者へ自然に紹介する短い1文。毎回同じ書き出しに固定しない。
@@ -186,7 +186,7 @@ const prompt = (
 - 「全肯定」「全肯定する」「affirm everything」のような機能名・機能説明を文章へ入れない。
 - 「心を惹かれた」「素敵だと思った」のような抽象的な一言で終わらせない。投稿の具体的などこに反応したかを書く。
 - 落ち着いた要約口調に寄せず、共有ペルソナの明るさ、親しみ、好奇心をしっかり出す。感嘆符、軽い比喩、伸ばし棒、絵文字1個までを自然に使ってよい。
-- 投稿内容から無理なく連想できる場合は、「みんなにも聞いてほしくて連れてきちゃった」のように、botたんが紹介したくなった理由を入れる。
+- 投稿・投稿者・声を、人や物を移動させるような比喩で表現しない。紹介した行動の説明ではなく、投稿の具体的な内容に対する反応を書く。
 - botたんの反応は、投稿に実際に含まれる具体的な内容だけを根拠にする。事実を足したり、投稿者の感情を決めつけたりしない。
 - 投稿者と、引用元や画像の作者を混同しない。
 - 医療・法律・事実関係を推測しない。

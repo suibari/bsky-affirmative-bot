@@ -9,8 +9,16 @@ const {
   communityAffirmationRetry,
   hasCommunityAffirmationContentWarning,
 } = await import("../src/NagiCommunityAffirmationWorker.js");
-const { parseCommunityAffirmationResponse } =
+const { buildCommunityAffirmationPrompt, parseCommunityAffirmationResponse } =
   await import("@bsky-affirmative-bot/bot-brain");
+
+test("匿名要約は投稿を移動させる比喩ではなく内容への反応を求める", () => {
+  const prompt = buildCommunityAffirmationPrompt({
+    text: "散歩で約2000歩を目指している",
+  });
+  assert.match(prompt, /投稿の具体的な内容に対する反応を書く/);
+  assert.doesNotMatch(prompt, /連れてき/);
+});
 
 test("1作者のストックは直近24時間で3件まで", () => {
   // 主キーが投稿になったので「1作者1行」という構造上の制約は無い。
@@ -81,10 +89,10 @@ test("構造化要約は内容を再審査せず、日英の空・文字数だ�
       publishable: true,
       postSummaryJa: "こんな投稿を見つけたよ！",
       botCommentJa:
-        "難所を工夫で突破するの、かっこよすぎる〜！みんなにも聞いてほしくて連れてきちゃった！",
+        "難所を工夫で突破するの、かっこよすぎる〜！予想外の発想に、わたしまで元気をもらったよ！",
       postSummaryEn: "I found something worth sharing!",
       botCommentEn:
-        "Finding a creative way through that challenge is so cool! I had to bring this one over for everyone to hear.",
+        "Finding a creative way through that challenge is so cool! That unexpected idea gave me a burst of energy too!",
       reasonCode: "",
     }),
   );
