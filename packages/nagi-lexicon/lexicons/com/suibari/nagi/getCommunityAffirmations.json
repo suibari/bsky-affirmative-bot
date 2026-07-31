@@ -32,18 +32,20 @@
               "items": { "type": "ref", "ref": "#view" }
             },
             "cursor": { "type": "string" },
-            "hasMore": { "type": "boolean" }
+            "hasMore": { "type": "boolean" },
+            "botActor": { "type": "unknown" }
           }
         }
       }
     },
     "view": {
       "type": "object",
-      "required": ["uri", "cid", "summary", "reactions"],
+      "required": ["uri", "cid", "summary", "createdAt", "reactions"],
       "properties": {
         "uri": { "type": "string", "format": "at-uri" },
         "cid": { "type": "string", "format": "cid" },
         "summary": { "type": "string", "maxLength": 320 },
+        "createdAt": { "type": "string", "format": "datetime" },
         "reactions": {
           "type": "array",
           "items": { "type": "unknown" }

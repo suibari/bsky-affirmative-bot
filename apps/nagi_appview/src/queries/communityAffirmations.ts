@@ -21,6 +21,7 @@ import {
 } from "drizzle-orm";
 import { getReactionViews } from "./reactions.js";
 import { loadMutes, muteVisibility, type MuteSet } from "./mutes.js";
+import { getBotActor } from "./timeline.js";
 
 const ONE_HOUR_MS = 60 * 60 * 1_000;
 const SEVEN_DAYS_MS = 7 * 24 * ONE_HOUR_MS;
@@ -133,17 +134,21 @@ export async function getCommunityAffirmations(opts: {
     )
     .limit(opts.limit + 1);
   const page = rows.slice(0, opts.limit);
-  const reactions = await getReactionViews(
-    page.map((row) => row.uri),
-    opts.viewerDid,
-  );
+  const [reactions, botActor] = await Promise.all([
+    getReactionViews(
+      page.map((row) => row.uri),
+      opts.viewerDid,
+    ),
+    getBotActor(),
+  ]);
   const items: CommunityAffirmationView[] = page.map((row) => {
     // 「その要約に自分がどうするか」だけの機能なので、他人の反応は返さない。
     // 件数も反応した人も出さないよう、自分が押したものだけを 1 件として渡す。
-    const visibleReactions = (reactions.get(row.uri) ?? []).flatMap((reaction) =>
-      reaction.reactedByMe
-        ? [{ ...reaction, reactors: [], hasMoreReactors: false }]
-        : [],
+    const visibleReactions = (reactions.get(row.uri) ?? []).flatMap(
+      (reaction) =>
+        reaction.reactedByMe
+          ? [{ ...reaction, reactors: [], hasMoreReactors: false }]
+          : [],
     );
     return {
       uri: row.uri,
@@ -153,12 +158,14 @@ export async function getCommunityAffirmations(opts: {
         row.summaryJa ??
         row.summaryEn ??
         "",
+      createdAt: row.stockedAt.toISOString(),
       reactions: visibleReactions,
     };
   });
   const last = page.at(-1);
   return {
     items,
+    botActor,
     hasMore: rows.length > opts.limit,
     cursor:
       rows.length > opts.limit && last
