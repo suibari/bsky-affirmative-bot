@@ -15,7 +15,18 @@ import {
   resolvePdsUrl,
 } from "@bsky-affirmative-bot/bot-runtime";
 import { MODEL_GEMINI } from "@bsky-affirmative-bot/shared-configs";
-import { and, asc, eq, gte, isNull, lte, ne, or, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  eq,
+  gte,
+  inArray,
+  isNull,
+  lte,
+  ne,
+  or,
+  sql,
+} from "drizzle-orm";
 
 const ONE_HOUR_MS = 60 * 60 * 1_000;
 const SEVEN_DAYS_MS = 7 * 24 * ONE_HOUR_MS;
@@ -24,6 +35,20 @@ const MAX_ATTEMPTS = 5;
 const MAX_BACKOFF_MS = 300_000;
 const WORKER_INTERVAL_MS = 10_000;
 const CANDIDATE_REFRESH_MS = 60_000;
+/**
+ * 1作者がストックを占有しないための上限。この本数までなら、同じ人の投稿が
+ * 直近 AUTHOR_STOCK_WINDOW_MS の間に複数ストックされてよい。
+ * 旧実装は「1作者1行 + 24hクールダウン」だったため、一覧がほとんど動かなかった。
+ */
+const AUTHOR_STOCK_LIMIT = 3;
+const AUTHOR_STOCK_WINDOW_MS = 24 * ONE_HOUR_MS;
+/**
+ * 1回の候補リフレッシュで積む上限。供給があるときに一気に食い尽くさず、
+ * 時間方向に散らして「毎時なにか新しいものがある」状態を保つ。
+ */
+const MAX_ENQUEUE_PER_REFRESH = 3;
+/** 候補走査の上限。ストック済みは SQL 側で除外しているので、この範囲で足りる。 */
+const CANDIDATE_SCAN_LIMIT = 200;
 const LOG_PREFIX = "[community-affirmation]";
 
 const logCommunityAffirmation = (
@@ -73,31 +98,12 @@ export function hasCommunityAffirmationContentWarning(
   );
 }
 
-export function canReplaceCommunityCandidate(
-  existing:
-    | { state: string; nextEligibleAt: Date; promptVersion?: string | null }
-    | undefined,
-  now: Date,
-) {
-  return (
-    !existing ||
-    ((existing.state === "posted" || existing.state === "rejected") &&
-      existing.promptVersion !== COMMUNITY_AFFIRMATION_PROMPT_VERSION) ||
-    (existing.state !== "processing" &&
-      existing.nextEligibleAt.getTime() <= now.getTime())
-  );
-}
-
-export function chooseCommunityCandidate(
-  candidates: Candidate[],
-  existing?: { sourceUri: string; sourceCid: string },
-) {
-  return candidates.find(
-    ({ post }) =>
-      !existing ||
-      post.uri !== existing.sourceUri ||
-      post.cid !== existing.sourceCid,
-  );
+/**
+ * 候補をストックしてよいか。作者ごとの直近ストック数だけで決める。
+ * 1作者1行という構造上の制約は主キーの変更で無くなったので、ここが唯一の占有防止になる。
+ */
+export function canStockForAuthor(recentCount: number) {
+  return recentCount < AUTHOR_STOCK_LIMIT;
 }
 
 export function communityAffirmationRetry(attempts: number) {
@@ -127,11 +133,20 @@ async function eligibleCandidates(now: Date): Promise<Candidate[]> {
         ne(nagiPosts.did, process.env.NAGI_BOT_DID!),
         lte(nagiPosts.recordCreatedAt, new Date(now.getTime() - ONE_HOUR_MS)),
         gte(nagiPosts.recordCreatedAt, new Date(now.getTime() - SEVEN_DAYS_MS)),
+        // 「まだ拾われていない投稿を拾う」というこの機能の選定思想。読み出し側では
+        // 判定しないので（一覧に出たあとで反応が付いても消えない）、ここが唯一の関門。
         sql`(
           select count(*)
           from nagi.reactions as community_reaction
           where community_reaction.subject_uri = ${nagiPosts.uri}
         ) <= 1`,
+        // ストック済みの投稿は二度と候補にしない。走査に上限を付けても
+        // 新しい候補まで届くようにするため、SQL 側で落としておく。
+        sql`not exists (
+          select 1
+          from nagi.community_affirmations as stocked
+          where stocked.source_uri = ${nagiPosts.uri}
+        )`,
       ),
     )
     .orderBy(
@@ -142,85 +157,127 @@ async function eligibleCandidates(now: Date): Promise<Candidate[]> {
       )`,
       asc(nagiPosts.recordCreatedAt),
       asc(nagiPosts.uri),
-    );
+    )
+    .limit(CANDIDATE_SCAN_LIMIT);
 
   return rows
     .map((row) => ({ ...row, reactionCount: Number(row.reactionCount) }))
     .filter(({ post }) => !hasCommunityAffirmationContentWarning(post));
 }
 
-async function refreshCandidates(now: Date) {
-  const byAuthor = new Map<string, Candidate[]>();
-  for (const candidate of await eligibleCandidates(now)) {
-    const group = byAuthor.get(candidate.post.did) ?? [];
-    group.push(candidate);
-    byAuthor.set(candidate.post.did, group);
-  }
-  for (const [authorDid, candidates] of byAuthor) {
-    const existing = await db
-      .select({
-        sourceUri: nagiCommunityAffirmations.sourceUri,
-        sourceCid: nagiCommunityAffirmations.sourceCid,
-        nextEligibleAt: nagiCommunityAffirmations.nextEligibleAt,
-        state: nagiCommunityAffirmations.state,
-        promptVersion: nagiCommunityAffirmations.promptVersion,
+/** 直近 AUTHOR_STOCK_WINDOW_MS のあいだに積んだ行数を作者ごとに数える。 */
+async function recentStockByAuthor(now: Date, authorDids: string[]) {
+  const counts = new Map<string, number>();
+  if (!authorDids.length) return counts;
+  const rows = await db
+    .select({
+      authorDid: nagiCommunityAffirmations.authorDid,
+      count: sql<number>`count(*)::int`,
+    })
+    .from(nagiCommunityAffirmations)
+    .where(
+      and(
+        inArray(nagiCommunityAffirmations.authorDid, authorDids),
+        gte(
+          nagiCommunityAffirmations.createdAt,
+          new Date(now.getTime() - AUTHOR_STOCK_WINDOW_MS),
+        ),
+      ),
+    )
+    .groupBy(nagiCommunityAffirmations.authorDid);
+  for (const row of rows) counts.set(row.authorDid, Number(row.count));
+  return counts;
+}
+
+/**
+ * プロンプトを更新したときだけ、生成済みの行を作り直す。
+ * 通常の運用では触らない（一度 rejected になった投稿を蒸し返さない）。
+ */
+async function requeueStalePromptVersions(now: Date) {
+  const stale = await db
+    .select({ sourceUri: nagiCommunityAffirmations.sourceUri })
+    .from(nagiCommunityAffirmations)
+    .where(
+      and(
+        or(
+          eq(nagiCommunityAffirmations.state, "posted"),
+          eq(nagiCommunityAffirmations.state, "rejected"),
+        ),
+        or(
+          isNull(nagiCommunityAffirmations.promptVersion),
+          ne(
+            nagiCommunityAffirmations.promptVersion,
+            COMMUNITY_AFFIRMATION_PROMPT_VERSION,
+          ),
+        ),
+      ),
+    )
+    .limit(MAX_ENQUEUE_PER_REFRESH);
+  for (const row of stale) {
+    await db
+      .update(nagiCommunityAffirmations)
+      .set({
+        state: "pending",
+        attempts: 0,
+        leaseExpiresAt: null,
+        nextAttemptAt: now,
+        lastError: null,
+        updatedAt: now,
       })
-      .from(nagiCommunityAffirmations)
-      .where(eq(nagiCommunityAffirmations.authorDid, authorDid))
-      .limit(1);
-    if (!canReplaceCommunityCandidate(existing[0], now)) continue;
-    const promptUpgrade =
-      (existing[0]?.state === "posted" || existing[0]?.state === "rejected") &&
-      existing[0].promptVersion !== COMMUNITY_AFFIRMATION_PROMPT_VERSION;
-    const sameSource = promptUpgrade
-      ? candidates.find(
-          ({ post }) =>
-            post.uri === existing[0].sourceUri &&
-            post.cid === existing[0].sourceCid,
-        )
-      : undefined;
-    const candidate =
-      sameSource ?? chooseCommunityCandidate(candidates, existing[0]);
-    if (!candidate) continue;
-    const nextEligibleAt = new Date(now.getTime() + 24 * ONE_HOUR_MS);
+      .where(eq(nagiCommunityAffirmations.sourceUri, row.sourceUri));
+    logCommunityAffirmation("candidate_queued", {
+      sourceUri: row.sourceUri,
+      reason: "prompt_upgrade",
+      promptVersion: COMMUNITY_AFFIRMATION_PROMPT_VERSION,
+    });
+  }
+  return stale.length;
+}
+
+async function refreshCandidates(now: Date) {
+  // プロンプト更新の作り直しを先に消化する。同じ回で新規も積むと、更新直後に
+  // 生成キューが一気に膨らむため、1回の上限はここと共有する。
+  const requeued = await requeueStalePromptVersions(now);
+  if (requeued >= MAX_ENQUEUE_PER_REFRESH) return;
+
+  const candidates = await eligibleCandidates(now);
+  if (!candidates.length) return;
+  const recent = await recentStockByAuthor(
+    now,
+    [...new Set(candidates.map((candidate) => candidate.post.did))],
+  );
+
+  let enqueued = requeued;
+  for (const candidate of candidates) {
+    if (enqueued >= MAX_ENQUEUE_PER_REFRESH) break;
+    const authorDid = candidate.post.did;
+    const stocked = recent.get(authorDid) ?? 0;
+    if (!canStockForAuthor(stocked)) continue;
 
     await db
       .insert(nagiCommunityAffirmations)
       .values({
-        authorDid: candidate.post.did,
+        authorDid,
         sourceUri: candidate.post.uri,
         sourceCid: candidate.post.cid,
         state: "pending",
         attempts: 0,
         nextAttemptAt: now,
-        nextEligibleAt,
+        // 主キーが投稿になったので、この列はリトライ制御のためだけに残っている。
+        nextEligibleAt: now,
         createdAt: now,
         updatedAt: now,
       })
-      .onConflictDoUpdate({
-        target: nagiCommunityAffirmations.authorDid,
-        set: {
-          sourceUri: candidate.post.uri,
-          sourceCid: candidate.post.cid,
-          summaryJa: null,
-          summaryEn: null,
-          state: "pending",
-          attempts: 0,
-          leaseExpiresAt: null,
-          nextAttemptAt: now,
-          nextEligibleAt,
-          lastError: null,
-          model: null,
-          promptVersion: null,
-          createdAt: now,
-          updatedAt: now,
-        },
-      });
+      // 別プロセスが同じ投稿を先に積んでいたら何もしない。
+      .onConflictDoNothing({ target: nagiCommunityAffirmations.sourceUri });
+
+    recent.set(authorDid, stocked + 1);
+    enqueued += 1;
     logCommunityAffirmation("candidate_queued", {
       authorDid,
       sourceUri: candidate.post.uri,
       sourceCid: candidate.post.cid,
-      reason: promptUpgrade ? "prompt_upgrade" : "scheduled",
+      reason: "scheduled",
       promptVersion: COMMUNITY_AFFIRMATION_PROMPT_VERSION,
     });
   }
@@ -414,7 +471,6 @@ async function processOne(now: Date) {
         summaryJa: result.publishable ? result.summaryJa : null,
         summaryEn: result.publishable ? result.summaryEn : null,
         leaseExpiresAt: null,
-        nextEligibleAt: new Date(Date.now() + 24 * ONE_HOUR_MS),
         lastError: result.publishable ? null : result.reasonCode,
         model: MODEL_GEMINI,
         promptVersion: COMMUNITY_AFFIRMATION_PROMPT_VERSION,
@@ -455,9 +511,6 @@ async function processOne(now: Date) {
         state: failed ? "failed" : "pending",
         leaseExpiresAt: null,
         nextAttemptAt: new Date(Date.now() + backoffMs),
-        nextEligibleAt: failed
-          ? new Date(Date.now() + 24 * ONE_HOUR_MS)
-          : leasedJob.nextEligibleAt,
         lastError: error instanceof Error ? error.message : String(error),
         updatedAt: new Date(),
       })

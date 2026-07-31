@@ -449,14 +449,18 @@ export const nagiBotReplyJobs = nagiSchema.table(
   ],
 );
 /**
- * 右サイドバー「みんなで全肯定」の匿名要約兼リースジョブ。
- * authorDid を主キーにして、同じ作者から同時に複数候補が出ないようにする。
+ * 「みんなで全肯定」の匿名要約兼リースジョブ。
+ *
+ * 主キーは投稿の URI。以前は authorDid が主キーで「1作者につき生涯1行」だったため、
+ * ストック総量がアクティブ作者数で頭打ちになり、一覧がほとんど更新されなかった。
+ * いまは1作者から複数ストックでき、占有防止は
+ * 「直近24hに作った行数」（NagiCommunityAffirmationWorker の AUTHOR_STOCK_LIMIT）で担保する。
  */
 export const nagiCommunityAffirmations = nagiSchema.table(
   "community_affirmations",
   {
-    authorDid: text("author_did").primaryKey(),
-    sourceUri: text("source_uri").notNull(),
+    authorDid: text("author_did").notNull(),
+    sourceUri: text("source_uri").primaryKey(),
     sourceCid: text("source_cid").notNull(),
     summaryJa: text("summary_ja"),
     summaryEn: text("summary_en"),
@@ -480,16 +484,19 @@ export const nagiCommunityAffirmations = nagiSchema.table(
       .notNull(),
   },
   (t) => [
-    uniqueIndex("nagi_community_affirmations_source_idx").on(
-      t.sourceUri,
-      t.sourceCid,
-    ),
     index("nagi_community_affirmations_ready_idx").on(
       t.state,
       t.nextAttemptAt,
       t.leaseExpiresAt,
     ),
     index("nagi_community_affirmations_eligible_idx").on(t.nextEligibleAt),
+    /** 作者ごとの直近ストック数を数えるため（1作者による占有の防止）。 */
+    index("nagi_community_affirmations_author_created_idx").on(
+      t.authorDid,
+      t.createdAt,
+    ),
+    /** 読み出しは「生成が新しい順」なので、posted だけを更新時刻で引く。 */
+    index("nagi_community_affirmations_posted_idx").on(t.state, t.updatedAt),
   ],
 );
 /**
@@ -622,6 +629,27 @@ export const nagiPrivateListMembers = nagiSchema.table(
     ),
     index("nagi_private_list_owner_idx").on(t.ownerDid, t.createdAt),
     index("nagi_private_list_member_idx").on(t.memberDid),
+  ],
+);
+
+/**
+ * 購読（参加）中のチャンネル。private_list_members と同じ設計で、
+ * PDS レコードにはせず AppView だけが持ち、認証した本人にしか返さない
+ * （どのチャンネルを見ているかは他人に見せてよい情報ではない）。
+ */
+export const nagiChannelSubscriptions = nagiSchema.table(
+  "channel_subscriptions",
+  {
+    ownerDid: text("owner_did").notNull(),
+    channelUri: text("channel_uri").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.ownerDid, t.channelUri] }),
+    index("nagi_channel_subscriptions_owner_idx").on(t.ownerDid, t.createdAt),
+    index("nagi_channel_subscriptions_channel_idx").on(t.channelUri),
   ],
 );
 

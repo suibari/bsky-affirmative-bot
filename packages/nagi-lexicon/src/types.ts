@@ -97,6 +97,11 @@ export type ChannelView = {
    * URL 直打ちでは開けるので、そのページで解除できるように getChannel だけが返す。
    */
   viewerMuted?: boolean;
+  /**
+   * ビューアがこの CH を購読（参加）しているか。my Nagi の「参加中チャンネル」枠の対象になる。
+   * ミュートと同じく本人にしか意味のない情報なので、未認証のときは付けない。
+   */
+  viewerSubscribed?: boolean;
 };
 export type NagiNews = {
   $type: "com.suibari.nagi.news";
@@ -381,6 +386,26 @@ export type SetMuteInput = {
 export type SetMuteResult = { muted: boolean };
 /** ホームに表示するユーザーの非公開一覧。認証した所有者本人にしか返さない。 */
 export type PrivateListView = { members: ActorView[]; limit: 200 };
+/** 購読中チャンネルの上限。非公開リスト（200）より小さく取る。 */
+export const CHANNEL_SUBSCRIPTION_LIMIT = 50;
+export type SetChannelSubscriptionInput = {
+  uri: string;
+  subscribed: boolean;
+};
+export type SetChannelSubscriptionResult = {
+  uri: string;
+  subscribed: boolean;
+};
+/**
+ * my Nagi の「リスト動向」セクション。1人/1チャンネルにつき最新1件しか返さないので、
+ * 活発な相手が枠を埋め尽くさない。ページングはしない（もっと見るで既存 TL へ送る）。
+ */
+export type MyNagiListUser = { actor: ActorView; post: FeedItem };
+export type MyNagiChannel = { channel: ChannelView; post: FeedItem };
+export type MyNagiView = {
+  listUsers: MyNagiListUser[];
+  channels: MyNagiChannel[];
+};
 export type SetPrivateListMemberInput = {
   memberDid: string;
   included: boolean;

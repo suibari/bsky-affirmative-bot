@@ -9,6 +9,7 @@ import {
 import { embedQuery, hybridConditions } from "./hybridSearch.js";
 import { channelView, iso } from "./channelView.js";
 import { isChannelMuted, loadMutes } from "./mutes.js";
+import { loadSubscribedAmong } from "./channelSubscriptions.js";
 
 // 検索は関連順のため offset ベースのページング（tag/一覧の keyset とは別系統）。
 const encodeOffset = (offset: number) =>
@@ -83,8 +84,18 @@ export async function getChannels(opts: {
     .limit(opts.limit + 1);
   const page = rows.slice(0, opts.limit);
   const last = page.at(-1);
+  // 一覧では「参加中」バッジのためだけに使う。未認証には付けない。
+  const subscribed = opts.viewerDid
+    ? await loadSubscribedAmong(
+        opts.viewerDid,
+        page.map((row) => row.uri),
+      )
+    : undefined;
   return {
-    channels: page.map(channelView),
+    channels: page.map((row) => ({
+      ...channelView(row),
+      ...(subscribed ? { viewerSubscribed: subscribed.has(row.uri) } : {}),
+    })),
     cursor:
       rows.length > opts.limit && last
         ? encodeCursor(iso(last.lastPostAt ?? EPOCH), last.uri)
@@ -228,10 +239,17 @@ export async function getChannel(
   if (!rows[0]) return null;
   // ミュート済みでも URL 直打ちなら開ける（プロフィールと同じ方針）。その画面で解除できるよう
   // viewerMuted だけ返す。ミュートは非公開情報なので、あくまで本人のリクエストにしか付かない。
-  const muted = await isChannelMuted(viewerDid, uri);
+  // 購読状態も同じく非公開情報なので、認証されたビューアにしか付けない。
+  const [muted, subscribed] = await Promise.all([
+    isChannelMuted(viewerDid, uri),
+    viewerDid
+      ? loadSubscribedAmong(viewerDid, [uri]).then((set) => set.has(uri))
+      : Promise.resolve(false),
+  ]);
   const channel: ChannelView = {
     ...channelView(rows[0]),
     ...(muted ? { viewerMuted: true } : {}),
+    ...(viewerDid ? { viewerSubscribed: subscribed } : {}),
   };
   if (!rows[0].pinnedPostUri) return channel;
   const [pinnedPost] = await hydratePostViews(

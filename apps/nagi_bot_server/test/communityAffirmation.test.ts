@@ -5,103 +5,20 @@ process.env.DATABASE_URL ??= "postgres://user:pass@localhost:5432/test";
 process.env.NAGI_BOT_DID ??= "did:plc:bot";
 
 const {
-  canReplaceCommunityCandidate,
-  chooseCommunityCandidate,
+  canStockForAuthor,
   communityAffirmationRetry,
   hasCommunityAffirmationContentWarning,
 } = await import("../src/NagiCommunityAffirmationWorker.js");
 const { parseCommunityAffirmationResponse } =
   await import("@bsky-affirmative-bot/bot-brain");
-const { COMMUNITY_AFFIRMATION_PROMPT_VERSION } =
-  await import("@bsky-affirmative-bot/bot-brain");
 
-const candidate = (did: string, uri: string) =>
-  ({
-    post: { did, uri },
-    pdsUrl: "https://pds.example",
-    reactionCount: 0,
-  }) as any;
-
-test("作者内では既存と異なる先頭候補を1件だけ選ぶ", () => {
-  const selected = chooseCommunityCandidate([
-    candidate("did:plc:a", "at://a/first"),
-    candidate("did:plc:a", "at://a/second"),
-  ]);
-  assert.equal(selected?.post.uri, "at://a/first");
-  const next = chooseCommunityCandidate(
-    [
-      {
-        ...candidate("did:plc:a", "at://a/first"),
-        post: { did: "did:plc:a", uri: "at://a/first", cid: "one" },
-      },
-      {
-        ...candidate("did:plc:a", "at://a/second"),
-        post: { did: "did:plc:a", uri: "at://a/second", cid: "two" },
-      },
-    ] as any,
-    { sourceUri: "at://a/first", sourceCid: "one" },
-  );
-  assert.equal(next?.post.uri, "at://a/second");
-});
-
-test("同じ作者の候補は24時間の次回生成時刻まで置き換えない", () => {
-  const now = new Date("2026-07-30T12:00:00.000Z");
-  assert.equal(canReplaceCommunityCandidate(undefined, now), true);
-  assert.equal(
-    canReplaceCommunityCandidate(
-      {
-        state: "posted",
-        nextEligibleAt: new Date("2026-07-30T12:00:01.000Z"),
-        promptVersion: COMMUNITY_AFFIRMATION_PROMPT_VERSION,
-      },
-      now,
-    ),
-    false,
-  );
-  assert.equal(
-    canReplaceCommunityCandidate(
-      {
-        state: "posted",
-        nextEligibleAt: new Date("2026-07-30T12:00:00.000Z"),
-        promptVersion: COMMUNITY_AFFIRMATION_PROMPT_VERSION,
-      },
-      now,
-    ),
-    true,
-  );
-  assert.equal(
-    canReplaceCommunityCandidate(
-      {
-        state: "rejected",
-        nextEligibleAt: new Date("2026-07-31T12:00:00.000Z"),
-        promptVersion: "nagi-community-affirmation-v3",
-      },
-      now,
-    ),
-    true,
-  );
-  assert.equal(
-    canReplaceCommunityCandidate(
-      {
-        state: "processing",
-        nextEligibleAt: new Date("2026-07-30T11:00:00.000Z"),
-        promptVersion: COMMUNITY_AFFIRMATION_PROMPT_VERSION,
-      },
-      now,
-    ),
-    false,
-  );
-  assert.equal(
-    canReplaceCommunityCandidate(
-      {
-        state: "posted",
-        nextEligibleAt: new Date("2026-07-31T12:00:00.000Z"),
-        promptVersion: "nagi-community-affirmation-v1",
-      },
-      now,
-    ),
-    true,
-  );
+test("1作者のストックは直近24時間で3件まで", () => {
+  // 主キーが投稿になったので「1作者1行」という構造上の制約は無い。
+  // 占有防止はこの本数だけで担保する。
+  assert.equal(canStockForAuthor(0), true);
+  assert.equal(canStockForAuthor(2), true);
+  assert.equal(canStockForAuthor(3), false);
+  assert.equal(canStockForAuthor(10), false);
 });
 
 test("一時障害は指数バックオフし、5回目で打ち切る", () => {

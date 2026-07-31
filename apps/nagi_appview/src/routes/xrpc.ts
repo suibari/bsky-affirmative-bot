@@ -43,6 +43,8 @@ import {
   getPrivateList,
   setPrivateListMember,
 } from "../queries/privateList.js";
+import { setChannelSubscription } from "../queries/channelSubscriptions.js";
+import { getMyNagi } from "../queries/myNagi.js";
 import { drawCard, getCards } from "../queries/cards.js";
 import { getCommunityAffirmations } from "../queries/communityAffirmations.js";
 import { config } from "../config.js";
@@ -622,6 +624,48 @@ xrpc.post(
       res
         .set("Cache-Control", "private, no-store")
         .json(await setPrivateListMember(req.viewerDid!, memberDid, included));
+    } catch (e) {
+      next(e);
+    }
+  },
+);
+// my Nagi の集約。本人のリストと購読状況が丸ごと出るので、必ず認証必須かつ no-store。
+xrpc.get(
+  `/${NAGI.getMyNagi}`,
+  requiredServiceAuth(NAGI.getMyNagi),
+  async (req, res, next) => {
+    try {
+      const raw = req.query.limit;
+      res.set("Cache-Control", "private, no-store").json(
+        await getMyNagi({
+          viewerDid: req.viewerDid!,
+          ...(raw === undefined ? {} : { limit: Number(raw) || undefined }),
+        }),
+      );
+    } catch (e) {
+      next(e);
+    }
+  },
+);
+// 参加中チャンネルもホームリストと同じく本人だけのもの。owner DID は入力で受け取らない。
+xrpc.post(
+  `/${NAGI.setChannelSubscription}`,
+  requiredServiceAuth(NAGI.setChannelSubscription),
+  async (req, res, next) => {
+    try {
+      const uri = req.body?.uri;
+      const subscribed = req.body?.subscribed;
+      if (typeof uri !== "string" || !uri)
+        throw new ApiError(400, "invalid_request", "uri is required");
+      if (typeof subscribed !== "boolean")
+        throw new ApiError(
+          400,
+          "invalid_request",
+          "subscribed must be a boolean",
+        );
+      res
+        .set("Cache-Control", "private, no-store")
+        .json(await setChannelSubscription(req.viewerDid!, uri, subscribed));
     } catch (e) {
       next(e);
     }

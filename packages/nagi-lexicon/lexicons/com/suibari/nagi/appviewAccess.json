@@ -51,6 +51,8 @@
             "com.suibari.nagi.setMute",
             "com.suibari.nagi.getPrivateList",
             "com.suibari.nagi.setPrivateListMember",
+            "com.suibari.nagi.getMyNagi",
+            "com.suibari.nagi.setChannelSubscription",
             "com.suibari.nagi.getCards",
             "com.suibari.nagi.drawCard"
           ]

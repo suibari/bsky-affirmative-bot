@@ -13,7 +13,7 @@ const {
   encodeCommunityAffirmationCursor,
 } = await import("../src/queries/communityAffirmations.js");
 
-test("匿名候補のSQLは期間・CID・反応上限・CW・自分・ミュートを再検証する", () => {
+test("匿名候補のSQLはCID・CW・自分・ミュートを再検証する", () => {
   const now = new Date("2026-07-30T12:00:00.000Z");
   const query = db
     .select({ uri: nagiPosts.uri })
@@ -36,9 +36,13 @@ test("匿名候補のSQLは期間・CID・反応上限・CW・自分・ミュー
   const text = query.sql.replace(/\s+/g, " ");
   assert.ok(text.includes('"source_cid"'));
   assert.ok(text.includes('"reply_parent_uri" is null'));
-  assert.ok(text.includes("community_reaction"));
-  assert.ok(text.includes("<= 1"));
   assert.ok(text.includes("cwRestricted"));
+  // 反応数はここで見てはいけない。読み出し側で再判定すると、誰かが2つ目の反応を
+  // 付けた瞬間に全ユーザーの一覧から消えてしまう。候補選定時だけの条件。
+  assert.ok(
+    !text.includes("community_reaction"),
+    "読み出し側で反応数を再判定してはいけない",
+  );
   assert.ok(query.params.includes("did:plc:self"));
   assert.ok(query.params.includes("did:plc:muted"));
   assert.ok(

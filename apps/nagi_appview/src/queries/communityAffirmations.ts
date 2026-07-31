@@ -9,13 +9,12 @@ import type {
 } from "@bsky-affirmative-bot/nagi-lexicon";
 import {
   and,
-  asc,
+  desc,
   eq,
-  gt,
   gte,
   isNotNull,
   isNull,
-  lte,
+  lt,
   ne,
   or,
   sql,
@@ -26,6 +25,10 @@ import { loadMutes, muteVisibility, type MuteSet } from "./mutes.js";
 const ONE_HOUR_MS = 60 * 60 * 1_000;
 const SEVEN_DAYS_MS = 7 * 24 * ONE_HOUR_MS;
 
+/**
+ * カーソルの基準は「要約を生成した時刻」（community_affirmations.updated_at）。
+ * 投稿日時ではなく生成時刻の降順に並べることで、新しく積まれた要約が必ず先頭に来る。
+ */
 export const encodeCommunityAffirmationCursor = (date: Date, uri: string) =>
   Buffer.from(JSON.stringify([date.toISOString(), uri])).toString("base64url");
 
@@ -60,7 +63,6 @@ export function communityAffirmationVisibility(opts: {
     isNull(nagiPosts.deletedAt),
     isNull(nagiPosts.replyParentUri),
     ne(nagiPosts.did, opts.viewerDid),
-    lte(nagiPosts.recordCreatedAt, new Date(opts.now.getTime() - ONE_HOUR_MS)),
     gte(
       nagiPosts.recordCreatedAt,
       new Date(opts.now.getTime() - SEVEN_DAYS_MS),
@@ -72,11 +74,10 @@ export function communityAffirmationVisibility(opts: {
       from jsonb_array_elements(coalesce(${nagiPosts.embedImages}, '[]'::jsonb)) as image
       where coalesce((image ->> 'contentWarning')::boolean, false) = true
     )`,
-    sql`(
-      select count(*)
-      from nagi.reactions as community_reaction
-      where community_reaction.subject_uri = ${nagiPosts.uri}
-    ) <= 1`,
+    // ここで「リアクション1件以下」を再判定してはいけない。誰かが2つ目の反応を
+    // 付けた瞬間に全ユーザーの一覧から消えてしまい、一覧がほとんど育たなかった。
+    // この条件は候補選定時（NagiCommunityAffirmationWorker）だけで効かせる。
+    // 「投稿から1時間以上経っていること」も候補時点で担保済みなので、ここでは見ない。
     ...muteVisibility(opts.mutes, { actors: true, channels: true }),
   ];
 }
@@ -99,10 +100,10 @@ export async function getCommunityAffirmations(opts: {
   if (point)
     filters.push(
       or(
-        gt(nagiPosts.recordCreatedAt, point[0]),
+        lt(nagiCommunityAffirmations.updatedAt, point[0]),
         and(
-          eq(nagiPosts.recordCreatedAt, point[0]),
-          gt(nagiPosts.uri, point[1]),
+          eq(nagiCommunityAffirmations.updatedAt, point[0]),
+          lt(nagiCommunityAffirmations.sourceUri, point[1]),
         ),
       )!,
     );
@@ -112,7 +113,7 @@ export async function getCommunityAffirmations(opts: {
       uri: nagiPosts.uri,
       cid: nagiPosts.cid,
       authorDid: nagiPosts.did,
-      indexedAt: nagiPosts.recordCreatedAt,
+      stockedAt: nagiCommunityAffirmations.updatedAt,
       summaryJa: nagiCommunityAffirmations.summaryJa,
       summaryEn: nagiCommunityAffirmations.summaryEn,
     })
@@ -125,7 +126,11 @@ export async function getCommunityAffirmations(opts: {
       ),
     )
     .where(and(...filters))
-    .orderBy(asc(nagiPosts.recordCreatedAt), asc(nagiPosts.uri))
+    // 生成が新しい順。毎回いちばん新しい要約から見えるようにする。
+    .orderBy(
+      desc(nagiCommunityAffirmations.updatedAt),
+      desc(nagiCommunityAffirmations.sourceUri),
+    )
     .limit(opts.limit + 1);
   const page = rows.slice(0, opts.limit);
   const reactions = await getReactionViews(
@@ -133,17 +138,12 @@ export async function getCommunityAffirmations(opts: {
     opts.viewerDid,
   );
   const items: CommunityAffirmationView[] = page.map((row) => {
-    const visibleReactions = (reactions.get(row.uri) ?? []).flatMap(
-      (reaction) => {
-        const reactors = reaction.reactors.filter(
-          (actor) => actor.did !== row.authorDid,
-        );
-        return reactors.length ||
-          reaction.hasMoreReactors ||
-          reaction.reactedByMe
-          ? [{ ...reaction, reactors }]
-          : [];
-      },
+    // 「その要約に自分がどうするか」だけの機能なので、他人の反応は返さない。
+    // 件数も反応した人も出さないよう、自分が押したものだけを 1 件として渡す。
+    const visibleReactions = (reactions.get(row.uri) ?? []).flatMap((reaction) =>
+      reaction.reactedByMe
+        ? [{ ...reaction, reactors: [], hasMoreReactors: false }]
+        : [],
     );
     return {
       uri: row.uri,
@@ -162,7 +162,7 @@ export async function getCommunityAffirmations(opts: {
     hasMore: rows.length > opts.limit,
     cursor:
       rows.length > opts.limit && last
-        ? encodeCommunityAffirmationCursor(last.indexedAt, last.uri)
+        ? encodeCommunityAffirmationCursor(last.stockedAt, last.uri)
         : undefined,
   };
 }

@@ -60,6 +60,16 @@ export const NAGI = {
   /** 非公開ホームリストの追加・解除。 */
   setPrivateListMember: "com.suibari.nagi.setPrivateListMember",
   /**
+   * my Nagi（サインイン後の起点画面）専用の集約。非公開リストの各メンバーと購読中チャンネルの
+   * 「最新1件」だけを返す。ページングしないので cursor は持たない。
+   */
+  getMyNagi: "com.suibari.nagi.getMyNagi",
+  /**
+   * チャンネルの購読（参加）・解除。ミュートと同じく他ユーザーに見せない情報なので
+   * PDS レコードにはせず AppView だけが持ち、認証した本人にしか返さない。
+   */
+  setChannelSubscription: "com.suibari.nagi.setChannelSubscription",
+  /**
    * 全肯定カードのコレクション。所持は公開情報なのでクライアントは AppView 直読みでも取れる
    * （getChannelTimeline と同方針）。自分を指定したときだけ drawStatus が付く。
    */
