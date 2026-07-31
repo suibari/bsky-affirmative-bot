@@ -66,11 +66,32 @@ const facets = (value: unknown, text: string) => {
       !Array.isArray(facet.features)
     )
       return false;
-    return facet.features.every(
-      (feature: any) =>
-        feature?.$type !== "app.bsky.richtext.facet#mention" ||
-        did(feature.did),
-    );
+    const label = Buffer.from(text).subarray(start, end).toString("utf8");
+    return facet.features.every((feature: any) => {
+      if (feature?.$type === "app.bsky.richtext.facet#mention")
+        return did(feature.did);
+      if (feature?.$type === "blue.moji.richtext.facet")
+        return (
+          did(feature.did) &&
+          feature.name === label &&
+          BLUEMOJI_NAME.test(feature.name) &&
+          feature.adultOnly !== true &&
+          feature.formats?.$type === "blue.moji.richtext.facet#formats_v0"
+        );
+      if (feature?.$type === "com.suibari.nagi.richtext#bluemoji")
+        return (
+          ref(feature.ref) &&
+          feature.ref.uri.split("/")[3] === BLUEMOJI_ITEM &&
+          feature.ref.uri.split("/")[2] === feature.did &&
+          feature.name === label &&
+          BLUEMOJI_NAME.test(feature.name) &&
+          typeof feature.mediaType === "string" &&
+          (feature.mediaType.startsWith("image/") ||
+            feature.mediaType === "application/lottie+zip") &&
+          (feature.alt === undefined || typeof feature.alt === "string")
+        );
+      return true;
+    });
   });
 };
 const linkCard = (value: any) => {

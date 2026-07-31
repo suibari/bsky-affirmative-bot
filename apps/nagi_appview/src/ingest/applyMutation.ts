@@ -121,6 +121,34 @@ export async function applyMutation(
     bluemoji = await resolveEmoji((commit.record as any).bluemoji.uri);
     if (!bluemoji) return { cursorAdvanced: false };
   }
+  if (
+    collection === NAGI.post &&
+    commit.operation !== "delete" &&
+    validateRecord(collection, commit.record)
+  ) {
+    const refs = new Map<string, { cid: string; name: string; did: string }>();
+    for (const facet of (commit.record as any).facets ?? []) {
+      for (const feature of facet.features ?? []) {
+        if (feature?.$type !== "com.suibari.nagi.richtext#bluemoji") continue;
+        refs.set(feature.ref.uri, {
+          cid: feature.ref.cid,
+          name: feature.name,
+          did: feature.did,
+        });
+      }
+    }
+    for (const [emojiUri, expected] of refs) {
+      const resolved = await resolveEmoji(emojiUri);
+      if (
+        !resolved ||
+        resolved.cid !== expected.cid ||
+        resolved.name !== expected.name ||
+        resolved.did !== expected.did ||
+        resolved.adultOnly
+      )
+        return { cursorAdvanced: false };
+    }
+  }
   // トランザクション内で実際に挿入できた通知だけを収集し、コミット成功後に
   // fire-and-forget でプッシュ配信する（重複挿入時は returning が空なので送らない）。
   const pushJobs: PushJob[] = [];

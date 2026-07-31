@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { BLUEMOJI_ITEM } from "@bsky-affirmative-bot/nagi-lexicon";
+import { BLUEMOJI_ITEM, NAGI } from "@bsky-affirmative-bot/nagi-lexicon";
 import {
   normalizeBluemojiFormats,
   validateRecord,
@@ -92,4 +92,43 @@ test("uses the formats_v0 field for optimized blob media type and rejects invali
     ),
     false,
   );
+});
+
+const postWithEmoji = (name = ":party:", cid = "bafyemoji") => ({
+  $type: NAGI.post,
+  text: `hello ${name}`,
+  createdAt: "2026-08-01T00:00:00.000Z",
+  facets: [
+    {
+      index: { byteStart: 6, byteEnd: 6 + Buffer.byteLength(name) },
+      features: [
+        {
+          $type: "blue.moji.richtext.facet",
+          did: "did:plc:emoji",
+          name,
+          formats: {
+            $type: "blue.moji.richtext.facet#formats_v0",
+            png_128: "bafyasset",
+          },
+        },
+        {
+          $type: "com.suibari.nagi.richtext#bluemoji",
+          ref: {
+            uri: `at://did:plc:emoji/${BLUEMOJI_ITEM}/party`,
+            cid,
+          },
+          did: "did:plc:emoji",
+          name,
+          mediaType: "image/png",
+        },
+      ],
+    },
+  ],
+});
+
+test("accepts paired Bluemoji richtext facets and rejects mismatched aliases", () => {
+  assert.equal(validateRecord(NAGI.post, postWithEmoji()), true);
+  const mismatched = postWithEmoji(":party:");
+  mismatched.facets[0].features[0].name = ":other:";
+  assert.equal(validateRecord(NAGI.post, mismatched), false);
 });

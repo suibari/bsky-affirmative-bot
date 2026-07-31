@@ -23,6 +23,20 @@ export function emojiView(row: EmojiRow): EmojiView | null {
   const url = `/api/emoji-asset/${encodeURIComponent(row.did)}/${encodeURIComponent(
     row.uri.slice(row.uri.lastIndexOf("/") + 1),
   )}/${encodeURIComponent(row.cid)}`;
+  const formats: NonNullable<EmojiView["formats"]> = {
+    $type: "blue.moji.richtext.facet#formats_v0",
+    ...(asset.mediaType === "application/lottie+zip"
+      ? { lottie: true }
+      : asset.mediaType === "image/apng"
+        ? { apng_128: true }
+        : asset.kind === "blob" && asset.mediaType === "image/png"
+          ? { png_128: asset.value }
+          : asset.kind === "blob" && asset.mediaType === "image/webp"
+            ? { webp_128: asset.value }
+            : asset.kind === "blob" && asset.mediaType === "image/gif"
+              ? { gif_128: asset.value }
+              : {}),
+  };
   return {
     uri: row.uri,
     cid: row.cid,
@@ -31,6 +45,7 @@ export function emojiView(row: EmojiRow): EmojiView | null {
     alt: row.alt ?? undefined,
     url,
     mediaType: asset.mediaType,
+    ...(Object.keys(formats).length > 1 ? { formats } : {}),
   };
 }
 

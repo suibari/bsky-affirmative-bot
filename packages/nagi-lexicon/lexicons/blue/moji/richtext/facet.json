@@ -1,0 +1,31 @@
+{
+  "lexicon": 1,
+  "id": "blue.moji.richtext.facet",
+  "defs": {
+    "main": {
+      "type": "object",
+      "required": ["did", "name", "formats"],
+      "properties": {
+        "did": { "type": "string", "format": "did" },
+        "name": { "type": "string" },
+        "alt": { "type": "string" },
+        "adultOnly": { "type": "boolean", "default": false },
+        "labels": {
+          "type": "union",
+          "refs": ["com.atproto.label.defs#selfLabels"]
+        },
+        "formats": { "type": "union", "refs": ["#formats_v0"], "closed": false }
+      }
+    },
+    "formats_v0": {
+      "type": "object",
+      "properties": {
+        "png_128": { "type": "string", "format": "cid" },
+        "webp_128": { "type": "string", "format": "cid" },
+        "gif_128": { "type": "string", "format": "cid" },
+        "apng_128": { "type": "boolean", "default": false },
+        "lottie": { "type": "boolean", "default": false }
+      }
+    }
+  }
+}

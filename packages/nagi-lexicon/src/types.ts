@@ -150,6 +150,14 @@ export type NagiBluemoji = {
   createdAt: string;
 };
 export type BluemojiMediaType = `image/${string}` | "application/lottie+zip";
+export type BluemojiFacetFormats = {
+  $type: "blue.moji.richtext.facet#formats_v0";
+  png_128?: string;
+  webp_128?: string;
+  gif_128?: string;
+  apng_128?: boolean;
+  lottie?: boolean;
+};
 /** AppView DB に保存する、固定 Bluemoji Lexicon から選んだ表示資産。 */
 export type BluemojiFormats = {
   version: 1;
@@ -182,6 +190,7 @@ export type EmojiView = {
   alt?: string;
   url: string;
   mediaType: BluemojiMediaType;
+  formats?: BluemojiFacetFormats;
 };
 /**
  * botたんが書くユーザーの日記。bot のリポジトリに置く。
