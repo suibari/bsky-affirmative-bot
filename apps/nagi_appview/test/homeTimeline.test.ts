@@ -6,7 +6,9 @@ process.env.NAGI_BOT_DID ??= "did:plc:bot";
 
 const { db, nagiPosts } = await import("@bsky-affirmative-bot/database");
 const { and } = await import("drizzle-orm");
-const { homeTimelineVisibility } = await import("../src/queries/timeline.js");
+const { groupsByThreadActivity, homeTimelineVisibility } = await import(
+  "../src/queries/timeline.js"
+);
 
 test("home visibility is root-only and binds only the requested private actor set", () => {
   const query = db
@@ -28,4 +30,10 @@ test("home visibility is root-only and binds only the requested private actor se
   assert.ok(text.includes('"did" = $') && text.includes('"kossori" = $'));
   for (const did of ["did:plc:self", "did:plc:bot", "did:plc:member"])
     assert.ok(rendered.params.includes(did), `missing bound actor ${did}`);
+});
+
+test("profile posts keep the latest root even when conversation grouping is requested", () => {
+  assert.equal(groupsByThreadActivity(true, "posts"), false);
+  assert.equal(groupsByThreadActivity(true, undefined), true);
+  assert.equal(groupsByThreadActivity(false, "posts"), false);
 });

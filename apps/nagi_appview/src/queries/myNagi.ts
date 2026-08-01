@@ -6,7 +6,7 @@ import {
 import type { MyNagiView } from "@bsky-affirmative-bot/nagi-lexicon";
 import { and, inArray, isNull, sql } from "drizzle-orm";
 import {
-  buildFeedItems,
+  buildConversationItems,
   fetchPostRows,
   homeTimelineVisibility,
 } from "./timeline.js";
@@ -67,9 +67,10 @@ async function latestPerListUser(
     .orderBy(nagiPosts.did, sql`${nagiPosts.recordCreatedAt} desc`);
   if (!rows.length) return [];
 
-  const items = await buildFeedItems(
+  const items = await buildConversationItems(
     await fetchPostRows(rows.map((row) => row.uri)),
     viewerDid,
+    mutes,
   );
   // 1人1件になったところで、全体としては新着順に並べ替えてから上位を返す。
   return items
@@ -108,9 +109,10 @@ async function latestPerChannel(
   if (!rows.length) return [];
 
   const [items, channelRows] = await Promise.all([
-    buildFeedItems(
+    buildConversationItems(
       await fetchPostRows(rows.map((row) => row.uri)),
       viewerDid,
+      mutes,
     ),
     db
       .select({

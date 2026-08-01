@@ -395,6 +395,15 @@ const threadKeyOf = (post: {
   uri: string;
   replyRootUri: string | null;
 }): string => post.replyRootUri ?? post.uri;
+
+/**
+ * filter=posts はトップレベル投稿を先に選ぶ経路なので、後続返信を理由にそのルートを落とさない。
+ * group は選ばれたルートへ会話を付加するためだけに使う。
+ */
+export const groupsByThreadActivity = (
+  group: boolean | undefined,
+  filter: "posts" | "replies" | "media" | undefined,
+): boolean => Boolean(group && filter !== "posts");
 /**
  * 指定スレッド(ルートURI)群に属する非削除投稿を全部引く。bot返信も含む（バブルにするため）。
  * ミュート著者の投稿はここで落とすので、バブルからその発言だけが抜け、totalCount/hiddenCount も
@@ -643,7 +652,7 @@ export async function getTimeline(opts: {
   const homeRootSibling = opts.homeDid
     ? sql` and sib.reply_parent_uri is null`
     : sql``;
-  if (opts.group)
+  if (groupsByThreadActivity(opts.group, opts.filter))
     filters.push(sql`
       not exists (
         select 1 from nagi.posts as sib

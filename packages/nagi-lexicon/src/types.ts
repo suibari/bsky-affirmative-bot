@@ -365,7 +365,11 @@ export type ProfilePage = {
   profile: ProfileDetail;
   feed: Page<ProfileFeedItem>;
 };
-export type ThreadView = { post: PostView; replies: PostView[] };
+export type ThreadView = {
+  post: FeedItem;
+  replies: FeedItem[];
+  botActor?: ActorView;
+};
 export type NotificationView = {
   id: string;
   /** "analysis" は名刺（自動分析）の更新。actor は常に botたん、post も diary も付かない。 */

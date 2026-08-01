@@ -14,6 +14,11 @@
             "knownValues": ["posts", "replies", "media", "reactions"],
             "default": "posts"
           },
+          "group": {
+            "type": "boolean",
+            "default": false,
+            "description": "Return each selected post as a timeline-style conversation with its replies."
+          },
           "lang": {
             "type": "string",
             "maxLength": 2,

@@ -188,6 +188,7 @@ xrpc.get(
       if (!["posts", "replies", "media", "reactions"].includes(filter))
         throw new ApiError(400, "invalid_request", "Invalid filter");
       const cursor = String(req.query.cursor ?? "") || undefined;
+      const group = String(req.query.group ?? "false") === "true";
       const lang = String(req.query.lang ?? "ja");
       if (lang !== "ja" && lang !== "en")
         throw new ApiError(400, "invalid_request", "lang must be ja or en");
@@ -207,6 +208,7 @@ xrpc.get(
               actorDid: actor,
               viewerDid: req.viewerDid,
               filter: filter as "posts" | "replies" | "media",
+              group,
             }),
       ]);
       res

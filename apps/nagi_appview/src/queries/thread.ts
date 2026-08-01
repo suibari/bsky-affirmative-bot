@@ -2,7 +2,7 @@ import { db, nagiPosts } from "@bsky-affirmative-bot/database";
 import type { ThreadView } from "@bsky-affirmative-bot/nagi-lexicon";
 import { eq, or } from "drizzle-orm";
 import { ApiError } from "../middleware/errors.js";
-import { fetchPostRows, hydratePostViews } from "./timeline.js";
+import { buildFeedItems, fetchPostRows, getBotActor } from "./timeline.js";
 export async function getThread(
   uri: string,
   viewerDid?: string,
@@ -21,14 +21,16 @@ export async function getThread(
     .select({ uri: nagiPosts.uri })
     .from(nagiPosts)
     .where(or(eq(nagiPosts.uri, rootUri), eq(nagiPosts.replyRootUri, rootUri)));
-  const views = await hydratePostViews(
-    await fetchPostRows(rows.map((r) => r.uri)),
-    viewerDid,
-  );
+  // 詳細画面でもタイムラインと同じ bot 返信ジョブ状態を返す。indexed 済みの bot 返信は
+  // replies に実体があるため、クライアントは botReplyState の待機系だけを状態表示に使う。
+  const [views, botActor] = await Promise.all([
+    buildFeedItems(await fetchPostRows(rows.map((r) => r.uri)), viewerDid),
+    getBotActor(),
+  ]);
   const post = views.find((v) => v.uri === rootUri);
   if (!post) throw new ApiError(404, "not_found", "Thread not found");
   const replies = views
     .filter((v) => v.uri !== rootUri && !v.deleted)
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
-  return { thread: { post, replies } };
+  return { thread: { post, replies, botActor } };
 }
