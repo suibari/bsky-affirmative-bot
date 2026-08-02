@@ -11,6 +11,7 @@
 import retry from "async-retry";
 import assert from "node:assert/strict";
 import { generateDiaryEmojis } from "@bsky-affirmative-bot/bot-brain";
+import { trackedPutRecord } from "@bsky-affirmative-bot/clients";
 import { NAGI, type NagiDiary } from "@bsky-affirmative-bot/nagi-lexicon";
 import { agent, initAgent } from "../src/agent.js";
 
@@ -113,14 +114,14 @@ for (const [index, row] of records.entries()) {
     if (apply) {
       const rkey = row.uri.split("/").pop();
       if (!rkey) throw new Error(`could not extract rkey from ${row.uri}`);
-      await agent.api.com.atproto.repo.putRecord({
+      await trackedPutRecord(agent, {
         repo: botDid,
         collection: NAGI.diary,
         rkey,
         validate: false,
         swapRecord: row.cid,
         record: { ...row.value, emoji },
-      } as any);
+      } as any, "nagi.diary.emoji-backfill");
       const persisted = await agent.api.com.atproto.repo.getRecord({
         repo: botDid,
         collection: NAGI.diary,

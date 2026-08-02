@@ -11,7 +11,11 @@ import { gemini, generateContentWithRetry } from '@bsky-affirmative-bot/bot-brai
 import { DailyReport, Stats } from '@bsky-affirmative-bot/shared-configs';
 import EventEmitter from "events";
 import { MemoryService } from "@bsky-affirmative-bot/clients";
-import type { NagiStats, TopPost } from "@bsky-affirmative-bot/database";
+import type {
+  NagiStats,
+  RepoWritePointUsage,
+  TopPost,
+} from "@bsky-affirmative-bot/database";
 import { getCachedHealthSnapshot, type HealthSnapshot } from "./healthMonitor.js";
 import { getFullDateAndTimeString } from "@bsky-affirmative-bot/shared-configs";
 import { LanguageName } from "@bsky-affirmative-bot/shared-configs";
@@ -44,6 +48,7 @@ interface BotStat {
   /** bot-tan.com のダッシュボード用。既存フィールドは互換のため触らない。 */
   bsky: { currentFollowers: number };
   nagi: NagiStats;
+  repoWritePoints: RepoWritePointUsage;
   health: HealthSnapshot | null;
   topPost: TopPost | null;
 }
@@ -52,6 +57,7 @@ const ENERGY_MAXIMUM = 10000;
 const SCHEDULE_STEP_MIN = 60;
 const SCHEDULE_STEP_MAX = 90;
 const NAGI_STATS_TTL_MS = 60_000;
+const REPO_WRITE_POINTS_TTL_MS = 10_000;
 
 export class BiorhythmManager extends EventEmitter {
   private status: Status = 'Sleep';
@@ -69,6 +75,8 @@ export class BiorhythmManager extends EventEmitter {
    * たびに呼ばれる。毎回叩かないよう短い TTL で持ち回す。
    */
   private nagiStatsCache: { at: number; value: NagiStats } | null = null;
+  private repoWritePointsCache: { at: number; value: RepoWritePointUsage } | null =
+    null;
   private firstStepDone = false;
   private lastGoodNightPostDate?: string;
   private lastGoodMorningPostDate?: string;
@@ -210,10 +218,23 @@ export class BiorhythmManager extends EventEmitter {
     return value;
   }
 
+  private async getRepoWritePointsCached(): Promise<RepoWritePointUsage> {
+    if (
+      this.repoWritePointsCache &&
+      Date.now() - this.repoWritePointsCache.at < REPO_WRITE_POINTS_TTL_MS
+    ) {
+      return this.repoWritePointsCache.value;
+    }
+    const value = await MemoryService.getRepoWritePointUsage(process.env.BSKY_DID);
+    this.repoWritePointsCache = { at: Date.now(), value };
+    return value;
+  }
+
   async getCurrentState(): Promise<BotStat> {
     const dailyStats = await MemoryService.getDailyStats();
     const totalStats = await MemoryService.getTotalStats();
     const nagiStats = await this.getNagiStatsCached();
+    const repoWritePoints = await this.getRepoWritePointsCached();
     const topPost = await MemoryService.getTopPost();
 
     const now = new Date();
@@ -246,6 +267,7 @@ export class BiorhythmManager extends EventEmitter {
       nextStepTime: this.nextStepTime,
       bsky: { currentFollowers: this.currentFollowers },
       nagi: nagiStats,
+      repoWritePoints,
       health: getCachedHealthSnapshot(),
       topPost,
     };

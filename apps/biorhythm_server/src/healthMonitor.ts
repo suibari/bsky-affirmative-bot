@@ -1,4 +1,3 @@
-import { db, nagiIngestState } from "@bsky-affirmative-bot/database";
 import {
   classifyHeartbeat,
   DEFAULT_DOWN_MS,
@@ -9,14 +8,12 @@ import {
   type HealthState,
   type HeartbeatRecord,
 } from "@bsky-affirmative-bot/database";
-import { eq } from "drizzle-orm";
 
 /**
  * bot-tan.com のダッシュボードに出す死活監視。
  *
  * 各プロセスが書いたハートビート（bot_state の health:*）を読み、ここでしか
- * 分からないもの（ローカル LLM への疎通、Nagi ingest の cursor 進行）は
- * このプロセスが自分でプローブする。
+ * 分からないもの（ローカル LLM への疎通）はこのプロセスが自分でプローブする。
  */
 
 /** UI 上のタイル。中身は複数のプローブの集約。 */
@@ -57,10 +54,6 @@ const JETSTREAM_DOWN_MS = 300_000;
 const GEMINI_FRESH_MS = 6 * 60 * 60 * 1000;
 const GEMINI_DOWN_MS = 24 * 60 * 60 * 1000;
 
-/** Nagi の ingest cursor。AppView が Jetstream を消化し続けているかの実測。 */
-const NAGI_INGEST_FRESH_MS = 120_000;
-const NAGI_INGEST_DOWN_MS = 300_000;
-
 interface ProbeResult {
   state: HealthState;
   lastOkAt?: string;
@@ -68,7 +61,6 @@ interface ProbeResult {
 }
 
 let localLlmProbe: ProbeResult = { state: "unknown" };
-let nagiIngestProbe: ProbeResult = { state: "unknown" };
 
 /**
  * ローカル LLM（Ollama の OpenAI 互換エンドポイント）への疎通確認。
@@ -94,27 +86,6 @@ async function probeLocalLlm(): Promise<ProbeResult> {
     return { state: "down", lastError: message.slice(0, 300) };
   } finally {
     clearTimeout(timer);
-  }
-}
-
-async function probeNagiIngest(): Promise<ProbeResult> {
-  try {
-    const rows = await db
-      .select({ updatedAt: nagiIngestState.updatedAt })
-      .from(nagiIngestState)
-      .where(eq(nagiIngestState.key, "jetstream"))
-      .limit(1);
-
-    const updatedAt = rows[0]?.updatedAt;
-    if (!updatedAt) return { state: "unknown" };
-
-    const age = Date.now() - updatedAt.getTime();
-    const state: HealthState =
-      age <= NAGI_INGEST_FRESH_MS ? "ok" : age <= NAGI_INGEST_DOWN_MS ? "stale" : "down";
-    return { state, lastOkAt: updatedAt.toISOString() };
-  } catch (e) {
-    const message = e instanceof Error ? e.message : String(e);
-    return { state: "unknown", lastError: message.slice(0, 300) };
   }
 }
 
@@ -149,23 +120,94 @@ const tile = (parts: HealthPart[]): HealthTileStatus => ({
   parts,
 });
 
+/** プロセスと、そのプロセスが所有するJetstream接続の悪いほうをサービス状態にする。 */
+export function servicePart(
+  name: string,
+  process: HeartbeatRecord | undefined,
+  jetstream: HeartbeatRecord | undefined,
+): HealthPart {
+  const processPart = partFromHeartbeat(name, process);
+  const streamPart = partFromHeartbeat(
+    name,
+    jetstream,
+    JETSTREAM_FRESH_MS,
+    JETSTREAM_DOWN_MS,
+  );
+  const state = worstState([processPart.state, streamPart.state]);
+  const okTimes = [processPart.lastOkAt, streamPart.lastOkAt]
+    .filter((value): value is string => Boolean(value))
+    .sort();
+  return {
+    name,
+    state,
+    // 両方が揃っている場合は古いほう＝弱い側の最終成功を示す。
+    ...(okTimes[0] ? { lastOkAt: okTimes[0] } : {}),
+    ...(state !== "ok" && (streamPart.lastError || processPart.lastError)
+      ? { lastError: streamPart.lastError ?? processPart.lastError }
+      : {}),
+  };
+}
+
+/**
+ * 3コンシューマーのどれかが接続中なら上流は到達可能。
+ * 一部だけ切れている問題はbotServer側の該当サービスへ出し、ここでは外部依存だけを表す。
+ */
+export function upstreamPart(parts: HealthPart[]): HealthPart {
+  const states = parts.map((part) => part.state);
+  const state: HealthState = states.includes("ok")
+    ? "ok"
+    : states.every((value) => value === "down")
+      ? "down"
+      : states.some((value) => value === "down" || value === "stale")
+        ? "stale"
+        : "unknown";
+  const lastOkAt = parts
+    .map((part) => part.lastOkAt)
+    .filter((value): value is string => Boolean(value))
+    .sort()
+    .at(-1);
+  return {
+    name: "Upstream WebSocket",
+    state,
+    ...(lastOkAt ? { lastOkAt } : {}),
+    ...(state === "down"
+      ? { lastError: parts.map((part) => part.lastError).find(Boolean) }
+      : {}),
+  };
+}
+
 let cached: HealthSnapshot | null = null;
 
 /** 直近のプローブ結果とハートビートから、4タイル分の状態を組み立てる。 */
 export async function buildHealthSnapshot(): Promise<HealthSnapshot> {
   const heartbeats = await readHeartbeats();
   const get = (service: HealthService) => heartbeats.get(service);
+  const bskyStream = partFromHeartbeat(
+    "Bluesky botたん",
+    get("jetstream-bsky"),
+    JETSTREAM_FRESH_MS,
+    JETSTREAM_DOWN_MS,
+  );
+  const nagiStream = partFromHeartbeat(
+    "Nagi botたん",
+    get("jetstream-nagi"),
+    JETSTREAM_FRESH_MS,
+    JETSTREAM_DOWN_MS,
+  );
+  const appviewStream = partFromHeartbeat(
+    "Nagi AppView",
+    get("jetstream-appview"),
+    JETSTREAM_FRESH_MS,
+    JETSTREAM_DOWN_MS,
+  );
 
   const snapshot: HealthSnapshot = {
     checkedAt: new Date().toISOString(),
-    jetstream: tile([
-      partFromHeartbeat("Bluesky", get("jetstream-bsky"), JETSTREAM_FRESH_MS, JETSTREAM_DOWN_MS),
-      partFromHeartbeat("Nagi", get("jetstream-nagi"), JETSTREAM_FRESH_MS, JETSTREAM_DOWN_MS),
-      partFromProbe("Nagi AppView ingest", nagiIngestProbe),
-    ]),
+    jetstream: tile([upstreamPart([bskyStream, nagiStream, appviewStream])]),
     botServer: tile([
-      partFromHeartbeat("Bluesky", get("bsky-bot")),
-      partFromHeartbeat("Nagi", get("nagi-bot")),
+      servicePart("Bluesky botたん", get("bsky-bot"), get("jetstream-bsky")),
+      servicePart("Nagi botたん", get("nagi-bot"), get("jetstream-nagi")),
+      servicePart("Nagi AppView", get("nagi-appview"), get("jetstream-appview")),
     ]),
     localLlm: tile([partFromProbe("Ollama", localLlmProbe)]),
     gemini: tile([partFromHeartbeat("Gemini", get("gemini"), GEMINI_FRESH_MS, GEMINI_DOWN_MS)]),
@@ -182,7 +224,7 @@ export function getCachedHealthSnapshot(): HealthSnapshot | null {
 
 export function startHealthMonitor(): () => void {
   const runProbes = async () => {
-    [localLlmProbe, nagiIngestProbe] = await Promise.all([probeLocalLlm(), probeNagiIngest()]);
+    localLlmProbe = await probeLocalLlm();
     await buildHealthSnapshot();
   };
 

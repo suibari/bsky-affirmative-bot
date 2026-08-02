@@ -11,6 +11,8 @@ import {
   calculateDelayUntilLocal22,
   getLangStr,
   getTimezoneFromLang,
+  trackedDeleteRecord,
+  trackedPutRecord,
 } from "@bsky-affirmative-bot/clients";
 import { generateUserDiary, type DiaryResult } from "@bsky-affirmative-bot/bot-brain";
 import type { AppBskyActorDefs } from "@atproto/api";
@@ -180,13 +182,13 @@ export async function processNagiDiary(userDid: string): Promise<void> {
 
     await retry(
       async () => {
-        await agent.api.com.atproto.repo.putRecord({
+        await trackedPutRecord(agent, {
           repo: process.env.NAGI_BOT_DID!,
           collection: NAGI.diary,
           rkey: diaryRkey(userDid, date),
           validate: false,
           record,
-        } as any);
+        } as any, "nagi.diary");
       },
       {
         retries: 2,
@@ -288,11 +290,11 @@ export async function purgeNagiDiaries(userDid: string): Promise<number> {
     const rkey = uri.split("/").pop();
     if (!rkey) continue;
     try {
-      await agent.api.com.atproto.repo.deleteRecord({
+      await trackedDeleteRecord(agent, {
         repo: process.env.NAGI_BOT_DID!,
         collection: NAGI.diary,
         rkey,
-      });
+      }, "nagi.diary.purge");
       deleted += 1;
     } catch (error) {
       console.error(`[ERROR][NAGI][DIARY] Failed to delete diary record ${uri}:`, error);

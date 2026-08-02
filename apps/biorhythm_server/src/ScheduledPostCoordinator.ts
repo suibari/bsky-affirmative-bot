@@ -262,7 +262,6 @@ async function snapshotDailyMetrics(currentFollowers: number) {
       dj: daily.dj ?? 0,
       anniversary: daily.anniversary ?? 0,
       answer: daily.answer ?? 0,
-      bskyrate: daily.bskyrate ?? 0,
     },
     nagi: {
       totalUsers: nagi.totalUsers,

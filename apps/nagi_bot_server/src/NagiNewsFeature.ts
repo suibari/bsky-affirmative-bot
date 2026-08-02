@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { NAGI, type NagiNews } from "@bsky-affirmative-bot/nagi-lexicon";
 import { agent } from "./agent.js";
+import { trackedPutRecord } from "@bsky-affirmative-bot/clients";
 
 export type PublishNewsRequest = Omit<NagiNews, "$type">;
 
@@ -11,12 +12,12 @@ export function newsRkey(articleId: string): string {
 export async function publishNews(request: PublishNewsRequest) {
   if (!agent.did) throw new Error("Nagi bot is not logged in");
   const record: NagiNews = { $type: NAGI.news, ...request };
-  const response = await agent.com.atproto.repo.putRecord({
+  const response = await trackedPutRecord(agent, {
     repo: agent.did,
     collection: NAGI.news,
     rkey: newsRkey(request.articleId),
     record,
     validate: false,
-  });
+  }, "nagi.news");
   return { uri: response.data.uri, cid: response.data.cid };
 }

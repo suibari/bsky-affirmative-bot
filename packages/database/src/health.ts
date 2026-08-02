@@ -15,8 +15,10 @@ export const HEALTH_KEY_PREFIX = 'health:';
 export type HealthService =
   | 'jetstream-bsky'
   | 'jetstream-nagi'
+  | 'jetstream-appview'
   | 'bsky-bot'
   | 'nagi-bot'
+  | 'nagi-appview'
   | 'local-llm'
   | 'gemini';
 

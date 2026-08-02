@@ -1,7 +1,10 @@
 import express from "express";
 import cors from "cors";
 import { rateLimit, ipKeyGenerator } from "express-rate-limit";
-import { initializeDatabases } from "@bsky-affirmative-bot/database";
+import {
+  initializeDatabases,
+  reportHeartbeat,
+} from "@bsky-affirmative-bot/database";
 import { config } from "./config.js";
 import { xrpc } from "./routes/xrpc.js";
 import { internal } from "./routes/internal.js";
@@ -80,6 +83,13 @@ app.use(notFound);
 app.use(errorHandler);
 await initializeDatabases();
 const stream = await startJetstream();
+const appviewHeartbeat = setInterval(() => {
+  reportHeartbeat("nagi-appview").catch((error) =>
+    console.error("[ERROR][APPVIEW] Failed to report heartbeat:", error),
+  );
+}, 30_000);
+appviewHeartbeat.unref();
+reportHeartbeat("nagi-appview").catch(() => {});
 // NL検索(意味検索)用の投稿本文埋め込みを非同期生成（既存投稿のバックフィルも兼ねる）。
 // OLLAMA_BASE_URL 未設定なら実質 no-op。
 startEmbeddingWorker();
@@ -114,6 +124,7 @@ let shuttingDown = false;
 const shutdown = async () => {
   if (shuttingDown) return;
   shuttingDown = true;
+  clearInterval(appviewHeartbeat);
   const serverClosed = new Promise<void>((resolve) => server.close(() => resolve()));
   const internalClosed = new Promise<void>((resolve) =>
     internalServer.close(() => resolve()),

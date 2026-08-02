@@ -1,4 +1,14 @@
-import { pgTable, text, integer, timestamp, jsonb, serial, pgSchema, customType } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  text,
+  integer,
+  timestamp,
+  jsonb,
+  serial,
+  pgSchema,
+  customType,
+  index,
+} from "drizzle-orm/pg-core";
 
 const vector = customType<{ data: number[]; driverData: string; config: { dimensions: number } }>({
   dataType(config) {
@@ -130,6 +140,25 @@ export const daily_metrics = affirmativeBotSchema.table("daily_metrics", {
   metrics: jsonb("metrics").notNull(),
   created_at: timestamp("created_at").defaultNow().notNull(),
 });
+
+/**
+ * botたんのDIDに対してPDSが受理したrepo書き込み。
+ *
+ * 日次カウンタでは1時間/24時間のローリング窓を正しく復元できず、並行更新でも
+ * 取りこぼすため、成功した操作を追記専用で残す。
+ */
+export const repo_write_points = affirmativeBotSchema.table(
+  "repo_write_points",
+  {
+    id: serial("id").primaryKey(),
+    did: text("did").notNull(),
+    action: text("action").notNull(),
+    points: integer("points").notNull(),
+    source: text("source").notNull(),
+    created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [index("repo_write_points_did_created_idx").on(table.did, table.created_at)],
+);
 
 export const gifts = affirmativeBotSchema.table("gifts", {
   id: serial("id").primaryKey(),

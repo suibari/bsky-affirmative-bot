@@ -8,6 +8,7 @@ import {
   STANDARD_SITE_DOCUMENT,
   standardSiteDocumentUrl,
 } from './LeafletStandardSite.js';
+import { trackedPutRecord } from './RepoWritePointService.js';
 // Types derived from @atcute/leaflet (pub.leaflet lexicon)
 type LeafletFacet = {
   index: { byteStart: number; byteEnd: number };
@@ -199,13 +200,13 @@ export class LeafletDiaryService {
     console.log(`[INFO][LEAFLET] Publishing ${STANDARD_SITE_DOCUMENT} record to PDS with rkey: ${rkey}...`);
 
     try {
-      await agent.api.com.atproto.repo.putRecord({
+      await trackedPutRecord(agent, {
         repo: botDid,
         collection: STANDARD_SITE_DOCUMENT,
         rkey,
         validate: false,
         record,
-      });
+      }, "standard.site.diary");
 
       const leafletUrl = standardSiteDocumentUrl(publication.value.url, rkey);
 

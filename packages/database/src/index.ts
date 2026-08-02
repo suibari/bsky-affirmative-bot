@@ -1,4 +1,27 @@
-import { db, initializeDatabases, bot_state, followers, posts, likes, replies, affirmations, interaction, subscribers, biorhythm_history, gifts, youtube_shorts, nagiActors, nagiPosts, nagiPostScores, nagiProfiles, nagiReactions, nagiBotReplyJobs, nagiAnalysisJobs, daily_metrics } from './db.js';
+import {
+  db,
+  initializeDatabases,
+  bot_state,
+  followers,
+  posts,
+  likes,
+  replies,
+  affirmations,
+  interaction,
+  subscribers,
+  biorhythm_history,
+  gifts,
+  youtube_shorts,
+  nagiActors,
+  nagiPosts,
+  nagiPostScores,
+  nagiProfiles,
+  nagiReactions,
+  nagiBotReplyJobs,
+  nagiAnalysisJobs,
+  daily_metrics,
+  repo_write_points,
+} from './db.js';
 import { eq, desc, sql, gte, lte, and, gt, inArray, lt, isNull } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { generateEmbedding } from './ollamaEmbed.js';
@@ -68,6 +91,19 @@ export interface NagiStats {
   affirmedUsers: NagiStatPair;
   analyses: NagiStatPair;
 }
+
+export type RepoWriteAction = 'create' | 'update' | 'delete';
+
+export interface RepoWritePointUsage {
+  hour: { used: number; limit: 5000; windowSeconds: 3600 };
+  day: { used: number; limit: 35000; windowSeconds: 86400 };
+}
+
+const REPO_WRITE_POINTS: Record<RepoWriteAction, number> = {
+  create: 3,
+  update: 2,
+  delete: 1,
+};
 
 export class MemoryService {
   static async getBotState(key: string): Promise<any> {
@@ -915,77 +951,122 @@ static async getPost(did: string): Promise<any> {
    * 「きょう」の境界は Bluesky 側と揃えるため stats_last_reset_at を使う。
    */
   static async getNagiStats(): Promise<NagiStats> {
-    const empty: NagiStats = {
-      totalUsers: 0,
-      reactions: { today: 0, total: 0 },
-      affirmations: { today: 0, total: 0 },
-      affirmedUsers: { today: 0, total: 0 },
-      analyses: { today: 0, total: 0 },
-    };
-
+    const lastResetAt = await this.getBotState('stats_last_reset_at');
+    const since = lastResetAt ? new Date(lastResetAt) : new Date(0);
     const botDid = process.env.NAGI_BOT_DID;
+    const num = (value: unknown): number => Number(value ?? 0);
+
+    const queries = [
+      // 検索に出るユーザーの定義（nagi_appview の searchActors）に合わせる。
+      db
+        .select({ count: sql`count(*)` })
+        .from(nagiProfiles)
+        .innerJoin(nagiActors, eq(nagiActors.did, nagiProfiles.did))
+        .where(eq(nagiActors.status, 'active')),
+
+      botDid
+        ? db
+            .select({
+              total: sql`count(*)`,
+              today: sql`count(*) filter (where ${nagiReactions.createdAt} >= ${since})`,
+            })
+            .from(nagiReactions)
+            .where(sql`${nagiReactions.subjectUri} like ${`at://${botDid}/%`}`)
+        : Promise.resolve([{ total: 0, today: 0 }]),
+
+      // 「全肯定した回数/人数」は、人に向けて実際に返信できたぶんだけを数える。
+      // community_affirmations（みんなで全肯定のストック）は誰かへの返信では
+      // ないので含めない。
+      db
+        .select({
+          total: sql`count(*)`,
+          today: sql`count(*) filter (where ${nagiBotReplyJobs.updatedAt} >= ${since})`,
+          totalUsers: sql`count(distinct ${nagiBotReplyJobs.authorDid})`,
+          todayUsers: sql`count(distinct ${nagiBotReplyJobs.authorDid}) filter (where ${nagiBotReplyJobs.updatedAt} >= ${since})`,
+        })
+        .from(nagiBotReplyJobs)
+        .where(eq(nagiBotReplyJobs.state, 'posted')),
+
+      db
+        .select({
+          total: sql`count(*)`,
+          today: sql`count(*) filter (where ${nagiAnalysisJobs.updatedAt} >= ${since})`,
+        })
+        .from(nagiAnalysisJobs)
+        .where(eq(nagiAnalysisJobs.state, 'posted')),
+    ] as const;
+
     if (!botDid) {
-      console.warn('[WARN] NAGI_BOT_DID is not set; Nagi stats are unavailable.');
-      return empty;
+      console.warn('[WARN] NAGI_BOT_DID is not set; only the Nagi reaction count is unavailable.');
     }
 
+    const settled = await Promise.allSettled(queries);
+    const names = ['users', 'reactions', 'affirmations', 'analyses'] as const;
+    settled.forEach((result, index) => {
+      if (result.status === 'rejected') {
+        console.error(`Failed to get Nagi ${names[index]} stats:`, result.reason);
+      }
+    });
+    const value = <T>(index: number, fallback: T): T =>
+      settled[index]?.status === 'fulfilled' ? (settled[index].value as T) : fallback;
+    const users = value(0, [{ count: 0 }]);
+    const reactions = value(1, [{ total: 0, today: 0 }]);
+    const replyJobs = value(2, [{ total: 0, today: 0, totalUsers: 0, todayUsers: 0 }]);
+    const analyses = value(3, [{ total: 0, today: 0 }]);
+
+    return {
+      totalUsers: num(users[0]?.count),
+      reactions: { today: num(reactions[0]?.today), total: num(reactions[0]?.total) },
+      affirmations: { today: num(replyJobs[0]?.today), total: num(replyJobs[0]?.total) },
+      affirmedUsers: {
+        today: num(replyJobs[0]?.todayUsers),
+        total: num(replyJobs[0]?.totalUsers),
+      },
+      analyses: { today: num(analyses[0]?.today), total: num(analyses[0]?.total) },
+    };
+  }
+
+  /** PDSが受理したbotアカウントのrepo書き込みを追記する。 */
+  static async recordRepoWrite(
+    did: string,
+    action: RepoWriteAction,
+    source: string,
+  ): Promise<void> {
+    await db.insert(repo_write_points).values({
+      did,
+      action,
+      points: REPO_WRITE_POINTS[action],
+      source,
+    });
+  }
+
+  /** 公式上限と同じローリング1時間・24時間の使用量。 */
+  static async getRepoWritePointUsage(
+    did: string | undefined,
+  ): Promise<RepoWritePointUsage> {
+    const empty: RepoWritePointUsage = {
+      hour: { used: 0, limit: 5000, windowSeconds: 3600 },
+      day: { used: 0, limit: 35000, windowSeconds: 86400 },
+    };
+    if (!did) return empty;
+
+    const now = Date.now();
+    const hourSince = new Date(now - 3_600_000);
+    const daySince = new Date(now - 86_400_000);
     try {
-      const lastResetAt = await this.getBotState('stats_last_reset_at');
-      const since = lastResetAt ? new Date(lastResetAt) : new Date(0);
-      // botたんの投稿への反応だけを数える。AT-URI は必ず at://<did>/... の形。
-      const botUriPrefix = `at://${botDid}/%`;
-      const num = (value: unknown): number => Number(value ?? 0);
-
-      const [users, reactions, replyJobs, analyses] = await Promise.all([
-        // 検索に出るユーザーの定義（nagi_appview の searchActors）に合わせる。
-        db
-          .select({ count: sql`count(*)` })
-          .from(nagiProfiles)
-          .innerJoin(nagiActors, eq(nagiActors.did, nagiProfiles.did))
-          .where(eq(nagiActors.status, 'active')),
-
-        db
-          .select({
-            total: sql`count(*)`,
-            today: sql`count(*) filter (where ${nagiReactions.createdAt} >= ${since})`,
-          })
-          .from(nagiReactions)
-          .where(sql`${nagiReactions.subjectUri} like ${botUriPrefix}`),
-
-        // 「全肯定した回数/人数」は、人に向けて実際に返信できたぶんだけを数える。
-        // community_affirmations（みんなで全肯定のストック）は誰かへの返信では
-        // ないので含めない。
-        db
-          .select({
-            total: sql`count(*)`,
-            today: sql`count(*) filter (where ${nagiBotReplyJobs.updatedAt} >= ${since})`,
-            totalUsers: sql`count(distinct ${nagiBotReplyJobs.authorDid})`,
-            todayUsers: sql`count(distinct ${nagiBotReplyJobs.authorDid}) filter (where ${nagiBotReplyJobs.updatedAt} >= ${since})`,
-          })
-          .from(nagiBotReplyJobs)
-          .where(eq(nagiBotReplyJobs.state, 'posted')),
-
-        db
-          .select({
-            total: sql`count(*)`,
-            today: sql`count(*) filter (where ${nagiAnalysisJobs.updatedAt} >= ${since})`,
-          })
-          .from(nagiAnalysisJobs)
-          .where(eq(nagiAnalysisJobs.state, 'posted')),
-      ]);
-
+      const rows = await db
+        .select({
+          hour: sql`coalesce(sum(${repo_write_points.points}) filter (where ${repo_write_points.created_at} >= ${hourSince}), 0)`,
+          day: sql`coalesce(sum(${repo_write_points.points}) filter (where ${repo_write_points.created_at} >= ${daySince}), 0)`,
+        })
+        .from(repo_write_points)
+        .where(eq(repo_write_points.did, did));
       return {
-        totalUsers: num(users[0]?.count),
-        reactions: { today: num(reactions[0]?.today), total: num(reactions[0]?.total) },
-        affirmations: { today: num(replyJobs[0]?.today), total: num(replyJobs[0]?.total) },
-        affirmedUsers: {
-          today: num(replyJobs[0]?.todayUsers),
-          total: num(replyJobs[0]?.totalUsers),
-        },
-        analyses: { today: num(analyses[0]?.today), total: num(analyses[0]?.total) },
+        hour: { ...empty.hour, used: Number(rows[0]?.hour ?? 0) },
+        day: { ...empty.day, used: Number(rows[0]?.day ?? 0) },
       };
-    } catch (e) {
-      console.error('Failed to get Nagi stats:', e);
+    } catch (error) {
+      console.error('Failed to get repo write point usage:', error);
       return empty;
     }
   }

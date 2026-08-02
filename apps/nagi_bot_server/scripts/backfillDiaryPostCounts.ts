@@ -14,6 +14,7 @@
 import assert from "node:assert/strict";
 import { and, count, eq, gte, isNull, lte } from "drizzle-orm";
 import { db, nagiPosts } from "@bsky-affirmative-bot/database";
+import { trackedPutRecord } from "@bsky-affirmative-bot/clients";
 import { NAGI, type NagiDiary } from "@bsky-affirmative-bot/nagi-lexicon";
 import { agent, initAgent } from "../src/agent.js";
 
@@ -136,14 +137,14 @@ for (const [index, row] of records.entries()) {
     if (apply) {
       const rkey = row.uri.split("/").pop();
       if (!rkey) throw new Error(`could not extract rkey from ${row.uri}`);
-      await agent.api.com.atproto.repo.putRecord({
+      await trackedPutRecord(agent, {
         repo: botDid,
         collection: NAGI.diary,
         rkey,
         validate: false,
         swapRecord: row.cid,
         record: { ...row.value, postCount },
-      } as any);
+      } as any, "nagi.diary.activity-backfill");
       const persisted = await agent.api.com.atproto.repo.getRecord({
         repo: botDid,
         collection: NAGI.diary,
