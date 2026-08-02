@@ -4,7 +4,7 @@
   "scripts": {
     "build": "pnpm -r build",
     "test": "pnpm -r test",
-    "test:news": "tsx --test packages/bot_brain/test/newsdata.test.ts packages/bot_brain/test/positiveNewsSelection.test.ts apps/biorhythm_server/test/newsHistory.test.ts",
+    "test:news": "tsx --test packages/bot_brain/test/newsdata.test.ts packages/bot_brain/test/positiveNewsSelection.test.ts apps/biorhythm_server/test/whimsicalPostNewsHistory.test.ts",
     "dev": "pnpm -r dev"
   },
   "devDependencies": {

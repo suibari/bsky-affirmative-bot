@@ -111,6 +111,7 @@ export const config = {
     1,
     1_000,
   ),
+  userNewsDailyLimit: integer("NAGI_USER_NEWS_DAILY_LIMIT", 3, 1, 100),
   // Web Push（VAPID）。未設定ならプッシュ配信は無効化し、通知の挿入だけ従来どおり続ける。
   vapid:
     process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY

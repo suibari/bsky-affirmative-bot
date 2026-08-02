@@ -37,6 +37,9 @@ export const NAGI = {
   getEmoji: "com.suibari.nagi.getEmoji",
   getDiaries: "com.suibari.nagi.getDiaries",
   getPositiveNews: "com.suibari.nagi.getPositiveNews",
+  getNewsSubmissionPreview: "com.suibari.nagi.getNewsSubmissionPreview",
+  requestNewsReview: "com.suibari.nagi.requestNewsReview",
+  getMyNewsSubmissions: "com.suibari.nagi.getMyNewsSubmissions",
   resolveLexicon: "com.suibari.nagi.resolveLexicon",
   getAppIcon: "com.suibari.nagi.getAppIcon",
   getChannels: "com.suibari.nagi.getChannels",
@@ -131,6 +134,7 @@ export const NAGI_COLLECTIONS = [
   NAGI.profile,
   NAGI.appLinks,
   NAGI.channel,
+  NAGI.news,
   NAGI.bluemoji,
   BLUEMOJI_ITEM,
 ] as const;

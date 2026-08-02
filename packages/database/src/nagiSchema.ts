@@ -58,6 +58,14 @@ export const communityAffirmationState = nagiSchema.enum(
   "community_affirmation_state",
   ["pending", "processing", "posted", "rejected", "failed"],
 );
+export const newsReviewState = nagiSchema.enum("news_review_state", [
+  "pending",
+  "processing",
+  "approved",
+  "rejected",
+  "failed",
+  "cancelled",
+]);
 export const nagiAiReplyMode = nagiSchema.enum("ai_reply_mode", [
   "ai",
   "template",
@@ -226,6 +234,27 @@ export const nagiNewsApprovals = nagiSchema.table(
     hiddenAt: timestamp("hidden_at", { withTimezone: true }),
   },
   (t) => [primaryKey({ columns: [t.newsUri, t.newsCid] })],
+);
+/** ユーザーが明示的に審査依頼したニュースだけを処理する非公開ジョブ。 */
+export const nagiNewsReviewJobs = nagiSchema.table(
+  "news_review_jobs",
+  {
+    newsUri: text("news_uri").notNull(),
+    newsCid: text("news_cid").notNull(),
+    did: text("did").notNull(),
+    normalizedUrl: text("normalized_url").notNull(),
+    status: newsReviewState("status").default("pending").notNull(),
+    reasonCode: text("reason_code"),
+    attemptCount: integer("attempt_count").default(0).notNull(),
+    requestedAt: timestamp("requested_at", { withTimezone: true }).defaultNow().notNull(),
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+  },
+  (t) => [
+    primaryKey({ columns: [t.newsUri, t.newsCid] }),
+    index("nagi_news_review_jobs_pending_idx").on(t.status, t.requestedAt),
+    index("nagi_news_review_jobs_did_idx").on(t.did, t.requestedAt),
+  ],
 );
 /** 24時間の不採用・Gemma判定キャッシュ。 */
 export const nagiNewsScreening = nagiSchema.table("news_screening", {

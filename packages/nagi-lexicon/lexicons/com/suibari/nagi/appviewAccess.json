@@ -5,7 +5,7 @@
     "main": {
       "type": "permission-set",
       "title": "Nagi",
-      "detail": "Nagi の投稿・リアクション・プロフィール・設定・Bluemoji 作成記録の読み書きと、Nagi AppView へのアクセス。",
+      "detail": "Nagi の投稿・リアクション・ニュース・プロフィール・設定・Bluemoji 作成記録の読み書きと、Nagi AppView へのアクセス。",
       "permissions": [
         {
           "type": "permission",
@@ -16,6 +16,7 @@
             "com.suibari.nagi.profile",
             "com.suibari.nagi.appLinks",
             "com.suibari.nagi.channel",
+            "com.suibari.nagi.news",
             "com.suibari.nagi.bluemoji"
           ]
         },
@@ -45,6 +46,9 @@
             "com.suibari.nagi.getChannel",
             "com.suibari.nagi.getChannelTimeline",
             "com.suibari.nagi.getPositiveNews",
+            "com.suibari.nagi.getNewsSubmissionPreview",
+            "com.suibari.nagi.requestNewsReview",
+            "com.suibari.nagi.getMyNewsSubmissions",
             "com.suibari.nagi.searchPosts",
             "com.suibari.nagi.searchChannels",
             "com.suibari.nagi.getMutes",

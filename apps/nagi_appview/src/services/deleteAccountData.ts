@@ -19,6 +19,9 @@ import {
   nagiEmojis,
   nagiMutes,
   nagiNotifications,
+  nagiNews,
+  nagiNewsApprovals,
+  nagiNewsReviewJobs,
   nagiPosts,
   nagiPostScores,
   nagiProcessedEvents,
@@ -89,6 +92,7 @@ export async function deleteAccountData(did: string) {
     const postUri = `at://${did}/${NAGI.post}/%`;
     const reactionUri = `at://${did}/${NAGI.reaction}/%`;
     const channelUri = `at://${did}/${NAGI.channel}/%`;
+    const newsUri = `at://${did}/${NAGI.news}/%`;
     const quotingSourceUris = (
       await tx
         .select({ uri: nagiPosts.uri })
@@ -130,6 +134,9 @@ export async function deleteAccountData(did: string) {
       .delete(nagiReactions)
       .where(like(nagiReactions.subjectUri, postUri));
     await tx
+      .delete(nagiReactions)
+      .where(like(nagiReactions.subjectUri, newsUri));
+    await tx
       .delete(nagiBotReplyJobs)
       .where(eq(nagiBotReplyJobs.authorDid, did));
     await tx
@@ -155,6 +162,11 @@ export async function deleteAccountData(did: string) {
     // そのユーザーのデータなので残す。表示時は emoji のフォールバック文字列を使う。
     await tx.delete(nagiEmojis).where(eq(nagiEmojis.did, did));
     await tx.delete(nagiDiaries).where(eq(nagiDiaries.subjectDid, did));
+    await tx.delete(nagiNewsReviewJobs).where(eq(nagiNewsReviewJobs.did, did));
+    await tx
+      .delete(nagiNewsApprovals)
+      .where(like(nagiNewsApprovals.newsUri, newsUri));
+    await tx.delete(nagiNews).where(eq(nagiNews.did, did));
     await tx.delete(nagiPosts).where(eq(nagiPosts.did, did));
     await tx.delete(nagiAnalysisJobs).where(eq(nagiAnalysisJobs.did, did));
     await tx.delete(nagiActorAnalyses).where(eq(nagiActorAnalyses.did, did));

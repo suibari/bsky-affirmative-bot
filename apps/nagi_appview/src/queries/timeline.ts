@@ -290,7 +290,7 @@ export async function hydratePostViews(
       ? [{ uri: post.quoteUri, cid: post.quoteCid }]
       : [],
   );
-  const newsViews = await getNewsQuoteViews(newsRefs);
+  const newsViews = await getNewsQuoteViews(newsRefs, mutes.actors);
   if (!quoteUris.length && !newsRefs.length) return views;
   // 引用元がミュート著者なら引用カードだけを落とす（引用している投稿自体は残す）。
   const quoteRows = quoteUris.length

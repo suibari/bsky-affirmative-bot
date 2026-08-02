@@ -80,23 +80,55 @@ const meta = (html: string, keys: string[]) => {
 };
 const crop = (value: string | undefined, length: number) => value?.slice(0, length) || undefined;
 
-export type LinkMetadata = { uri: string; title: string; description?: string; image?: string };
+export type LinkMetadata = {
+  uri: string;
+  title: string;
+  description?: string;
+  image?: string;
+  siteName?: string;
+  publishedAt?: string;
+};
 
-async function fetchDirect(url: URL): Promise<LinkMetadata> {
+const linkHref = (html: string, rel: string): string | undefined => {
+  const escaped = rel.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  for (const pattern of [
+    new RegExp(`<link[^>]+rel=["'][^"']*\\b${escaped}\\b[^"']*["'][^>]+href=["']([^"']+)["'][^>]*>`, "i"),
+    new RegExp(`<link[^>]+href=["']([^"']+)["'][^>]+rel=["'][^"']*\\b${escaped}\\b[^"']*["'][^>]*>`, "i"),
+  ]) {
+    const match = pattern.exec(html);
+    if (match) return decode(match[1]);
+  }
+};
+
+const validPublishedAt = (value: string | undefined): string | undefined => {
+  if (!value) return undefined;
+  const date = new Date(value);
+  return Number.isFinite(date.getTime()) ? date.toISOString() : undefined;
+};
+
+async function fetchDirect(url: URL, requireTitle = false): Promise<LinkMetadata> {
   const { response, url: resolved } = await limitedFetch(url.href, "text/html,application/xhtml+xml");
   if (!response.headers.get("content-type")?.toLowerCase().includes("html"))
     throw new LinkMetadataError(415, "unsupported_media_type", "Link is not an HTML page");
   const html = new TextDecoder().decode(await bytes(response, HTML_LIMIT));
-  const title =
+  const extractedTitle =
     meta(html, ["og:title", "twitter:title"]) ??
     decode(/<title[^>]*>([\s\S]*?)<\/title>/i.exec(html)?.[1] ?? "");
+  if (requireTitle && !extractedTitle)
+    throw new LinkMetadataError(422, "metadata_unavailable", "Article title could not be extracted");
   const description = meta(html, ["og:description", "twitter:description", "description"]);
   const image = meta(html, ["og:image:secure_url", "og:image", "twitter:image"]);
+  const siteName = meta(html, ["og:site_name", "application-name"]);
+  const publishedAt = validPublishedAt(meta(html, ["article:published_time", "datePublished"]));
+  const canonical = linkHref(html, "canonical");
+  const canonicalUrl = canonical ? await safeUrl(canonical, resolved) : resolved;
   return {
-    uri: resolved.href,
-    title: crop(title, 300) || resolved.hostname,
+    uri: canonicalUrl.href,
+    title: crop(extractedTitle, 300) || resolved.hostname,
     ...(crop(description, 1000) ? { description: crop(description, 1000) } : {}),
     ...(image ? { image: (await safeUrl(image, resolved)).href } : {}),
+    ...(crop(siteName, 200) ? { siteName: crop(siteName, 200) } : {}),
+    ...(publishedAt ? { publishedAt } : {}),
   };
 }
 
@@ -144,6 +176,30 @@ export async function getLinkMetadata(raw: string, forceFallback = false) {
     return fallback?.image ? { ...direct, image: fallback.image } : direct;
   } catch {
     return (await fetchViaCardyb(url)) ?? { uri: url.href, title: url.hostname };
+  }
+}
+
+/**
+ * ニュース投稿用の厳格なメタデータ取得。通常のリンクカードと違い、ホスト名だけの
+ * フォールバックは成功扱いにしない。ユーザーへ個別項目を入力させず、安全に取得できた
+ * 記事だけを審査へ送るための境界。
+ */
+export async function getNewsMetadata(raw: string): Promise<LinkMetadata> {
+  const url = await safeUrl(raw);
+  try {
+    const direct = await fetchDirect(url, true);
+    return { ...direct, siteName: direct.siteName ?? new URL(direct.uri).hostname };
+  } catch (directError) {
+    if (
+      directError instanceof LinkMetadataError &&
+      ![422, 502].includes(directError.status)
+    )
+      throw directError;
+    const fallback = await fetchViaCardyb(url);
+    if (fallback?.title?.trim())
+      return { ...fallback, siteName: new URL(fallback.uri).hostname };
+    if (directError instanceof LinkMetadataError) throw directError;
+    throw new LinkMetadataError(422, "metadata_unavailable", "Article metadata could not be extracted");
   }
 }
 

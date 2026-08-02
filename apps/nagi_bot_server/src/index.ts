@@ -25,6 +25,8 @@ import {
   scheduleAllNagiDiaries,
 } from "./NagiDiaryFeature.js";
 import { publishNews } from "./NagiNewsFeature.js";
+import { schedulePositiveNewsUpdates } from "./positiveNewsUpdater.js";
+import { scheduleUserNewsReviews } from "./userNewsReviewWorker.js";
 
 /**
  * 開発環境かどうか。DEV 系のフラグを増やさないための単一の判定。
@@ -57,6 +59,10 @@ async function start() {
   startNagiCardCommentWorker();
   // 右サイドバー「みんなで全肯定」の匿名要約。候補選出と生成を作者単位で行う。
   startNagiCommunityAffirmationWorker();
+  // ニュースフィードの取得・公開とユーザー追加ニュースの審査は、
+  // Nagiへの投稿を所有するこのサーバーで完結させる。
+  schedulePositiveNewsUpdates();
+  scheduleUserNewsReviews();
   // 過疎チャンネルへの話題提供（Phase 2）。作成時の盛り上げ投稿は onNagiChannel が担う。
   startNagiChannelTopicScheduler();
 

@@ -48,6 +48,7 @@ const USER_COLLECTIONS = [
   BLUEMOJI_ITEM,
   NAGI.post,
   NAGI.reaction,
+  NAGI.news,
 ] as const;
 
 const BOT_COLLECTIONS = [...USER_COLLECTIONS, NAGI.diary, NAGI.news] as const;

@@ -3,6 +3,7 @@ import { db, nagiNews, nagiNewsApprovals } from "@bsky-affirmative-bot/database"
 import { getPositiveNewsCandidates, judgePositiveNewsBatch } from "@bsky-affirmative-bot/bot-brain";
 import { desc, eq } from "drizzle-orm";
 
+// Operational commands for the Nagi news feed live with its publishing service.
 await initializeDatabases();
 const command = process.argv[2];
 if (command === "preview") {

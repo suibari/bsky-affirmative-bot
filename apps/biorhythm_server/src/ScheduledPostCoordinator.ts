@@ -12,7 +12,7 @@ import {
 } from "@bsky-affirmative-bot/bot-brain";
 import retry from "async-retry";
 import { getGoodNightCandidate } from "./GoodNightCandidateProvider.js";
-import { getRecentNewsArticleIds, recordRecentNewsArticle } from "./newsHistory.js";
+import { getRecentNewsArticleIds, recordRecentNewsArticle } from "./whimsicalPostNewsHistory.js";
 import { buildWhimsicalPostTexts } from "./scheduledPostContent.js";
 
 const whimsicalPostGenerator = new WhimsicalPostGenerator();

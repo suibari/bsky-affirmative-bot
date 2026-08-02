@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { normalizeRecentNewsUses } from "../src/newsHistory.js";
+import { normalizeRecentNewsUses } from "../src/whimsicalPostNewsHistory.js";
 
 test("7日より古い記事と重複・不正データを除く", () => {
   const now = Date.parse("2026-07-23T00:00:00.000Z");

@@ -49,6 +49,11 @@ import { drawCard, getCards } from "../queries/cards.js";
 import { getCommunityAffirmations } from "../queries/communityAffirmations.js";
 import { config } from "../config.js";
 import {
+  getMyNewsSubmissions,
+  getNewsSubmissionPreview,
+  requestNewsReview,
+} from "../services/userNewsSubmissions.js";
+import {
   ensurePdsRecord,
   isReconcilableCollection,
 } from "../ingest/reconcileRepo.js";
@@ -503,6 +508,48 @@ xrpc.get(
         );
     } catch (e) {
       next(e);
+    }
+  },
+);
+xrpc.get(
+  `/${NAGI.getNewsSubmissionPreview}`,
+  requiredServiceAuth(NAGI.getNewsSubmissionPreview),
+  async (req, res, next) => {
+    try {
+      res
+        .set("Cache-Control", "private, no-store")
+        .json(await getNewsSubmissionPreview(String(req.query.url ?? "")));
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+xrpc.post(
+  `/${NAGI.requestNewsReview}`,
+  requiredServiceAuth(NAGI.requestNewsReview),
+  async (req, res, next) => {
+    try {
+      const subject = req.body?.subject;
+      if (!subject || typeof subject.uri !== "string" || typeof subject.cid !== "string")
+        throw new ApiError(400, "invalid_request", "subject StrongRef is required");
+      res
+        .set("Cache-Control", "private, no-store")
+        .json(await requestNewsReview(req.viewerDid!, subject));
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+xrpc.get(
+  `/${NAGI.getMyNewsSubmissions}`,
+  requiredServiceAuth(NAGI.getMyNewsSubmissions),
+  async (req, res, next) => {
+    try {
+      res
+        .set("Cache-Control", "private, no-store")
+        .json(await getMyNewsSubmissions(req.viewerDid!, Math.min(20, limit(req.query.limit))));
+    } catch (error) {
+      next(error);
     }
   },
 );

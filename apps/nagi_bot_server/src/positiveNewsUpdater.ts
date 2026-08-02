@@ -1,8 +1,8 @@
 import { createHash } from "node:crypto";
 import { db, nagiNews, nagiNewsApprovals, nagiNewsScreening, nagiNewsUpdateRuns } from "@bsky-affirmative-bot/database";
-import { NagiNewsService } from "@bsky-affirmative-bot/clients";
 import { getPositiveNewsCandidates, judgePositiveNewsBatch, POSITIVE_NEWS_PROMPT_VERSION, POSITIVE_NEWS_MODEL } from "@bsky-affirmative-bot/bot-brain";
 import { and, eq, gt, inArray, isNull, lt, or, sql } from "drizzle-orm";
+import { publishNews } from "./NagiNewsFeature.js";
 
 const SIX_HOURS = 6 * 60 * 60 * 1000;
 const RETRY_DELAY = 30 * 60 * 1000;
@@ -79,7 +79,7 @@ export async function updatePositiveNews(now = new Date()): Promise<number> {
       await db.insert(nagiNewsScreening).values({ cacheKey, articleId: candidate.articleId, decision: decision.publishable ? "approved_final" : "rejected_final", reasonCode: decision.reasonCode, expiresAt: new Date(now.getTime() + 24 * 60 * 60 * 1000) }).onConflictDoUpdate({ target: nagiNewsScreening.cacheKey, set: { decision: decision.publishable ? "approved_final" : "rejected_final", reasonCode: decision.reasonCode, expiresAt: new Date(now.getTime() + 24 * 60 * 60 * 1000) } });
       if (!decision.publishable || !candidate.link || !normalizedUrl(candidate.link)) continue;
       try {
-        const ref = await NagiNewsService.publish({ articleId: candidate.articleId, url: candidate.link, titleJa: candidate.title, sourceName: candidate.sourceName, sourceUrl: candidate.sourceUrl, publishedAt: candidate.publishedAt, createdAt: now.toISOString() });
+        const ref = await publishNews({ articleId: candidate.articleId, url: candidate.link, titleJa: candidate.title, sourceName: candidate.sourceName, sourceUrl: candidate.sourceUrl, publishedAt: candidate.publishedAt, langs: ["ja"], createdAt: now.toISOString() });
         const snapshot = { snapshotArticleId: candidate.articleId, snapshotUrl: candidate.link, snapshotTitleJa: candidate.title,
           snapshotSourceName: candidate.sourceName ?? null, snapshotSourceUrl: candidate.sourceUrl ?? null,
           snapshotPublishedAt: candidate.publishedAt ? new Date(candidate.publishedAt) : null, snapshotCreatedAt: now };

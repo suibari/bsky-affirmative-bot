@@ -2,7 +2,7 @@ import {
   getPositiveNewsCandidates,
   WhimsicalPostGenerator,
 } from "@bsky-affirmative-bot/bot-brain";
-import { getRecentNewsArticleIds } from "./newsHistory.js";
+import { getRecentNewsArticleIds } from "./whimsicalPostNewsHistory.js";
 
 function oneLine(value: string | undefined) {
   return (value ?? "").replace(/[\r\n\t]+/g, " ").trim();

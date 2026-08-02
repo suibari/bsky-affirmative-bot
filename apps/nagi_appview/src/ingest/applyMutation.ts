@@ -9,6 +9,7 @@ import {
   nagiIngestState,
   nagiNotifications,
   nagiNews,
+  nagiNewsReviewJobs,
   nagiPosts,
   nagiProcessedEvents,
   nagiProfiles,
@@ -239,11 +240,16 @@ export async function applyMutation(
           .delete(nagiNotifications)
           .where(eq(nagiNotifications.reasonUri, uri));
       }
-      if (collection === NAGI.news)
+      if (collection === NAGI.news) {
         await tx
           .update(nagiNews)
           .set({ deletedAt: new Date() })
           .where(eq(nagiNews.uri, uri));
+        await tx
+          .update(nagiNewsReviewJobs)
+          .set({ status: "cancelled", reasonCode: "record_deleted", finishedAt: new Date() })
+          .where(eq(nagiNewsReviewJobs.newsUri, uri));
+      }
       // CH 削除はソフト削除。所属投稿の channel_uri はそのまま残す（通常投稿はグローバルに残る）。
       if (collection === NAGI.channel)
         await tx
