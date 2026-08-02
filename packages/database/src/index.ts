@@ -968,7 +968,7 @@ static async getPost(did: string): Promise<any> {
         ? db
             .select({
               total: sql`count(*)`,
-              today: sql`count(*) filter (where ${nagiReactions.createdAt} >= ${since})`,
+              today: sql`count(*) filter (where ${gte(nagiReactions.createdAt, since)})`,
             })
             .from(nagiReactions)
             .where(sql`${nagiReactions.subjectUri} like ${`at://${botDid}/%`}`)
@@ -980,9 +980,9 @@ static async getPost(did: string): Promise<any> {
       db
         .select({
           total: sql`count(*)`,
-          today: sql`count(*) filter (where ${nagiBotReplyJobs.updatedAt} >= ${since})`,
+          today: sql`count(*) filter (where ${gte(nagiBotReplyJobs.updatedAt, since)})`,
           totalUsers: sql`count(distinct ${nagiBotReplyJobs.authorDid})`,
-          todayUsers: sql`count(distinct ${nagiBotReplyJobs.authorDid}) filter (where ${nagiBotReplyJobs.updatedAt} >= ${since})`,
+          todayUsers: sql`count(distinct ${nagiBotReplyJobs.authorDid}) filter (where ${gte(nagiBotReplyJobs.updatedAt, since)})`,
         })
         .from(nagiBotReplyJobs)
         .where(eq(nagiBotReplyJobs.state, 'posted')),
@@ -990,7 +990,7 @@ static async getPost(did: string): Promise<any> {
       db
         .select({
           total: sql`count(*)`,
-          today: sql`count(*) filter (where ${nagiAnalysisJobs.updatedAt} >= ${since})`,
+          today: sql`count(*) filter (where ${gte(nagiAnalysisJobs.updatedAt, since)})`,
         })
         .from(nagiAnalysisJobs)
         .where(eq(nagiAnalysisJobs.state, 'posted')),
@@ -1056,8 +1056,8 @@ static async getPost(did: string): Promise<any> {
     try {
       const rows = await db
         .select({
-          hour: sql`coalesce(sum(${repo_write_points.points}) filter (where ${repo_write_points.created_at} >= ${hourSince}), 0)`,
-          day: sql`coalesce(sum(${repo_write_points.points}) filter (where ${repo_write_points.created_at} >= ${daySince}), 0)`,
+          hour: sql`coalesce(sum(${repo_write_points.points}) filter (where ${gte(repo_write_points.created_at, hourSince)}), 0)`,
+          day: sql`coalesce(sum(${repo_write_points.points}) filter (where ${gte(repo_write_points.created_at, daySince)}), 0)`,
         })
         .from(repo_write_points)
         .where(eq(repo_write_points.did, did));
