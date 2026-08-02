@@ -44,6 +44,22 @@ export interface TopPost {
   rkey?: string;
 }
 
+/** 日次おすすめ選出Providerが解決前に受け取る、ネットワーク共通の候補行。 */
+export interface DailyTopPostCandidateRow {
+  network: 'bsky' | 'nagi';
+  uri: string;
+  cid?: string;
+  text: string;
+  comment: string;
+  score: number;
+  createdAt: Date;
+  did: string;
+  handle?: string;
+  displayName?: string;
+  avatarCid?: string;
+  rkey?: string;
+}
+
 /** bot-tan.com のダッシュボードの Nagi カラムが必要とする数値。 */
 export interface NagiStats {
   totalUsers: number;
@@ -92,7 +108,7 @@ export class MemoryService {
     await this.setBotState('biorhythm', newState);
   }
 
-  static async updateTopPost(top: TopPost) {
+  static async updateTopPost(top: TopPost | null) {
     await this.setBotState('dailyTopPost', top);
   }
 
@@ -154,120 +170,93 @@ export class MemoryService {
     }
   }
 
-  static async getHighestScorePosts(start: Date, end: Date): Promise<any[]> {
-    return await db
-      .select()
-      .from(posts)
-      .where(and(gte(posts.created_at, start), lt(posts.created_at, end)))
-      .orderBy(desc(posts.score))
-      .limit(5);
-  }
-
-  static async getHighestNagiScorePosts(start: Date, end: Date) {
-    return db
-      .select({
-        uri: nagiPosts.uri,
-        cid: nagiPosts.cid,
-        post: nagiPosts.text,
-        score: nagiPostScores.score,
-        did: nagiPosts.did,
-        handle: nagiActors.handle,
-        displayName: nagiProfiles.displayName,
-        createdAt: nagiPosts.recordCreatedAt,
-      })
-      .from(nagiPostScores)
-      .innerJoin(nagiPosts, eq(nagiPostScores.postUri, nagiPosts.uri))
-      .leftJoin(nagiActors, eq(nagiPosts.did, nagiActors.did))
-      .leftJoin(nagiProfiles, eq(nagiPosts.did, nagiProfiles.did))
-      .where(
-        and(
-          isNull(nagiPosts.deletedAt),
-          gte(nagiPosts.recordCreatedAt, start),
-          lt(nagiPosts.recordCreatedAt, end),
-        ),
-      )
-      .orderBy(desc(nagiPostScores.score))
-      .limit(5);
-  }
-
   /**
-   * 「きょうのおすすめ投稿」の候補を Bluesky / Nagi 横断で1件選ぶ。
+   * bot日付内のおすすめ候補をBluesky / Nagiそれぞれスコア順で返す。
    *
-   * botたんのコメントは、Bluesky では posts.comment に直接入っているが、Nagi では
-   * 返信そのものが1つの投稿として nagi.posts に取り込まれているので、
-   * post_scores.bot_reply_uri をたどって本文を取る。
+   * 日付検証・公開Blueskyレコードの解決・ネットワーク横断の最終選出は
+   * DailyTopPostProviderだけが担当する。
    */
-  static async getTopPostAcrossNetworks(): Promise<TopPost | null> {
-    try {
-      const botReply = alias(nagiPosts, 'bot_reply');
+  static async getDailyTopPostCandidateRows(
+    start: Date,
+    end: Date,
+    limitPerNetwork = 5,
+  ): Promise<DailyTopPostCandidateRow[]> {
+    const botReply = alias(nagiPosts, 'bot_reply');
+    const [bskyRows, nagiRows] = await Promise.all([
+      db
+        .select({
+          uri: posts.uri,
+          text: posts.post,
+          comment: posts.comment,
+          score: posts.score,
+          createdAt: posts.created_at,
+          did: posts.did,
+        })
+        .from(posts)
+        .where(and(gte(posts.created_at, start), lt(posts.created_at, end)))
+        .orderBy(desc(posts.score))
+        .limit(limitPerNetwork),
+      db
+        .select({
+          uri: nagiPosts.uri,
+          cid: nagiPosts.cid,
+          text: nagiPosts.text,
+          comment: botReply.text,
+          score: nagiPostScores.score,
+          createdAt: nagiPosts.recordCreatedAt,
+          did: nagiPosts.did,
+          rkey: nagiPosts.rkey,
+          handle: nagiActors.handle,
+          displayName: nagiProfiles.displayName,
+          avatarCid: nagiProfiles.avatarCid,
+        })
+        .from(nagiPostScores)
+        .innerJoin(nagiPosts, eq(nagiPostScores.postUri, nagiPosts.uri))
+        .leftJoin(botReply, eq(nagiPostScores.botReplyUri, botReply.uri))
+        .leftJoin(nagiActors, eq(nagiPosts.did, nagiActors.did))
+        .leftJoin(nagiProfiles, eq(nagiPosts.did, nagiProfiles.did))
+        .where(
+          and(
+            isNull(nagiPosts.deletedAt),
+            gte(nagiPosts.recordCreatedAt, start),
+            lt(nagiPosts.recordCreatedAt, end),
+          ),
+        )
+        .orderBy(desc(nagiPostScores.score))
+        .limit(limitPerNetwork),
+    ]);
 
-      const [bskyRows, nagiRows] = await Promise.all([
-        db
-          .select({ uri: posts.uri, comment: posts.comment, score: posts.score })
-          .from(posts)
-          .orderBy(desc(posts.score))
-          .limit(1),
-        db
-          .select({
-            uri: nagiPosts.uri,
-            comment: botReply.text,
-            score: nagiPostScores.score,
-            // Nagi の投稿は public.api.bsky.app では解決できないので、表示に必要な
-            // ものはここで一緒に返す（サイト側から AppView を叩かずに済ませる）。
-            text: nagiPosts.text,
-            createdAt: nagiPosts.recordCreatedAt,
-            did: nagiPosts.did,
-            rkey: nagiPosts.rkey,
-            handle: nagiActors.handle,
-            displayName: nagiProfiles.displayName,
-            avatarCid: nagiProfiles.avatarCid,
-          })
-          .from(nagiPostScores)
-          .innerJoin(nagiPosts, eq(nagiPostScores.postUri, nagiPosts.uri))
-          .leftJoin(botReply, eq(nagiPostScores.botReplyUri, botReply.uri))
-          .leftJoin(nagiActors, eq(nagiPosts.did, nagiActors.did))
-          .leftJoin(nagiProfiles, eq(nagiPosts.did, nagiProfiles.did))
-          .where(isNull(nagiPosts.deletedAt))
-          .orderBy(desc(nagiPostScores.score))
-          .limit(1),
-      ]);
-
-      const candidates: TopPost[] = [];
-
-      const bsky = bskyRows[0];
-      if (bsky?.uri) {
-        // Bluesky 側は本文もアバターも公開 AppView から取れるので URI だけでよい。
-        candidates.push({
-          uri: bsky.uri,
-          comment: bsky.comment ?? '',
-          network: 'bsky',
-          score: bsky.score ?? 0,
-        });
-      }
-
-      const nagi = nagiRows[0];
-      if (nagi?.uri) {
-        candidates.push({
-          uri: nagi.uri,
-          comment: nagi.comment ?? '',
-          network: 'nagi',
-          score: nagi.score ?? 0,
-          text: nagi.text ?? '',
-          createdAt: nagi.createdAt?.toISOString(),
-          authorHandle: nagi.handle ?? undefined,
-          authorDisplayName: nagi.displayName ?? undefined,
-          authorAvatarCid: nagi.avatarCid ?? undefined,
-          authorDid: nagi.did,
-          rkey: nagi.rkey,
-        });
-      }
-
-      if (candidates.length === 0) return null;
-      return candidates.reduce((best, item) => (item.score > best.score ? item : best));
-    } catch (e) {
-      console.error('Failed to get top post across networks:', e);
-      return null;
-    }
+    return [
+      ...bskyRows.flatMap((row) =>
+        row.uri && row.text
+          ? [
+              {
+                network: 'bsky' as const,
+                uri: row.uri,
+                text: row.text,
+                comment: row.comment ?? '',
+                score: row.score ?? 0,
+                createdAt: row.createdAt,
+                did: row.did,
+              },
+            ]
+          : [],
+      ),
+      ...nagiRows.map((row) => ({
+        network: 'nagi' as const,
+        uri: row.uri,
+        cid: row.cid,
+        text: row.text,
+        comment: row.comment ?? '',
+        score: row.score,
+        createdAt: row.createdAt,
+        did: row.did,
+        handle: row.handle ?? undefined,
+        displayName: row.displayName ?? undefined,
+        avatarCid: row.avatarCid ?? undefined,
+        rkey: row.rkey,
+      })),
+    ];
   }
 
   /** 指定ユーザーが since 以降に Nagi へ投稿したポスト（日記の材料）。 */

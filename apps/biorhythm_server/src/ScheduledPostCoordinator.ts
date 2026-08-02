@@ -11,7 +11,10 @@ import {
   WhimsicalPostGenerator,
 } from "@bsky-affirmative-bot/bot-brain";
 import retry from "async-retry";
-import { getGoodNightCandidate } from "./GoodNightCandidateProvider.js";
+import {
+  getDailyTopPostCandidate,
+  toDashboardTopPost,
+} from "./DailyTopPostProvider.js";
 import { jstDateString as jstDate } from "./jstDate.js";
 import { getRecentNewsArticleIds, recordRecentNewsArticle } from "./whimsicalPostNewsHistory.js";
 import { buildWhimsicalPostTexts } from "./scheduledPostContent.js";
@@ -170,8 +173,11 @@ export async function postGoodNight(currentMood: string) {
     if (current > previous) followerMilestone = current * 1000;
   }
 
-  const candidate = await getGoodNightCandidate();
+  const candidate = await getDailyTopPostCandidate();
   try {
+    await MemoryService.updateTopPost(
+      candidate ? toDashboardTopPost(candidate) : null,
+    );
     if (!candidate) {
       console.log("[INFO] No valid top post found for good-night post.");
       return;

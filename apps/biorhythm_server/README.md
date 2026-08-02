@@ -1,5 +1,15 @@
 # Biorhythm server
 
+## Daily top post
+
+The good-night post and the bot-tan.com dashboard use the same daily top-post provider. Configure the candidate networks with:
+
+```dotenv
+DAILY_TOP_POST_SOURCE=combined
+```
+
+Accepted values are `bsky`, `nagi`, and `combined`. If this variable is absent, the legacy `GOOD_NIGHT_TOP_POST_SOURCE` value is used; missing or invalid values default to `combined`.
+
 ## Public WebSocket configuration
 
 `/ws` is a public, read-only WebSocket endpoint. In production, configure its browser Origin allowlist explicitly:

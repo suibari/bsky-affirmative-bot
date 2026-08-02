@@ -8,8 +8,8 @@ import {
     Embed,
     GeminiScore,
     SUPER_POSITIVE_SCORE_THRESHOLD,
-    goodNightDayRange,
-    isInGoodNightDayRange,
+    botDayRange,
+    isInBotDayRange,
 } from "@bsky-affirmative-bot/shared-configs";
 import { MemoryService, awardSuperPositiveLevel } from "@bsky-affirmative-bot/clients";
 import { postContinuous } from "../bsky/postContinuous.js";
@@ -134,13 +134,13 @@ export async function replyAI(
         // const prevScore = await dbPosts.selectDb(follower.did, "score") as number || 0;
 
         const candidateRecordedAt = new Date();
-        const candidateDay = goodNightDayRange(candidateRecordedAt);
+        const candidateDay = botDayRange(candidateRecordedAt);
         const prevPost = await MemoryService.getPost(follower.did);
         const prevRecordedAt = prevPost?.created_at instanceof Date
             ? prevPost.created_at
             : new Date(prevPost?.created_at);
         const prevScore = Number.isFinite(prevRecordedAt.getTime())
-            && isInGoodNightDayRange(prevRecordedAt, candidateDay)
+            && isInBotDayRange(prevRecordedAt, candidateDay)
             ? prevPost?.score || 0
             : 0;
 

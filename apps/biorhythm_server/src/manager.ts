@@ -6,7 +6,7 @@ import eventsEveningWorkday from "@bsky-affirmative-bot/shared-configs/json/even
 import eventsEveningDayoff from "@bsky-affirmative-bot/shared-configs/json/event_evening_dayoff.json" with { type: "json" };
 import eventsNight from "@bsky-affirmative-bot/shared-configs/json/event_night.json" with { type: "json" };
 import eventsMidnight from "@bsky-affirmative-bot/shared-configs/json/event_midnight.json" with { type: "json" };
-import { MODEL_GEMINI, SYSTEM_INSTRUCTION } from '@bsky-affirmative-bot/shared-configs';
+import { MODEL_GEMINI, SYSTEM_INSTRUCTION, botDayRange } from '@bsky-affirmative-bot/shared-configs';
 import { gemini, generateContentWithRetry } from '@bsky-affirmative-bot/bot-brain';
 import { DailyReport, Stats } from '@bsky-affirmative-bot/shared-configs';
 import EventEmitter from "events";
@@ -22,6 +22,10 @@ import { Type } from "@google/genai";
 
 import { Status } from "@bsky-affirmative-bot/shared-configs";
 import { postGoodNight, postMorning, postWhimsical } from "./ScheduledPostCoordinator.js";
+import {
+  getDailyTopPostCandidate,
+  toDashboardTopPost,
+} from "./DailyTopPostProvider.js";
 
 // WebSocket用にlangプロパティを配列に変換したDailyStatsの型を定義
 interface DailyStatsForWebSocket extends Omit<DailyReport, 'lang'> { // DailyStatsをDailyReportに変更
@@ -101,9 +105,9 @@ export class BiorhythmManager extends EventEmitter {
     const lastFollowers = await MemoryService.getBotState("last_follower_count");
     if (typeof lastFollowers === "number") this.currentFollowers = lastFollowers;
 
-    await this.updateTopPostUri();
+    await this.refreshDailyTopPost();
     await this.updateFollowerCount();
-    setInterval(() => this.updateTopPostUri(), 10 * 60 * 1000);
+    setInterval(() => this.refreshDailyTopPost(), 10 * 60 * 1000);
     setInterval(() => this.updateFollowerCount(), 10 * 60 * 1000);
   }
 
@@ -162,11 +166,17 @@ export class BiorhythmManager extends EventEmitter {
     return this._generatedImage;
   }
 
-  async updateTopPostUri() {
-    // Bluesky と Nagi のスコア上位を突き合わせて、高いほうを「きょうのおすすめ」に
-    // する。どちらのネットワークかは表示時に明示するので一緒に保存する。
-    const top = await MemoryService.getTopPostAcrossNetworks();
-    if (top) await MemoryService.updateTopPost(top);
+  async refreshDailyTopPost() {
+    try {
+      const candidate = await getDailyTopPostCandidate();
+      await MemoryService.updateTopPost(
+        candidate ? toDashboardTopPost(candidate) : null,
+      );
+      this.emit('statsChange', await this.getCurrentState());
+    } catch (error) {
+      // 一時的なDB/API障害では、直前に正常取得できた表示を維持する。
+      console.error("[ERROR][BIO] Failed to refresh daily top post:", error);
+    }
   }
 
   /**
@@ -510,16 +520,7 @@ ${JSON.stringify(unreadReply)}
   }
 
   private getAdjustedDateString(): string {
-    const now = new Date();
-    // 0~3時は前日扱いとする
-    if (now.getHours() < 4) {
-      now.setDate(now.getDate() - 1);
-    }
-    // YYYY-MM-DD形式
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
+    return botDayRange().date;
   }
 
   private canPostGoodNight(): boolean {
