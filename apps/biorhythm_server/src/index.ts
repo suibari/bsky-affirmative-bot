@@ -1,9 +1,13 @@
 import express from "express";
 import http from "http";
 import { timingSafeEqual } from "crypto";
-import { WebSocketServer } from "ws";
 import dotenv from "dotenv";
 import { BiorhythmManager } from "./manager.js";
+import {
+  attachBiorhythmWebSocketServer,
+  parseAllowedOrigins,
+  readPositiveInteger,
+} from "./websocketServer.js";
 
 dotenv.config({ path: '../../.env' });
 
@@ -11,6 +15,12 @@ const app = express();
 app.use(express.json());
 
 const PORT = process.env.BIORHYTHM_SERVER_PORT || 3002;
+const HOST = process.env.BIORHYTHM_SERVER_HOST;
+const isProduction = process.env.NODE_ENV === "production";
+const allowedOrigins = parseAllowedOrigins(process.env.BIORHYTHM_WS_ALLOWED_ORIGINS);
+if (isProduction && allowedOrigins.size === 0) {
+  throw new Error("BIORHYTHM_WS_ALLOWED_ORIGINS must be configured in production");
+}
 
 const manager = new BiorhythmManager();
 
@@ -96,36 +106,43 @@ app.get("/image.png", (req, res) => {
 });
 
 const server = http.createServer(app);
-const wss = new WebSocketServer({ server, path: "/ws" });
-
-// WebSocket broadcasting
-const broadcast = (data: any) => {
-  const json = JSON.stringify(data);
-  for (const client of wss.clients) {
-    if (client.readyState === 1) { // OPEN
-      client.send(json);
-    }
-  }
-};
+const websocketServer = attachBiorhythmWebSocketServer(server, {
+  allowedOrigins,
+  enforceAllowedOrigins: isProduction,
+  getSnapshot: () => manager.getCurrentState(),
+  maxConnections: readPositiveInteger(
+    process.env.BIORHYTHM_WS_MAX_CONNECTIONS,
+    500,
+    "BIORHYTHM_WS_MAX_CONNECTIONS",
+  ),
+  maxConnectionsPerIp: readPositiveInteger(
+    process.env.BIORHYTHM_WS_MAX_CONNECTIONS_PER_IP,
+    10,
+    "BIORHYTHM_WS_MAX_CONNECTIONS_PER_IP",
+  ),
+  maxBufferedBytes: readPositiveInteger(
+    process.env.BIORHYTHM_WS_MAX_BUFFERED_BYTES,
+    1_048_576,
+    "BIORHYTHM_WS_MAX_BUFFERED_BYTES",
+  ),
+  heartbeatIntervalMs: readPositiveInteger(
+    process.env.BIORHYTHM_WS_HEARTBEAT_INTERVAL_MS,
+    30_000,
+    "BIORHYTHM_WS_HEARTBEAT_INTERVAL_MS",
+  ),
+  snapshotTtlMs: readPositiveInteger(
+    process.env.BIORHYTHM_WS_SNAPSHOT_TTL_MS,
+    5_000,
+    "BIORHYTHM_WS_SNAPSHOT_TTL_MS",
+  ),
+  trustCfConnectingIp: process.env.BIORHYTHM_TRUST_CF_CONNECTING_IP === "true",
+});
 
 manager.on('statsChange', (state) => {
-  broadcast(state);
+  websocketServer.broadcast(state);
 });
 
-wss.on('connection', async (ws, req) => {
-  const origin = req.headers.origin;
-  if (process.env.NODE_ENV === "production" && origin !== 'https://suibari.com') {
-    console.log(`[WARN] Blocked WS connection from origin: ${origin}`);
-    ws.close();
-    return;
-  }
-
-  console.log(`[INFO] WS client connected from origin: ${origin}`);
-  const state = await manager.getCurrentState();
-  ws.send(JSON.stringify(state));
-});
-
-server.listen(PORT, async () => {
+server.listen(Number(PORT), HOST, async () => {
   console.log(`Biorhythm Server running on port ${PORT}`);
   console.log(`🟢 WS server listening on path /ws`);
   try {
