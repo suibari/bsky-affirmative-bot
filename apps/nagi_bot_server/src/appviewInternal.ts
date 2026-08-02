@@ -39,11 +39,10 @@ async function postInternal(
 export function notifyAnalysisUpdated(
   did: string,
   updatedAt: string,
-  bodyText: string,
 ): Promise<boolean> {
   return postInternal(
     "/internal/notifications/analysis",
-    { did, updatedAt, bodyText },
+    { did, updatedAt },
     "ANALYSIS",
   );
 }

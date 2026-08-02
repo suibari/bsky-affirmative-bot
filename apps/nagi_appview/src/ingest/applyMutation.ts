@@ -21,6 +21,7 @@ import { and, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { config } from "../config.js";
 import { indexEmoji, resolveEmoji, type EmojiRow } from "../services/emoji.js";
 import { dispatchPushAll, type PushJob } from "../services/pushDispatch.js";
+import { postPushBody } from "../services/pushPayload.js";
 import {
   shouldStartEnglishPrewarm,
   startEnglishPrewarm,
@@ -33,7 +34,7 @@ import {
   parseContentWarning,
 } from "../util/contentWarning.js";
 
-/** プッシュ本文用に長い本文を詰める。 */
+/** 日記など、投稿以外のプッシュ本文用に長い本文を詰める。 */
 const preview = (text: unknown, max = 80): string => {
   const s = typeof text === "string" ? text.replace(/\s+/g, " ").trim() : "";
   return s.length > max ? `${s.slice(0, max)}…` : s;
@@ -247,7 +248,11 @@ export async function applyMutation(
           .where(eq(nagiNews.uri, uri));
         await tx
           .update(nagiNewsReviewJobs)
-          .set({ status: "cancelled", reasonCode: "record_deleted", finishedAt: new Date() })
+          .set({
+            status: "cancelled",
+            reasonCode: "record_deleted",
+            finishedAt: new Date(),
+          })
           .where(eq(nagiNewsReviewJobs.newsUri, uri));
       }
       // CH 削除はソフト削除。所属投稿の channel_uri はそのまま残す（通常投稿はグローバルに残る）。
@@ -677,7 +682,9 @@ export async function applyMutation(
               type: "diary",
               actorDid: did,
               notificationId: inserted[0].id,
-              bodyText: preview(value.titleJa ?? value.titleEn ?? value.text),
+              contentText: preview(
+                value.titleJa ?? value.titleEn ?? value.text,
+              ),
             });
         }
       }
@@ -768,9 +775,12 @@ export async function applyMutation(
               type: "reply",
               actorDid: did,
               notificationId: inserted[0].id,
-              bodyText: hasContentWarning(value.text)
-                ? ""
-                : preview(value.text),
+              contentText: postPushBody({
+                text: value.text,
+                contentWarning: hasContentWarning(value.text),
+                hasImages: Array.isArray(value.embed?.images),
+                hasQuote: value.embed?.$type === `${NAGI.post}#quote`,
+              }),
             });
         }
       }
@@ -816,9 +826,12 @@ export async function applyMutation(
                 type: "mention",
                 actorDid: did,
                 notificationId: inserted[0].id,
-                bodyText: hasContentWarning(value.text)
-                  ? ""
-                  : preview(value.text),
+                contentText: postPushBody({
+                  text: value.text,
+                  contentWarning: hasContentWarning(value.text),
+                  hasImages: Array.isArray(value.embed?.images),
+                  hasQuote: value.embed?.$type === `${NAGI.post}#quote`,
+                }),
               });
           }
         }
@@ -852,9 +865,17 @@ export async function applyMutation(
               type: "reaction",
               actorDid: did,
               notificationId: inserted[0].id,
-              bodyText: bluemoji
+              actionText: bluemoji
                 ? `:${bluemoji.name}:`
                 : preview(value.emoji, 8),
+              contentText: postPushBody({
+                text: subject[0].text,
+                contentWarning: hasContentWarning(subject[0].text),
+                hasImages:
+                  Array.isArray(subject[0].embedImages) &&
+                  subject[0].embedImages.length > 0,
+                hasQuote: Boolean(subject[0].quoteUri),
+              }),
             });
         }
       }

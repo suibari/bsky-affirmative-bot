@@ -15,13 +15,21 @@ import { randomUUID } from "node:crypto";
 import { dispatchPush } from "../src/services/pushDispatch.js";
 import type { PushNotificationType } from "../src/services/pushPayload.js";
 
-const TYPES: PushNotificationType[] = ["reply", "reaction", "mention", "diary", "analysis"];
+const TYPES: PushNotificationType[] = [
+  "reply",
+  "reaction",
+  "mention",
+  "diary",
+  "analysis",
+];
 
 const recipientDid = process.argv[2];
 const type = (process.argv[3] ?? "reply") as PushNotificationType;
 
 if (!recipientDid?.startsWith("did:")) {
-  console.error("usage: test:push <recipient-did> [reply|reaction|mention|diary|analysis]");
+  console.error(
+    "usage: test:push <recipient-did> [reply|reaction|mention|diary|analysis]",
+  );
   process.exit(1);
 }
 if (!TYPES.includes(type)) {
@@ -39,7 +47,8 @@ await dispatchPush({
   actorDid: recipientDid,
   // 実在の通知行ではないのでその場で採番する。tag の一意性さえ満たせばよい。
   notificationId: randomUUID(),
-  bodyText: `テスト通知 ${new Date().toLocaleTimeString("ja-JP")}`,
+  actionText: type === "reaction" ? "🌊" : undefined,
+  contentText: `テスト通知 ${new Date().toLocaleTimeString("ja-JP")}`,
 });
 
 process.exit(0);

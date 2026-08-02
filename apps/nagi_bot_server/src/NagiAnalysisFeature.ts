@@ -195,8 +195,7 @@ export async function runNagiAnalysis(
     .where(eq(nagiProfiles.did, job.did));
 
   const updatedAt = now.toISOString();
-  await notifyAnalysisUpdated(job.did, updatedAt, result.taglineJa);
+  await notifyAnalysisUpdated(job.did, updatedAt);
 
   return { skipped: false, result, updatedAt };
 }
-
