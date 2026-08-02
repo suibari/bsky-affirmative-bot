@@ -154,11 +154,16 @@ export class MemoryService {
     }
   }
 
-  static async getHighestScorePosts(): Promise<any[]> {
-    return await db.select().from(posts).orderBy(desc(posts.score)).limit(5);
+  static async getHighestScorePosts(start: Date, end: Date): Promise<any[]> {
+    return await db
+      .select()
+      .from(posts)
+      .where(and(gte(posts.created_at, start), lt(posts.created_at, end)))
+      .orderBy(desc(posts.score))
+      .limit(5);
   }
 
-  static async getHighestNagiScorePosts() {
+  static async getHighestNagiScorePosts(start: Date, end: Date) {
     return db
       .select({
         uri: nagiPosts.uri,
@@ -168,12 +173,19 @@ export class MemoryService {
         did: nagiPosts.did,
         handle: nagiActors.handle,
         displayName: nagiProfiles.displayName,
+        createdAt: nagiPosts.recordCreatedAt,
       })
       .from(nagiPostScores)
       .innerJoin(nagiPosts, eq(nagiPostScores.postUri, nagiPosts.uri))
       .leftJoin(nagiActors, eq(nagiPosts.did, nagiActors.did))
       .leftJoin(nagiProfiles, eq(nagiPosts.did, nagiProfiles.did))
-      .where(isNull(nagiPosts.deletedAt))
+      .where(
+        and(
+          isNull(nagiPosts.deletedAt),
+          gte(nagiPosts.recordCreatedAt, start),
+          lt(nagiPosts.recordCreatedAt, end),
+        ),
+      )
       .orderBy(desc(nagiPostScores.score))
       .limit(5);
   }

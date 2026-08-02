@@ -16,6 +16,7 @@ function candidate(
     cid: `${network}-${score}`,
     text: `${network} post`,
     score,
+    createdAt: new Date("2026-08-03T12:00:00+09:00"),
     profile: {
       did: `did:example:${network}`,
       handle: `${network}.example.com`,

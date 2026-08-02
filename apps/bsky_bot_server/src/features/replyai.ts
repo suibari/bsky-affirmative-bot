@@ -4,7 +4,13 @@ import { AppBskyFeedPost } from "@atproto/api"; type Record = AppBskyFeedPost.Re
 import { getImageUrl, getLangStr, uniteDidNsidRkey } from "../bsky/util.js";
 import { getBotContext } from "../util/botContext.js";
 import { generateAffirmativeWord } from "@bsky-affirmative-bot/bot-brain";
-import { Embed, GeminiScore, SUPER_POSITIVE_SCORE_THRESHOLD } from "@bsky-affirmative-bot/shared-configs";
+import {
+    Embed,
+    GeminiScore,
+    SUPER_POSITIVE_SCORE_THRESHOLD,
+    goodNightDayRange,
+    isInGoodNightDayRange,
+} from "@bsky-affirmative-bot/shared-configs";
 import { MemoryService, awardSuperPositiveLevel } from "@bsky-affirmative-bot/clients";
 import { postContinuous } from "../bsky/postContinuous.js";
 import { checkAndSendRoomInvitation } from "../bsky/roomInvitation.js";
@@ -127,8 +133,16 @@ export async function replyAI(
         // dbPosts.insertDb(follower.did);
         // const prevScore = await dbPosts.selectDb(follower.did, "score") as number || 0;
 
+        const candidateRecordedAt = new Date();
+        const candidateDay = goodNightDayRange(candidateRecordedAt);
         const prevPost = await MemoryService.getPost(follower.did);
-        const prevScore = prevPost?.score || 0;
+        const prevRecordedAt = prevPost?.created_at instanceof Date
+            ? prevPost.created_at
+            : new Date(prevPost?.created_at);
+        const prevScore = Number.isFinite(prevRecordedAt.getTime())
+            && isInGoodNightDayRange(prevRecordedAt, candidateDay)
+            ? prevPost?.score || 0
+            : 0;
 
         if (result && result.score && prevScore < result.score && text_user.length > 0) { // 空ポスト除外
             await MemoryService.upsertPost({
@@ -136,7 +150,8 @@ export async function replyAI(
                 post: record.text,
                 comment: result.comment,
                 score: result.score,
-                uri: uri
+                uri: uri,
+                created_at: candidateRecordedAt,
             });
         }
 
@@ -182,7 +197,6 @@ export async function replyAI(
         }
     }
 }
-
 async function getFollowersFriend(text_user: string, userDid: string) {
     // ベクトル類似検索で投稿者本人を除いた類似ポストを取得
     const similarPosts = await MemoryService.findFollowersByTopic(text_user, userDid);
@@ -205,5 +219,3 @@ async function getFollowersFriend(text_user: string, userDid: string) {
         ? { profile: firstProfile, post: firstPost.post, uri: firstPost.uri }
         : undefined;
 }
-
-
