@@ -6,6 +6,21 @@ export interface DiaryResult {
   diary: string;
   title_ja: string;
   title_en: string;
+  emoji: string;
+}
+
+const DIARY_EMOJI_FALLBACK = "✨";
+
+/** Gemini の出力を、カレンダーにそのまま置ける1書記素へ絞る。 */
+export function normalizeDiaryEmoji(value: unknown): string {
+  if (typeof value !== "string") return DIARY_EMOJI_FALLBACK;
+  const emoji = value.trim();
+  const graphemes = [
+    ...new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(emoji),
+  ];
+  return graphemes.length === 1 && Buffer.byteLength(emoji) <= 64
+    ? emoji
+    : DIARY_EMOJI_FALLBACK;
 }
 
 export async function generateUserDiary(userinfo: UserInfoGemini): Promise<DiaryResult> {
@@ -30,6 +45,7 @@ ${TONE_RULES_JA}
 
 また、ユーザの今日1日のポスト内容や様子から、今日1日を象徴するユーザにふさわしい「称号」を考えてください。
 称号は、日本語（20字以内）と、その英語訳（30字以内）の両方を考えてください。
+さらに、今日1日を象徴するUnicode絵文字を1つだけ選んでください。
 例：
 - 日本語: 「努力の守護者」, 英語: 「Guardian of Effort」
 - 日本語: 「癒やしの案内人」, 英語: 「Guide of Healing」
@@ -51,6 +67,7 @@ Do not include any negative content; keep a fully positive, affirming stance.
 
 Also, based on their posts, award them a fitting "title".
 Provide the title in both Japanese (within 20 characters) and English (within 30 characters).
+Also choose exactly one Unicode emoji that represents their day.
 Examples:
 - Japanese: 「努力の守護者」, English: 「Guardian of Effort」
 - Japanese: 「全肯定の達人」, English: 「Master of Affirmation」
@@ -106,9 +123,13 @@ Today's posts: ${userinfo.posts || ""}
           title_en: {
             type: Type.STRING,
             description: "同じ称号の英語訳（30字以内、例: Guardian of Effort）"
+          },
+          emoji: {
+            type: Type.STRING,
+            description: "今日1日を象徴するUnicode絵文字1つ（例: 🌱）"
           }
         },
-        required: ["diary", "title_ja", "title_en"]
+        required: ["diary", "title_ja", "title_en", "emoji"]
       }
     }
   }, 3, userinfo);
@@ -120,14 +141,16 @@ Today's posts: ${userinfo.posts || ""}
     return {
       diary: json.diary || "",
       title_ja: json.title_ja || "全肯定の旅人",
-      title_en: json.title_en || "Affirmative Traveler"
+      title_en: json.title_en || "Affirmative Traveler",
+      emoji: normalizeDiaryEmoji(json.emoji)
     };
   } catch (e) {
     console.error("[ERROR] Failed to parse Structured Outputs JSON in generateUserDiary:", e);
     return {
       diary: response.text || "",
       title_ja: "全肯定の旅人",
-      title_en: "Affirmative Traveler"
+      title_en: "Affirmative Traveler",
+      emoji: DIARY_EMOJI_FALLBACK
     };
   }
 }

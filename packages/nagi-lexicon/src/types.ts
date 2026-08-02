@@ -206,6 +206,10 @@ export type NagiDiary = {
   /** その日の称号。 */
   titleJa?: string;
   titleEn?: string;
+  /** その日を象徴するUnicode絵文字1つ。 */
+  emoji?: string;
+  /** 日記生成の材料にした、返信を含むNagiポスト数。 */
+  postCount?: number;
   langs?: string[];
   createdAt: string;
 };
@@ -217,6 +221,8 @@ export type DiaryView = {
   text: string;
   titleJa?: string;
   titleEn?: string;
+  emoji?: string;
+  postCount?: number;
   langs?: string[];
   createdAt: string;
   indexedAt: string;

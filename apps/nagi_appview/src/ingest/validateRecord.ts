@@ -334,6 +334,12 @@ export function validateRecord(
         (typeof value.titleJa === "string" && graphemes(value.titleJa) <= 64)) &&
       (value.titleEn === undefined ||
         (typeof value.titleEn === "string" && graphemes(value.titleEn) <= 64)) &&
+      (value.emoji === undefined ||
+        (typeof value.emoji === "string" &&
+          graphemes(value.emoji) === 1 &&
+          Buffer.byteLength(value.emoji) <= 64)) &&
+      (value.postCount === undefined ||
+        (Number.isInteger(value.postCount) && value.postCount > 0)) &&
       (value.langs === undefined ||
         (Array.isArray(value.langs) &&
           value.langs.length <= 4 &&

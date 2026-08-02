@@ -349,6 +349,8 @@ export const nagiDiaries = nagiSchema.table(
     text: text("text").notNull(),
     titleJa: text("title_ja"),
     titleEn: text("title_en"),
+    emoji: text("emoji"),
+    postCount: integer("post_count"),
     langs: jsonb("langs"),
     recordCreatedAt: timestamp("record_created_at", {
       withTimezone: true,
@@ -358,6 +360,10 @@ export const nagiDiaries = nagiSchema.table(
       .notNull(),
   },
   (t) => [
+    check(
+      "nagi_diaries_post_count_positive",
+      sql`${t.postCount} IS NULL OR ${t.postCount} > 0`,
+    ),
     uniqueIndex("nagi_diary_subject_date_idx").on(t.subjectDid, t.diaryDate),
     index("nagi_diary_subject_idx").on(t.subjectDid, t.diaryDate),
   ],

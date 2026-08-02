@@ -631,6 +631,8 @@ export async function applyMutation(
               text: value.text,
               titleJa: value.titleJa ?? null,
               titleEn: value.titleEn ?? null,
+              emoji: value.emoji ?? null,
+              postCount: value.postCount ?? null,
               langs: value.langs ?? null,
               recordCreatedAt: createdAt,
             })
@@ -643,6 +645,8 @@ export async function applyMutation(
                 text: value.text,
                 titleJa: value.titleJa ?? null,
                 titleEn: value.titleEn ?? null,
+                emoji: value.emoji ?? null,
+                postCount: value.postCount ?? null,
                 langs: value.langs ?? null,
                 recordCreatedAt: createdAt,
               },

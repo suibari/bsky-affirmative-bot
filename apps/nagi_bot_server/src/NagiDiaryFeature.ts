@@ -147,6 +147,8 @@ export async function processNagiDiary(userDid: string): Promise<void> {
       text: clipNagiPostText(diaryResult.diary, "DIARY"),
       titleJa: diaryResult.title_ja,
       titleEn: diaryResult.title_en,
+      emoji: diaryResult.emoji,
+      postCount: recentPosts.length,
       ...(latestLangs?.length ? { langs: latestLangs } : {}),
       createdAt: new Date().toISOString(),
     };

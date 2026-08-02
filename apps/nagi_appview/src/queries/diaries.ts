@@ -14,6 +14,8 @@ export function diaryView(row: DiaryRow): DiaryView {
     text: row.text,
     titleJa: row.titleJa ?? undefined,
     titleEn: row.titleEn ?? undefined,
+    emoji: row.emoji ?? undefined,
+    postCount: row.postCount ?? undefined,
     langs: (row.langs as string[] | null) ?? undefined,
     createdAt: row.recordCreatedAt.toISOString(),
     indexedAt: row.indexedAt.toISOString(),
