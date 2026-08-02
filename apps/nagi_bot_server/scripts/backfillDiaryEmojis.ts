@@ -4,11 +4,12 @@
  * Preview (default):
  *   pnpm --filter nagi-bot-server diary:emoji:backfill
  * Apply:
- *   pnpm --filter nagi-bot-server diary:emoji:backfill -- --apply
+ *   pnpm --filter nagi-bot-server diary:emoji:backfill --apply
  * Another user:
- *   pnpm --filter nagi-bot-server diary:emoji:backfill -- did:plc:... [--apply]
+ *   pnpm --filter nagi-bot-server diary:emoji:backfill did:plc:... [--apply]
  */
 import retry from "async-retry";
+import assert from "node:assert/strict";
 import { generateDiaryEmojis } from "@bsky-affirmative-bot/bot-brain";
 import { NAGI, type NagiDiary } from "@bsky-affirmative-bot/nagi-lexicon";
 import { agent, initAgent } from "../src/agent.js";
@@ -20,6 +21,11 @@ type DiaryRecordRow = {
   cid: string;
   value: NagiDiary;
 };
+
+function withoutEmoji(value: NagiDiary): Omit<NagiDiary, "emoji"> {
+  const { emoji: _emoji, ...rest } = value;
+  return rest;
+}
 
 const daysBetween = (earlier: string, later: string) =>
   (Date.parse(`${later}T00:00:00.000Z`) -
@@ -120,18 +126,24 @@ for (const [index, row] of records.entries()) {
         collection: NAGI.diary,
         rkey,
       });
-      const persistedEmoji = (persisted.data.value as NagiDiary).emoji;
+      const persistedValue = persisted.data.value as NagiDiary;
+      const persistedEmoji = persistedValue.emoji;
       if (persistedEmoji !== emoji) {
         throw new Error(
           `read-after-write mismatch: expected ${emoji}, got ${persistedEmoji}`,
         );
       }
+      assert.deepEqual(
+        withoutEmoji(persistedValue),
+        withoutEmoji(row.value),
+        "a field other than emoji changed",
+      );
     }
 
     updated += 1;
     generatedHistory.push({ date: row.value.date, emoji });
     console.log(
-      `[${index + 1}/${records.length}] ${row.value.date}: ${before} -> ${emoji}${apply ? " (verified)" : ""}`,
+      `[${index + 1}/${records.length}] ${row.value.date}: ${before} -> ${emoji}${apply ? " (verified; other fields unchanged)" : ""}`,
     );
   } catch (error) {
     failed += 1;
