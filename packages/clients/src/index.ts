@@ -10,4 +10,12 @@ export * from './LeafletDiaryService.js';
 export * from './LeafletStandardSite.js';
 export { getTimezoneFromLang, getLangStr, calculateDelayUntilLocal22 } from './diaryUtils.js';
 export { MemoryService, initializeDatabases } from '@bsky-affirmative-bot/database';
+export {
+  classifyHeartbeat,
+  readHeartbeats,
+  reportHealthFailure,
+  reportHeartbeat,
+  worstState,
+} from '@bsky-affirmative-bot/database';
 export type { DailyReport, Stats } from '@bsky-affirmative-bot/database';
+export type { HealthService, HealthState, HeartbeatRecord } from '@bsky-affirmative-bot/database';

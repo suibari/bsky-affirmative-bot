@@ -2,7 +2,7 @@ import { PartListUnion, Type, ServiceTier } from '@google/genai';
 import { gemini } from './index.js';
 import { MODEL_GEMINI, SYSTEM_INSTRUCTION, POST_TEXT_LIMIT, safeFetch } from '@bsky-affirmative-bot/shared-configs';
 import { UserInfoGemini, GeminiScore, BotContext, LanguageName } from '@bsky-affirmative-bot/shared-configs';
-import { MemoryService } from '@bsky-affirmative-bot/database';
+import { MemoryService, reportHealthFailure, reportHeartbeat } from '@bsky-affirmative-bot/database';
 import { buildAffirmativeImageParts } from './affirmativeImages.js';
 
 export type GeminiRequestOptions = {
@@ -72,12 +72,17 @@ export async function generateContentWithRetry(
       MemoryService.incrementStats('rpdError', 1).catch((err: any) =>
         console.error('Failed to increment rpdError:', err),
       );
+      // 死活監視は「最後に成功したのはいつか」だけでは足りない。エラーを返し続けて
+      // いる状態を検知するため、失敗そのものを記録する。追加の API 呼び出しは
+      // しない（プローブで RPD を消費したくない）。
+      reportHealthFailure('gemini', e).catch(() => {});
       throw e;
     }
     const text = response.text || '';
 
     // Increment RPD on success
     MemoryService.incrementStats('rpd', 1).catch((e: any) => console.error('Failed to increment RPD:', e));
+    reportHeartbeat('gemini').catch(() => {});
 
     // 文字数制限チェック（文字数超過時のみ、モデル生成のやり直しとして内部リトライを許容）
     if (text.length <= POST_TEXT_LIMIT) {

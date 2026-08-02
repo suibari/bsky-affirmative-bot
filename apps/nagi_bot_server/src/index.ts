@@ -1,5 +1,9 @@
 import { startBotJetstream } from "@bsky-affirmative-bot/bot-runtime";
-import { initializeDatabases } from "@bsky-affirmative-bot/clients";
+import {
+  initializeDatabases,
+  reportHealthFailure,
+  reportHeartbeat,
+} from "@bsky-affirmative-bot/clients";
 import { NAGI } from "@bsky-affirmative-bot/nagi-lexicon";
 import { initAgent } from "./agent.js";
 import {
@@ -51,7 +55,25 @@ async function start() {
       [NAGI.post]: onNagiPost,
       [NAGI.channel]: onNagiChannel,
     },
+    onHealth: (event) => {
+      const report = event.ok
+        ? reportHeartbeat("jetstream-nagi", event.detail)
+        : reportHealthFailure("jetstream-nagi", event.error);
+      report.catch((e) =>
+        console.error("[ERROR][NAGI] Failed to report Jetstream health:", e),
+      );
+    },
   });
+  // このプロセス自体の死活。bot-tan.com のダッシュボードが「botたんサーバー」
+  // タイルの内訳として読む。
+  const nagiBotHeartbeat = setInterval(() => {
+    reportHeartbeat("nagi-bot").catch((e) =>
+      console.error("[ERROR][NAGI] Failed to report heartbeat:", e),
+    );
+  }, 30_000);
+  nagiBotHeartbeat.unref();
+  reportHeartbeat("nagi-bot").catch(() => {});
+
   startNagiReplyWorker();
   // 自動分析（プロフィールの「botたんのひとこと」）ワーカー。エンキューは AppView ingest が担う。
   startNagiAnalysisWorker();

@@ -116,6 +116,21 @@ export const biorhythm_history = affirmativeBotSchema.table("biorhythm_history",
   created_at: timestamp("created_at").defaultNow().notNull(),
 });
 
+/**
+ * bot-tan.com のダッシュボードが描く推移の元データ。
+ *
+ * 日次カウンタは resetDailyStats() で毎晩ゼロに戻ってしまうので、消える直前の
+ * 確定値をここに1行だけ残す。指標が増えるたびに列を足す（= マイグレーションする）
+ * ことになるのを避けるため、値は jsonb 1つにまとめている。
+ */
+export const daily_metrics = affirmativeBotSchema.table("daily_metrics", {
+  /** リセット時点の JST 日付 "YYYY-MM-DD"。 */
+  date: text("date").primaryKey(),
+  /** { bsky: {...}, nagi: {...}, common: {...} } */
+  metrics: jsonb("metrics").notNull(),
+  created_at: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const gifts = affirmativeBotSchema.table("gifts", {
   id: serial("id").primaryKey(),
   did: text("did").notNull(),

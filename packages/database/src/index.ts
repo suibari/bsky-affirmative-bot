@@ -1,5 +1,6 @@
-import { db, initializeDatabases, bot_state, followers, posts, likes, replies, affirmations, interaction, subscribers, biorhythm_history, gifts, youtube_shorts, nagiActors, nagiPosts, nagiPostScores, nagiProfiles } from './db.js';
+import { db, initializeDatabases, bot_state, followers, posts, likes, replies, affirmations, interaction, subscribers, biorhythm_history, gifts, youtube_shorts, nagiActors, nagiPosts, nagiPostScores, nagiProfiles, nagiReactions, nagiBotReplyJobs, nagiAnalysisJobs, daily_metrics } from './db.js';
 import { eq, desc, sql, gte, lte, and, gt, inArray, lt, isNull } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/pg-core';
 import { generateEmbedding } from './ollamaEmbed.js';
 import { LanguageName, LIMIT_REQUEST_PER_DAY_GEMINI, DailyReport, Stats } from '@bsky-affirmative-bot/shared-configs';
 
@@ -14,8 +15,43 @@ export {
   affirmations as botAffirmations,
 };
 export * from './nagiSchema.js';
+export * from './health.js';
 export { filterRelatedHistory, generateEmbedding, generateEmbeddings } from './ollamaEmbed.js';
 export type { DailyReport, Stats };
+
+/** 「きょう」と「累計」の組。Nagi 側の指標はすべてこの形で返す。 */
+export interface NagiStatPair {
+  today: number;
+  total: number;
+}
+
+/**
+ * 「きょうのおすすめ投稿」。Bluesky は URI だけ返し、本文とアバターはサイト側が
+ * public.api.bsky.app から取る。Nagi は公開 AppView 越しに取れないので、表示に
+ * 必要なぶんをここで一緒に返す。
+ */
+export interface TopPost {
+  uri: string;
+  comment: string;
+  network: 'bsky' | 'nagi';
+  score: number;
+  text?: string;
+  createdAt?: string;
+  authorHandle?: string;
+  authorDisplayName?: string;
+  authorAvatarCid?: string;
+  authorDid?: string;
+  rkey?: string;
+}
+
+/** bot-tan.com のダッシュボードの Nagi カラムが必要とする数値。 */
+export interface NagiStats {
+  totalUsers: number;
+  reactions: NagiStatPair;
+  affirmations: NagiStatPair;
+  affirmedUsers: NagiStatPair;
+  analyses: NagiStatPair;
+}
 
 export class MemoryService {
   static async getBotState(key: string): Promise<any> {
@@ -56,8 +92,20 @@ export class MemoryService {
     await this.setBotState('biorhythm', newState);
   }
 
-  static async updateTopPost(uri: string, comment?: string) {
-    await this.setBotState('dailyTopPost', { uri, comment });
+  static async updateTopPost(top: TopPost) {
+    await this.setBotState('dailyTopPost', top);
+  }
+
+  static async getTopPost(): Promise<TopPost | null> {
+    const stored = await this.getBotState('dailyTopPost');
+    if (!stored?.uri) return null;
+    return {
+      ...stored,
+      // network を持たない時代に書かれた行が残っているため、既定は Bluesky。
+      network: stored.network === 'nagi' ? 'nagi' : 'bsky',
+      comment: stored.comment ?? '',
+      score: stored.score ?? 0,
+    } as TopPost;
   }
 
   static async clearReplies() {
@@ -128,6 +176,86 @@ export class MemoryService {
       .where(isNull(nagiPosts.deletedAt))
       .orderBy(desc(nagiPostScores.score))
       .limit(5);
+  }
+
+  /**
+   * 「きょうのおすすめ投稿」の候補を Bluesky / Nagi 横断で1件選ぶ。
+   *
+   * botたんのコメントは、Bluesky では posts.comment に直接入っているが、Nagi では
+   * 返信そのものが1つの投稿として nagi.posts に取り込まれているので、
+   * post_scores.bot_reply_uri をたどって本文を取る。
+   */
+  static async getTopPostAcrossNetworks(): Promise<TopPost | null> {
+    try {
+      const botReply = alias(nagiPosts, 'bot_reply');
+
+      const [bskyRows, nagiRows] = await Promise.all([
+        db
+          .select({ uri: posts.uri, comment: posts.comment, score: posts.score })
+          .from(posts)
+          .orderBy(desc(posts.score))
+          .limit(1),
+        db
+          .select({
+            uri: nagiPosts.uri,
+            comment: botReply.text,
+            score: nagiPostScores.score,
+            // Nagi の投稿は public.api.bsky.app では解決できないので、表示に必要な
+            // ものはここで一緒に返す（サイト側から AppView を叩かずに済ませる）。
+            text: nagiPosts.text,
+            createdAt: nagiPosts.recordCreatedAt,
+            did: nagiPosts.did,
+            rkey: nagiPosts.rkey,
+            handle: nagiActors.handle,
+            displayName: nagiProfiles.displayName,
+            avatarCid: nagiProfiles.avatarCid,
+          })
+          .from(nagiPostScores)
+          .innerJoin(nagiPosts, eq(nagiPostScores.postUri, nagiPosts.uri))
+          .leftJoin(botReply, eq(nagiPostScores.botReplyUri, botReply.uri))
+          .leftJoin(nagiActors, eq(nagiPosts.did, nagiActors.did))
+          .leftJoin(nagiProfiles, eq(nagiPosts.did, nagiProfiles.did))
+          .where(isNull(nagiPosts.deletedAt))
+          .orderBy(desc(nagiPostScores.score))
+          .limit(1),
+      ]);
+
+      const candidates: TopPost[] = [];
+
+      const bsky = bskyRows[0];
+      if (bsky?.uri) {
+        // Bluesky 側は本文もアバターも公開 AppView から取れるので URI だけでよい。
+        candidates.push({
+          uri: bsky.uri,
+          comment: bsky.comment ?? '',
+          network: 'bsky',
+          score: bsky.score ?? 0,
+        });
+      }
+
+      const nagi = nagiRows[0];
+      if (nagi?.uri) {
+        candidates.push({
+          uri: nagi.uri,
+          comment: nagi.comment ?? '',
+          network: 'nagi',
+          score: nagi.score ?? 0,
+          text: nagi.text ?? '',
+          createdAt: nagi.createdAt?.toISOString(),
+          authorHandle: nagi.handle ?? undefined,
+          authorDisplayName: nagi.displayName ?? undefined,
+          authorAvatarCid: nagi.avatarCid ?? undefined,
+          authorDid: nagi.did,
+          rkey: nagi.rkey,
+        });
+      }
+
+      if (candidates.length === 0) return null;
+      return candidates.reduce((best, item) => (item.score > best.score ? item : best));
+    } catch (e) {
+      console.error('Failed to get top post across networks:', e);
+      return null;
+    }
   }
 
   /** 指定ユーザーが since 以降に Nagi へ投稿したポスト（日記の材料）。 */
@@ -500,6 +628,8 @@ static async getPost(did: string): Promise<any> {
       lang: getLangDiff(),
       topPost: dailyTopPostData?.uri || "",
       botComment: dailyTopPostData?.comment || "",
+      // 既定が 'bsky' なのは、network を持たない時代に書かれた行が残っているため。
+      topPostNetwork: dailyTopPostData?.network === 'nagi' ? 'nagi' : 'bsky',
       bskyrate: diff('bskyrate'),
       rpd: diff('rpd'),
       rpdError: diff('rpdError'),
@@ -767,6 +897,203 @@ static async getPost(did: string): Promise<any> {
         .where(eq(youtube_shorts.id, id));
     } catch (e) {
       console.error(`Failed to update YouTube Short status for id ${id}:`, e);
+    }
+  }
+
+  // ------------------------------------------------------------------
+  // bot-tan.com ダッシュボード用の集計
+  // ------------------------------------------------------------------
+
+  /**
+   * Nagi 側の活動。
+   *
+   * totalStats / dailyStats のカウンタはプラットフォームの軸を持たず、実質
+   * Bluesky 専用（Nagi が触るのは reply と conversation だけ）なので、Nagi の
+   * 数字は nagi スキーマから直接数える。
+   *
+   * 「きょう」の境界は Bluesky 側と揃えるため stats_last_reset_at を使う。
+   */
+  static async getNagiStats(): Promise<NagiStats> {
+    const empty: NagiStats = {
+      totalUsers: 0,
+      reactions: { today: 0, total: 0 },
+      affirmations: { today: 0, total: 0 },
+      affirmedUsers: { today: 0, total: 0 },
+      analyses: { today: 0, total: 0 },
+    };
+
+    const botDid = process.env.NAGI_BOT_DID;
+    if (!botDid) {
+      console.warn('[WARN] NAGI_BOT_DID is not set; Nagi stats are unavailable.');
+      return empty;
+    }
+
+    try {
+      const lastResetAt = await this.getBotState('stats_last_reset_at');
+      const since = lastResetAt ? new Date(lastResetAt) : new Date(0);
+      // botたんの投稿への反応だけを数える。AT-URI は必ず at://<did>/... の形。
+      const botUriPrefix = `at://${botDid}/%`;
+      const num = (value: unknown): number => Number(value ?? 0);
+
+      const [users, reactions, replyJobs, analyses] = await Promise.all([
+        // 検索に出るユーザーの定義（nagi_appview の searchActors）に合わせる。
+        db
+          .select({ count: sql`count(*)` })
+          .from(nagiProfiles)
+          .innerJoin(nagiActors, eq(nagiActors.did, nagiProfiles.did))
+          .where(eq(nagiActors.status, 'active')),
+
+        db
+          .select({
+            total: sql`count(*)`,
+            today: sql`count(*) filter (where ${nagiReactions.createdAt} >= ${since})`,
+          })
+          .from(nagiReactions)
+          .where(sql`${nagiReactions.subjectUri} like ${botUriPrefix}`),
+
+        // 「全肯定した回数/人数」は、人に向けて実際に返信できたぶんだけを数える。
+        // community_affirmations（みんなで全肯定のストック）は誰かへの返信では
+        // ないので含めない。
+        db
+          .select({
+            total: sql`count(*)`,
+            today: sql`count(*) filter (where ${nagiBotReplyJobs.updatedAt} >= ${since})`,
+            totalUsers: sql`count(distinct ${nagiBotReplyJobs.authorDid})`,
+            todayUsers: sql`count(distinct ${nagiBotReplyJobs.authorDid}) filter (where ${nagiBotReplyJobs.updatedAt} >= ${since})`,
+          })
+          .from(nagiBotReplyJobs)
+          .where(eq(nagiBotReplyJobs.state, 'posted')),
+
+        db
+          .select({
+            total: sql`count(*)`,
+            today: sql`count(*) filter (where ${nagiAnalysisJobs.updatedAt} >= ${since})`,
+          })
+          .from(nagiAnalysisJobs)
+          .where(eq(nagiAnalysisJobs.state, 'posted')),
+      ]);
+
+      return {
+        totalUsers: num(users[0]?.count),
+        reactions: { today: num(reactions[0]?.today), total: num(reactions[0]?.total) },
+        affirmations: { today: num(replyJobs[0]?.today), total: num(replyJobs[0]?.total) },
+        affirmedUsers: {
+          today: num(replyJobs[0]?.todayUsers),
+          total: num(replyJobs[0]?.totalUsers),
+        },
+        analyses: { today: num(analyses[0]?.today), total: num(analyses[0]?.total) },
+      };
+    } catch (e) {
+      console.error('Failed to get Nagi stats:', e);
+      return empty;
+    }
+  }
+
+  /**
+   * Nagi ユーザー数の推移。profiles.created_at が残っているので、
+   * daily_metrics を入れる前の期間もさかのぼって描ける。
+   */
+  static async getNagiUserHistory(days: number): Promise<{ date: string; count: number }[]> {
+    try {
+      const rows = await db.execute<{ date: string; count: string }>(sql`
+        with daily as (
+          select (${nagiProfiles.createdAt} at time zone 'Asia/Tokyo')::date as day,
+                 count(*) as added
+          from ${nagiProfiles}
+          group by 1
+        )
+        select to_char(day, 'YYYY-MM-DD') as date,
+               sum(added) over (order by day) as count
+        from daily
+        order by day
+      `);
+      // 累積なので、切り出しは合計を出したあとで行う。
+      return rows.slice(-days).map((row) => ({ date: row.date, count: Number(row.count) }));
+    } catch (e) {
+      console.error('Failed to get Nagi user history:', e);
+      return [];
+    }
+  }
+
+  /** その日の確定値を1行だけ残す。日次リセットの直前に呼ぶ。 */
+  static async saveDailyMetrics(date: string, metrics: Record<string, unknown>): Promise<void> {
+    try {
+      await db
+        .insert(daily_metrics)
+        .values({ date, metrics })
+        .onConflictDoUpdate({ target: daily_metrics.date, set: { metrics } });
+    } catch (e) {
+      console.error(`Failed to save daily metrics for ${date}:`, e);
+    }
+  }
+
+  static async getDailyMetrics(days: number): Promise<{ date: string; metrics: any }[]> {
+    try {
+      const rows = await db
+        .select({ date: daily_metrics.date, metrics: daily_metrics.metrics })
+        .from(daily_metrics)
+        .orderBy(desc(daily_metrics.date))
+        .limit(days);
+      return rows.reverse();
+    } catch (e) {
+      console.error('Failed to get daily metrics:', e);
+      return [];
+    }
+  }
+
+  /**
+   * 活動タイムライン用。`since` 以降の履歴に加えて、`since` 時点で継続していた
+   * 1件を先読みして返す。これがないと、その日の最初のログより前の時間帯が
+   * 毎朝ぽっかり空く。
+   */
+  static async getBiorhythmHistoryForTimeline(since: Date, until: Date): Promise<any[]> {
+    try {
+      const [carryOver, within] = await Promise.all([
+        db
+          .select()
+          .from(biorhythm_history)
+          .where(lt(biorhythm_history.created_at, since))
+          .orderBy(desc(biorhythm_history.created_at))
+          .limit(1),
+        db
+          .select()
+          .from(biorhythm_history)
+          .where(and(gte(biorhythm_history.created_at, since), lt(biorhythm_history.created_at, until)))
+          .orderBy(biorhythm_history.created_at),
+      ]);
+      return [...carryOver, ...within];
+    } catch (e) {
+      console.error('Failed to get biorhythm history for timeline:', e);
+      return [];
+    }
+  }
+
+  /**
+   * タイムラインに打つイベントマーカー。
+   * **did と本文は返さない** — このデータは公開エンドポイントから配信される。
+   */
+  static async getInteractionMarkers(
+    since: Date,
+    until: Date,
+    types: string[],
+  ): Promise<{ at: string; type: string }[]> {
+    if (types.length === 0) return [];
+    try {
+      const rows = await db
+        .select({ type: interaction.type, created_at: interaction.created_at })
+        .from(interaction)
+        .where(
+          and(
+            gte(interaction.created_at, since),
+            lt(interaction.created_at, until),
+            inArray(interaction.type, types),
+          ),
+        )
+        .orderBy(interaction.created_at);
+      return rows.map((row) => ({ at: row.created_at.toISOString(), type: row.type }));
+    } catch (e) {
+      console.error('Failed to get interaction markers:', e);
+      return [];
     }
   }
 }

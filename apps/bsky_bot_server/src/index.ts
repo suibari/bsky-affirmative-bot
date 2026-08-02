@@ -60,6 +60,17 @@ app.listen(PORT, "127.0.0.1", async () => {
     });
 
     startWebSocket(onPost, onFollow, onLike);
+
+    // このプロセス自体の死活。bot-tan.com のダッシュボードが「botたんサーバー」
+    // タイルの内訳として読む。
+    const { reportHeartbeat } = await import("@bsky-affirmative-bot/clients");
+    const heartbeat = setInterval(() => {
+      reportHeartbeat("bsky-bot").catch(e =>
+        console.error("[ERROR] Failed to report heartbeat:", e),
+      );
+    }, 30_000);
+    heartbeat.unref();
+    reportHeartbeat("bsky-bot").catch(() => {});
   } catch (e) {
     console.error("[CRITICAL] Bot startup failed:", e);
   }

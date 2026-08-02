@@ -1,8 +1,11 @@
+import cors from "cors";
 import express from "express";
 import http from "http";
 import { timingSafeEqual } from "crypto";
 import dotenv from "dotenv";
 import { BiorhythmManager } from "./manager.js";
+import { startHealthMonitor } from "./healthMonitor.js";
+import { publicApi } from "./publicApi.js";
 import {
   attachBiorhythmWebSocketServer,
   parseAllowedOrigins,
@@ -21,6 +24,16 @@ const allowedOrigins = parseAllowedOrigins(process.env.BIORHYTHM_WS_ALLOWED_ORIG
 if (isProduction && allowedOrigins.size === 0) {
   throw new Error("BIORHYTHM_WS_ALLOWED_ORIGINS must be configured in production");
 }
+
+// 公開 GET（/health, /history, /timeline）は bot-tan.com がブラウザから直接読む。
+// 許可オリジンは WS と同じ設定を使い回し、二重に管理しない。開発時は未設定＝全許可。
+app.use(
+  cors({
+    origin: isProduction ? [...allowedOrigins] : true,
+    methods: ["GET", "OPTIONS"],
+  }),
+);
+app.use(publicApi);
 
 const manager = new BiorhythmManager();
 
@@ -150,6 +163,8 @@ server.listen(Number(PORT), HOST, async () => {
     await initializeDatabases();
 
     await manager.init();
+    // 各プロセスのハートビートを読み、ローカル LLM と Nagi ingest を自前で叩く。
+    startHealthMonitor();
     const { scheduleRoomInteractionSync } = await import("./roomInteractionSync.js");
     scheduleRoomInteractionSync(manager);
     await manager.step();

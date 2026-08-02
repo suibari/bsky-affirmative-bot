@@ -11,6 +11,8 @@ import { gemini, generateContentWithRetry } from '@bsky-affirmative-bot/bot-brai
 import { DailyReport, Stats } from '@bsky-affirmative-bot/shared-configs';
 import EventEmitter from "events";
 import { MemoryService } from "@bsky-affirmative-bot/clients";
+import type { NagiStats, TopPost } from "@bsky-affirmative-bot/database";
+import { getCachedHealthSnapshot, type HealthSnapshot } from "./healthMonitor.js";
 import { getFullDateAndTimeString } from "@bsky-affirmative-bot/shared-configs";
 import { LanguageName } from "@bsky-affirmative-bot/shared-configs";
 
@@ -35,11 +37,17 @@ interface BotStat {
   totalStats: Stats; // 追加: totalStatsプロパティ
   utilities: Record<Status, number>;
   nextStepTime: string;
+  /** bot-tan.com のダッシュボード用。既存フィールドは互換のため触らない。 */
+  bsky: { currentFollowers: number };
+  nagi: NagiStats;
+  health: HealthSnapshot | null;
+  topPost: TopPost | null;
 }
 
 const ENERGY_MAXIMUM = 10000;
 const SCHEDULE_STEP_MIN = 60;
 const SCHEDULE_STEP_MAX = 90;
+const NAGI_STATS_TTL_MS = 60_000;
 
 export class BiorhythmManager extends EventEmitter {
   private status: Status = 'Sleep';
@@ -51,6 +59,12 @@ export class BiorhythmManager extends EventEmitter {
   private moodPrevEn: string = "";
   private nextStepTime: string = "";
   private _generatedImage: Buffer | null = null;
+  private currentFollowers = 0;
+  /**
+   * Nagi の集計は6本のクエリを束ねたもので、getCurrentState() は statsChange の
+   * たびに呼ばれる。毎回叩かないよう短い TTL で持ち回す。
+   */
+  private nagiStatsCache: { at: number; value: NagiStats } | null = null;
   private firstStepDone = false;
   private lastGoodNightPostDate?: string;
   private lastGoodMorningPostDate?: string;
@@ -83,8 +97,14 @@ export class BiorhythmManager extends EventEmitter {
     }
     this.lastGoodNightPostDate = state.lastGoodNightPostDate;
     this.lastGoodMorningPostDate = state.lastGoodMorningPostDate;
+
+    const lastFollowers = await MemoryService.getBotState("last_follower_count");
+    if (typeof lastFollowers === "number") this.currentFollowers = lastFollowers;
+
     await this.updateTopPostUri();
+    await this.updateFollowerCount();
     setInterval(() => this.updateTopPostUri(), 10 * 60 * 1000);
+    setInterval(() => this.updateFollowerCount(), 10 * 60 * 1000);
   }
 
   // --------
@@ -143,16 +163,48 @@ export class BiorhythmManager extends EventEmitter {
   }
 
   async updateTopPostUri() {
-    const rows = await MemoryService.getHighestScorePosts();
-    if (rows && rows.length > 0) {
-      await MemoryService.updateTopPost(rows[0].uri, rows[0].comment);
-      // this.emit('statsChange', this.getCurrentState()); // getCurrentState is async now? No, but depends on async MemoryService calls.
+    // Bluesky と Nagi のスコア上位を突き合わせて、高いほうを「きょうのおすすめ」に
+    // する。どちらのネットワークかは表示時に明示するので一緒に保存する。
+    const top = await MemoryService.getTopPostAcrossNetworks();
+    if (top) await MemoryService.updateTopPost(top);
+  }
+
+  /**
+   * Bluesky の現在フォロワー数。日次のおやすみポストでも取得しているが、それだと
+   * ダッシュボードの「現在のフォロワー」が最大24時間古くなるので、ここでも回す。
+   */
+  async updateFollowerCount() {
+    const actor = process.env.BSKY_DID;
+    if (!actor) return;
+    try {
+      const response = await fetch(
+        `https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile?actor=${encodeURIComponent(actor)}`,
+      );
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const profile = (await response.json()) as { followersCount?: number };
+      if (typeof profile.followersCount === "number") {
+        this.currentFollowers = profile.followersCount;
+        await MemoryService.setBotState("last_follower_count", profile.followersCount);
+      }
+    } catch (error) {
+      console.error("[ERROR][BIO] Failed to refresh follower count:", error);
     }
+  }
+
+  private async getNagiStatsCached(): Promise<NagiStats> {
+    if (this.nagiStatsCache && Date.now() - this.nagiStatsCache.at < NAGI_STATS_TTL_MS) {
+      return this.nagiStatsCache.value;
+    }
+    const value = await MemoryService.getNagiStats();
+    this.nagiStatsCache = { at: Date.now(), value };
+    return value;
   }
 
   async getCurrentState(): Promise<BotStat> {
     const dailyStats = await MemoryService.getDailyStats();
     const totalStats = await MemoryService.getTotalStats();
+    const nagiStats = await this.getNagiStatsCached();
+    const topPost = await MemoryService.getTopPost();
 
     const now = new Date();
     const hour = now.getHours();
@@ -182,6 +234,10 @@ export class BiorhythmManager extends EventEmitter {
         currentAction: this.moodPrev
       }),
       nextStepTime: this.nextStepTime,
+      bsky: { currentFollowers: this.currentFollowers },
+      nagi: nagiStats,
+      health: getCachedHealthSnapshot(),
+      topPost,
     };
   }
 

@@ -12,6 +12,7 @@ import {
 } from "@bsky-affirmative-bot/bot-brain";
 import retry from "async-retry";
 import { getGoodNightCandidate } from "./GoodNightCandidateProvider.js";
+import { jstDateString as jstDate } from "./jstDate.js";
 import { getRecentNewsArticleIds, recordRecentNewsArticle } from "./whimsicalPostNewsHistory.js";
 import { buildWhimsicalPostTexts } from "./scheduledPostContent.js";
 
@@ -217,7 +218,57 @@ export async function postGoodNight(currentMood: string) {
     }
   } finally {
     if (currentFollowers > 0) await MemoryService.setBotState("last_follower_count", currentFollowers);
+    // リセットで日次カウンタが消える前に、その日の確定値を1行残す。
+    // ここが bot-tan.com の推移グラフの唯一の供給源なので、失敗してもリセット自体は
+    // 続けられるよう例外を飲む（1日欠けるだけで済ませる）。
+    await snapshotDailyMetrics(currentFollowers).catch((error) =>
+      console.error("[ERROR][BIO] Failed to snapshot daily metrics:", error),
+    );
     await MemoryService.resetDailyStats();
     await MemoryService.clearPosts();
   }
+}
+
+/**
+ * 日次リセットの直前に呼ぶ。Bluesky / Nagi / 共通をひとまとめの jsonb で残すので、
+ * 指標が増えてもテーブル定義は変えなくてよい。
+ */
+async function snapshotDailyMetrics(currentFollowers: number) {
+  const [daily, nagi] = await Promise.all([
+    MemoryService.getDailyStats(),
+    MemoryService.getNagiStats(),
+  ]);
+
+  const rpd = daily.rpd ?? 0;
+  const rpdError = daily.rpdError ?? 0;
+  const requests = rpd + rpdError;
+
+  await MemoryService.saveDailyMetrics(jstDate(), {
+    bsky: {
+      currentFollowers,
+      followers: daily.followers ?? 0,
+      likes: daily.likes ?? 0,
+      affirmations: daily.affirmationCount ?? 0,
+      affirmedUsers: daily.uniqueAffirmationUserCount ?? 0,
+      fortune: daily.fortune ?? 0,
+      cheer: daily.cheer ?? 0,
+      analysis: daily.analysis ?? 0,
+      dj: daily.dj ?? 0,
+      anniversary: daily.anniversary ?? 0,
+      answer: daily.answer ?? 0,
+      bskyrate: daily.bskyrate ?? 0,
+    },
+    nagi: {
+      totalUsers: nagi.totalUsers,
+      reactions: nagi.reactions.today,
+      affirmations: nagi.affirmations.today,
+      affirmedUsers: nagi.affirmedUsers.today,
+      analyses: nagi.analyses.today,
+    },
+    common: {
+      aiRequests: rpd,
+      aiErrors: rpdError,
+      aiErrorRate: requests > 0 ? rpdError / requests : 0,
+    },
+  });
 }
