@@ -23,13 +23,22 @@ test("validates legacy and activity diary records", () => {
     validateRecord(NAGI.diary, diaryRecord({ emoji: "👩‍💻", postCount: 1 })),
     true,
   );
+  assert.equal(
+    validateRecord(NAGI.diary, diaryRecord({ emoji: "🍜🚃🎸", postCount: 2 })),
+    true,
+  );
 });
 
-test("rejects multiple emoji and invalid post counts", () => {
-  assert.equal(
-    validateRecord(NAGI.diary, diaryRecord({ emoji: "🌱✨", postCount: 2 })),
-    false,
-  );
+test("rejects diary emoji counts other than the legacy 1 or current 3", () => {
+  for (const emoji of ["🌱✨", "🍜🚃🎸📚"]) {
+    assert.equal(
+      validateRecord(NAGI.diary, diaryRecord({ emoji, postCount: 2 })),
+      false,
+    );
+  }
+});
+
+test("rejects invalid post counts", () => {
   for (const postCount of [0, -1, 1.5, "2"]) {
     assert.equal(
       validateRecord(NAGI.diary, diaryRecord({ emoji: "🌱", postCount })),
@@ -68,7 +77,7 @@ test("diary view exposes activity fields and omits null legacy values", () => {
     indexedAt: base.indexedAt.toISOString(),
   });
 
-  const view = diaryView({ ...base, emoji: "🌱", postCount: 4 });
-  assert.equal(view.emoji, "🌱");
+  const view = diaryView({ ...base, emoji: "🍜🚃🎸", postCount: 4 });
+  assert.equal(view.emoji, "🍜🚃🎸");
   assert.equal(view.postCount, 4);
 });

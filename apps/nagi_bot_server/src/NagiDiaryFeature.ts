@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, asc, eq, gte, lt } from "drizzle-orm";
 import {
   db,
   MemoryService,
@@ -33,6 +33,13 @@ function localDateStr(timezone: string, now = new Date()): string {
     month: "2-digit",
     day: "2-digit",
   }).format(now);
+}
+
+/** "YYYY-MM-DD" からUTC基準で指定日数を引く。日付文字列同士のDB比較に使う。 */
+function daysBefore(date: string, days: number): string {
+  const value = new Date(`${date}T00:00:00.000Z`);
+  value.setUTCDate(value.getUTCDate() - days);
+  return value.toISOString().slice(0, 10);
 }
 
 /**
@@ -100,6 +107,21 @@ export async function processNagiDiary(userDid: string): Promise<void> {
       return;
     }
 
+    const recentEmojiRows = await db
+      .select({ date: nagiDiaries.diaryDate, emoji: nagiDiaries.emoji })
+      .from(nagiDiaries)
+      .where(
+        and(
+          eq(nagiDiaries.subjectDid, userDid),
+          gte(nagiDiaries.diaryDate, daysBefore(date, 3)),
+          lt(nagiDiaries.diaryDate, date),
+        ),
+      )
+      .orderBy(asc(nagiDiaries.diaryDate));
+    const recentEmojis = recentEmojiRows.flatMap((row) =>
+      row.emoji ? [{ date: row.date, emoji: row.emoji }] : [],
+    );
+
     const displayName = await getDisplayName(userDid);
     // generateUserDiary が見るのは displayName だけだが、型は Bluesky の ProfileView。
     const follower: AppBskyActorDefs.ProfileView = {
@@ -113,11 +135,14 @@ export async function processNagiDiary(userDid: string): Promise<void> {
     try {
       diaryResult = await retry(
         async () => {
-          const result = await generateUserDiary({
-            follower,
-            posts: recentPosts.map((post) => post.text),
-            langStr,
-          });
+          const result = await generateUserDiary(
+            {
+              follower,
+              posts: recentPosts.map((post) => post.text),
+              langStr,
+            },
+            { recentEmojis },
+          );
           if (!result || result.diary === "") {
             throw new Error("generateUserDiary returned empty");
           }

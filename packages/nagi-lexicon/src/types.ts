@@ -235,7 +235,7 @@ export type NagiDiary = {
   /** その日の称号。 */
   titleJa?: string;
   titleEn?: string;
-  /** その日を象徴するUnicode絵文字1つ。 */
+  /** その日の具体的な出来事を表すUnicode絵文字3つ。旧レコードは1つの場合がある。 */
   emoji?: string;
   /** 日記生成の材料にした、返信を含むNagiポスト数。 */
   postCount?: number;

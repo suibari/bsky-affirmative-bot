@@ -11,6 +11,7 @@
     "start": "node --env-file=../../.env dist/index.js",
     "dev": "tsx watch --env-file=../../.env src/index.ts",
     "analysis": "tsx --env-file=../../.env scripts/runAnalysis.ts",
+    "diary:emoji:backfill": "tsx --env-file=../../.env scripts/backfillDiaryEmojis.ts",
     "news:feed:preview": "tsx --env-file=../../.env src/newsFeedAdmin.ts preview",
     "news:feed:list": "tsx --env-file=../../.env src/newsFeedAdmin.ts list",
     "news:feed:hide": "tsx --env-file=../../.env src/newsFeedAdmin.ts hide"
