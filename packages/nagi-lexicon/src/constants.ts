@@ -168,6 +168,9 @@ export const NAGI_AFFIRMATION_THRESHOLD = Number(
 );
 /** permission set の NSID。定義は lexicons/com/suibari/nagi/appviewAccess.json。 */
 export const NAGI_PERMISSION_SET = "com.suibari.nagi.appviewAccess";
+/** Nagi のプロフィール設定で app.bsky.actor.profile.website を更新する。 */
+export const NAGI_BLUESKY_PROFILE_SCOPE =
+  "repo:app.bsky.actor.profile?action=create&action=update";
 
 /**
  * Nagi の OAuth スコープ（真実源はこの1箇所）。Nagi namespace の repo/rpc 権限は permission
@@ -189,6 +192,7 @@ export const NAGI_OAUTH_SCOPE = [
   "blob:image/*",
   `include:${NAGI_PERMISSION_SET}`,
   `repo:${BLUEMOJI_ITEM}`,
+  NAGI_BLUESKY_PROFILE_SCOPE,
 ].join(" ");
 
 /**

@@ -236,7 +236,7 @@ xrpc.get(`/${NAGI.getProfileWebsite}`, async (req, res, next) => {
       throw new ApiError(400, "invalid_request", "actor is required");
     const did = await resolveActorDid(actorParam);
     const card = await getProfileWebsiteCard(did);
-    res.set("Cache-Control", "public, max-age=300").json({ card });
+    res.set("Cache-Control", "public, max-age=60").json({ card });
   } catch (e) {
     next(e);
   }

@@ -9,7 +9,7 @@ type WebsiteCard = {
   thumb?: string;
 };
 
-const CACHE_TTL_MS = 5 * 60_000;
+const CACHE_TTL_MS = 60_000;
 const CACHE_LIMIT = 500;
 const RECORD_LIMIT = 64_000;
 const cache = new Map<
