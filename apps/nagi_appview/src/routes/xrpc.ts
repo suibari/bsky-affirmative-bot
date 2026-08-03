@@ -15,7 +15,7 @@ import {
   searchChannelsTypeahead,
 } from "../queries/channels.js";
 import { getActorProfile, getReactedFeed } from "../queries/profile.js";
-import { searchActors } from "../queries/actors.js";
+import { resolveActorDid, searchActors } from "../queries/actors.js";
 import { getThread } from "../queries/thread.js";
 import {
   getNotifications,
@@ -47,6 +47,7 @@ import { setChannelSubscription } from "../queries/channelSubscriptions.js";
 import { getMyNagi } from "../queries/myNagi.js";
 import { drawCard, getCards } from "../queries/cards.js";
 import { getCommunityAffirmations } from "../queries/communityAffirmations.js";
+import { getProfileWebsiteCard } from "../services/profileWebsite.js";
 import { config } from "../config.js";
 import {
   getMyNewsSubmissions,
@@ -186,9 +187,10 @@ xrpc.get(
   optionalServiceAuth(NAGI.getProfile),
   async (req, res, next) => {
     try {
-      const actor = String(req.query.actor ?? "");
-      if (!actor)
+      const actorParam = String(req.query.actor ?? "");
+      if (!actorParam)
         throw new ApiError(400, "invalid_request", "actor is required");
+      const actor = await resolveActorDid(actorParam);
       const filter = String(req.query.filter ?? "posts");
       if (!["posts", "replies", "media", "reactions"].includes(filter))
         throw new ApiError(400, "invalid_request", "Invalid filter");
@@ -227,6 +229,18 @@ xrpc.get(
     }
   },
 );
+xrpc.get(`/${NAGI.getProfileWebsite}`, async (req, res, next) => {
+  try {
+    const actorParam = String(req.query.actor ?? "");
+    if (!actorParam)
+      throw new ApiError(400, "invalid_request", "actor is required");
+    const did = await resolveActorDid(actorParam);
+    const card = await getProfileWebsiteCard(did);
+    res.set("Cache-Control", "public, max-age=300").json({ card });
+  } catch (e) {
+    next(e);
+  }
+});
 xrpc.get(
   `/${NAGI.getChannels}`,
   optionalServiceAuth(NAGI.getChannels),

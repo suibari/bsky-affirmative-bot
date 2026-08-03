@@ -20,6 +20,8 @@ export const NAGI = {
   getCommunityAffirmations: "com.suibari.nagi.getCommunityAffirmations",
   getThread: "com.suibari.nagi.getThread",
   getProfile: "com.suibari.nagi.getProfile",
+  /** app.bsky.actor.profile の website を安全なリンクカードとして返す公開ビュー。 */
+  getProfileWebsite: "com.suibari.nagi.getProfileWebsite",
   searchActors: "com.suibari.nagi.searchActors",
   getNotifications: "com.suibari.nagi.getNotifications",
   getUnreadCount: "com.suibari.nagi.getUnreadCount",

@@ -1,12 +1,31 @@
 import { db, nagiActors, nagiProfiles } from "@bsky-affirmative-bot/database";
 import { and, asc, eq, ilike, or, sql } from "drizzle-orm";
 import { embedQuery } from "./hybridSearch.js";
+import { ApiError } from "../middleware/errors.js";
 
 const escapeLike = (value: string) => value.replace(/[\\%_]/g, "\\$&");
 
 // これより短いクエリは意味検索をかけない（タイプアヘッドのノイズとレイテンシを避け、
 // 従来の handle/displayName prefix 挙動をそのまま維持する）。
 const MIN_SEMANTIC_LEN = 3;
+
+/** getProfile の actor は AT Protocol の慣例どおり DID と handle の両方を受け付ける。 */
+export async function resolveActorDid(rawActor: string): Promise<string> {
+  const actor = rawActor.trim().replace(/^@/, "");
+  if (actor.startsWith("did:")) return actor;
+  const [row] = await db
+    .select({ did: nagiActors.did })
+    .from(nagiActors)
+    .where(
+      and(
+        eq(nagiActors.status, "active"),
+        eq(sql<string>`lower(${nagiActors.handle})`, actor.toLowerCase()),
+      ),
+    )
+    .limit(1);
+  if (!row) throw new ApiError(404, "not_found", "Actor not found");
+  return row.did;
+}
 
 // プロフィール埋め込み(displayName+description+分析)は短文で距離が出やすいので、投稿より緩めの
 // しきい値を既定にする。env で調整可能。
