@@ -2,13 +2,13 @@
 
 ## Daily top post
 
-The good-night post and the bot-tan.com dashboard use the same daily top-post provider. Configure the candidate networks with:
+The good-night post and the bot-tan.com dashboard use the same daily top-post provider for date boundaries, candidate retrieval, and score comparison. The dashboard always compares both Bluesky and Nagi. Configure only the good-night post's candidate networks with:
 
 ```dotenv
-DAILY_TOP_POST_SOURCE=combined
+GOOD_NIGHT_TOP_POST_SOURCE=combined
 ```
 
-Accepted values are `bsky`, `nagi`, and `combined`. If this variable is absent, the legacy `GOOD_NIGHT_TOP_POST_SOURCE` value is used; missing or invalid values default to `combined`.
+Accepted values are `bsky`, `nagi`, and `combined`. Missing or invalid values default to `combined`. `SCHEDULED_POST_TARGETS` controls where scheduled posts are published; it does not affect recommendation selection.
 
 ## Public WebSocket configuration
 

@@ -12,6 +12,7 @@ import {
 
 export type DailyTopPostNetwork = "bsky" | "nagi";
 export type DailyTopPostSource = DailyTopPostNetwork | "combined";
+export const DASHBOARD_TOP_POST_SOURCE: DailyTopPostSource = "combined";
 
 export interface DailyTopPostCandidate {
   network: DailyTopPostNetwork;
@@ -32,12 +33,6 @@ export function parseDailyTopPostSource(
   return value === "bsky" || value === "nagi" || value === "combined"
     ? value
     : "combined";
-}
-
-function configuredDailyTopPostSource(): DailyTopPostSource {
-  return parseDailyTopPostSource(
-    process.env.DAILY_TOP_POST_SOURCE ?? process.env.GOOD_NIGHT_TOP_POST_SOURCE,
-  );
 }
 
 export function selectDailyTopPostCandidate(
@@ -126,8 +121,8 @@ function resolveNagiCandidates(
 }
 
 export async function getDailyTopPostCandidate(
+  source: DailyTopPostSource,
   now: Date = new Date(),
-  source: DailyTopPostSource = configuredDailyTopPostSource(),
 ): Promise<DailyTopPostCandidate | null> {
   const range = botDayRange(now);
   const rows = await MemoryService.getDailyTopPostCandidateRows(

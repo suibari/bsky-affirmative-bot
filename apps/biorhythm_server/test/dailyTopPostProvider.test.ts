@@ -2,11 +2,16 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { AppBskyActorDefs } from "@atproto/api";
 import {
+  DASHBOARD_TOP_POST_SOURCE,
   parseDailyTopPostSource,
   selectDailyTopPostCandidate,
   toDashboardTopPost,
   type DailyTopPostCandidate,
 } from "../src/DailyTopPostProvider.js";
+
+test("ダッシュボードは設定にかかわらずcombinedを使う", () => {
+  assert.equal(DASHBOARD_TOP_POST_SOURCE, "combined");
+});
 
 function candidate(
   network: "bsky" | "nagi",

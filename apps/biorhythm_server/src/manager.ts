@@ -27,6 +27,7 @@ import { Type } from "@google/genai";
 import { Status } from "@bsky-affirmative-bot/shared-configs";
 import { postGoodNight, postMorning, postWhimsical } from "./ScheduledPostCoordinator.js";
 import {
+  DASHBOARD_TOP_POST_SOURCE,
   getDailyTopPostCandidate,
   toDashboardTopPost,
 } from "./DailyTopPostProvider.js";
@@ -176,7 +177,8 @@ export class BiorhythmManager extends EventEmitter {
 
   async refreshDailyTopPost() {
     try {
-      const candidate = await getDailyTopPostCandidate();
+      // 公開ダッシュボードは定期投稿の設定に影響されず、常に両ネットワークから選ぶ。
+      const candidate = await getDailyTopPostCandidate(DASHBOARD_TOP_POST_SOURCE);
       await MemoryService.updateTopPost(
         candidate ? toDashboardTopPost(candidate) : null,
       );

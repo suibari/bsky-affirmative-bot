@@ -13,7 +13,7 @@ import {
 import retry from "async-retry";
 import {
   getDailyTopPostCandidate,
-  toDashboardTopPost,
+  parseDailyTopPostSource,
 } from "./DailyTopPostProvider.js";
 import { jstDateString as jstDate } from "./jstDate.js";
 import { getRecentNewsArticleIds, recordRecentNewsArticle } from "./whimsicalPostNewsHistory.js";
@@ -173,11 +173,10 @@ export async function postGoodNight(currentMood: string) {
     if (current > previous) followerMilestone = current * 1000;
   }
 
-  const candidate = await getDailyTopPostCandidate();
+  const candidate = await getDailyTopPostCandidate(
+    parseDailyTopPostSource(process.env.GOOD_NIGHT_TOP_POST_SOURCE),
+  );
   try {
-    await MemoryService.updateTopPost(
-      candidate ? toDashboardTopPost(candidate) : null,
-    );
     if (!candidate) {
       console.log("[INFO] No valid top post found for good-night post.");
       return;
