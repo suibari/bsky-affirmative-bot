@@ -53,6 +53,40 @@ const clientOrigins = (name: string, fallback: string) => {
  */
 const isDev = process.env.NODE_ENV === "development";
 
+// SSO チケット発行の設定。鍵の不備で AppView 全体が起動しなくなるのは割に合わないので、
+// ここでは失敗を握って undefined に落とし、呼び出し側（createSsoTicket）が 501 を返す。
+function passportConfig() {
+  const raw = process.env.PASSPORT_PRIVATE_JWK;
+  if (!raw) return undefined;
+  let privateJwk: Record<string, unknown>;
+  try {
+    privateJwk = JSON.parse(raw);
+  } catch {
+    console.error("[passport] PASSPORT_PRIVATE_JWK is not valid JSON; SSO ticket issuing disabled");
+    return undefined;
+  }
+  if (typeof privateJwk?.kid !== "string") {
+    console.error("[passport] PASSPORT_PRIVATE_JWK has no kid; SSO ticket issuing disabled");
+    return undefined;
+  }
+  // 遷移先の許可リスト。ここに無い origin へは発行しない。
+  const audiences = (process.env.PASSPORT_AUDIENCES ?? "https://room.bot-tan.com")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+  if (!audiences.length) {
+    console.error("[passport] PASSPORT_AUDIENCES is empty; SSO ticket issuing disabled");
+    return undefined;
+  }
+  return {
+    privateJwk,
+    issuer: process.env.PASSPORT_ISSUER ?? "https://nagi-api.suibari.com",
+    audiences,
+    // URL に載る以上、長くしない。
+    ttlSeconds: integer("PASSPORT_TTL_SECONDS", 60, 10, 300),
+  };
+}
+
 export const config = {
   port: integer("NAGI_PORT", 3002, 1, 65_535),
   // 待ち受けホスト。未設定なら Node 既定（unspecified）。WSL2 等で localhost が ::1(IPv6) に
@@ -112,6 +146,13 @@ export const config = {
     1_000,
   ),
   userNewsDailyLimit: integer("NAGI_USER_NEWS_DAILY_LIMIT", 3, 1, 100),
+  // SSO チケット（@suibari/nagi-passport）の発行設定。
+  //
+  // 鍵が未設定なら発行機能ごと無効にする（VAPID と同じ扱い）。無効時は
+  // createSsoTicket が 501 を返し、クライアントは ?did= ヒント経路にフォールバックする。
+  // 鍵の JSON が壊れている場合も、AppView 全体を落とさず発行だけ止める。
+  passport: passportConfig(),
+
   // Web Push（VAPID）。未設定ならプッシュ配信は無効化し、通知の挿入だけ従来どおり続ける。
   vapid:
     process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY

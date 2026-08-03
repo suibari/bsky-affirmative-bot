@@ -84,6 +84,13 @@ export const NAGI = {
    * PDS レコードにはしない。要認証。
    */
   drawCard: "com.suibari.nagi.drawCard",
+  /**
+   * 姉妹アプリ（botたんのお部屋など）へサインイン済みのまま移動するための、
+   * 短命・単回使用の署名付きチケットを発行する。チケットは「この利用者は指定の DID
+   * である」という主張だけを運び、アクセストークンや権限は一切含まない。
+   * 認可の実体は既存の service auth（viewerDid）なので、新しい認証経路は増えない。
+   */
+  createSsoTicket: "com.suibari.nagi.createSsoTicket",
 } as const;
 
 /** Bluemoji (moji.blue) の絵文字定義レコード。カスタム絵文字はユーザー自身のPDSに置く。 */

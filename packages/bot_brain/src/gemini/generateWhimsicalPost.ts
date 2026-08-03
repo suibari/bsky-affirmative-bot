@@ -63,7 +63,7 @@ export class WhimsicalPostGenerator {
   Create a structured SNS whimsical post.
   * "greeting": A cheerful greeting to start the post. **Take into consideration the "Date" below when greeting**. (Don't say "Good morning" at night.)
   * ${params.giftContext
-    ? `"currentMood": You are currently enjoying a gift you received from ${params.giftContext.displayName}: "${params.giftContext.content}" in your room (Bot-tan's Room / https://room-bot-tan.suibari.com). Output this as your current mood/activity.`
+    ? `"currentMood": You are currently enjoying a gift you received from ${params.giftContext.displayName}: "${params.giftContext.content}" in your room (Bot-tan's Room / https://room.bot-tan.com). Output this as your current mood/activity.`
     : `"currentMood": Your current mood. Output the following "Mood" as is.`}
   * "replyAction": If your followers mention an object or place in "Follower replies", describe it as your activity. (If Follower replies is None, output "None".)
   * "whatDay": What day is it today? Please choose one that interests you and explain what kind of day it is.

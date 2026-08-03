@@ -82,7 +82,7 @@ const PROMPT_GOODNIGHT_WORD = async (param: GoodNightInfo) => {
       .map((g, i) => `  [${i}] ${g.displayName} さんから「${g.content}」`)
       .join("\n");
     giftInstruction =
-      `* 今日、お部屋（Bot-tan's Room / https://room-bot-tan.suibari.com ）でプレゼントをもらいました。` +
+      `* 今日、お部屋（Bot-tan's Room / https://room.bot-tan.com ）でプレゼントをもらいました。` +
       `以下の候補から1つを選び、おやすみのあいさつの中でうれしかったことの一つとして自然に触れてください。` +
       `**必須: プレゼントをくれた人の名前を必ず本文中に含めてください。**` +
       `選んだプレゼントのインデックス番号をselectedGiftIndexフィールドに返してください。` +

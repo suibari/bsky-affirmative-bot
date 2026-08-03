@@ -1,0 +1,41 @@
+{
+  "lexicon": 1,
+  "id": "com.suibari.nagi.createSsoTicket",
+  "defs": {
+    "main": {
+      "type": "procedure",
+      "description": "姉妹アプリ（botたんのお部屋など）へサインイン済みのまま移動するための、短命・単回使用の署名付きチケットを発行する。チケットは「この利用者は指定の DID である」という主張のみを含み、アクセストークンや権限は一切含まない。",
+      "input": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "required": ["audience"],
+          "properties": {
+            "audience": {
+              "type": "string",
+              "description": "遷移先アプリの origin。AppView 側の許可リストと完全一致する必要がある。例: https://room.bot-tan.com"
+            }
+          }
+        }
+      },
+      "output": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "required": ["ticket", "expiresIn"],
+          "properties": {
+            "ticket": {
+              "type": "string",
+              "description": "ES256 で署名された compact JWS。typ は nagi+passport。"
+            },
+            "expiresIn": {
+              "type": "integer",
+              "description": "チケットの有効期間（秒）。"
+            }
+          }
+        }
+      },
+      "errors": [{ "name": "AuthRequired" }, { "name": "InvalidRequest" }]
+    }
+  }
+}

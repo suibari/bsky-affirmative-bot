@@ -9,6 +9,7 @@ import { config } from "./config.js";
 import { xrpc } from "./routes/xrpc.js";
 import { internal } from "./routes/internal.js";
 import { wellKnownDid } from "./routes/wellKnownDid.js";
+import { passportJwks } from "./routes/passportJwks.js";
 import { getBlob } from "./routes/blob.js";
 import { getEmojiAsset } from "./routes/emojiAsset.js";
 import { errorHandler, notFound } from "./middleware/errors.js";
@@ -50,6 +51,8 @@ app.get("/health", (_req, res) =>
   res.json({ ok: true, pushConfigured: Boolean(config.vapid) }),
 );
 app.get("/.well-known/did.json", wellKnownDid);
+// SSO チケットの検証用公開鍵。消費アプリがサーバ側から取りに来る公開エンドポイント。
+app.get("/.well-known/nagi-passport-jwks.json", passportJwks);
 app.use(
   "/xrpc",
   rateLimit({

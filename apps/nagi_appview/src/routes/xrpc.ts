@@ -5,6 +5,11 @@ import {
   optionalServiceAuth,
   requiredServiceAuth,
 } from "../auth/serviceAuth.js";
+import {
+  createSsoTicket,
+  isAllowedAudience,
+  ssoTicketEnabled,
+} from "../services/ssoTicket.js";
 import { getTimeline } from "../queries/timeline.js";
 import { searchPostsByText } from "../queries/search.js";
 import {
@@ -762,6 +767,41 @@ xrpc.post(
       res
         .set("Cache-Control", "private, no-store")
         .json(await drawCard(req.viewerDid!));
+    } catch (e) {
+      next(e);
+    }
+  },
+);
+// 姉妹アプリへ「サインイン済みのまま」移動するためのチケットを発行する。
+// 発行対象の DID は requiredServiceAuth が検証した viewerDid だけで、
+// リクエストから DID を受け取らない（他人のチケットを作れる余地を残さない）。
+xrpc.post(
+  `/${NAGI.createSsoTicket}`,
+  requiredServiceAuth(NAGI.createSsoTicket),
+  async (req, res, next) => {
+    try {
+      // 鍵が未設定なら発行できないことを明示する。クライアントはこれを見て
+      // ?did= ヒント経路へフォールバックする。
+      if (!ssoTicketEnabled()) {
+        return res
+          .status(501)
+          .json({ error: "NotConfigured", message: "SSO ticket issuing is not configured" });
+      }
+      const audience = req.body?.audience;
+      if (typeof audience !== "string" || !audience) {
+        return res
+          .status(400)
+          .json({ error: "InvalidRequest", message: "audience is required" });
+      }
+      // 許可リスト外は 400。ここを緩めるとオープンリダイレクタになる。
+      if (!isAllowedAudience(audience)) {
+        return res
+          .status(400)
+          .json({ error: "InvalidRequest", message: "audience is not allowed" });
+      }
+      res
+        .set("Cache-Control", "private, no-store")
+        .json(await createSsoTicket(req.viewerDid!, audience));
     } catch (e) {
       next(e);
     }

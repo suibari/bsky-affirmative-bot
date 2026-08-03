@@ -58,7 +58,8 @@
             "com.suibari.nagi.getMyNagi",
             "com.suibari.nagi.setChannelSubscription",
             "com.suibari.nagi.getCards",
-            "com.suibari.nagi.drawCard"
+            "com.suibari.nagi.drawCard",
+            "com.suibari.nagi.createSsoTicket"
           ]
         }
       ]

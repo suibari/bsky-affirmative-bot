@@ -21,6 +21,7 @@
     "@bsky-affirmative-bot/nagi-linkcard": "workspace:*",
     "@bsky-affirmative-bot/shared-configs": "workspace:*",
     "@skyware/jetstream": "^0.2.5",
+    "@suibari/nagi-passport": "^0.1.0",
     "cors": "^2.8.5",
     "drizzle-orm": "^0.45.1",
     "express": "^5.0.0",
