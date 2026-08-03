@@ -17,7 +17,7 @@ import {
 } from "./DailyTopPostProvider.js";
 import { jstDateString as jstDate } from "./jstDate.js";
 import { getRecentNewsArticleIds, recordRecentNewsArticle } from "./whimsicalPostNewsHistory.js";
-import { buildWhimsicalPostTexts } from "./scheduledPostContent.js";
+import { buildGoodNightPostTexts, buildWhimsicalPostTexts } from "./scheduledPostContent.js";
 
 const whimsicalPostGenerator = new WhimsicalPostGenerator();
 const moodSongGenerator = new MyMoodSongGenerator();
@@ -195,21 +195,27 @@ export async function postGoodNight(currentMood: string) {
     const generated = await generateGoodNight({
       topFollower: candidate.profile,
       topPost: candidate.text,
+      topPostNetwork: candidate.network,
       currentMood,
       followerMilestone,
       giftCandidates,
     });
 
     if (generated.textJa) {
+      const texts = buildGoodNightPostTexts({
+        textJa: generated.textJa,
+        textEn: generated.textEn,
+        sourcePost: { network: candidate.network, uri: candidate.uri },
+      });
       const results = await publish({
         kind: "good-night",
         contentByTarget: {
-          bsky: { text: `${generated.textJa}\n\n${generated.textEn}` },
+          bsky: { text: texts.bsky },
           nagi: {
-            text: generated.textJa,
+            text: texts.nagiJa,
             langs: ["ja"],
-            ...(generated.textEn
-              ? { translations: [{ lang: "en", text: generated.textEn }] }
+            ...(texts.nagiEn
+              ? { translations: [{ lang: "en", text: texts.nagiEn }] }
               : {}),
           },
         },

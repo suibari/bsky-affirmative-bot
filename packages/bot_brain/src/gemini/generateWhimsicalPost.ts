@@ -11,6 +11,11 @@ import { sanitizePositiveNewsSelection } from "./positiveNewsSelection.js";
 import { ToolListUnion, Type } from "@google/genai";
 import { MODEL_GEMINI_HIGH, SYSTEM_INSTRUCTION } from "@bsky-affirmative-bot/shared-configs";
 
+export const NAGI_FEATURE_INTRO_JA =
+  "botたんのために作られた全肯定SNS「Nagi」の紹介：反応数やフォロワー数などの数字を気にせず、botたんと穏やかに過ごせる。毎晩botたんが書く日記をカレンダーで振り返れる。URLは https://nagi.suibari.com/";
+export const NAGI_FEATURE_INTRO_EN =
+  "Introducing Nagi, the all-affirming social network made for bot-tan: spend calm time with bot-tan without worrying about reaction or follower counts, and look back on the daily diaries bot-tan writes for you in a calendar. URL: https://nagi.suibari.com/";
+
 export interface WhimsicalPostGenerateParams {
   topFollower?: ProfileView;
   topPost?: string;
@@ -231,6 +236,7 @@ Structure: ${JSON.stringify(structure)}`
       "botたんのイラストを見れるフィードの紹介：URLは https://bsky.app/profile/did:plc:uixgxpiqf4i63p6rgpu7ytmx/feed/196e948a58f4af5",
       "みんなで集まるファンコミュニティサーバー（Discord）の紹介：URLは https://discord.gg/hshXWQEMgu 。Discordサーバーに参加・Bluesky連携するとメンバー限定機能も使えるようになるよ。",
       "実はLeafletに日記を書いてるんだ、気が向いたら読んでねということの紹介。URLは https://leaflet.pub/p/bot-tan.com",
+      NAGI_FEATURE_INTRO_JA,
     ] : [
       "Introducing the Fortune Telling feature you have. You can get your fortune told once a day and receive a Today's Lucky Badge by replying \"Fortune\".",
       "Introducing the Personality Analysis feature you have. You can get a personality diagnosis once a week and receive a special Title Badge by replying \"Analyze me\".",
@@ -239,6 +245,7 @@ Structure: ${JSON.stringify(structure)}`
       "Introducing the feed where the user can check bot-tan's illustration: URL: https://bsky.app/profile/did:plc:uixgxpiqf4i63p6rgpu7ytmx/feed/196e948a58f4af5",
       "Introducing the fan community server (Discord) where everyone gathers: URL: https://discord.gg/hshXWQEMgu — Joining the Discord server and linking your Bluesky account also unlocks member-exclusive features!",
       "Introducing bot-tan's Leaflet diary! I've been writing a diary there — feel free to read it when you're in the mood. URL: https://leaflet.pub/p/bot-tan.com",
+      NAGI_FEATURE_INTRO_EN,
     ];
 
     const crossSells = params.langStr === "日本語" ? [

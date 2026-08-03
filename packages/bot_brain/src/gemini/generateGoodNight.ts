@@ -4,9 +4,10 @@ import { Type } from "@google/genai";
 import { MODEL_GEMINI, SYSTEM_INSTRUCTION, TONE_RULES_JA } from "@bsky-affirmative-bot/shared-configs";
 import { generateContentWithRetry, normalizeUrlSpacing } from "./util.js";
 
-interface GoodNightInfo {
+export interface GoodNightInfo {
   topFollower?: ProfileView,
   topPost?: string,
+  topPostNetwork: "bsky" | "nagi",
   currentMood: string,
   followerMilestone?: number,
   giftCandidates?: { id: number; content: string; displayName: string }[],
@@ -19,7 +20,7 @@ export interface GoodNightResult {
 }
 
 export async function generateGoodNight(param: GoodNightInfo): Promise<GoodNightResult> {
-  const prompt = await PROMPT_GOODNIGHT_WORD(param);
+  const prompt = buildGoodNightPrompt(param);
 
   const response = await generateContentWithRetry({
     model: MODEL_GEMINI,
@@ -65,7 +66,7 @@ export async function generateGoodNight(param: GoodNightInfo): Promise<GoodNight
   }
 }
 
-const PROMPT_GOODNIGHT_WORD = async (param: GoodNightInfo) => {
+export const buildGoodNightPrompt = (param: GoodNightInfo) => {
   let milestoneInstruction = "";
   if (param.followerMilestone) {
     const isTenThousand = param.followerMilestone % 10000 === 0;
@@ -90,6 +91,10 @@ const PROMPT_GOODNIGHT_WORD = async (param: GoodNightInfo) => {
       `プレゼント候補:\n${candidateList}\n`;
   }
 
+  const sharingInstruction = param.topPostNetwork === "nagi"
+    ? `* 全肯定されたポストはNagiの投稿です。リポスト済みとは書かないでください。スレッドURLはシステムが本文末尾に追加するので、textJaとtextEnにはURLを書かず、感想だけを書いてください。`
+    : `* **全肯定されたポスト本文をそのまま記載することは不要です**。リポスト済みなので、感想のみでよいです。`;
+
   return `あなたはこれから就寝します。フォロワーへのおやすみのあいさつをしてください。` +
     `あいさつには以下を含めること:` +
     `* おやすみのメッセージ` +
@@ -100,7 +105,7 @@ const PROMPT_GOODNIGHT_WORD = async (param: GoodNightInfo) => {
     `あいさつのルール:` +
     `* 同じ内容について、日本語メッセージをtextJa、その自然な英語訳をtextEnに出力してください。` +
     `* あなたが全肯定されたポスト紹介については、どこに心を動かされたか、フォロワーに説明してください。` +
-    `* **全肯定されたポスト本文をそのまま記載することは不要です**。リポスト済みなので、感想のみでよいです。` +
+    sharingInstruction +
     `* ポストを紹介する際はフォロワーを楽しませることを考えてください。**正義感にもとづいて特定个人、団体への攻撃を扇動したりしてはなりません。**` +
     `* 読みやすくするために、適切に改行を入れてください。` +
     `* **絶対厳守**: textJaとtextEnのテキストにマークダウン記法を一切使わないでください。見出し(#)、太字(**)、斜体(*)、リスト(-)、リンク([text](url))などは禁止です。URLはそのまま https://... の形式で本文中に含めてください。` +
