@@ -15,6 +15,7 @@ import {
   getDailyTopPostCandidate,
   parseDailyTopPostSource,
 } from "./DailyTopPostProvider.js";
+import { fetchDisplayName } from "./displayName.js";
 import { jstDateString as jstDate } from "./jstDate.js";
 import { getRecentNewsArticleIds, recordRecentNewsArticle } from "./whimsicalPostNewsHistory.js";
 import { buildGoodNightPostTexts, buildWhimsicalPostTexts } from "./scheduledPostContent.js";
@@ -22,18 +23,6 @@ import { buildGoodNightPostTexts, buildWhimsicalPostTexts } from "./scheduledPos
 const whimsicalPostGenerator = new WhimsicalPostGenerator();
 const moodSongGenerator = new MyMoodSongGenerator();
 let isJapanesePost = true;
-
-async function fetchDisplayName(did: string): Promise<string> {
-  try {
-    const response = await fetch(`https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile?actor=${encodeURIComponent(did)}`);
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const profile = await response.json() as { displayName?: string; handle?: string };
-    return profile.displayName || profile.handle || did;
-  } catch (error) {
-    console.warn(`[WARN] Failed to fetch display name for ${did}:`, error);
-    return did;
-  }
-}
 
 async function publish(request: ScheduledPostPublishRequest) {
   return ScheduledPostService.publish(request);

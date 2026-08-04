@@ -14,6 +14,7 @@ import { MemoryService } from "@bsky-affirmative-bot/clients";
 import type {
   NagiStats,
   RepoWritePointUsage,
+  RoomEvent,
   TopPost,
 } from "@bsky-affirmative-bot/database";
 import { getCachedHealthSnapshot, type HealthSnapshot } from "./healthMonitor.js";
@@ -21,6 +22,12 @@ import { getFullDateAndTimeString } from "@bsky-affirmative-bot/shared-configs";
 import { LanguageName } from "@bsky-affirmative-bot/shared-configs";
 
 import { UtilityAI } from "./utilityAI.js";
+import { fetchDisplayName } from "./displayName.js";
+import {
+  buildRoomEventsSection,
+  toRoomEventsForPrompt,
+  type RoomEventForPrompt,
+} from "./roomEventPrompt.js";
 import { getYokohamaWeather } from "@bsky-affirmative-bot/bot-brain";
 import { Type } from "@google/genai";
 
@@ -290,6 +297,10 @@ export class BiorhythmManager extends EventEmitter {
     // 未読のリプライ取得
     const unreadReply = await MemoryService.getUnreadReplies();
 
+    // お部屋で起きたできごと。誰が来て何をしてくれたかを行動生成に反映する。
+    const roomEvents = await MemoryService.getUnreadRoomEvents();
+    const roomEventsForPrompt = await this.resolveRoomEvents(roomEvents);
+
     // 新しいステータス候補を決定
     const nextStatus = UtilityAI.selectAction({
       hour,
@@ -314,7 +325,7 @@ export class BiorhythmManager extends EventEmitter {
       isWeekend,
       energy: this.getEnergy,
       currentAction: this.moodPrev
-    }));
+    }), roomEventsForPrompt);
 
     // RPDチェック: 超過時は全処理スキップし、丸1日後に再実行
     if (!(await MemoryService.checkRPD())) {
@@ -345,6 +356,11 @@ export class BiorhythmManager extends EventEmitter {
 
       // 活動ログをDBに保存
       await MemoryService.addBiorhythmHistory(this.status, status_text, status_text_en, Math.round(this.getEnergy));
+
+      // 生成に成功したぶんだけ既読にする。ここが catch の中ではなく後ろにあるのは意図的で、
+      // LLM が失敗した回のできごとは次の step に持ち越したいため（未読リプライと違い、
+      // お部屋のできごとを取りこぼすと来てくれた人の体験がそのまま消える）。
+      await MemoryService.markRoomEventsRead(roomEvents.map((event) => event.id));
 
       // おやすみポスト
       if (this.firstStepDone) {
@@ -416,7 +432,15 @@ export class BiorhythmManager extends EventEmitter {
     }
   }
 
-  private buildPrompt(timeNow: string, isWeekend: Boolean, weather: string, unreadReply?: string[], utilities?: Record<Status, number>): string {
+  /** できごとに出てくる did の表示名をまとめて解決する。同じ人が複数回来ていても1回で済ませる。 */
+  private async resolveRoomEvents(events: RoomEvent[]): Promise<RoomEventForPrompt[]> {
+    if (events.length === 0) return [];
+    const dids = [...new Set(events.map((event) => event.did))];
+    const names = await Promise.all(dids.map((did) => fetchDisplayName(did)));
+    return toRoomEventsForPrompt(events, new Map(dids.map((did, i) => [did, names[i]!])));
+  }
+
+  private buildPrompt(timeNow: string, isWeekend: Boolean, weather: string, unreadReply?: string[], utilities?: Record<Status, number>, roomEvents: RoomEventForPrompt[] = []): string {
     const outfitInstruction = (this.status === "WakeUp" || !this.moodPrev)
       ? `今日の服装を自由に選んでください（ミント色のカーディガン以外のものも積極的に選ぶこと）。`
       : `服装は前回から変わっていないため、服装の描写は不要です。`;
@@ -425,7 +449,7 @@ export class BiorhythmManager extends EventEmitter {
     // ここに埋め込むとユーザ入力の一部として扱われ、モデルが設定文の文体に引っ張られる。
     return `
 以下のキャラクター（System Instruction に設定されている「全肯定botたん」）の行動を描写してほしいです。
-このキャラクターが現在どんな気分でなにをしているか、現在時刻・天候・ステータス・行動欲求・前回した行動をもとにして、具体的に考えてください。
+このキャラクターが現在どんな気分でなにをしているか、現在時刻・天候・ステータス・行動欲求・前回した行動・お部屋でのできごとをもとにして、具体的に考えてください。
 * ルール
 - 結果はJSON形式で出力してください。
 - "status_text": 「全肯定たんは～しています」という、AIに入力する平易なプロンプト文（200文字以内）。服装について：${outfitInstruction}
@@ -456,6 +480,7 @@ ${this.status === "WakeUp" ? isWeekend ? `${JSON.stringify(eventsMorningDayoff)}
       }
 * 以下がユーザーからもらったコメントです。次の行動を考える際に参考にすること。
 ${JSON.stringify(unreadReply)}
+${buildRoomEventsSection(roomEvents)}
 -----以下がキャラクターの状態-----
 ・現在
 現在時刻：${timeNow}

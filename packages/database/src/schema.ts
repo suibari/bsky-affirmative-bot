@@ -171,6 +171,28 @@ export const gifts = affirmativeBotSchema.table("gifts", {
   // updated_at から3日経過で再使用可能
 });
 
+/**
+ * お部屋で起きたできごと。
+ *
+ * biorhythm_server が未読を読んで status_text（いま何をしているか）の生成材料にし、既読にする。
+ * エネルギー加算は followers.room_interaction_count が担当していて、こちらは描写専用。
+ * 表示名は読み出し時に did から解決するので持たない（改名に追随させるため）。
+ */
+export const room_events = affirmativeBotSchema.table(
+  "room_events",
+  {
+    id: serial("id").primaryKey(),
+    did: text("did").notNull(),
+    /** "gift" | "chat" | "greeting" */
+    type: text("type").notNull(),
+    /** プレゼント内容・会話の話題など。ユーザー入力なので下流では必ずデータとして扱う */
+    detail: text("detail"),
+    is_read: integer("is_read").default(0).notNull(),
+    created_at: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [index("room_events_unread_idx").on(table.is_read, table.created_at)],
+);
+
 export const youtube_shorts = affirmativeBotSchema.table("youtube_shorts", {
   id: serial("id").primaryKey(),
   url: text("url").notNull().unique(),

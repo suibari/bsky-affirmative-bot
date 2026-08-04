@@ -11,6 +11,7 @@ import {
   subscribers,
   biorhythm_history,
   gifts,
+  room_events,
   youtube_shorts,
   nagiActors,
   nagiPosts,
@@ -65,6 +66,17 @@ export interface TopPost {
   authorAvatarCid?: string;
   authorDid?: string;
   rkey?: string;
+}
+
+/** お部屋で起きた1件のできごと。 */
+export interface RoomEvent {
+  id: number;
+  did: string;
+  /** "gift" | "chat" | "greeting" */
+  type: string;
+  /** ユーザー入力由来。プロンプトに載せる際はデータとして扱うこと。 */
+  detail: string | null;
+  created_at: Date;
 }
 
 /** 日次おすすめ選出Providerが解決前に受け取る、ネットワーク共通の候補行。 */
@@ -912,6 +924,48 @@ static async getPost(did: string): Promise<any> {
         .where(eq(gifts.id, id));
     } catch (e) {
       console.error(`Failed to update gift status for id ${id}:`, e);
+    }
+  }
+
+  /**
+   * お部屋の未読イベント。biorhythm の行動生成に使う。
+   *
+   * 長期停止したあとに再開すると数百件たまっている可能性があり、そのまま全部
+   * プロンプトに載せると1回の生成が壊れる。古いものから limit 件だけ見る。
+   */
+  static async getUnreadRoomEvents(limit = 20): Promise<RoomEvent[]> {
+    try {
+      return await db.select({
+        id: room_events.id,
+        did: room_events.did,
+        type: room_events.type,
+        detail: room_events.detail,
+        created_at: room_events.created_at,
+      })
+        .from(room_events)
+        .where(eq(room_events.is_read, 0))
+        .orderBy(room_events.created_at)
+        .limit(limit);
+    } catch (e) {
+      console.error("Failed to get unread room events:", e);
+      return [];
+    }
+  }
+
+  /**
+   * 取得した行だけを既読にする。
+   *
+   * replies の markRepliesRead() のように「未読すべて」を潰すと、取得〜生成の間に
+   * 入ったイベントを一度も読まずに捨てることになる。お部屋の体験が消えるので id 指定。
+   */
+  static async markRoomEventsRead(ids: number[]): Promise<void> {
+    if (ids.length === 0) return;
+    try {
+      await db.update(room_events)
+        .set({ is_read: 1 })
+        .where(inArray(room_events.id, ids));
+    } catch (e) {
+      console.error("Failed to mark room events read:", e);
     }
   }
 
