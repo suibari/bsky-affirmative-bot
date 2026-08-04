@@ -414,7 +414,7 @@ export class BiorhythmManager extends EventEmitter {
     // this.handleEnergyByStatus();
 
     // ログ出力
-    console.log(`[INFO][BIORHYTHM] status: ${this.status}, energy: ${this.getEnergy}, action: ${this.getMood}, next: ${duration_minutes} min`);
+    console.log(`[INFO][BIORHYTHM] status: ${this.status}, energy: ${this.getEnergy}, roomEvents: ${roomEvents.length}, action: ${this.getMood}, next: ${duration_minutes} min`);
 
     // リプライ既読処理
     await MemoryService.markRepliesRead();
@@ -457,6 +457,7 @@ export class BiorhythmManager extends EventEmitter {
 - "duration_minutes": その行動にかかる時間（分）。行動の内容に合わせて5分から90分の範囲内で適切に決めてください。
 - ステータスについて、WakeUpは起床時、Studyは勉強中、FreeTimeは余暇時間、Relaxは休憩中、Sleepは就寝中(夢の中)を意味します。
 - 重要: status_textは必ず現在のステータス（${this.status}）に合った行動を描写すること。Sleepなら就寝・夢の中、Studyなら勉強中、FreeTimeなら余暇活動、Relaxなら休憩、WakeUpなら起床直後の行動のみとすること。
+- 重要: 「お部屋でのできごと」に gift（プレゼント）がある場合は、現在のステータスに合う形で、必ずその贈り物への言及を status_text に入れること。Sleep中なら夢に出てくる、といった扱いにすればよい。
 - 行動欲求は、あなたがどの行動をしたいか、です。たとえばSleepが一番高いのに、ステータスがFreeTimeの場合、眠いのに遊んでいる状態です。
 - 以下の日にはその日にふさわしい行動をさせること
   * 元旦 (1月1日)
@@ -481,6 +482,7 @@ ${this.status === "WakeUp" ? isWeekend ? `${JSON.stringify(eventsMorningDayoff)}
 * 以下がユーザーからもらったコメントです。次の行動を考える際に参考にすること。
 ${JSON.stringify(unreadReply)}
 ${buildRoomEventsSection(roomEvents)}
+
 -----以下がキャラクターの状態-----
 ・現在
 現在時刻：${timeNow}
@@ -519,11 +521,18 @@ ${buildRoomEventsSection(roomEvents)}
       }
     });
 
-    if (response.text) {
-      return JSON.parse(response.text);
+    // 空を握り潰して返すと、mood が空のまま「生成成功」として扱われ、
+    // お部屋のできごとまで既読になって消える。失敗として扱い次の step に持ち越す。
+    if (!response.text) {
+      throw new Error("generateStatus returned an empty response");
     }
 
-    return { status_text: "", status_text_en: "", duration_minutes: 60 };
+    const result = JSON.parse(response.text);
+    if (!result.status_text) {
+      throw new Error("generateStatus returned an empty status_text");
+    }
+
+    return result;
   }
 
   private async changeEnergy(amount: number) {
