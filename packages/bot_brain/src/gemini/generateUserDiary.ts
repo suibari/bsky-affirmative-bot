@@ -308,7 +308,7 @@ Today's posts: ${userinfo.posts || ""}
 
   const response = await generateContentWithRetry(
     {
-      feature: "BSKY_USER_DIARY",
+      feature: "COMMON_USER_DIARY",
       contents,
       config: {
         systemInstruction: SYSTEM_INSTRUCTION,
@@ -380,7 +380,7 @@ export async function generateDiaryEmojis(input: {
   recentEmojis?: RecentDiaryEmoji[];
 }): Promise<string> {
   const response = await generateContentWithRetry({
-    feature: "BSKY_USER_DIARY_EMOJI",
+    feature: "COMMON_USER_DIARY_EMOJI",
     contents: `次の既存日記を読み、その日の絵文字だけを選び直してください。
 本文や称号の書き換え・要約は不要です。
 ${diaryEmojiPromptRules}${recentDiaryEmojiPrompt(input.recentEmojis)}

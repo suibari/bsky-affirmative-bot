@@ -500,7 +500,7 @@ ${buildRoomEventsSection(roomEvents)}
 
   private async generateStatus(prompt: string): Promise<{ status_text: string, status_text_en: string, duration_minutes: number }> {
     const response = await generateContentWithRetry({
-      feature: 'BSKY_BIORHYTHM_STATUS',
+      feature: 'BIORHYTHM_STATUS',
       contents: prompt,
       config: {
         // ペルソナはシステムターンに置く（ユーザ入力として扱わせない）。

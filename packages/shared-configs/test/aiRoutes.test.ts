@@ -44,26 +44,23 @@ const LITE = "gemini-2.5-flash-lite";
 const FLASH = "gemini-2.5-flash";
 
 /**
- * リファクタ前の「実効」挙動をそのままピン留めしたもの。
- * tier が undefined の行は、移行前も serviceTier を送っていなかった呼び出し。
+ * 各機能に「意図して」割り当てたモデルと ServiceTier のピン留め。
  * ここが赤くなる = どこかの機能のモデル/tier が意図せず変わった、ということ。
+ * 方針: 即時応答が要るものは standard、待ってもらえるものは flex。
+ * tier が undefined の行は serviceTier を送らない（"-auto" ルート）。
  */
 const EXPECTED: Record<AiFeatureKey, [model: string, tier: "flex" | "standard" | undefined]> = {
-  BSKY_AFFIRMATIVE_REPLY: [LITE, "standard"],
-  BSKY_CONVERSATION: [FLASH, undefined],
+  // 共通（bsky + Nagi 両方に効く）
+  COMMON_USER_DIARY: [LITE, "flex"],
+  COMMON_USER_DIARY_EMOJI: [LITE, "standard"],
+  // bsky_bot_server（肯定返信/会話は Nagi が requestOptions で上書きするので実質 bsky 専用）
+  BSKY_AFFIRMATIVE_REPLY: [LITE, "flex"],
+  BSKY_CONVERSATION: [LITE, "flex"],
   BSKY_ANALYZE: [LITE, "flex"],
   BSKY_FORTUNE: [LITE, "flex"],
-  BSKY_USER_DIARY: [LITE, "flex"],
-  BSKY_USER_DIARY_EMOJI: [LITE, "standard"],
-  BSKY_BOT_DIARY: [LITE, undefined],
-  BSKY_GOOD_NIGHT: [LITE, undefined],
-  BSKY_QUESTION: [LITE, undefined],
+  BSKY_BOT_DIARY: [LITE, "flex"],
   BSKY_QUESTIONS_ANSWER: [LITE, "flex"],
-  BSKY_MY_MOOD_SONG: [LITE, undefined],
   BSKY_RECOMMENDED_SONG: [LITE, "flex"],
-  BSKY_IMAGE: ["gemini-2.5-flash-image-preview", undefined],
-  BSKY_WHIMSICAL_POST_PLAN: [FLASH, undefined],
-  BSKY_WHIMSICAL_POST_WRITE: [FLASH, undefined],
   BSKY_WHIMSICAL_REPLY: [LITE, "flex"],
   BSKY_CHEER_SUBJECT: [LITE, "flex"],
   BSKY_CHEER_RESULT: [LITE, "flex"],
@@ -71,7 +68,15 @@ const EXPECTED: Record<AiFeatureKey, [model: string, tier: "flex" | "standard" |
   BSKY_ANNIVERSARY: [LITE, "flex"],
   BSKY_RECAP: [LITE, "flex"],
   BSKY_ROOM_WELCOME: [LITE, "flex"],
-  BSKY_BIORHYTHM_STATUS: [LITE, undefined],
+  BSKY_MY_MOOD_SONG: [LITE, "flex"],
+  BSKY_IMAGE: ["gemini-2.5-flash-image-preview", undefined],
+  // biorhythm_server（定期ポスト）
+  BIORHYTHM_STATUS: [LITE, "flex"],
+  BIORHYTHM_GOOD_NIGHT: [FLASH, "flex"],
+  BIORHYTHM_QUESTION: [FLASH, "flex"],
+  BIORHYTHM_WHIMSICAL_POST_PLAN: [FLASH, "flex"],
+  BIORHYTHM_WHIMSICAL_POST_WRITE: [FLASH, "flex"],
+  // Nagi
   NAGI_REPLY_ATTEMPT_EARLY: [LITE, "flex"],
   NAGI_REPLY_ATTEMPT_MID: [LITE, "standard"],
   NAGI_REPLY_ATTEMPT_LATE: [FLASH, "standard"],
@@ -80,8 +85,10 @@ const EXPECTED: Record<AiFeatureKey, [model: string, tier: "flex" | "standard" |
   NAGI_COMMUNITY_AFFIRMATION: [LITE, "flex"],
   NAGI_CHANNEL_WELCOME: [LITE, "flex"],
   NAGI_CHANNEL_TOPIC: [LITE, "flex"],
-  NEWS_POSITIVE_GATE: [LITE, undefined],
-  NEWS_POSITIVE_COMMENT: [LITE, undefined],
+  // ニュース
+  NEWS_POSITIVE_GATE: [LITE, "flex"],
+  NEWS_POSITIVE_COMMENT: [LITE, "flex"],
+  // ローカル Ollama
   OLLAMA_PREDEFINED_AFFIRMATION: ["gemma3:4b", undefined],
   OLLAMA_NEWS_PRESCREEN: ["gemma3:4b", undefined],
   OLLAMA_EMBED: ["snowflake-arctic-embed2", undefined],
@@ -89,7 +96,7 @@ const EXPECTED: Record<AiFeatureKey, [model: string, tier: "flex" | "standard" |
   OLLAMA_BOT_TRANSLATION: ["gemma3:4b", undefined],
 };
 
-test("既定ルートは移行前の実効挙動を再現する", () => {
+test("各機能に意図したモデル/tierが割り当たっている", () => {
   withCleanEnv(() => {
     for (const [feature, [model, tier]] of Object.entries(EXPECTED) as [
       AiFeatureKey,
@@ -126,23 +133,23 @@ test("モデル別名の env はモジュール読み込みの後に設定して
     // 別名の差し替えは lite-* を使う全機能に一括で効く
     assert.equal(aiModel("NAGI_CARD_COMMENT"), "gemini-9.9-flash-lite");
     // flash 系は影響を受けない
-    assert.equal(aiModel("BSKY_CONVERSATION"), FLASH);
+    assert.equal(aiModel("BIORHYTHM_GOOD_NIGHT"), FLASH);
   });
 });
 
 test("AI_ROUTE_<機能> でその機能だけルートを差し替えられる", () => {
   withCleanEnv(() => {
-    process.env.AI_ROUTE_BSKY_CONVERSATION = "lite-flex";
+    process.env.AI_ROUTE_BSKY_CONVERSATION = "flash-standard";
     resetAiRouteCache();
 
     const conversation = resolveAiRoute("BSKY_CONVERSATION");
-    assert.equal(conversation.route, "lite-flex");
-    assert.equal(conversation.model, LITE);
-    assert.equal(conversation.serviceTier, "flex");
+    assert.equal(conversation.route, "flash-standard");
+    assert.equal(conversation.model, FLASH);
+    assert.equal(conversation.serviceTier, "standard");
     assert.equal(conversation.source, "env");
 
     // 隣の機能は既定のまま
-    assert.equal(resolveAiRoute("BSKY_WHIMSICAL_POST_PLAN").model, FLASH);
+    assert.equal(resolveAiRoute("BIORHYTHM_WHIMSICAL_POST_PLAN").model, FLASH);
   });
 });
 

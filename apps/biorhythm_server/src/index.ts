@@ -15,7 +15,7 @@ import {
 
 dotenv.config({ path: '../../.env' });
 
-logAiRouteTable({ prefixes: ['BSKY_BIORHYTHM_'] });
+logAiRouteTable({ prefixes: ['BIORHYTHM_'] });
 
 const app = express();
 app.use(express.json());

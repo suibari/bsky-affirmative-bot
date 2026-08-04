@@ -23,7 +23,7 @@ export async function generateGoodNight(param: GoodNightInfo): Promise<GoodNight
   const prompt = buildGoodNightPrompt(param);
 
   const response = await generateContentWithRetry({
-    feature: "BSKY_GOOD_NIGHT",
+    feature: "BIORHYTHM_GOOD_NIGHT",
     contents: [prompt],
     config: {
       systemInstruction: SYSTEM_INSTRUCTION,

@@ -8,7 +8,7 @@ export async function generateQuestion() {
   const theme = generateThemeOrSpecial();
   const prompt = PROMPT_QUESTION(theme);
   const response = await generateContentWithRetry({
-    feature: "BSKY_QUESTION",
+    feature: "BIORHYTHM_QUESTION",
     contents: [prompt],
     config: {
       systemInstruction: SYSTEM_INSTRUCTION,

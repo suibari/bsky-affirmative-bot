@@ -51,7 +51,8 @@ async function generateConversationReply(
   job: any,
   context: Awaited<ReturnType<typeof buildNagiReplyContext>>,
   langStr: string,
-  beforeRequest?: () => Promise<void>,
+  beforeRequest: (() => Promise<void>) | undefined,
+  aiRoute: NagiAiRouteDetails,
 ) {
   const did = job.authorDid;
   const userText = context.posts[0] ?? "";
@@ -69,7 +70,9 @@ async function generateConversationReply(
       botContext: await getBotContext(),
       langStr,
     } as any,
-    { beforeRequest },
+    // 肯定返信と同じく、再試行ラダーが選んだモデル/tierを明示する。
+    // 渡さないと BSKY_CONVERSATION のルートに落ち、ワーカーのログと実態がずれる。
+    { beforeRequest, model: aiRoute.model, serviceTier: aiRoute.serviceTier },
   );
   const comment = result.text_bot ?? "";
   const newHistory: ConversationTurn[] = result.new_history ?? [];
@@ -136,6 +139,7 @@ export async function createNagiReply(
           context,
           language.name,
           options.beforeGeminiRequest,
+          aiRoute,
         )
       : await generateAffirmativeWord(
           {

@@ -7,8 +7,8 @@
 
 ```
 機能キー          →  ルート名        →  モデル別名        →  実モデルID
-BSKY_CONVERSATION →  flash-standard  →  gemini-flash      →  gemini-2.5-flash
-                     └ ServiceTier: standard
+BSKY_CONVERSATION →  lite-flex       →  gemini-lite       →  gemini-2.5-flash-lite
+                     └ ServiceTier: flex
 ```
 
 1. **モデル別名 → 実モデルID** … 実際のモデル名が書かれている唯一の場所。`MODEL_*` env で差し替え可。
@@ -23,8 +23,8 @@ BSKY_CONVERSATION →  flash-standard  →  gemini-flash      →  gemini-2.5-fl
 ### 1機能だけ変える（一番よく使う）
 
 ```bash
-# 会話機能だけ flash-standard → lite-flex にして節約する
-AI_ROUTE_BSKY_CONVERSATION=lite-flex
+# 会話機能だけ品質を上げる（bsky と Nagi の両方に効く）
+AI_ROUTE_BSKY_CONVERSATION=flash-standard
 ```
 
 有効なルート名: `lite-flex` `lite-standard` `lite-auto` `flash-flex` `flash-standard` `flash-auto`
@@ -46,27 +46,31 @@ MODEL_GEMINI_FLASH=gemini-3.0-flash
 
 ## 割り当て表
 
-既定値はリファクタ前の実効挙動をそのまま写したもの。`packages/shared-configs/test/aiRoutes.test.ts` が全機能ぶんをピン留めしている。
+方針は「即時応答が要るものは standard、待ってもらえるものは flex」。`packages/shared-configs/test/aiRoutes.test.ts` が全機能ぶんをピン留めしている。
 
-### Bluesky 全肯定botたん
+### 共通（Bluesky botたん と Nagi の両方から呼ばれる）
+
+**ここを変えると両方のbotに効く。** 片方だけ変えたい場合は機能キーの分割が必要。
 
 | 機能キー | 既定ルート | 用途 |
 |---|---|---|
-| `BSKY_AFFIRMATIVE_REPLY` | `lite-standard` | 通常AIリプライ（スコア付き） |
-| `BSKY_CONVERSATION` | `flash-auto` | 会話モード（`chats.create`） |
+| `COMMON_USER_DIARY` | `lite-flex` | ユーザ日記 本文（bsky DiaryFeature + NagiDiaryFeature） |
+| `COMMON_USER_DIARY_EMOJI` | `lite-standard` | 日記の絵文字だけ選び直し（backfillスクリプト専用） |
+
+`COMMON_USER_DIARY` は本文と一緒に絵文字候補も1回の構造化レスポンスで返す。
+`COMMON_USER_DIARY_EMOJI` は既存日記を後から直す `scripts/backfillDiaryEmojis.ts` 専用で、通常の日記生成では呼ばれない（日記は1ユーザ1日1回のまま）。
+
+### Bluesky 全肯定botたん（bsky_bot_server のみ）
+
+| 機能キー | 既定ルート | 用途 |
+|---|---|---|
+| `BSKY_AFFIRMATIVE_REPLY` | `lite-flex` | 通常AIリプライ（スコア付き） |
+| `BSKY_CONVERSATION` | `lite-flex` | 会話モード（`chats.create`） |
 | `BSKY_ANALYZE` | `lite-flex` | botたん分析 |
 | `BSKY_FORTUNE` | `lite-flex` | 占い |
-| `BSKY_USER_DIARY` | `lite-flex` | ユーザ日記 本文 |
-| `BSKY_USER_DIARY_EMOJI` | `lite-standard` | ユーザ日記 絵文字の選び直し |
-| `BSKY_BOT_DIARY` | `lite-auto` | botたん自身の日記 |
-| `BSKY_GOOD_NIGHT` | `lite-auto` | おやすみポスト |
-| `BSKY_QUESTION` | `lite-auto` | 質問生成 |
+| `BSKY_BOT_DIARY` | `lite-flex` | botたん自身の日記（Leaflet/Zenn 投稿） |
 | `BSKY_QUESTIONS_ANSWER` | `lite-flex` | 質問への回答 |
-| `BSKY_MY_MOOD_SONG` | `lite-auto` | 今日の気分ソング |
-| `BSKY_RECOMMENDED_SONG` | `lite-flex` | おすすめソング |
-| `BSKY_IMAGE` | `image-auto` | 画像生成 |
-| `BSKY_WHIMSICAL_POST_PLAN` | `flash-auto` | 気まぐれ投稿: 企画フェーズ |
-| `BSKY_WHIMSICAL_POST_WRITE` | `flash-auto` | 気まぐれ投稿: 執筆フェーズ |
+| `BSKY_RECOMMENDED_SONG` | `lite-flex` | おすすめソング（DJ機能） |
 | `BSKY_WHIMSICAL_REPLY` | `lite-flex` | 気まぐれ投稿へのリプライ |
 | `BSKY_CHEER_SUBJECT` | `lite-flex` | 応援対象かどうかの判定 |
 | `BSKY_CHEER_RESULT` | `lite-flex` | 応援メッセージ |
@@ -74,7 +78,27 @@ MODEL_GEMINI_FLASH=gemini-3.0-flash
 | `BSKY_ANNIVERSARY` | `lite-flex` | 記念日 |
 | `BSKY_RECAP` | `lite-flex` | 1年のまとめ |
 | `BSKY_ROOM_WELCOME` | `lite-flex` | お部屋招待のお出迎え |
-| `BSKY_BIORHYTHM_STATUS` | `lite-auto` | botたんの現在状況（三人称の描写文） |
+| `BSKY_MY_MOOD_SONG` | `lite-flex` | 今日の気分ソング（**現在は呼び出し元なし**） |
+| `BSKY_IMAGE` | `image-auto` | 画像生成（**現在は呼び出し元なし**） |
+
+肯定返信（`generateAffirmativeWord`）と会話（`conversation`）の実装は Nagi からも呼ばれるが、
+**Nagi は必ず `requestOptions` で model/serviceTier を明示上書きする**（再試行ラダー）ので、
+上の2キーが実際に効くのは Bluesky 側だけ。Nagi 側を変えるときは `NAGI_REPLY_ATTEMPT_{EARLY,MID,LATE}` を触る。
+
+bsky の全機能は `callbacks.ts` の共通リトライ（初回+2回）に包まれているので、flex の一時失敗は自動で拾われる。
+
+### biorhythm_server（定期ポスト生成）
+
+| 機能キー | 既定ルート | 用途 |
+|---|---|---|
+| `BIORHYTHM_STATUS` | `lite-flex` | botたんの現在状況（三人称の描写文） |
+| `BIORHYTHM_GOOD_NIGHT` | `flash-flex` | おやすみポスト |
+| `BIORHYTHM_QUESTION` | `flash-flex` | 質問生成 |
+| `BIORHYTHM_WHIMSICAL_POST_PLAN` | `flash-flex` | 気まぐれ投稿: 企画フェーズ（function calling） |
+| `BIORHYTHM_WHIMSICAL_POST_WRITE` | `flash-flex` | 気まぐれ投稿: 執筆フェーズ（構造化JSON） |
+
+気まぐれ投稿が2回に分かれているのは仕様上の制約。**Gemini は function calling / grounding と構造化出力（`responseSchema`）を同時に使えない**ので、
+道具を使う企画フェーズと、スキーマで型を保証する執筆フェーズを分けるしかない（ポジニュース判定が2パスなのと同じ理由）。
 
 ### Nagi
 
@@ -96,8 +120,8 @@ Nagi のリプライは**失敗するたびに段を上げる再試行ラダー*
 
 | 機能キー | 既定ルート | 用途 |
 |---|---|---|
-| `NEWS_POSITIVE_GATE` | `lite-auto` | ポジニュース判定（構造化JSON） |
-| `NEWS_POSITIVE_COMMENT` | `lite-auto` | ポジニュースのbotたんコメント |
+| `NEWS_POSITIVE_GATE` | `lite-flex` | ポジニュース判定（構造化JSON） |
+| `NEWS_POSITIVE_COMMENT` | `lite-flex` | ポジニュースのbotたんコメント |
 
 ### ローカル Ollama（ServiceTier なし）
 
@@ -151,7 +175,7 @@ model: aiModel("NAGI_ANALYSIS"),
 ┌─────────┬──────────────────────────┬──────────────────┬─────────────────────────┬────────────┬───────────┐
 │ (index) │ feature                  │ route            │ model                   │ tier       │ source    │
 ├─────────┼──────────────────────────┼──────────────────┼─────────────────────────┼────────────┼───────────┤
-│ 0       │ 'BSKY_AFFIRMATIVE_REPLY' │ 'lite-standard'  │ 'gemini-2.5-flash-lite' │ 'standard' │ 'default' │
+│ 0       │ 'BSKY_AFFIRMATIVE_REPLY' │ 'lite-flex'      │ 'gemini-2.5-flash-lite' │ 'flex'     │ 'default' │
 └─────────┴──────────────────────────┴──────────────────┴─────────────────────────┴────────────┴───────────┘
 ```
 

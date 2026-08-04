@@ -41,7 +41,7 @@ const isDev = process.env.NODE_ENV === "development";
 
 async function start() {
   // どの機能がどのモデル/tierで動いているかを起動時に1回だけ出す。
-  logAiRouteTable({ prefixes: ["NAGI_", "NEWS_", "OLLAMA_"] });
+  logAiRouteTable({ prefixes: ["COMMON_", "NAGI_", "NEWS_", "OLLAMA_"] });
   await initializeDatabases();
   await initAgent();
 

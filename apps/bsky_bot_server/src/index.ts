@@ -15,7 +15,7 @@ dotenv.config({ path: '../../.env' });
 
 // どの機能がどのモデル/tierで動いているかを起動時に1回だけ出す。
 // dotenv.config() より後で呼ぶこと（env上書きを反映させるため）。
-logAiRouteTable({ prefixes: ['BSKY_', 'OLLAMA_'] });
+logAiRouteTable({ prefixes: ['COMMON_', 'BSKY_', 'OLLAMA_'] });
 
 const app = express();
 app.use(express.json());

@@ -105,22 +105,24 @@ export const AI_ROUTE_NAMES = Object.keys(AI_ROUTES) as AiRouteName[];
 // ---------------------------------------------------------------------------
 
 export const AI_FEATURES = {
-  // ══════ Bluesky 全肯定botたん ══════════════════════════════════════
-  BSKY_AFFIRMATIVE_REPLY: "lite-standard", // 通常AIリプライ（スコア付き）
-  BSKY_CONVERSATION: "flash-auto", // 会話モード（chats.create）
+  // ══════ 共通（Bluesky botたん と Nagi の両方に効く） ═══════════════
+  // ここを変えると両方のbotに効く。片方だけ変えたいなら機能キーの分割が必要。
+  COMMON_USER_DIARY: "lite-flex", // ユーザ日記 本文（bsky DiaryFeature + NagiDiaryFeature）
+  COMMON_USER_DIARY_EMOJI: "lite-standard", // 日記の絵文字だけ選び直し（backfillスクリプト専用）
+
+  // ══════ Bluesky 全肯定botたん（bsky_bot_server のみ） ══════════════
+  //
+  // 肯定返信と会話の実装（generateAffirmativeWord / conversation）は Nagi からも呼ばれるが、
+  // Nagi は必ず requestOptions で model/serviceTier を明示上書きする（再試行ラダー）。
+  // つまり下の2キーが実際に効くのは Bluesky 側だけ。
+  // Nagi 側を変えたいときは NAGI_REPLY_ATTEMPT_{EARLY,MID,LATE} を触ること。
+  BSKY_AFFIRMATIVE_REPLY: "lite-flex", // 通常AIリプライ（スコア付き）
+  BSKY_CONVERSATION: "lite-flex", // 会話モード（chats.create）
   BSKY_ANALYZE: "lite-flex", // botたん分析
   BSKY_FORTUNE: "lite-flex", // 占い
-  BSKY_USER_DIARY: "lite-flex", // ユーザ日記 本文
-  BSKY_USER_DIARY_EMOJI: "lite-standard", // ユーザ日記 絵文字の選び直し
-  BSKY_BOT_DIARY: "lite-auto", // botたん自身の日記
-  BSKY_GOOD_NIGHT: "lite-auto", // おやすみポスト
-  BSKY_QUESTION: "lite-auto", // 質問生成
+  BSKY_BOT_DIARY: "lite-flex", // botたん自身の日記（Leaflet/Zenn 投稿）
   BSKY_QUESTIONS_ANSWER: "lite-flex", // 質問への回答
-  BSKY_MY_MOOD_SONG: "lite-auto", // 今日の気分ソング
-  BSKY_RECOMMENDED_SONG: "lite-flex", // おすすめソング
-  BSKY_IMAGE: "image-auto", // 画像生成
-  BSKY_WHIMSICAL_POST_PLAN: "flash-auto", // 気まぐれ投稿: 企画フェーズ
-  BSKY_WHIMSICAL_POST_WRITE: "flash-auto", // 気まぐれ投稿: 執筆フェーズ
+  BSKY_RECOMMENDED_SONG: "lite-flex", // おすすめソング（DJ機能）
   BSKY_WHIMSICAL_REPLY: "lite-flex", // 気まぐれ投稿へのリプライ
   BSKY_CHEER_SUBJECT: "lite-flex", // 応援対象かどうかの判定
   BSKY_CHEER_RESULT: "lite-flex", // 応援メッセージ
@@ -128,7 +130,15 @@ export const AI_FEATURES = {
   BSKY_ANNIVERSARY: "lite-flex", // 記念日
   BSKY_RECAP: "lite-flex", // 1年のまとめ
   BSKY_ROOM_WELCOME: "lite-flex", // お部屋招待のお出迎えメッセージ
-  BSKY_BIORHYTHM_STATUS: "lite-auto", // botたんの現在状況（三人称の描写文）
+  BSKY_MY_MOOD_SONG: "lite-flex", // 今日の気分ソング（※現在は呼び出し元なし）
+  BSKY_IMAGE: "image-auto", // 画像生成（※現在は呼び出し元なし）
+
+  // ══════ biorhythm_server（定期ポスト生成） ═════════════════════════
+  BIORHYTHM_STATUS: "lite-flex", // botたんの現在状況（三人称の描写文）
+  BIORHYTHM_GOOD_NIGHT: "flash-flex", // おやすみポスト
+  BIORHYTHM_QUESTION: "flash-flex", // 質問生成
+  BIORHYTHM_WHIMSICAL_POST_PLAN: "flash-flex", // 気まぐれ投稿: 企画フェーズ（function calling）
+  BIORHYTHM_WHIMSICAL_POST_WRITE: "flash-flex", // 気まぐれ投稿: 執筆フェーズ（構造化JSON）
 
   // ══════ Nagi ═══════════════════════════════════════════════════════
   NAGI_REPLY_ATTEMPT_EARLY: "lite-flex", // リプライ 1〜2回目
@@ -141,8 +151,8 @@ export const AI_FEATURES = {
   NAGI_CHANNEL_TOPIC: "lite-flex", // チャンネルへの話題ふり
 
   // ══════ ニュース ═══════════════════════════════════════════════════
-  NEWS_POSITIVE_GATE: "lite-auto", // ポジニュース判定（構造化JSON）
-  NEWS_POSITIVE_COMMENT: "lite-auto", // ポジニュースのbotたんコメント
+  NEWS_POSITIVE_GATE: "lite-flex", // ポジニュース判定（構造化JSON）
+  NEWS_POSITIVE_COMMENT: "lite-flex", // ポジニュースのbotたんコメント
 
   // ══════ ローカル Ollama（ServiceTier なし） ════════════════════════
   OLLAMA_PREDEFINED_AFFIRMATION: "ollama-chat", // 定型文リプライの分類/選択/翻訳

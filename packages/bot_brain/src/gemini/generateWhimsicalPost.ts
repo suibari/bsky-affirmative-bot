@@ -58,7 +58,7 @@ export class WhimsicalPostGenerator {
 
     // --- Step 1 各パーツ生成 ---
     const first = await generateContentWithRetry({
-      feature: "BSKY_WHIMSICAL_POST_PLAN",
+      feature: "BIORHYTHM_WHIMSICAL_POST_PLAN",
       config: { tools: this.tools, systemInstruction: SYSTEM_INSTRUCTION },
       contents: [
         {
@@ -117,7 +117,7 @@ export class WhimsicalPostGenerator {
 
     // --- Step 2: 最終文章生成 ---
     const second = await generateContentWithRetry({
-      feature: "BSKY_WHIMSICAL_POST_WRITE",
+      feature: "BIORHYTHM_WHIMSICAL_POST_WRITE",
       config: {
         systemInstruction: SYSTEM_INSTRUCTION,
         responseMimeType: "application/json",
