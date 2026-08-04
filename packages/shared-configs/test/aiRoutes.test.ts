@@ -175,6 +175,28 @@ test("不正な AI_ROUTE_* は警告して既定にフォールバックする�
   });
 });
 
+test("未知の機能キーでも throw せずフォールバックする（ビルド不整合の保険）", () => {
+  // アプリの dist だけ新しくレジストリの dist が古い、という状態で起きる。
+  // ここで throw すると generateContentWithRetry ごと落ち、呼び出し元の機能が丸ごと死ぬ
+  // （例: biorhythm の generateStatus が失敗すると nextStepTime が永久に空になる）。
+  withCleanEnv(() => {
+    const warnings: unknown[][] = [];
+    const originalWarn = console.warn;
+    console.warn = (...args: unknown[]) => void warnings.push(args);
+    try {
+      const resolved = resolveAiRoute("BSKY_BIORHYTHM_STATUS" as AiFeatureKey); // 改名前の旧キー
+      assert.equal(resolved.route, "lite-flex");
+      assert.equal(resolved.model, LITE);
+      assert.equal(resolved.serviceTier, "flex");
+      assert.equal(resolved.source, "unknown-feature");
+      assert.equal(warnings.length, 1);
+      assert.match(String(warnings[0][0]), /未知の機能キー/);
+    } finally {
+      console.warn = originalWarn;
+    }
+  });
+});
+
 test("botたん翻訳モデルは専用env→OLLAMA_MODEL→既定の三段で解決する", () => {
   withCleanEnv(() => {
     assert.equal(aiModel("OLLAMA_BOT_TRANSLATION"), "gemma3:4b");

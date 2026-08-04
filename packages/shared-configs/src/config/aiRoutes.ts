@@ -134,7 +134,7 @@ export const AI_FEATURES = {
   BSKY_IMAGE: "image-auto", // 画像生成（※現在は呼び出し元なし）
 
   // ══════ biorhythm_server（定期ポスト生成） ═════════════════════════
-  BIORHYTHM_STATUS: "lite-flex", // botたんの現在状況（三人称の描写文）
+  BIORHYTHM_STATUS: "flash-flex", // botたんの現在状況（三人称の描写文）
   BIORHYTHM_GOOD_NIGHT: "flash-flex", // おやすみポスト
   BIORHYTHM_QUESTION: "flash-flex", // 質問生成
   BIORHYTHM_WHIMSICAL_POST_PLAN: "flash-flex", // 気まぐれ投稿: 企画フェーズ（function calling）
@@ -177,9 +177,17 @@ export type ResolvedAiRoute = {
   model: string;
   /** undefined = serviceTier を送らない（ルートが "auto" のとき） */
   serviceTier?: "flex" | "standard";
-  /** 既定値か env 上書きか、env が不正でフォールバックしたか */
-  source: "default" | "env" | "env-invalid";
+  /** 既定値か env 上書きか、env/機能キーが不正でフォールバックしたか */
+  source: "default" | "env" | "env-invalid" | "unknown-feature";
 };
+
+/**
+ * 機能キーもルート名も引けなかったときの最終フォールバック。
+ * ここに落ちるのは「アプリ側の dist だけ新しくてレジストリの dist が古い」等の
+ * ビルド不整合のとき。AI呼び出し全体が TypeError で落ちるより、安いルートで
+ * 動き続けて警告を出すほうがマシ（生成が1回失敗するだけで機能が丸ごと死ぬ箇所がある）。
+ */
+const FALLBACK_ROUTE: AiRouteName = "lite-flex";
 
 let cache: Map<AiFeatureKey, ResolvedAiRoute> | undefined;
 
@@ -192,8 +200,20 @@ export function aiRouteEnvName(feature: AiFeatureKey): string {
 }
 
 function resolveUncached(feature: AiFeatureKey): ResolvedAiRoute {
-  let route: AiRouteName = AI_FEATURES[feature];
+  let route: AiRouteName | undefined = AI_FEATURES[feature];
   let source: ResolvedAiRoute["source"] = "default";
+
+  // 型上は起こらないが、ビルド不整合（アプリの dist だけ新しく、レジストリの dist が
+  // 古い等）や JS からの呼び出しで未知のキーが来ることがある。ここで落とすと
+  // generateContentWithRetry ごと throw し、呼び出し元の機能が丸ごと死ぬ。
+  if (!route) {
+    console.warn(
+      `[WARN][AI_ROUTE] 未知の機能キー "${feature}"。ビルドが古い可能性がある。` +
+        ` フォールバック "${FALLBACK_ROUTE}" で続行する。`,
+    );
+    route = FALLBACK_ROUTE;
+    source = "unknown-feature";
+  }
 
   const raw = process.env[aiRouteEnvName(feature)]?.trim();
   if (raw) {
@@ -211,8 +231,9 @@ function resolveUncached(feature: AiFeatureKey): ResolvedAiRoute {
     }
   }
 
-  const spec: AiRouteSpec = AI_ROUTES[route];
-  const alias = MODEL_ALIAS_SPECS[spec.alias];
+  // AI_ROUTES / MODEL_ALIAS_SPECS 側も同じ理由で防御する。ここは絶対に throw させない。
+  const spec: AiRouteSpec = AI_ROUTES[route] ?? AI_ROUTES[FALLBACK_ROUTE];
+  const alias = MODEL_ALIAS_SPECS[spec.alias] ?? MODEL_ALIAS_SPECS["gemini-lite"];
   const model = process.env[alias.env]?.trim() || alias.fallback();
 
   return {
