@@ -1,10 +1,11 @@
 import {
-  MODEL_GEMINI,
-  MODEL_GEMINI_HIGH,
+  resolveAiRoute,
+  type AiRouteName,
 } from "@bsky-affirmative-bot/shared-configs";
 
 export type NagiReplyErrorCategory = "transient" | "permanent" | "unknown";
-export type NagiAiRoute = "lite-flex" | "lite-standard" | "flash-standard";
+/** ラダーの各段が指すルート。実体は shared-configs の aiRoutes.ts が持つ。 */
+export type NagiAiRoute = AiRouteName;
 
 export type NagiReplyErrorClassification = {
   category: NagiReplyErrorCategory;
@@ -15,7 +16,8 @@ export type NagiReplyErrorClassification = {
 export type NagiAiRouteDetails = {
   route: NagiAiRoute;
   model: string;
-  serviceTier: "flex" | "standard";
+  /** undefined = serviceTier を送らない（"-auto" 系ルートを割り当てた場合） */
+  serviceTier?: "flex" | "standard";
 };
 
 const DAY_MS = 24 * 60 * 60_000;
@@ -139,25 +141,25 @@ export function formatNagiReplyError(error: unknown): string {
   return messages.join(" | caused by: ").slice(0, 4_000);
 }
 
+/**
+ * 何回目の試行にどのルートを充てるか。段の刻み方（1-2 / 3-4 / 5以降）はここが決めるが、
+ * 各段が実際にどのモデル・tier になるかは shared-configs の AI_FEATURES と
+ * AI_ROUTE_NAGI_REPLY_ATTEMPT_{EARLY,MID,LATE} が決める。
+ */
 export function nagiAiRouteForAttempt(attempt: number): NagiAiRouteDetails {
-  if (attempt <= 2) {
-    return {
-      route: "lite-flex",
-      model: MODEL_GEMINI,
-      serviceTier: "flex",
-    };
-  }
-  if (attempt <= 4) {
-    return {
-      route: "lite-standard",
-      model: MODEL_GEMINI,
-      serviceTier: "standard",
-    };
-  }
+  const feature =
+    attempt <= 2
+      ? "NAGI_REPLY_ATTEMPT_EARLY"
+      : attempt <= 4
+        ? "NAGI_REPLY_ATTEMPT_MID"
+        : "NAGI_REPLY_ATTEMPT_LATE";
+  const resolved = resolveAiRoute(feature);
+  // ResolvedAiRoute をそのまま返さない。feature/provider/source が混ざると
+  // 呼び出し側やログ/テストが余計なフィールドを見てしまうので3項目に射影する。
   return {
-    route: "flash-standard",
-    model: MODEL_GEMINI_HIGH,
-    serviceTier: "standard",
+    route: resolved.route,
+    model: resolved.model,
+    ...(resolved.serviceTier ? { serviceTier: resolved.serviceTier } : {}),
   };
 }
 

@@ -1,8 +1,7 @@
-import { Type, ServiceTier } from "@google/genai";
+import { Type } from "@google/genai";
 import { generateContentWithRetry } from "./util.js";
 import {
   UserInfoGemini,
-  MODEL_GEMINI,
   SYSTEM_INSTRUCTION,
   TONE_RULES_JA,
   safeFetch,
@@ -309,13 +308,10 @@ Today's posts: ${userinfo.posts || ""}
 
   const response = await generateContentWithRetry(
     {
-      model: MODEL_GEMINI,
+      feature: "BSKY_USER_DIARY",
       contents,
       config: {
         systemInstruction: SYSTEM_INSTRUCTION,
-        serviceTier: userinfo.isSubscriber
-          ? ServiceTier.STANDARD
-          : ServiceTier.FLEX,
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
@@ -384,7 +380,7 @@ export async function generateDiaryEmojis(input: {
   recentEmojis?: RecentDiaryEmoji[];
 }): Promise<string> {
   const response = await generateContentWithRetry({
-    model: MODEL_GEMINI,
+    feature: "BSKY_USER_DIARY_EMOJI",
     contents: `次の既存日記を読み、その日の絵文字だけを選び直してください。
 本文や称号の書き換え・要約は不要です。
 ${diaryEmojiPromptRules}${recentDiaryEmojiPrompt(input.recentEmojis)}
@@ -396,7 +392,6 @@ ${diaryEmojiPromptRules}${recentDiaryEmojiPrompt(input.recentEmojis)}
 ${input.text}`,
     config: {
       systemInstruction: SYSTEM_INSTRUCTION,
-      serviceTier: ServiceTier.STANDARD,
       responseMimeType: "application/json",
       responseSchema: {
         type: Type.OBJECT,

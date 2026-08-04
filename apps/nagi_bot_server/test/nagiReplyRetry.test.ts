@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
-  MODEL_GEMINI,
-  MODEL_GEMINI_HIGH,
+  aiModel,
+  resetAiRouteCache,
 } from "@bsky-affirmative-bot/shared-configs";
 import {
   classifyNagiReplyError,
@@ -73,21 +73,36 @@ test("エラー保存時はラッパーとroot causeの両方を残す", () => {
 test("試行回数に応じてFlex、Lite Standard、Flash Standardへ切り替える", () => {
   assert.deepEqual(nagiAiRouteForAttempt(1), {
     route: "lite-flex",
-    model: MODEL_GEMINI,
+    model: aiModel("NAGI_REPLY_ATTEMPT_EARLY"),
     serviceTier: "flex",
   });
   assert.deepEqual(nagiAiRouteForAttempt(2), nagiAiRouteForAttempt(1));
   assert.deepEqual(nagiAiRouteForAttempt(3), {
     route: "lite-standard",
-    model: MODEL_GEMINI,
+    model: aiModel("NAGI_REPLY_ATTEMPT_MID"),
     serviceTier: "standard",
   });
   assert.deepEqual(nagiAiRouteForAttempt(4), nagiAiRouteForAttempt(3));
   assert.deepEqual(nagiAiRouteForAttempt(5), {
     route: "flash-standard",
-    model: MODEL_GEMINI_HIGH,
+    model: aiModel("NAGI_REPLY_ATTEMPT_LATE"),
     serviceTier: "standard",
   });
+});
+
+test("ラダーの各段は AI_ROUTE_* で差し替えられる", () => {
+  process.env.AI_ROUTE_NAGI_REPLY_ATTEMPT_EARLY = "flash-standard";
+  resetAiRouteCache();
+  try {
+    assert.deepEqual(nagiAiRouteForAttempt(1), {
+      route: "flash-standard",
+      model: "gemini-2.5-flash",
+      serviceTier: "standard",
+    });
+  } finally {
+    delete process.env.AI_ROUTE_NAGI_REPLY_ATTEMPT_EARLY;
+    resetAiRouteCache();
+  }
 });
 
 test("一時障害はジッター付き段階バックオフで再試行する", () => {

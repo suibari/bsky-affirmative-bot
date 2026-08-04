@@ -6,6 +6,7 @@ import {
   reportHeartbeat,
 } from "@bsky-affirmative-bot/database";
 import { config } from "./config.js";
+import { logAiRouteTable } from "@bsky-affirmative-bot/shared-configs";
 import { xrpc } from "./routes/xrpc.js";
 import { internal } from "./routes/internal.js";
 import { wellKnownDid } from "./routes/wellKnownDid.js";
@@ -84,6 +85,7 @@ app.get(
 );
 app.use(notFound);
 app.use(errorHandler);
+logAiRouteTable({ prefixes: ["OLLAMA_"] });
 await initializeDatabases();
 const stream = await startJetstream();
 const appviewHeartbeat = setInterval(() => {

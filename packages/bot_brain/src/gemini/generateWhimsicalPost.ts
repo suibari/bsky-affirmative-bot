@@ -9,7 +9,7 @@ import {
 } from "../api/newsdata/index.js";
 import { sanitizePositiveNewsSelection } from "./positiveNewsSelection.js";
 import { ToolListUnion, Type } from "@google/genai";
-import { MODEL_GEMINI_HIGH, SYSTEM_INSTRUCTION } from "@bsky-affirmative-bot/shared-configs";
+import { SYSTEM_INSTRUCTION } from "@bsky-affirmative-bot/shared-configs";
 
 export const NAGI_FEATURE_INTRO_JA =
   "botたんのために作られた全肯定SNS「Nagi」の紹介：反応数やフォロワー数などの数字を気にせず、botたんと穏やかに過ごせる。毎晩botたんが書く日記をカレンダーで振り返れる。URLは https://nagi.suibari.com/";
@@ -58,7 +58,7 @@ export class WhimsicalPostGenerator {
 
     // --- Step 1 各パーツ生成 ---
     const first = await generateContentWithRetry({
-      model: MODEL_GEMINI_HIGH,
+      feature: "BSKY_WHIMSICAL_POST_PLAN",
       config: { tools: this.tools, systemInstruction: SYSTEM_INSTRUCTION },
       contents: [
         {
@@ -117,7 +117,7 @@ export class WhimsicalPostGenerator {
 
     // --- Step 2: 最終文章生成 ---
     const second = await generateContentWithRetry({
-      model: MODEL_GEMINI_HIGH,
+      feature: "BSKY_WHIMSICAL_POST_WRITE",
       config: {
         systemInstruction: SYSTEM_INSTRUCTION,
         responseMimeType: "application/json",

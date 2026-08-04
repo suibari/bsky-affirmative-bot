@@ -3,7 +3,7 @@ import { UserInfoGemini, GeminiScore } from "@bsky-affirmative-bot/shared-config
 import { generateSingleResponse } from "./util.js";
 
 export async function generateAnniversary(userinfo: UserInfoGemini) {
-  const response = await generateSingleResponse(await PROMPT_ANNIVERSARY_WORD(userinfo));
+  const response = await generateSingleResponse(await PROMPT_ANNIVERSARY_WORD(userinfo), undefined, "BSKY_ANNIVERSARY");
 
   
 

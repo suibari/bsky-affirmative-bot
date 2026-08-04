@@ -1,14 +1,14 @@
 
 import { generateContentWithRetry } from "./util.js";
 import { getRandomItems } from "@bsky-affirmative-bot/shared-configs";
-import { MODEL_GEMINI, SYSTEM_INSTRUCTION } from "@bsky-affirmative-bot/shared-configs";
+import { SYSTEM_INSTRUCTION } from "@bsky-affirmative-bot/shared-configs";
 import { Type } from "@google/genai";
 
 export async function generateQuestion() {
   const theme = generateThemeOrSpecial();
   const prompt = PROMPT_QUESTION(theme);
   const response = await generateContentWithRetry({
-    model: MODEL_GEMINI,
+    feature: "BSKY_QUESTION",
     contents: [prompt],
     config: {
       systemInstruction: SYSTEM_INSTRUCTION,

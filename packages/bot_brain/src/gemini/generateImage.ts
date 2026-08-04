@@ -1,7 +1,8 @@
 import { Modality, PartListUnion } from "@google/genai";
 import { gemini } from "./index.js";
 import * as fs from "node:fs";
-import { MODEL_GEMINI, SYSTEM_INSTRUCTION, MODEL_GEMINI_IMAGE } from "@bsky-affirmative-bot/shared-configs";
+import { SYSTEM_INSTRUCTION } from "@bsky-affirmative-bot/shared-configs";
+import { withRoute } from "./aiRoute.js";
 
 
 export async function generateImage(mood: string): Promise<Buffer | null> {
@@ -51,14 +52,13 @@ export async function generateImage(mood: string): Promise<Buffer | null> {
     },
   ];
 
-  const response = await gemini.models.generateContent({
-    model: MODEL_GEMINI_IMAGE,
+  const response = await gemini.models.generateContent(withRoute("BSKY_IMAGE", {
     contents,
     // config: {
     //   // systemInstruction: SYSTEM_INSTRUCTION,
     //   responseModalities: [Modality.IMAGE],
     // }
-  });
+  }));
 
 
 

@@ -1,5 +1,5 @@
 import { generateContentWithRetry } from "./util.js";
-import { MODEL_GEMINI, SYSTEM_INSTRUCTION } from "@bsky-affirmative-bot/shared-configs";
+import { SYSTEM_INSTRUCTION } from "@bsky-affirmative-bot/shared-configs";
 
 export interface BotDiaryActivity {
   time: string;
@@ -234,7 +234,7 @@ ${JSON.stringify(input.receivedReplies)}
 
   try {
     const response = await generateContentWithRetry({
-      model: MODEL_GEMINI,
+      feature: "BSKY_BOT_DIARY",
       contents: [prompt],
       config: {
         systemInstruction: SYSTEM_INSTRUCTION,

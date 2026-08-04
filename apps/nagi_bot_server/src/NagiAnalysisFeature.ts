@@ -13,7 +13,7 @@ import {
   type NagiAnalysisInput,
   type NagiAnalysisResult,
 } from "@bsky-affirmative-bot/bot-brain";
-import { MODEL_GEMINI } from "@bsky-affirmative-bot/shared-configs";
+import { aiModel } from "@bsky-affirmative-bot/shared-configs";
 import { and, desc, eq, isNull } from "drizzle-orm";
 import { agent } from "./agent.js";
 import { getConcatAuthorFeed } from "./bsky/getConcatAuthorFeed.js";
@@ -169,7 +169,7 @@ export async function runNagiAnalysis(
       ...cardFields,
       source: job.source,
       postCountAt: job.postCountAt,
-      model: MODEL_GEMINI,
+      model: aiModel("NAGI_ANALYSIS"),
       promptVersion: NAGI_ANALYSIS_PROMPT_VERSION,
       updatedAt: now,
     })
@@ -181,7 +181,7 @@ export async function runNagiAnalysis(
         ...cardFields,
         source: job.source,
         postCountAt: job.postCountAt,
-        model: MODEL_GEMINI,
+        model: aiModel("NAGI_ANALYSIS"),
         promptVersion: NAGI_ANALYSIS_PROMPT_VERSION,
         updatedAt: now,
       },

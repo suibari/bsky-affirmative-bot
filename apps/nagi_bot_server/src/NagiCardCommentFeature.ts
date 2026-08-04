@@ -7,7 +7,7 @@ import {
   generateNagiCardComment,
   NAGI_CARD_COMMENT_PROMPT_VERSION,
 } from "@bsky-affirmative-bot/bot-brain";
-import { getCardDef, MODEL_GEMINI } from "@bsky-affirmative-bot/shared-configs";
+import { getCardDef, aiModel } from "@bsky-affirmative-bot/shared-configs";
 import { eq } from "drizzle-orm";
 
 /**
@@ -65,7 +65,7 @@ export async function runNagiCardComment(instanceId: string): Promise<void> {
     .set({
       commentJa: result.commentJa || null,
       commentEn: result.commentEn || null,
-      commentModel: MODEL_GEMINI,
+      commentModel: aiModel("NAGI_CARD_COMMENT"),
       commentPromptVersion: NAGI_CARD_COMMENT_PROMPT_VERSION,
     })
     .where(eq(nagiCardInstances.id, instanceId));

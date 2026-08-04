@@ -1,6 +1,8 @@
+import { aiModel } from "@bsky-affirmative-bot/shared-configs";
+
 export async function generateEmbedding(text: string): Promise<number[] | null> {
   const baseUrl = process.env.OLLAMA_BASE_URL;
-  const model   = process.env.OLLAMA_EMBED_MODEL ?? "snowflake-arctic-embed2";
+  const model   = aiModel("OLLAMA_EMBED");
   if (!baseUrl) return null;
 
   try {
@@ -25,7 +27,7 @@ export async function generateEmbedding(text: string): Promise<number[] | null> 
 
 export async function generateEmbeddings(texts: string[]): Promise<(number[] | null)[]> {
   const baseUrl = process.env.OLLAMA_BASE_URL;
-  const model   = process.env.OLLAMA_EMBED_MODEL ?? "snowflake-arctic-embed2";
+  const model   = aiModel("OLLAMA_EMBED");
   if (!baseUrl || texts.length === 0) return texts.map(() => null);
 
   try {

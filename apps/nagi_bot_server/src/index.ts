@@ -31,6 +31,7 @@ import {
 import { publishNews } from "./NagiNewsFeature.js";
 import { schedulePositiveNewsUpdates } from "./positiveNewsUpdater.js";
 import { scheduleUserNewsReviews } from "./userNewsReviewWorker.js";
+import { logAiRouteTable } from "@bsky-affirmative-bot/shared-configs";
 
 /**
  * 開発環境かどうか。DEV 系のフラグを増やさないための単一の判定。
@@ -39,6 +40,8 @@ import { scheduleUserNewsReviews } from "./userNewsReviewWorker.js";
 const isDev = process.env.NODE_ENV === "development";
 
 async function start() {
+  // どの機能がどのモデル/tierで動いているかを起動時に1回だけ出す。
+  logAiRouteTable({ prefixes: ["NAGI_", "NEWS_", "OLLAMA_"] });
   await initializeDatabases();
   await initAgent();
 

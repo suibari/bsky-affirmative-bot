@@ -6,7 +6,7 @@ import eventsEveningWorkday from "@bsky-affirmative-bot/shared-configs/json/even
 import eventsEveningDayoff from "@bsky-affirmative-bot/shared-configs/json/event_evening_dayoff.json" with { type: "json" };
 import eventsNight from "@bsky-affirmative-bot/shared-configs/json/event_night.json" with { type: "json" };
 import eventsMidnight from "@bsky-affirmative-bot/shared-configs/json/event_midnight.json" with { type: "json" };
-import { MODEL_GEMINI, SYSTEM_INSTRUCTION, botDayRange } from '@bsky-affirmative-bot/shared-configs';
+import { SYSTEM_INSTRUCTION, botDayRange } from '@bsky-affirmative-bot/shared-configs';
 import { gemini, generateContentWithRetry } from '@bsky-affirmative-bot/bot-brain';
 import { DailyReport, Stats } from '@bsky-affirmative-bot/shared-configs';
 import EventEmitter from "events";
@@ -500,7 +500,7 @@ ${buildRoomEventsSection(roomEvents)}
 
   private async generateStatus(prompt: string): Promise<{ status_text: string, status_text_en: string, duration_minutes: number }> {
     const response = await generateContentWithRetry({
-      model: MODEL_GEMINI,
+      feature: 'BSKY_BIORHYTHM_STATUS',
       contents: prompt,
       config: {
         // ペルソナはシステムターンに置く（ユーザ入力として扱わせない）。

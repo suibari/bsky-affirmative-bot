@@ -1,7 +1,7 @@
 import { AppBskyActorDefs } from "@atproto/api";
 type ProfileView = AppBskyActorDefs.ProfileView;
 import { Type } from "@google/genai";
-import { MODEL_GEMINI, SYSTEM_INSTRUCTION, TONE_RULES_JA } from "@bsky-affirmative-bot/shared-configs";
+import { SYSTEM_INSTRUCTION, TONE_RULES_JA } from "@bsky-affirmative-bot/shared-configs";
 import { generateContentWithRetry, normalizeUrlSpacing } from "./util.js";
 
 export interface GoodNightInfo {
@@ -23,7 +23,7 @@ export async function generateGoodNight(param: GoodNightInfo): Promise<GoodNight
   const prompt = buildGoodNightPrompt(param);
 
   const response = await generateContentWithRetry({
-    model: MODEL_GEMINI,
+    feature: "BSKY_GOOD_NIGHT",
     contents: [prompt],
     config: {
       systemInstruction: SYSTEM_INSTRUCTION,

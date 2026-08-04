@@ -1,7 +1,7 @@
-import { Type, ServiceTier } from "@google/genai";
+import { Type } from "@google/genai";
 import { gemini } from "./index.js";
 import { generateContentWithRetry } from "./util.js";
-import { UserInfoGemini, MODEL_GEMINI, SYSTEM_INSTRUCTION, safeFetch } from "@bsky-affirmative-bot/shared-configs";
+import { UserInfoGemini, SYSTEM_INSTRUCTION, safeFetch } from "@bsky-affirmative-bot/shared-configs";
 
 export interface AnalyzeResult {
   analysis: string;
@@ -37,11 +37,10 @@ export async function generateAnalyzeResult(userinfo: UserInfoGemini): Promise<A
   }
 
   const response = await generateContentWithRetry({
-    model: MODEL_GEMINI,
+    feature: "BSKY_ANALYZE",
     contents,
     config: {
       systemInstruction: SYSTEM_INSTRUCTION,
-      serviceTier: userinfo.isSubscriber ? ServiceTier.STANDARD : ServiceTier.FLEX,
       responseMimeType: "application/json",
       responseSchema: {
         type: Type.OBJECT,

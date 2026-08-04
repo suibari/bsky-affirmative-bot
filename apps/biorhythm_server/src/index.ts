@@ -6,6 +6,7 @@ import dotenv from "dotenv";
 import { BiorhythmManager } from "./manager.js";
 import { startHealthMonitor } from "./healthMonitor.js";
 import { publicApi } from "./publicApi.js";
+import { logAiRouteTable } from "@bsky-affirmative-bot/shared-configs";
 import {
   attachBiorhythmWebSocketServer,
   parseAllowedOrigins,
@@ -13,6 +14,8 @@ import {
 } from "./websocketServer.js";
 
 dotenv.config({ path: '../../.env' });
+
+logAiRouteTable({ prefixes: ['BSKY_BIORHYTHM_'] });
 
 const app = express();
 app.use(express.json());

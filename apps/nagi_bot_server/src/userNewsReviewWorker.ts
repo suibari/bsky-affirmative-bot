@@ -6,7 +6,7 @@ import {
 } from "@bsky-affirmative-bot/database";
 import {
   judgePositiveNewsBatch,
-  POSITIVE_NEWS_MODEL,
+  positiveNewsModel,
   POSITIVE_NEWS_PROMPT_VERSION,
   type PositiveNewsCandidate,
 } from "@bsky-affirmative-bot/bot-brain";
@@ -293,7 +293,7 @@ export async function runUserNewsReviewBatch(now = new Date()): Promise<number> 
           botCommentJa: decision.botCommentJa,
           titleEn: decision.titleEn,
           botCommentEn: decision.botCommentEn,
-          model: POSITIVE_NEWS_MODEL,
+          model: positiveNewsModel(),
           promptVersion: POSITIVE_NEWS_PROMPT_VERSION,
           ...snapshot,
         })
@@ -305,7 +305,7 @@ export async function runUserNewsReviewBatch(now = new Date()): Promise<number> 
             botCommentJa: decision.botCommentJa,
             titleEn: decision.titleEn,
             botCommentEn: decision.botCommentEn,
-            model: POSITIVE_NEWS_MODEL,
+            model: positiveNewsModel(),
             promptVersion: POSITIVE_NEWS_PROMPT_VERSION,
             hiddenAt: null,
             ...snapshot,

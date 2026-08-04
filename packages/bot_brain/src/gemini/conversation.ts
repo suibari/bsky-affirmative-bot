@@ -1,9 +1,10 @@
 import { PartListUnion } from '@google/genai';
 import { gemini } from './index.js';
-import { MODEL_GEMINI, SYSTEM_INSTRUCTION, MODEL_GEMINI_HIGH, TONE_RULES_JA, safeFetch } from '@bsky-affirmative-bot/shared-configs';
+import { SYSTEM_INSTRUCTION, TONE_RULES_JA, safeFetch, resolveAiRoute } from '@bsky-affirmative-bot/shared-configs';
 import { UserInfoGemini, GeminiScore } from '@bsky-affirmative-bot/shared-configs';
 import { formatBotContext } from './util.js';
 import type { GeminiRequestOptions } from './util.js';
+import { toServiceTier } from './aiRoute.js';
 
 const MAX_GEMINI_TURNS = 50;
 
@@ -27,11 +28,16 @@ export async function conversation(userinfo: UserInfoGemini, requestOptions: Gem
   const prompt = buildConversationPrompt(userinfo);
   const historyForGemini = prepareConversationHistory(userinfo.history);
 
+  // chats.create は generateContentWithRetry を通らないので、ここでルートを自前で解決する。
+  // 優先順位は他と同じく「明示 requestOptions（Nagi の再試行ラダー） > BSKY_CONVERSATION のルート」。
+  const route = resolveAiRoute('BSKY_CONVERSATION');
+  const serviceTier = toServiceTier(requestOptions.serviceTier ?? route.serviceTier);
   const chat = gemini.chats.create({
-    model: MODEL_GEMINI_HIGH,
+    model: requestOptions.model ?? route.model,
     history: historyForGemini.length > 0 ? historyForGemini : undefined,
     config: {
       systemInstruction: SYSTEM_INSTRUCTION,
+      ...(serviceTier ? { serviceTier } : {}),
     },
   });
 

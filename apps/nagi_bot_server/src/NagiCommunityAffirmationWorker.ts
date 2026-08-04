@@ -14,7 +14,7 @@ import {
   blobImagesToImageRefs,
   resolvePdsUrl,
 } from "@bsky-affirmative-bot/bot-runtime";
-import { MODEL_GEMINI } from "@bsky-affirmative-bot/shared-configs";
+import { aiModel } from "@bsky-affirmative-bot/shared-configs";
 import {
   and,
   asc,
@@ -472,7 +472,7 @@ async function processOne(now: Date) {
         summaryEn: result.publishable ? result.summaryEn : null,
         leaseExpiresAt: null,
         lastError: result.publishable ? null : result.reasonCode,
-        model: MODEL_GEMINI,
+        model: aiModel("NAGI_COMMUNITY_AFFIRMATION"),
         promptVersion: COMMUNITY_AFFIRMATION_PROMPT_VERSION,
         updatedAt: new Date(),
       })

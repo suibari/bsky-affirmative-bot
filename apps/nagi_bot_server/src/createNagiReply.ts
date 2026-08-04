@@ -24,11 +24,8 @@ import {
 } from "./nagiReplyContext.js";
 import { publishNagiPost } from "./nagiPost.js";
 import type { NagiReplyMode } from "./nagiAiQuota.js";
-import type { NagiAiRoute } from "./nagiReplyRetry.js";
-import {
-  MODEL_GEMINI,
-  MODEL_GEMINI_HIGH,
-} from "@bsky-affirmative-bot/shared-configs";
+import { nagiAiRouteForAttempt } from "./nagiReplyRetry.js";
+import type { NagiAiRouteDetails } from "./nagiReplyRetry.js";
 
 configureBotContext({
   getWeather: getYokohamaWeather,
@@ -109,7 +106,7 @@ export async function createNagiReply(
   options: {
     mode: NagiReplyMode;
     beforeGeminiRequest?: () => Promise<void>;
-    aiRoute?: NagiAiRoute;
+    aiRoute?: NagiAiRouteDetails;
   },
 ) {
   const record: any = job.recordJson;
@@ -128,7 +125,7 @@ export async function createNagiReply(
     };
   } else {
     const context = await buildNagiReplyContext(job);
-    const aiRoute = options.aiRoute ?? "lite-flex";
+    const aiRoute = options.aiRoute ?? nagiAiRouteForAttempt(1);
     console.log("[INFO][NAGI] Gemini reply context:", {
       ...context.diagnostics,
       mode: conversationMode ? "conversation" : "affirmative",
@@ -155,9 +152,8 @@ export async function createNagiReply(
           } as any,
           {
             beforeRequest: options.beforeGeminiRequest,
-            model:
-              aiRoute === "flash-standard" ? MODEL_GEMINI_HIGH : MODEL_GEMINI,
-            serviceTier: aiRoute === "lite-flex" ? "flex" : "standard",
+            model: aiRoute.model,
+            serviceTier: aiRoute.serviceTier,
           },
         );
   }

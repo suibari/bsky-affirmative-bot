@@ -1,3 +1,4 @@
+import { aiModel } from "@bsky-affirmative-bot/shared-configs";
 const required = (name: string, fallback?: string) => {
   const value = process.env[name] ?? fallback;
   if (!value) throw new Error(`Missing required environment variable: ${name}`);
@@ -131,13 +132,12 @@ export const config = {
     100,
   ),
   ollamaUrl: url("OLLAMA_BASE_URL", "http://localhost:11434"),
-  translationModel: process.env.OLLAMA_TRANSLATION_MODEL ?? "translategemma:4b",
+  // モデル名はレジストリ（shared-configs の aiRoutes.ts）が唯一の出どころ。
+  // 差し替えは AI_ROUTE_OLLAMA_TRANSLATION / OLLAMA_TRANSLATION_MODEL などで行う。
+  translationModel: aiModel("OLLAMA_TRANSLATION"),
   // botたん本人の投稿だけに使うペルソナ翻訳用モデル。translategemma は純粋なMTで
   // 口調の指示に従えないので、instruct系（既に配備済みの gemma3 等）を使う。
-  botTranslationModel:
-    process.env.OLLAMA_BOT_TRANSLATION_MODEL ??
-    process.env.OLLAMA_MODEL ??
-    "gemma3:4b",
+  botTranslationModel: aiModel("OLLAMA_BOT_TRANSLATION"),
   translationConcurrency: integer("TRANSLATION_CONCURRENCY", 2, 1, 8),
   translationMissLimitPerMinute: integer(
     "TRANSLATION_MISS_LIMIT_PER_MINUTE",

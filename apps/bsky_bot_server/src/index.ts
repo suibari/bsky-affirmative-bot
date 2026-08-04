@@ -8,9 +8,14 @@ import { scheduleRegularBadgeSync } from "./features/RoomVisitBadgeFeature.js";
 import { updateFollowers, loadFollowersFromCache } from "./bsky/followerManagement.js";
 import { onPost, onFollow, onLike } from "./bsky/callbacks.js";
 import { router } from "./routes.js";
+import { logAiRouteTable } from "@bsky-affirmative-bot/shared-configs";
 import axios from "axios";
 
 dotenv.config({ path: '../../.env' });
+
+// どの機能がどのモデル/tierで動いているかを起動時に1回だけ出す。
+// dotenv.config() より後で呼ぶこと（env上書きを反映させるため）。
+logAiRouteTable({ prefixes: ['BSKY_', 'OLLAMA_'] });
 
 const app = express();
 app.use(express.json());

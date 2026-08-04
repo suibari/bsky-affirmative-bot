@@ -90,7 +90,7 @@ export function startNagiReplyWorker() {
           mode: decision.mode,
           beforeGeminiRequest:
             decision.mode === "ai" ? reserveNagiAiRequest : undefined,
-          aiRoute: aiRoute.route,
+          aiRoute,
         });
       } catch (error) {
         if (!(error instanceof NagiAiQuotaExceededError)) throw error;

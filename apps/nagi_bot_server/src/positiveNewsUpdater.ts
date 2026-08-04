@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { db, nagiNews, nagiNewsApprovals, nagiNewsScreening, nagiNewsUpdateRuns } from "@bsky-affirmative-bot/database";
-import { getPositiveNewsCandidates, judgePositiveNewsBatch, POSITIVE_NEWS_PROMPT_VERSION, POSITIVE_NEWS_MODEL } from "@bsky-affirmative-bot/bot-brain";
+import { getPositiveNewsCandidates, judgePositiveNewsBatch, POSITIVE_NEWS_PROMPT_VERSION, positiveNewsModel } from "@bsky-affirmative-bot/bot-brain";
 import { and, eq, gt, inArray, isNull, lt, or, sql } from "drizzle-orm";
 import { publishNews } from "./NagiNewsFeature.js";
 
@@ -83,7 +83,7 @@ export async function updatePositiveNews(now = new Date()): Promise<number> {
         const snapshot = { snapshotArticleId: candidate.articleId, snapshotUrl: candidate.link, snapshotTitleJa: candidate.title,
           snapshotSourceName: candidate.sourceName ?? null, snapshotSourceUrl: candidate.sourceUrl ?? null,
           snapshotPublishedAt: candidate.publishedAt ? new Date(candidate.publishedAt) : null, snapshotCreatedAt: now };
-        await db.insert(nagiNewsApprovals).values({ newsUri: ref.uri, newsCid: ref.cid, status: "approved", reasonCode: decision.reasonCode, botCommentJa: decision.botCommentJa, titleEn: decision.titleEn, botCommentEn: decision.botCommentEn, model: POSITIVE_NEWS_MODEL, promptVersion: POSITIVE_NEWS_PROMPT_VERSION, ...snapshot }).onConflictDoUpdate({ target: [nagiNewsApprovals.newsUri, nagiNewsApprovals.newsCid], set: { status: "approved", reasonCode: decision.reasonCode, botCommentJa: decision.botCommentJa, titleEn: decision.titleEn, botCommentEn: decision.botCommentEn, model: POSITIVE_NEWS_MODEL, promptVersion: POSITIVE_NEWS_PROMPT_VERSION, hiddenAt: null, ...snapshot } });
+        await db.insert(nagiNewsApprovals).values({ newsUri: ref.uri, newsCid: ref.cid, status: "approved", reasonCode: decision.reasonCode, botCommentJa: decision.botCommentJa, titleEn: decision.titleEn, botCommentEn: decision.botCommentEn, model: positiveNewsModel(), promptVersion: POSITIVE_NEWS_PROMPT_VERSION, ...snapshot }).onConflictDoUpdate({ target: [nagiNewsApprovals.newsUri, nagiNewsApprovals.newsCid], set: { status: "approved", reasonCode: decision.reasonCode, botCommentJa: decision.botCommentJa, titleEn: decision.titleEn, botCommentEn: decision.botCommentEn, model: positiveNewsModel(), promptVersion: POSITIVE_NEWS_PROMPT_VERSION, hiddenAt: null, ...snapshot } });
         published++;
       } catch (error) {
         console.error(`[ERROR][NEWS_FEED] Failed to publish article=${candidate.articleId}`, error);

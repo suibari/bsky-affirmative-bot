@@ -4,7 +4,6 @@ import { GoogleGenAI } from "@google/genai";
 export const gemini = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
 export * from './conversation.js';
-export * from './embeddingTexts.js';
 export * from './generateAffirmativeWord.js';
 export * from './generateAnalyzeResult.js';
 export * from './generateNagiAnalysis.js';
@@ -25,7 +24,6 @@ export * from './generateRecommendedSong.js';
 export * from './generateWhimsicalPost.js';
 export * from './generateWhimsicalReply.js';
 export * from './judgeCheerSubject.js';
-export * from './judgeReplySubject.js';
 export * from './generateBotDiary.js';
 export * from './judgePositiveNewsBatch.js';
 export * from './generateRoomWelcomeMessage.js';

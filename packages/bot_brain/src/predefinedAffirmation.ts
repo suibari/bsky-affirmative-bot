@@ -1,3 +1,4 @@
+import { aiModel } from "@bsky-affirmative-bot/shared-configs";
 import wordNeg from "@bsky-affirmative-bot/shared-configs/json/affirmativeword_negative.json" with { type: "json" };
 import wordNrm from "@bsky-affirmative-bot/shared-configs/json/affirmativeword_normal.json" with { type: "json" };
 import wordPos from "@bsky-affirmative-bot/shared-configs/json/affirmativeword_positive.json" with { type: "json" };
@@ -23,8 +24,10 @@ async function ollamaChat(
   maxTokens: number,
 ): Promise<string> {
   const baseUrl = process.env.OLLAMA_BASE_URL;
-  const model = process.env.OLLAMA_MODEL;
-  if (!baseUrl || !model) throw new Error("Ollama is not configured");
+  // OLLAMA_MODEL の「有無」は Ollama が設定済みかどうかの判定として使い続ける。
+  // モデルの「選択」自体はレジストリ側（OLLAMA_PREDEFINED_AFFIRMATION）に任せる。
+  if (!baseUrl || !process.env.OLLAMA_MODEL) throw new Error("Ollama is not configured");
+  const model = aiModel("OLLAMA_PREDEFINED_AFFIRMATION");
   const response = await fetch(`${baseUrl}/chat/completions`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
