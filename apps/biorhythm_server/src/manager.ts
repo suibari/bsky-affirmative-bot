@@ -38,6 +38,10 @@ import {
   getDailyTopPostCandidate,
   toDashboardTopPost,
 } from "./DailyTopPostProvider.js";
+import {
+  shouldConsiderWhimsicalPost,
+  shouldPostGoodMorning,
+} from "./scheduledPostGate.js";
 
 // WebSocket用にlangプロパティを配列に変換したDailyStatsの型を定義
 interface DailyStatsForWebSocket extends Omit<DailyReport, 'lang'> { // DailyStatsをDailyReportに変更
@@ -309,8 +313,10 @@ export class BiorhythmManager extends EventEmitter {
       currentAction: this.moodPrev
     });
 
-    // 朝の時間帯（4時〜10時）にSleepから他の状態に遷移する場合、必ずWakeUpを経由させる
-    if (this.status === "Sleep" && nextStatus !== "Sleep" && (hour >= 4 && hour <= 10)) {
+    // その日まだおはようを言っていないときにSleepから他の状態へ遷移する場合、必ずWakeUpを経由させる。
+    // 時刻ではなく「おはよう未投稿か」で見るのは、おはようポスト側も時刻の窓を持たないため。
+    // 条件がずれると、起床ポストをしながら mood は勉強中、といった食い違いが起きる。
+    if (this.status === "Sleep" && nextStatus !== "Sleep" && this.canPostGoodMorning()) {
       this.status = "WakeUp";
     } else {
       this.status = nextStatus;
@@ -375,32 +381,37 @@ export class BiorhythmManager extends EventEmitter {
         }
       }
 
-      // おはようポスト
-      if (this.firstStepDone) {
-        if (this.status !== this.statusPrev && this.status === "WakeUp" && (hour >= 4 && hour <= 10)) {
-          if (this.canPostGoodMorning()) {
-            console.log(`[INFO][BIORHYTHM] post goodmorning!`);
-            await postMorning();
-            await this.changeEnergy(-6000);
-            await this.setGoodMorningPostDate();
-          } else {
-            console.log(`[INFO][BIORHYTHM] goodmorning post already done today, skipping`);
-          }
-        }
+      // おはようポスト。firstStepDone で抑えないのは、朝に再起動が挟まった日に撃ち漏らすため。
+      // 二重投稿は canPostGoodMorning() と同じ bot 日ガード（shouldPostGoodMorning）が防ぐ。
+      if (shouldPostGoodMorning({
+        status: this.status,
+        today: this.getAdjustedDateString(),
+        lastGoodMorningPostDate: this.lastGoodMorningPostDate,
+      })) {
+        console.log(`[INFO][BIORHYTHM] post goodmorning!`);
+        await postMorning();
+        await this.changeEnergy(-6000);
+        await this.setGoodMorningPostDate();
       }
       this.firstStepDone = true;
 
-      // 定期つぶやきポスト
-      const today = this.getAdjustedDateString();
-      const isSleepingPeriod = this.lastGoodNightPostDate === today && this.lastGoodMorningPostDate !== today;
-      if (!isSleepingPeriod) {
-        if (((this.getEnergy >= 60) && (this.status !== "Sleep") || process.env.NODE_ENV === "development")) {
-          const probability = Math.random() * 100;
-          if (probability < this.getEnergy || process.env.NODE_ENV === "development") {
-            console.log(`[INFO][BIORHYTHM] post and decrease energy!`);
-            await postWhimsical(this.getMood);
-            await this.changeEnergy(-6000);
-          }
+      // 定期つぶやきポスト。
+      // おはようより先に出ないのは、両方が status !== "Sleep" を要求したうえで、おはようを
+      // 撃った step では直前の changeEnergy(-6000) ＝ -60 によって定期つぶやきの下限60を
+      // 割り込むから（エネルギーの上限が100なので、-60 したあと60以上は残りえない）。
+      // この -60 は順序保証の一部でもある。
+      if (shouldConsiderWhimsicalPost({
+        status: this.status,
+        energy: this.getEnergy,
+        lastGoodNightPostDate: this.lastGoodNightPostDate,
+        lastGoodMorningPostDate: this.lastGoodMorningPostDate,
+        isDevelopment: process.env.NODE_ENV === "development",
+      })) {
+        const probability = Math.random() * 100;
+        if (probability < this.getEnergy || process.env.NODE_ENV === "development") {
+          console.log(`[INFO][BIORHYTHM] post and decrease energy!`);
+          await postWhimsical(this.getMood);
+          await this.changeEnergy(-6000);
         }
       }
 
