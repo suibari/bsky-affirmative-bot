@@ -1,0 +1,60 @@
+{
+  "lexicon": 1,
+  "id": "com.suibari.nagi.putPreferences",
+  "defs": {
+    "main": {
+      "type": "procedure",
+      "description": "同期対象の設定を書き込む。既読位置は (indexedAt, uri) が進むときだけ更新する単調マージ、お気に入りは updatedAt による後勝ち。どちらも省略でき、送った分だけが更新される。",
+      "input": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "readPositions": {
+              "type": "array",
+              "maxLength": 16,
+              "items": {
+                "type": "ref",
+                "ref": "com.suibari.nagi.getPreferences#readPosition"
+              }
+            },
+            "emojiFavorites": {
+              "type": "array",
+              "maxLength": 32,
+              "items": { "type": "unknown" }
+            },
+            "emojiFavoritesUpdatedAt": {
+              "type": "string",
+              "format": "datetime",
+              "description": "emojiFavorites を送るときは必須。保存済みより古ければ書き込まない。"
+            }
+          }
+        }
+      },
+      "output": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "required": ["readPositions", "emojiFavorites"],
+          "properties": {
+            "readPositions": {
+              "type": "array",
+              "items": {
+                "type": "ref",
+                "ref": "com.suibari.nagi.getPreferences#readPosition"
+              },
+              "description": "マージ後の確定値。送った位置が負けた場合は保存済みの方が返る。"
+            },
+            "emojiFavorites": {
+              "type": "array",
+              "maxLength": 32,
+              "items": { "type": "unknown" }
+            },
+            "emojiFavoritesUpdatedAt": { "type": "string", "format": "datetime" }
+          }
+        }
+      },
+      "errors": [{ "name": "AuthRequired" }, { "name": "InvalidRequest" }]
+    }
+  }
+}

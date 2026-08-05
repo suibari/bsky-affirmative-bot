@@ -1,0 +1,66 @@
+{
+  "lexicon": 1,
+  "id": "com.suibari.nagi.getPreferences",
+  "defs": {
+    "main": {
+      "type": "query",
+      "description": "端末をまたいで同期する本人の設定（my Nagi の既読位置とお気に入り絵文字）を返す。他ユーザーからは参照できない。",
+      "output": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "required": ["readPositions", "emojiFavorites"],
+          "properties": {
+            "readPositions": {
+              "type": "array",
+              "items": { "type": "ref", "ref": "#readPosition" }
+            },
+            "emojiFavorites": {
+              "type": "array",
+              "maxLength": 32,
+              "items": { "type": "unknown" },
+              "description": "お気に入り絵文字パレット。表示順そのまま。要素は #unicodeFavorite または #customFavorite。"
+            },
+            "emojiFavoritesUpdatedAt": {
+              "type": "string",
+              "format": "datetime",
+              "description": "省略時は、この利用者のお気に入りがまだ一度も同期されていないことを表す。"
+            }
+          }
+        }
+      },
+      "errors": [{ "name": "AuthRequired" }]
+    },
+    "readPosition": {
+      "type": "object",
+      "description": "「ここまで読んだ」位置。新旧の比較は (indexedAt, uri) の辞書順で行う。",
+      "required": ["section", "indexedAt", "uri"],
+      "properties": {
+        "section": {
+          "type": "string",
+          "knownValues": ["bot", "community", "list", "channels", "news"],
+          "maxLength": 32
+        },
+        "indexedAt": { "type": "string", "format": "datetime" },
+        "uri": { "type": "string", "format": "at-uri", "maxLength": 2048 }
+      }
+    },
+    "unicodeFavorite": {
+      "type": "object",
+      "required": ["kind", "emoji"],
+      "properties": {
+        "kind": { "type": "string", "const": "unicode" },
+        "emoji": { "type": "string", "maxLength": 64 }
+      }
+    },
+    "customFavorite": {
+      "type": "object",
+      "description": "Bluemoji のスナップショット。url などは表示のたびに再解決されるので、権威は uri のみ。",
+      "required": ["kind", "emoji"],
+      "properties": {
+        "kind": { "type": "string", "const": "custom" },
+        "emoji": { "type": "unknown" }
+      }
+    }
+  }
+}

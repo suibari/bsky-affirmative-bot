@@ -17,6 +17,7 @@ import {
   nagiDiaries,
   nagiBotReplyJobs,
   nagiEmojis,
+  nagiEmojiFavorites,
   nagiMutes,
   nagiNotifications,
   nagiNews,
@@ -28,6 +29,7 @@ import {
   nagiProfiles,
   nagiPrivateListMembers,
   nagiPushSubscriptions,
+  nagiReadPositions,
   nagiReactions,
   nagiTranslations,
 } from "@bsky-affirmative-bot/database";
@@ -197,6 +199,10 @@ export async function deleteAccountData(did: string) {
     await tx
       .delete(nagiPushSubscriptions)
       .where(eq(nagiPushSubscriptions.recipientDid, did));
+
+    // 端末間で同期していた設定。既読位置は閲覧履歴そのものなので必ず消す。
+    await tx.delete(nagiReadPositions).where(eq(nagiReadPositions.did, did));
+    await tx.delete(nagiEmojiFavorites).where(eq(nagiEmojiFavorites.did, did));
 
     // 重複排除ログ。id は `${did}:${time_us}:...` なので前方一致で引ける。
     await tx

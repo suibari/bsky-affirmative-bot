@@ -48,6 +48,7 @@ import {
   getPrivateList,
   setPrivateListMember,
 } from "../queries/privateList.js";
+import { getPreferences, putPreferences } from "../queries/preferences.js";
 import { setChannelSubscription } from "../queries/channelSubscriptions.js";
 import { getMyNagi } from "../queries/myNagi.js";
 import { drawCard, getCards } from "../queries/cards.js";
@@ -692,6 +693,35 @@ xrpc.post(
       res
         .set("Cache-Control", "private, no-store")
         .json(await setPrivateListMember(req.viewerDid!, memberDid, included));
+    } catch (e) {
+      next(e);
+    }
+  },
+);
+// 端末間で同期する設定。既読位置は「いつ何を読んだか」そのものなので、ミュートと同じく
+// 本人以外へは一切出さない。DID は入力で受け取らず viewerDid だけを使う。
+xrpc.get(
+  `/${NAGI.getPreferences}`,
+  requiredServiceAuth(NAGI.getPreferences),
+  async (req, res, next) => {
+    try {
+      res
+        .set("Cache-Control", "private, no-store")
+        .json(await getPreferences(req.viewerDid!));
+    } catch (e) {
+      next(e);
+    }
+  },
+);
+xrpc.post(
+  `/${NAGI.putPreferences}`,
+  requiredServiceAuth(NAGI.putPreferences),
+  async (req, res, next) => {
+    try {
+      // 中身の検証は putPreferences 側にまとめてある（形が入れ子で長いため）。
+      res
+        .set("Cache-Control", "private, no-store")
+        .json(await putPreferences(req.viewerDid!, req.body ?? {}));
     } catch (e) {
       next(e);
     }

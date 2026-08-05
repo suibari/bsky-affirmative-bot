@@ -466,6 +466,47 @@ export type SetPrivateListMemberResult = {
 };
 
 // ---------------------------------------------------------------------------
+// 端末をまたいで同期する設定（既読位置・お気に入り絵文字）
+// ---------------------------------------------------------------------------
+/** my Nagi のドットを持つセクション。既読位置はセクションごとに1つ。 */
+export type ReadPositionSection =
+  "bot" | "community" | "list" | "channels" | "news";
+export const READ_POSITION_SECTIONS: readonly ReadPositionSection[] = [
+  "bot",
+  "community",
+  "list",
+  "channels",
+  "news",
+] as const;
+/**
+ * 「ここまで読んだ」位置。新旧は (indexedAt, uri) の辞書順で比較する
+ * （AppView のタイムライン順 indexedAt DESC, uri DESC と同じ規則）。
+ */
+export type ReadPosition = {
+  section: ReadPositionSection;
+  indexedAt: string;
+  uri: string;
+};
+/** お気に入り絵文字1つ。クライアントの localStorage と同じ形をそのまま保存する。 */
+export type EmojiFavorite =
+  { kind: "unicode"; emoji: string } | { kind: "custom"; emoji: EmojiView };
+/** お気に入りパレットの上限。クライアントの MAX_FAVORITES と揃える。 */
+export const EMOJI_FAVORITES_LIMIT = 32;
+export type PreferencesView = {
+  readPositions: ReadPosition[];
+  emojiFavorites: EmojiFavorite[];
+  /** 未同期（まだ一度も書き込んでいない）なら undefined。 */
+  emojiFavoritesUpdatedAt?: string;
+};
+export type PutPreferencesInput = {
+  readPositions?: ReadPosition[];
+  emojiFavorites?: EmojiFavorite[];
+  /** emojiFavorites を送るときは必須。保存済みより古ければ書き込まない。 */
+  emojiFavoritesUpdatedAt?: string;
+};
+export type PutPreferencesResult = PreferencesView;
+
+// ---------------------------------------------------------------------------
 // 全肯定カード（1日1回引けるトレカ）
 // ---------------------------------------------------------------------------
 /** N < R < SR < UR < AAR(All-Affirmation Rare)。 */

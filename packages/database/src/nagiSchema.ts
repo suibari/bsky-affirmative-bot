@@ -786,3 +786,40 @@ export const nagiCardCommentJobs = nagiSchema.table(
   },
   (t) => [index("nagi_card_comment_jobs_ready_idx").on(t.state, t.nextAttemptAt)],
 );
+
+/**
+ * 端末をまたいで同期する「ここまで読んだ」位置。my Nagi の各セクションのドットに使う。
+ * ミュートや非公開リストと同じく、PDS レコードにすると「いつ何を読んだか」が公開されて
+ * しまうので AppView だけが持ち、認証した本人にしか返さない。
+ *
+ * 書き込みは単調（monotonic）。(indexed_at, uri) が現在値より進むときだけ更新するため、
+ * 復帰の遅れた端末が古い位置を送っても既読が巻き戻らず、端末間のロックが要らない。
+ */
+export const nagiReadPositions = nagiSchema.table(
+  "read_positions",
+  {
+    did: text("did").notNull(),
+    /** "bot" | "community" | "list" | "channels" | "news"。将来の追加に備えて text のまま。 */
+    section: text("section").notNull(),
+    indexedAt: timestamp("indexed_at", { withTimezone: true }).notNull(),
+    uri: text("uri").notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  // 主キーがそのまま「本人の全セクションを引く」索引なので、追加の索引は要らない。
+  (t) => [primaryKey({ columns: [t.did, t.section] })],
+);
+
+/**
+ * お気に入り絵文字パレット。順序のある1本の配列で、部分マージに意味が無いため
+ * updated_at による後勝ち（last-write-wins）で丸ごと差し替える。
+ * choices はクライアントの localStorage と同じ形（ReactionChoice[]）をそのまま入れる。
+ */
+export const nagiEmojiFavorites = nagiSchema.table("emoji_favorites", {
+  did: text("did").primaryKey(),
+  choices: jsonb("choices").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});

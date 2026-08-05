@@ -91,6 +91,12 @@ export const NAGI = {
    * 認可の実体は既存の service auth（viewerDid）なので、新しい認証経路は増えない。
    */
   createSsoTicket: "com.suibari.nagi.createSsoTicket",
+  /**
+   * 端末をまたいで同期する本人の設定（my Nagi の既読位置・お気に入り絵文字）。
+   * ミュートと同じく他ユーザーに見せない情報なので PDS レコードにはせず AppView だけが持つ。
+   */
+  getPreferences: "com.suibari.nagi.getPreferences",
+  putPreferences: "com.suibari.nagi.putPreferences",
 } as const;
 
 /** Bluemoji (moji.blue) の絵文字定義レコード。カスタム絵文字はユーザー自身のPDSに置く。 */
