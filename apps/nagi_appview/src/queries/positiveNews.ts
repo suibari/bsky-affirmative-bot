@@ -10,7 +10,15 @@ import { and, desc, eq, inArray, isNotNull, isNull, lt, notInArray, or, sql } fr
 import { config } from "../config.js";
 import { decodeCursor, encodeCursor, getBotActor } from "./timeline.js";
 import { getReactionViews } from "./reactions.js";
-import { embedQuery, hybridConditions } from "./hybridSearch.js";
+import {
+  embedQuery,
+  hybridConditions,
+  lexicalMatch,
+  relativeCut,
+  SEMANTIC_LIMIT,
+  semanticConditions,
+  type SearchMode,
+} from "./hybridSearch.js";
 import { loadMutes } from "./mutes.js";
 
 export type NewsLang = "ja" | "en";
@@ -162,19 +170,54 @@ export async function searchNews(opts: {
   cursor?: string;
   lang: NewsLang;
   viewerDid?: string;
+  mode?: SearchMode;
 }): Promise<Page<NewsView>> {
   const q = opts.q.trim();
+  const mode: SearchMode = opts.mode ?? "hybrid";
   const offset = decodeOffset(opts.cursor);
   const mutes = await loadMutes(opts.viewerDid);
-  const embedding = await embedQuery(q);
-  const { match, orderBy } = hybridConditions({
-    embedding,
-    q,
-    embeddingCol: nagiNews.embedding,
-    textExpr: sql`coalesce(${nagiNewsApprovals.snapshotTitleJa}, ${nagiNews.titleJa})`,
-  });
+  // exact は埋め込みを使わないので Ollama 往復ごと省く。
+  const embedding = mode === "exact" ? null : await embedQuery(q);
+  const textExpr = sql`coalesce(${nagiNewsApprovals.snapshotTitleJa}, ${nagiNews.titleJa})`;
+  const noDistance = sql<number>`0`;
+  const conditions =
+    mode === "exact"
+      ? {
+          match: lexicalMatch({ q, textExpr }),
+          // 一致は getPositiveNews と同じ新着順。
+          orderBy: sql`${nagiNews.indexedAt} desc`,
+          distance: noDistance,
+        }
+      : mode === "semantic"
+        ? semanticConditions({
+            embedding,
+            q,
+            embeddingCol: nagiNews.embedding,
+            textExpr,
+          })
+        : {
+            ...hybridConditions({
+              embedding,
+              q,
+              embeddingCol: nagiNews.embedding,
+              textExpr,
+            }),
+            distance: noDistance,
+          };
+  if (!conditions) {
+    // Ollama 不通で意味検索ができない。気まぐれだけ空にして一致検索は生かす。
+    return { items: [], botActor: await getBotActor(), hasMore: false };
+  }
+  // 気まぐれは相対しきい値で裾を切るのでページングせず打ち止め。
+  const semantic = mode === "semantic";
   const rows = await db
-    .select({ news: nagiNews, approval: nagiNewsApprovals, actor: nagiActors, profile: nagiProfiles })
+    .select({
+      news: nagiNews,
+      approval: nagiNewsApprovals,
+      actor: nagiActors,
+      profile: nagiProfiles,
+      semDistance: conditions.distance,
+    })
     .from(nagiNews)
     .innerJoin(nagiNewsApprovals, eq(nagiNewsApprovals.newsUri, nagiNews.uri))
     .leftJoin(nagiActors, eq(nagiActors.did, nagiNews.did))
@@ -187,14 +230,16 @@ export async function searchNews(opts: {
         hasTrustedSnapshot,
         or(eq(nagiNews.did, config.botDid), isNull(nagiActors.did), eq(nagiActors.status, "active")),
         ...(mutes.actors.length ? [notInArray(nagiNews.did, mutes.actors)] : []),
-        match,
+        conditions.match,
       ),
     )
-    .orderBy(orderBy, sql`${nagiNews.uri} desc`)
-    .limit(opts.limit + 1)
-    .offset(offset);
-  const page = rows.slice(0, opts.limit);
-  const hasMore = rows.length > opts.limit;
+    .orderBy(conditions.orderBy, sql`${nagiNews.uri} desc`)
+    .limit(semantic ? SEMANTIC_LIMIT : opts.limit + 1)
+    .offset(semantic ? 0 : offset);
+  const page = semantic
+    ? relativeCut(rows, (row) => Number(row.semDistance))
+    : rows.slice(0, opts.limit);
+  const hasMore = !semantic && rows.length > opts.limit;
   const [reactions, botActor] = await Promise.all([
     getReactionViews(
       page.map((row) => row.news.uri),

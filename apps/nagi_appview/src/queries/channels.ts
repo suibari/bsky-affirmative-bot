@@ -6,7 +6,15 @@ import {
   getTimeline,
   hydratePostViews,
 } from "./timeline.js";
-import { embedQuery, hybridConditions } from "./hybridSearch.js";
+import {
+  embedQuery,
+  hybridConditions,
+  lexicalMatch,
+  relativeCut,
+  SEMANTIC_LIMIT,
+  semanticConditions,
+  type SearchMode,
+} from "./hybridSearch.js";
 import { channelView, iso } from "./channelView.js";
 import { isChannelMuted, loadMutes } from "./mutes.js";
 import { loadSubscribedAmong } from "./channelSubscriptions.js";
@@ -113,20 +121,48 @@ export async function searchChannels(opts: {
   limit: number;
   cursor?: string;
   viewerDid?: string;
+  mode?: SearchMode;
 }) {
   const q = opts.q.trim();
+  const mode: SearchMode = opts.mode ?? "hybrid";
   const offset = decodeOffset(opts.cursor);
   const [embedding, mutes] = await Promise.all([
-    embedQuery(q),
+    // exact は埋め込みを使わないので Ollama 往復ごと省く。
+    mode === "exact" ? Promise.resolve(null) : embedQuery(q),
     loadMutes(opts.viewerDid),
   ]);
   const textExpr = sql`coalesce(${nagiChannels.name}, '') || ' ' || coalesce(${nagiChannels.description}, '')`;
-  const { match, orderBy } = hybridConditions({
-    embedding,
-    q,
-    embeddingCol: nagiChannels.embedding,
-    textExpr,
-  });
+  const noDistance = sql<number>`0`;
+  const conditions =
+    mode === "exact"
+      ? {
+          match: lexicalMatch({ q, textExpr }),
+          // 一致は活動順（getChannels と同じ sortAt）。スコアで並べる理由がない。
+          orderBy: sql`${sortAt} desc`,
+          distance: noDistance,
+        }
+      : mode === "semantic"
+        ? semanticConditions({
+            embedding,
+            q,
+            embeddingCol: nagiChannels.embedding,
+            textExpr,
+          })
+        : {
+            ...hybridConditions({
+              embedding,
+              q,
+              embeddingCol: nagiChannels.embedding,
+              textExpr,
+            }),
+            distance: noDistance,
+          };
+  if (!conditions) {
+    // Ollama 不通で意味検索ができない。気まぐれだけ空にして一致検索は生かす。
+    return { channels: [], hasMore: false };
+  }
+  // 気まぐれは相対しきい値で裾を切るのでページングせず打ち止め。
+  const semantic = mode === "semantic";
   const rows = await db
     .select({
       uri: nagiChannels.uri,
@@ -140,6 +176,7 @@ export async function searchChannels(opts: {
       recordCreatedAt: nagiChannels.recordCreatedAt,
       indexedAt: nagiChannels.indexedAt,
       lastPostAt: lastPostSub.lastPostAt,
+      semDistance: conditions.distance,
     })
     .from(nagiChannels)
     .leftJoin(lastPostSub, eq(lastPostSub.channelUri, nagiChannels.uri))
@@ -149,14 +186,16 @@ export async function searchChannels(opts: {
         ...(mutes.channels.length
           ? [notInArray(nagiChannels.uri, mutes.channels)]
           : []),
-        match,
+        conditions.match,
       ),
     )
-    .orderBy(orderBy, sql`${nagiChannels.uri} desc`)
-    .limit(opts.limit + 1)
-    .offset(offset);
-  const page = rows.slice(0, opts.limit);
-  const hasMore = rows.length > opts.limit;
+    .orderBy(conditions.orderBy, sql`${nagiChannels.uri} desc`)
+    .limit(semantic ? SEMANTIC_LIMIT : opts.limit + 1)
+    .offset(semantic ? 0 : offset);
+  const page = semantic
+    ? relativeCut(rows, (row) => Number(row.semDistance))
+    : rows.slice(0, opts.limit);
+  const hasMore = !semantic && rows.length > opts.limit;
   return {
     channels: page.map(channelView),
     cursor: hasMore ? encodeOffset(offset + opts.limit) : undefined,

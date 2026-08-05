@@ -11,7 +11,7 @@ import {
   ssoTicketEnabled,
 } from "../services/ssoTicket.js";
 import { getTimeline } from "../queries/timeline.js";
-import { searchPostsByText } from "../queries/search.js";
+import { searchPostsByText, type SearchMode } from "../queries/search.js";
 import {
   getChannel,
   getChannelTimeline,
@@ -69,6 +69,14 @@ import { parseRecordUri } from "../ingest/recordUri.js";
 export const xrpc = Router();
 const limit = (value: unknown) =>
   Math.min(100, Math.max(1, Number(value ?? 50) || 50));
+/**
+ * 検索の 🔍一致 / botたんの気まぐれ の出し分け。未知の値は 400 にせず従来の hybrid に倒す
+ * （古いクライアントや手打ちの URL を壊さない）。
+ */
+const searchMode = (value: unknown): SearchMode => {
+  const raw = String(value ?? "");
+  return raw === "exact" || raw === "semantic" ? raw : "hybrid";
+};
 
 xrpc.get(
   `/${NAGI.getCommunityAffirmations}`,
@@ -293,6 +301,7 @@ xrpc.get(
               })
             : searchChannels({
                 q,
+                mode: searchMode(req.query.mode),
                 limit: limit(req.query.limit),
                 cursor: String(req.query.cursor ?? "") || undefined,
                 viewerDid: req.viewerDid,
@@ -371,6 +380,7 @@ xrpc.get(
         res.set("Cache-Control", cacheControl).json(
           await searchPostsByText({
             q,
+            mode: searchMode(req.query.mode),
             limit: limit(req.query.limit),
             cursor: String(req.query.cursor ?? "") || undefined,
             viewerDid: req.viewerDid,
@@ -521,6 +531,7 @@ xrpc.get(
         .json(
           await searchNews({
             q,
+            mode: searchMode(req.query.mode),
             limit: Math.min(20, limit(req.query.limit)),
             cursor: String(req.query.cursor ?? "") || undefined,
             lang,
@@ -579,7 +590,13 @@ xrpc.get(`/${NAGI.searchActors}`, async (req, res, next) => {
     const query = String(req.query.q ?? "");
     res
       .set("Cache-Control", "public, max-age=15")
-      .json(await searchActors(query, Math.min(10, limit(req.query.limit))));
+      .json(
+        await searchActors(
+          query,
+          Math.min(20, limit(req.query.limit)),
+          searchMode(req.query.mode),
+        ),
+      );
   } catch (e) {
     next(e);
   }
