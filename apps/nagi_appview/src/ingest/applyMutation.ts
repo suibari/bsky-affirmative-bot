@@ -41,24 +41,37 @@ const preview = (text: unknown, max = 80): string => {
 };
 
 /**
- * facets の #tag feature から小文字タグ配列を抽出する（/search 用のインデックス列）。
- * マッチングは小文字で正規化し、重複は除く。tag が無ければ null（列は NULL のまま）。
+ * facets の #tag feature やレコード直下の tags 配列から小文字タグ配列を抽出する（/search 用のインデックス列）。
+ * マッチングは先頭の # / ＃ をトリムして小文字で正規化し、重複は除く。tag が無ければ null（列は NULL のまま）。
  */
-const extractTags = (facets: unknown): string[] | null => {
-  if (!Array.isArray(facets)) return null;
+const extractTags = (value: any): string[] | null => {
+  if (!value || typeof value !== "object") return null;
   const tags = new Set<string>();
-  for (const facet of facets) {
-    if (!Array.isArray(facet?.features)) continue;
-    for (const feature of facet.features) {
-      if (
-        feature?.$type === "app.bsky.richtext.facet#tag" &&
-        typeof feature.tag === "string"
-      ) {
-        const tag = feature.tag.trim().toLowerCase();
+
+  if (Array.isArray(value.facets)) {
+    for (const facet of value.facets) {
+      if (!Array.isArray(facet?.features)) continue;
+      for (const feature of facet.features) {
+        if (
+          feature?.$type === "app.bsky.richtext.facet#tag" &&
+          typeof feature.tag === "string"
+        ) {
+          const tag = feature.tag.replace(/^[#＃]+/, "").trim().toLowerCase();
+          if (tag) tags.add(tag);
+        }
+      }
+    }
+  }
+
+  if (Array.isArray(value.tags)) {
+    for (const rawTag of value.tags) {
+      if (typeof rawTag === "string") {
+        const tag = rawTag.replace(/^[#＃]+/, "").trim().toLowerCase();
         if (tag) tags.add(tag);
       }
     }
   }
+
   return tags.size ? [...tags] : null;
 };
 
@@ -322,7 +335,7 @@ export async function applyMutation(
             did,
             text: value.text,
             facets: value.facets,
-            tags: extractTags(value.facets),
+            tags: extractTags(value),
             langs: value.langs,
             recordJson: value,
             replyRootUri: value.reply?.root.uri,

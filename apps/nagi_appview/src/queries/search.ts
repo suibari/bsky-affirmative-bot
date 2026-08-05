@@ -38,6 +38,12 @@ export async function searchPostsByText(opts: {
     embedQuery(q),
     loadMutes(opts.viewerDid),
   ]);
+  const viewerMatch = opts.viewerDid
+    ? sql`${nagiPosts.did} = ${opts.viewerDid}`
+    : sql`false`;
+  const threadRootViewerMatch = opts.viewerDid
+    ? sql`thread_root.did = ${opts.viewerDid}`
+    : sql`false`;
   // 共有TLと同じ可視性フィルタ（getTimeline の !actorDid && !channelUri 経路を踏襲）。
   const visibility = [
     isNull(nagiPosts.deletedAt),
@@ -49,9 +55,9 @@ export async function searchPostsByText(opts: {
     sql`
       case
         when ${nagiPosts.replyRootUri} is null
-          then not (${nagiPosts.kossori} or ${nagiPosts.channelOnly})
+          then not ${nagiPosts.channelOnly} and (not ${nagiPosts.kossori} or ${viewerMatch})
         else coalesce((
-          select not (thread_root.kossori or thread_root.channel_only)
+          select not thread_root.channel_only and (not thread_root.kossori or ${threadRootViewerMatch})
           from nagi.posts as thread_root
           where thread_root.uri = ${nagiPosts.replyRootUri}
             and thread_root.deleted_at is null

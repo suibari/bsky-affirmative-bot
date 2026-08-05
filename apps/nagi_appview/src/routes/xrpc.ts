@@ -359,6 +359,7 @@ xrpc.get(
         .slice(0, 200);
       const tag = String(req.query.tag ?? "")
         .trim()
+        .replace(/^[#＃]+/, "")
         .toLowerCase();
       if (!q && !tag) {
         throw new ApiError(400, "invalid_request", "q or tag is required");
