@@ -259,10 +259,9 @@ async function snapshotDailyMetrics(currentFollowers: number) {
     },
     nagi: {
       totalUsers: nagi.totalUsers,
-      reactions: nagi.reactions.today,
-      affirmations: nagi.affirmations.today,
-      affirmedUsers: nagi.affirmedUsers.today,
-      analyses: nagi.analyses.today,
+      totalReactions: nagi.totalReactions,
+      totalPosts: nagi.totalPosts,
+      totalAnalyses: nagi.totalAnalyses,
     },
     common: {
       aiRequests: rpd,

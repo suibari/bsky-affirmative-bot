@@ -18,7 +18,6 @@ import {
   nagiPostScores,
   nagiProfiles,
   nagiReactions,
-  nagiBotReplyJobs,
   nagiAnalysisJobs,
   daily_metrics,
   repo_write_points,
@@ -42,12 +41,6 @@ export * from './nagiSchema.js';
 export * from './health.js';
 export { filterRelatedHistory, generateEmbedding, generateEmbeddings } from './ollamaEmbed.js';
 export type { DailyReport, Stats };
-
-/** 「きょう」と「累計」の組。Nagi 側の指標はすべてこの形で返す。 */
-export interface NagiStatPair {
-  today: number;
-  total: number;
-}
 
 /**
  * 「きょうのおすすめ投稿」。Bluesky は URI だけ返し、本文とアバターはサイト側が
@@ -98,10 +91,10 @@ export interface DailyTopPostCandidateRow {
 /** bot-tan.com のダッシュボードの Nagi カラムが必要とする数値。 */
 export interface NagiStats {
   totalUsers: number;
-  reactions: NagiStatPair;
-  affirmations: NagiStatPair;
-  affirmedUsers: NagiStatPair;
-  analyses: NagiStatPair;
+  usersAddedYesterday: number;
+  totalReactions: number;
+  totalPosts: number;
+  totalAnalyses: number;
 }
 
 export type RepoWriteAction = 'create' | 'update' | 'delete';
@@ -998,66 +991,47 @@ static async getPost(did: string): Promise<any> {
   // ------------------------------------------------------------------
 
   /**
-   * Nagi 側の活動。
-   *
-   * totalStats / dailyStats のカウンタはプラットフォームの軸を持たず、実質
-   * Bluesky 専用（Nagi が触るのは reply と conversation だけ）なので、Nagi の
-   * 数字は nagi スキーマから直接数える。
-   *
-   * 「きょう」の境界は Bluesky 側と揃えるため stats_last_reset_at を使う。
+   * Nagi SNS 全体の規模と活動。bot アカウントへの反応に限定せず、
+   * AppView が取り込んだ nagi スキーマの全レコードを対象にする。
+   * 前日はダッシュボードの日次集計と同じ JST 暦日で区切る。
    */
   static async getNagiStats(): Promise<NagiStats> {
-    const lastResetAt = await this.getBotState('stats_last_reset_at');
-    const since = lastResetAt ? new Date(lastResetAt) : new Date(0);
-    const botDid = process.env.NAGI_BOT_DID;
     const num = (value: unknown): number => Number(value ?? 0);
+    const dayMs = 24 * 60 * 60 * 1000;
+    const jstOffsetMs = 9 * 60 * 60 * 1000;
+    const todayStartMs = Math.floor((Date.now() + jstOffsetMs) / dayMs) * dayMs - jstOffsetMs;
+    const yesterdayStart = new Date(todayStartMs - dayMs);
+    const todayStart = new Date(todayStartMs);
 
     const queries = [
       // 検索に出るユーザーの定義（nagi_appview の searchActors）に合わせる。
       db
-        .select({ count: sql`count(*)` })
+        .select({
+          total: sql`count(*)`,
+          addedYesterday: sql`count(*) filter (where ${and(
+            gte(nagiProfiles.createdAt, yesterdayStart),
+            lt(nagiProfiles.createdAt, todayStart),
+          )})`,
+        })
         .from(nagiProfiles)
         .innerJoin(nagiActors, eq(nagiActors.did, nagiProfiles.did))
         .where(eq(nagiActors.status, 'active')),
 
-      botDid
-        ? db
-            .select({
-              total: sql`count(*)`,
-              today: sql`count(*) filter (where ${gte(nagiReactions.createdAt, since)})`,
-            })
-            .from(nagiReactions)
-            .where(sql`${nagiReactions.subjectUri} like ${`at://${botDid}/%`}`)
-        : Promise.resolve([{ total: 0, today: 0 }]),
-
-      // 「全肯定した回数/人数」は、人に向けて実際に返信できたぶんだけを数える。
-      // community_affirmations（みんなで全肯定のストック）は誰かへの返信では
-      // ないので含めない。
-      db
-        .select({
-          total: sql`count(*)`,
-          today: sql`count(*) filter (where ${gte(nagiBotReplyJobs.updatedAt, since)})`,
-          totalUsers: sql`count(distinct ${nagiBotReplyJobs.authorDid})`,
-          todayUsers: sql`count(distinct ${nagiBotReplyJobs.authorDid}) filter (where ${gte(nagiBotReplyJobs.updatedAt, since)})`,
-        })
-        .from(nagiBotReplyJobs)
-        .where(eq(nagiBotReplyJobs.state, 'posted')),
+      db.select({ total: sql`count(*)` }).from(nagiReactions),
 
       db
-        .select({
-          total: sql`count(*)`,
-          today: sql`count(*) filter (where ${gte(nagiAnalysisJobs.updatedAt, since)})`,
-        })
+        .select({ total: sql`count(*)` })
+        .from(nagiPosts)
+        .where(isNull(nagiPosts.deletedAt)),
+
+      db
+        .select({ total: sql`count(*)` })
         .from(nagiAnalysisJobs)
         .where(eq(nagiAnalysisJobs.state, 'posted')),
     ] as const;
 
-    if (!botDid) {
-      console.warn('[WARN] NAGI_BOT_DID is not set; only the Nagi reaction count is unavailable.');
-    }
-
     const settled = await Promise.allSettled(queries);
-    const names = ['users', 'reactions', 'affirmations', 'analyses'] as const;
+    const names = ['users', 'reactions', 'posts', 'analyses'] as const;
     settled.forEach((result, index) => {
       if (result.status === 'rejected') {
         console.error(`Failed to get Nagi ${names[index]} stats:`, result.reason);
@@ -1065,20 +1039,17 @@ static async getPost(did: string): Promise<any> {
     });
     const value = <T>(index: number, fallback: T): T =>
       settled[index]?.status === 'fulfilled' ? (settled[index].value as T) : fallback;
-    const users = value(0, [{ count: 0 }]);
-    const reactions = value(1, [{ total: 0, today: 0 }]);
-    const replyJobs = value(2, [{ total: 0, today: 0, totalUsers: 0, todayUsers: 0 }]);
-    const analyses = value(3, [{ total: 0, today: 0 }]);
+    const users = value(0, [{ total: 0, addedYesterday: 0 }]);
+    const reactions = value(1, [{ total: 0 }]);
+    const posts = value(2, [{ total: 0 }]);
+    const analyses = value(3, [{ total: 0 }]);
 
     return {
-      totalUsers: num(users[0]?.count),
-      reactions: { today: num(reactions[0]?.today), total: num(reactions[0]?.total) },
-      affirmations: { today: num(replyJobs[0]?.today), total: num(replyJobs[0]?.total) },
-      affirmedUsers: {
-        today: num(replyJobs[0]?.todayUsers),
-        total: num(replyJobs[0]?.totalUsers),
-      },
-      analyses: { today: num(analyses[0]?.today), total: num(analyses[0]?.total) },
+      totalUsers: num(users[0]?.total),
+      usersAddedYesterday: num(users[0]?.addedYesterday),
+      totalReactions: num(reactions[0]?.total),
+      totalPosts: num(posts[0]?.total),
+      totalAnalyses: num(analyses[0]?.total),
     };
   }
 
