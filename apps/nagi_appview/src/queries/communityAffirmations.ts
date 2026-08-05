@@ -114,6 +114,8 @@ export async function getCommunityAffirmations(opts: {
       uri: nagiPosts.uri,
       cid: nagiPosts.cid,
       authorDid: nagiPosts.did,
+      embedImages: nagiPosts.embedImages,
+      recordJson: nagiPosts.recordJson,
       stockedAt: nagiCommunityAffirmations.updatedAt,
       summaryJa: nagiCommunityAffirmations.summaryJa,
       summaryEn: nagiCommunityAffirmations.summaryEn,
@@ -150,6 +152,47 @@ export async function getCommunityAffirmations(opts: {
           ? [{ ...reaction, reactors: [], hasMoreReactors: false }]
           : [],
     );
+    const images = Array.isArray(row.embedImages)
+      ? (row.embedImages as any[]).flatMap((item: any) => {
+          const cid = item?.image?.ref?.$link;
+          if (typeof cid !== "string" || typeof item?.alt !== "string")
+            return [];
+          return [
+            {
+              url: `/api/blob/${encodeURIComponent(row.authorDid)}/${encodeURIComponent(cid)}`,
+              alt: item.alt,
+              ...(item.contentWarning === true
+                ? { contentWarning: true }
+                : {}),
+              ...(item.aspectRatio ? { aspectRatio: item.aspectRatio } : {}),
+            },
+          ];
+        })
+      : undefined;
+    const linkCards = Array.isArray((row.recordJson as any)?.linkCards)
+      ? ((row.recordJson as any).linkCards as any[]).flatMap((card: any) => {
+          if (
+            typeof card?.uri !== "string" ||
+            typeof card?.title !== "string"
+          )
+            return [];
+          const cid = card.thumb?.ref?.$link;
+          return [
+            {
+              uri: card.uri,
+              title: card.title,
+              ...(typeof card.description === "string"
+                ? { description: card.description }
+                : {}),
+              ...(typeof cid === "string"
+                ? {
+                    thumb: `/api/blob/${encodeURIComponent(row.authorDid)}/${encodeURIComponent(cid)}`,
+                  }
+                : {}),
+            },
+          ];
+        })
+      : undefined;
     return {
       uri: row.uri,
       cid: row.cid,
@@ -160,6 +203,8 @@ export async function getCommunityAffirmations(opts: {
         "",
       createdAt: row.stockedAt.toISOString(),
       reactions: visibleReactions,
+      images: images?.length ? images : undefined,
+      linkCards: linkCards?.length ? linkCards : undefined,
     };
   });
   const last = page.at(-1);

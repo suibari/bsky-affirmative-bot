@@ -370,6 +370,18 @@ export type CommunityAffirmationView = {
   summary: string;
   createdAt: string;
   reactions: ReactionView[];
+  images?: Array<{
+    url: string;
+    alt: string;
+    contentWarning?: boolean;
+    aspectRatio?: AspectRatio;
+  }>;
+  linkCards?: Array<{
+    uri: string;
+    title: string;
+    description?: string;
+    thumb?: string;
+  }>;
 };
 export type CommunityAffirmationPage = {
   items: CommunityAffirmationView[];
