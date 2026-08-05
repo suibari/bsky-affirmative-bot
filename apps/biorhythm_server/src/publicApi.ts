@@ -115,11 +115,13 @@ publicApi.get("/history", async (req, res) => {
 
   try {
     const payload = await cached(`history:${days}`, async () => {
-      const [daily, nagiUsers] = await Promise.all([
+      const [daily, nagiUsers, nagiChannels, nagiHourly] = await Promise.all([
         MemoryService.getDailyMetrics(days),
         MemoryService.getNagiUserHistory(days),
+        MemoryService.getNagiChannelHistory(days),
+        MemoryService.getNagiHourlyActivity(168),
       ]);
-      return { days, daily, nagiUsers };
+      return { days, daily, nagiUsers, nagiChannels, nagiHourly };
     });
     res.json(payload);
   } catch (error) {

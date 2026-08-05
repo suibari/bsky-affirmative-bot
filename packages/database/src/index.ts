@@ -18,6 +18,7 @@ import {
   nagiPostScores,
   nagiProfiles,
   nagiReactions,
+  nagiChannels,
   nagiAnalysisJobs,
   daily_metrics,
   repo_write_points,
@@ -94,7 +95,7 @@ export interface NagiStats {
   usersAddedYesterday: number;
   totalReactions: number;
   totalPosts: number;
-  totalAnalyses: number;
+  totalChannels: number;
 }
 
 export type RepoWriteAction = 'create' | 'update' | 'delete';
@@ -1026,12 +1027,12 @@ static async getPost(did: string): Promise<any> {
 
       db
         .select({ total: sql`count(*)` })
-        .from(nagiAnalysisJobs)
-        .where(eq(nagiAnalysisJobs.state, 'posted')),
+        .from(nagiChannels)
+        .where(isNull(nagiChannels.deletedAt)),
     ] as const;
 
     const settled = await Promise.allSettled(queries);
-    const names = ['users', 'reactions', 'posts', 'analyses'] as const;
+    const names = ['users', 'reactions', 'posts', 'channels'] as const;
     settled.forEach((result, index) => {
       if (result.status === 'rejected') {
         console.error(`Failed to get Nagi ${names[index]} stats:`, result.reason);
@@ -1042,14 +1043,14 @@ static async getPost(did: string): Promise<any> {
     const users = value(0, [{ total: 0, addedYesterday: 0 }]);
     const reactions = value(1, [{ total: 0 }]);
     const posts = value(2, [{ total: 0 }]);
-    const analyses = value(3, [{ total: 0 }]);
+    const channels = value(3, [{ total: 0 }]);
 
     return {
       totalUsers: num(users[0]?.total),
       usersAddedYesterday: num(users[0]?.addedYesterday),
       totalReactions: num(reactions[0]?.total),
       totalPosts: num(posts[0]?.total),
-      totalAnalyses: num(analyses[0]?.total),
+      totalChannels: num(channels[0]?.total),
     };
   }
 
@@ -1120,6 +1121,81 @@ static async getPost(did: string): Promise<any> {
       return rows.slice(-days).map((row) => ({ date: row.date, count: Number(row.count) }));
     } catch (e) {
       console.error('Failed to get Nagi user history:', e);
+      return [];
+    }
+  }
+
+  /**
+   * Nagi チャンネル数の推移。nagiChannels.record_created_at から
+   * daily_metrics を入れる前の期間もさかのぼって描ける。
+   */
+  static async getNagiChannelHistory(days: number): Promise<{ date: string; count: number }[]> {
+    try {
+      const rows = await db.execute<{ date: string; count: string }>(sql`
+        with daily as (
+          select (${nagiChannels.recordCreatedAt} at time zone 'Asia/Tokyo')::date as day,
+                 count(*) as added
+          from ${nagiChannels}
+          where ${isNull(nagiChannels.deletedAt)}
+          group by 1
+        )
+        select to_char(day, 'YYYY-MM-DD') as date,
+               sum(added) over (order by day) as count
+        from daily
+        order by day
+      `);
+      return rows.slice(-days).map((row) => ({ date: row.date, count: Number(row.count) }));
+    } catch (e) {
+      console.error('Failed to get Nagi channel history:', e);
+      return [];
+    }
+  }
+
+  /**
+   * Nagi リアクション数とポスト数の 1h おきのアクティビティ（デフォルト直近 168 時間＝7 日間）。
+   */
+  static async getNagiHourlyActivity(
+    hours = 168,
+  ): Promise<{ hour: string; reactions: number; posts: number }[]> {
+    try {
+      const rows = await db.execute<{ hour: string; reactions: string; posts: string }>(sql`
+        with hourly as (
+          select generate_series(
+            date_trunc('hour', now() at time zone 'Asia/Tokyo') - (${sql.raw(`${hours - 1}`)} || ' hours')::interval,
+            date_trunc('hour', now() at time zone 'Asia/Tokyo'),
+            interval '1 hour'
+          ) as hour_jst
+        ),
+        r as (
+          select date_trunc('hour', ${nagiReactions.indexedAt} at time zone 'Asia/Tokyo') as hour_jst,
+                 count(*) as count
+          from ${nagiReactions}
+          where ${gte(nagiReactions.indexedAt, sql`now() - (${sql.raw(`${hours}`)} || ' hours')::interval`)}
+          group by 1
+        ),
+        p as (
+          select date_trunc('hour', ${nagiPosts.recordCreatedAt} at time zone 'Asia/Tokyo') as hour_jst,
+                 count(*) as count
+          from ${nagiPosts}
+          where ${isNull(nagiPosts.deletedAt)}
+            and ${gte(nagiPosts.recordCreatedAt, sql`now() - (${sql.raw(`${hours}`)} || ' hours')::interval`)}
+          group by 1
+        )
+        select to_char(h.hour_jst, 'YYYY-MM-DD HH24:00') as hour,
+               coalesce(r.count, 0) as reactions,
+               coalesce(p.count, 0) as posts
+        from hourly h
+        left join r on r.hour_jst = h.hour_jst
+        left join p on p.hour_jst = h.hour_jst
+        order by h.hour_jst
+      `);
+      return rows.map((row) => ({
+        hour: row.hour,
+        reactions: Number(row.reactions),
+        posts: Number(row.posts),
+      }));
+    } catch (e) {
+      console.error('Failed to get Nagi hourly activity:', e);
       return [];
     }
   }

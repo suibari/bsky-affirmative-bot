@@ -261,7 +261,7 @@ async function snapshotDailyMetrics(currentFollowers: number) {
       totalUsers: nagi.totalUsers,
       totalReactions: nagi.totalReactions,
       totalPosts: nagi.totalPosts,
-      totalAnalyses: nagi.totalAnalyses,
+      totalChannels: nagi.totalChannels,
     },
     common: {
       aiRequests: rpd,
