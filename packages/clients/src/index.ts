@@ -9,7 +9,14 @@ export * from './ZennDiaryService.js';
 export * from './LeafletDiaryService.js';
 export * from './LeafletStandardSite.js';
 export * from './RepoWritePointService.js';
-export { getTimezoneFromLang, getLangStr, calculateDelayUntilLocal22 } from './diaryUtils.js';
+export {
+  getTimezoneFromLang,
+  getLangStr,
+  calculateDelayUntilLocal22,
+  isPastLocal22,
+  localDateStr,
+  localHourToUtc,
+} from './diaryUtils.js';
 export { MemoryService, initializeDatabases } from '@bsky-affirmative-bot/database';
 export {
   classifyHeartbeat,

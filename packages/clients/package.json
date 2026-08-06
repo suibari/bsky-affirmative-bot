@@ -13,7 +13,7 @@
   },
   "scripts": {
     "build": "tsc",
-    "test": "tsx --test test/LeafletStandardSite.test.ts"
+    "test": "tsx --test test/*.test.ts"
   },
   "dependencies": {
     "@atcute/leaflet": "^2.0.1",

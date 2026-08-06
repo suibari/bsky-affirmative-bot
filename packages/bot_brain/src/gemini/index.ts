@@ -12,6 +12,7 @@ export * from './generateCommunityAffirmation.js';
 export * from './generateAnniversary.js';
 export * from './generateCheerResult.js';
 export * from './generateUserDiary.js';
+export * from './generateUserDiaryResilient.js';
 export * from './generateFortuneResult.js';
 export * from './generateGoodNight.js';
 export * from './generateImage.js';

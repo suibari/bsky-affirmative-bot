@@ -47,6 +47,9 @@ export const followers = affirmativeBotSchema.table("followers", {
   last_answered_at: timestamp("last_answered_at"),
   last_recap_at: timestamp("last_recap_at"),
   is_diary: integer("is_diary").default(0),
+  // 日記を書き終えたユーザーのローカル日付 "YYYY-MM-DD"。
+  // 二重投稿の防止と、22時を過ぎた取りこぼしの回収判定に使う。
+  last_diary_date: text("last_diary_date"),
   is_anniv: integer("is_anniv").default(1),
   last_whimsical_responded_uri: text("last_whimsical_responded_uri"),
   positivity_level: integer("positivity_level").default(0),

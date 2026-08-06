@@ -5,6 +5,7 @@ import {
   SYSTEM_INSTRUCTION,
   TONE_RULES_JA,
   safeFetch,
+  type AiRouteDetails,
 } from "@bsky-affirmative-bot/shared-configs";
 
 export interface DiaryResult {
@@ -214,7 +215,14 @@ export function selectDiaryEmojis(
 
 export async function generateUserDiary(
   userinfo: UserInfoGemini,
-  options: { recentEmojis?: RecentDiaryEmoji[] } = {},
+  options: {
+    recentEmojis?: RecentDiaryEmoji[];
+    /**
+     * 再試行ラダーが選んだモデル/tier。未指定なら COMMON_USER_DIARY のルートを使う。
+     * 実運用は generateUserDiaryResilient 経由なので必ず渡ってくる。
+     */
+    aiRoute?: AiRouteDetails;
+  } = {},
 ): Promise<DiaryResult> {
   const maxLength =
     userinfo.langStr === "日本語"
@@ -346,6 +354,8 @@ Today's posts: ${userinfo.posts || ""}
     },
     3,
     userinfo,
+    // ラダーが渡ってきたら feature のルートより優先される（util.ts の優先順位）
+    options.aiRoute ?? {},
   );
 
   const responseText = response.text || "{}";

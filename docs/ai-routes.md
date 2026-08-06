@@ -54,11 +54,25 @@ MODEL_GEMINI_FLASH=gemini-3.0-flash
 
 | 機能キー | 既定ルート | 用途 |
 |---|---|---|
-| `COMMON_USER_DIARY` | `lite-flex` | ユーザ日記 本文（bsky DiaryFeature + NagiDiaryFeature） |
+| `COMMON_USER_DIARY` | `lite-flex` | ユーザ日記 本文（ラダーを通さず直接呼んだ場合のみ） |
+| `COMMON_DIARY_ATTEMPT_EARLY` | `lite-flex` | 日記 1〜2回目 |
+| `COMMON_DIARY_ATTEMPT_MID` | `lite-standard` | 日記 3〜4回目 |
+| `COMMON_DIARY_ATTEMPT_LATE` | `flash-standard` | 日記 5回目以降 |
 | `COMMON_USER_DIARY_EMOJI` | `lite-standard` | 日記の絵文字だけ選び直し（backfillスクリプト専用） |
 
-`COMMON_USER_DIARY` は本文と一緒に絵文字候補も1回の構造化レスポンスで返す。
-`COMMON_USER_DIARY_EMOJI` は既存日記を後から直す `scripts/backfillDiaryEmojis.ts` 専用で、通常の日記生成では呼ばれない（日記は1ユーザ1日1回のまま）。
+日記は本文と一緒に称号・絵文字候補も1回の構造化レスポンスで返す。
+
+ユーザ日記も**失敗するたびに段を上げる再試行ラダー**になっている
+（`packages/bot_brain/src/gemini/generateUserDiaryResilient.ts`）。1ユーザ1日1回しか機会が無く、
+落とすとその日の日記が丸ごと欠測するため。平常時は EARLY の1回で終わるのでコストは変わらない。
+実運用の呼び出しは必ず `requestOptions` で model/serviceTier を明示上書きするので、
+`COMMON_USER_DIARY` が実際に効くのは `generateUserDiary` を直接呼んだときだけ。
+
+待ち時間は 30s → 2m → 10m → 30m → 60m（±20%ジッタ）で、開始から3時間で打ち切る。
+打ち切っても、ローカル22時を過ぎているユーザーは毎時の再スキャンが拾い直す
+（Nagi は `nagi.diaries` の (subject, date)、Bluesky は `followers.last_diary_date` で二重生成を防ぐ）。
+
+`COMMON_USER_DIARY_EMOJI` は既存日記を後から直す `scripts/backfillDiaryEmojis.ts` 専用で、通常の日記生成では呼ばれない。
 
 ### Bluesky 全肯定botたん（bsky_bot_server のみ）
 
@@ -115,6 +129,8 @@ bsky の全機能は `callbacks.ts` の共通リトライ（初回+2回）に包
 
 Nagi のリプライは**失敗するたびに段を上げる再試行ラダー**になっている（`apps/nagi_bot_server/src/nagiReplyRetry.ts`）。
 段の刻み方（1-2 / 3-4 / 5以降）はコード側、各段が何を使うかは上の3キーが決める。
+リプライは1試行 = 1ワーカーパスの永続キュー（`nagi.bot_reply_jobs`）で、日記のようにプロセス内で待たない。
+エラーの分類（どれを再試行するか）は日記と共通で `packages/shared-configs/src/config/aiRetryLadder.ts` にある。
 
 ### ニュース
 

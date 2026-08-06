@@ -6,6 +6,7 @@ import { UserInfoGemini } from "../types.js";
 import { getFullDateAndTimeString, getRandomItems, getWhatDay } from "../util/common.js";
 export { getCurrentEventSet } from "./functions.js";
 export * from "./aiRoutes.js";
+export * from "./aiRetryLadder.js";
 
 export const NICKNAMES_BOT = [
   "全肯定botたん",

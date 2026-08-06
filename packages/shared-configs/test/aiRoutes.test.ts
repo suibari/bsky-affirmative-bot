@@ -52,6 +52,10 @@ const FLASH = "gemini-2.5-flash";
 const EXPECTED: Record<AiFeatureKey, [model: string, tier: "flex" | "standard" | undefined]> = {
   // 共通（bsky + Nagi 両方に効く）
   COMMON_USER_DIARY: [LITE, "flex"],
+  // 日記の再試行ラダー。1日1回しか機会が無いので、詰まったら段を上げて必ず書き切る。
+  COMMON_DIARY_ATTEMPT_EARLY: [LITE, "flex"],
+  COMMON_DIARY_ATTEMPT_MID: [LITE, "standard"],
+  COMMON_DIARY_ATTEMPT_LATE: [FLASH, "standard"],
   COMMON_USER_DIARY_EMOJI: [LITE, "standard"],
   // bsky_bot_server（肯定返信/会話は Nagi が requestOptions で上書きするので実質 bsky 専用）
   BSKY_AFFIRMATIVE_REPLY: [LITE, "flex"],

@@ -107,7 +107,15 @@ export const AI_ROUTE_NAMES = Object.keys(AI_ROUTES) as AiRouteName[];
 export const AI_FEATURES = {
   // ══════ 共通（Bluesky botたん と Nagi の両方に効く） ═══════════════
   // ここを変えると両方のbotに効く。片方だけ変えたいなら機能キーの分割が必要。
+  // ユーザ日記の本文。実運用の呼び出し（generateUserDiaryResilient）は必ず下の
+  // COMMON_DIARY_ATTEMPT_* を requestOptions で明示上書きするので、このキーが効くのは
+  // ラダーを通さず generateUserDiary を直接呼んだときだけ。
   COMMON_USER_DIARY: "lite-flex", // ユーザ日記 本文（bsky DiaryFeature + NagiDiaryFeature）
+  // 日記の再試行ラダー。1日1回しか機会が無いので、詰まったら段を上げて必ず書き切る。
+  // 平常時は EARLY で完結するのでコストは従来と同じ。
+  COMMON_DIARY_ATTEMPT_EARLY: "lite-flex", // 日記 1〜2回目
+  COMMON_DIARY_ATTEMPT_MID: "lite-standard", // 日記 3〜4回目（同モデル・Standard tier）
+  COMMON_DIARY_ATTEMPT_LATE: "flash-standard", // 日記 5回目以降（最終手段）
   COMMON_USER_DIARY_EMOJI: "lite-standard", // 日記の絵文字だけ選び直し（backfillスクリプト専用）
 
   // ══════ Bluesky 全肯定botたん（bsky_bot_server のみ） ══════════════
