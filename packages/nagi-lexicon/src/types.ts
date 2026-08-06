@@ -504,17 +504,62 @@ export type EmojiFavorite =
   { kind: "unicode"; emoji: string } | { kind: "custom"; emoji: EmojiView };
 /** お気に入りパレットの上限。クライアントの MAX_FAVORITES と揃える。 */
 export const EMOJI_FAVORITES_LIMIT = 32;
+/**
+ * フィードのタブ1枚の種別。
+ * list / custom は「入れ物」で、どれを指すかは source が持つ（list はいまホームだけ、
+ * custom はいま全肯定だけ）。将来ユーザーが定義したカスタムフィードも custom に入る。
+ */
+export type FeedTabKind = "list" | "global" | "custom" | "channel" | "search";
+export const FEED_TAB_KINDS: readonly FeedTabKind[] = [
+  "list",
+  "global",
+  "custom",
+  "channel",
+  "search",
+] as const;
+/** list / custom が指す組み込みの中身。ユーザー定義のフィードは将来 uri で指す。 */
+export type FeedTabSource = "home" | "affirmation";
+export const FEED_TAB_SOURCES: readonly FeedTabSource[] = [
+  "home",
+  "affirmation",
+] as const;
+/**
+ * フィードのタブ1枚。種別ごとの union にせずフラットに持つのは、lexicon で
+ * タグ付き union を表しづらく、将来の種別追加を optional フィールドの追加で
+ * 吸収したいため。どのフィールドが要るかは kind ごとに parse 側で見る。
+ */
+export type FeedTab = {
+  id: string;
+  kind: FeedTabKind;
+  /** kind が list / custom のときの参照先（list=home, custom=affirmation）。 */
+  source?: FeedTabSource;
+  /** kind==='channel' のときのチャンネル AT-URI。 */
+  uri?: string;
+  /** kind==='search' のときの保存クエリ。 */
+  query?: string;
+  queryKind?: "keyword" | "tag";
+  /** 表示名のスナップショット。権威は uri / query 側で、これは初回描画用。 */
+  label?: string;
+};
+/** タブ数の上限。チャンネル追加の上限（50）より意図的に少ない。 */
+export const FEED_TABS_LIMIT = 16;
 export type PreferencesView = {
   readPositions: ReadPosition[];
   emojiFavorites: EmojiFavorite[];
   /** 未同期（まだ一度も書き込んでいない）なら undefined。 */
   emojiFavoritesUpdatedAt?: string;
+  feedTabs: FeedTab[];
+  /** 未設定（一度もカスタムしていない）なら undefined。クライアントは既定タブを使う。 */
+  feedTabsUpdatedAt?: string;
 };
 export type PutPreferencesInput = {
   readPositions?: ReadPosition[];
   emojiFavorites?: EmojiFavorite[];
   /** emojiFavorites を送るときは必須。保存済みより古ければ書き込まない。 */
   emojiFavoritesUpdatedAt?: string;
+  feedTabs?: FeedTab[];
+  /** feedTabs を送るときは必須。保存済みより古ければ書き込まない。 */
+  feedTabsUpdatedAt?: string;
 };
 export type PutPreferencesResult = PreferencesView;
 

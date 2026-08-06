@@ -1,12 +1,17 @@
 import {
   db,
   nagiEmojiFavorites,
+  nagiFeedTabs,
   nagiReadPositions,
 } from "@bsky-affirmative-bot/database";
 import {
   EMOJI_FAVORITES_LIMIT,
+  FEED_TAB_KINDS,
+  FEED_TABS_LIMIT,
   READ_POSITION_SECTIONS,
   type EmojiFavorite,
+  type FeedTab,
+  type FeedTabKind,
   type PreferencesView,
   type PutPreferencesInput,
   type ReadPosition,
@@ -88,18 +93,85 @@ function parseEmojiFavorites(input: unknown): EmojiFavorite[] {
   });
 }
 
-function parseFavoritesUpdatedAt(input: unknown): Date {
+function parseUpdatedAt(field: string, input: unknown): Date {
   if (typeof input !== "string" || Number.isNaN(Date.parse(input)))
     throw new ApiError(
       400,
       "invalid_request",
-      "emojiFavoritesUpdatedAt is required with emojiFavorites",
+      `${field} is required with ${field.replace("UpdatedAt", "")}`,
     );
   return new Date(input);
 }
 
+const isFeedTabKind = (value: unknown): value is FeedTabKind =>
+  FEED_TAB_KINDS.includes(value as FeedTabKind);
+
+const MAX_TAB_ID_LENGTH = 64;
+const MAX_TAB_QUERY_LENGTH = 128;
+const MAX_TAB_LABEL_LENGTH = 64;
+
+/**
+ * フィードのタブ。クライアントの normalizeFeedTabs と同じルールで見る
+ * （片方だけ緩いと、弾かれない値が入って描画側で落ちる）。
+ * 未知フィールドは落とし、任意の JSON を DB に貯めさせない。
+ */
+function parseFeedTabs(input: unknown): FeedTab[] {
+  if (!Array.isArray(input) || input.length > FEED_TABS_LIMIT)
+    invalid("feedTabs");
+  const seen = new Set<string>();
+  return (input as unknown[]).map((raw) => {
+    const item = (raw ?? {}) as Record<string, unknown>;
+    const id = item.id;
+    if (typeof id !== "string" || !id || id.length > MAX_TAB_ID_LENGTH)
+      invalid("feedTabs.id");
+    // id が重なると、クライアントが ?tab= で引くタブが入力順に依存してしまう。
+    if (seen.has(id as string)) invalid("feedTabs.id (duplicate)");
+    seen.add(id as string);
+    const kind = item.kind;
+    if (!isFeedTabKind(kind)) invalid("feedTabs.kind");
+    const tab: FeedTab = { id: id as string, kind: kind as FeedTabKind };
+    if (typeof item.label === "string" && item.label)
+      tab.label = (item.label as string).slice(0, MAX_TAB_LABEL_LENGTH);
+    // list / custom は「入れ物」で、どれを指すかは source が持つ。
+    // 今はそれぞれ1つずつしか無いので、未指定なら既定へ寄せる。
+    if (tab.kind === "list") {
+      if (item.source !== undefined && item.source !== "home")
+        invalid("feedTabs.source");
+      tab.source = "home";
+    }
+    if (tab.kind === "custom") {
+      if (item.source !== undefined && item.source !== "affirmation")
+        invalid("feedTabs.source");
+      tab.source = "affirmation";
+    }
+    if (tab.kind === "channel") {
+      const uri = item.uri;
+      if (
+        typeof uri !== "string" ||
+        !uri.startsWith("at://") ||
+        uri.length > MAX_URI_LENGTH
+      )
+        invalid("feedTabs.uri");
+      tab.uri = uri as string;
+    }
+    if (tab.kind === "search") {
+      const query =
+        typeof item.query === "string" ? (item.query as string).trim() : "";
+      if (!query || query.length > MAX_TAB_QUERY_LENGTH)
+        invalid("feedTabs.query");
+      if (item.queryKind !== undefined && !["keyword", "tag"].includes(
+        item.queryKind as string,
+      ))
+        invalid("feedTabs.queryKind");
+      tab.query = query;
+      tab.queryKind = (item.queryKind as "keyword" | "tag") ?? "keyword";
+    }
+    return tab;
+  });
+}
+
 async function selectPreferences(did: string): Promise<PreferencesView> {
-  const [positions, favorites] = await Promise.all([
+  const [positions, favorites, feedTabs] = await Promise.all([
     db
       .select({
         section: nagiReadPositions.section,
@@ -116,8 +188,14 @@ async function selectPreferences(did: string): Promise<PreferencesView> {
       .from(nagiEmojiFavorites)
       .where(eq(nagiEmojiFavorites.did, did))
       .limit(1),
+    db
+      .select({ tabs: nagiFeedTabs.tabs, updatedAt: nagiFeedTabs.updatedAt })
+      .from(nagiFeedTabs)
+      .where(eq(nagiFeedTabs.did, did))
+      .limit(1),
   ]);
   const favoritesRow = favorites[0];
+  const feedTabsRow = feedTabs[0];
   return {
     readPositions: positions
       .filter((row) => isSection(row.section))
@@ -132,6 +210,13 @@ async function selectPreferences(did: string): Promise<PreferencesView> {
     // 未同期（行が無い）なら省略する。クライアントはこれを「初回同期」の合図に使う。
     ...(favoritesRow
       ? { emojiFavoritesUpdatedAt: favoritesRow.updatedAt.toISOString() }
+      : {}),
+    feedTabs: Array.isArray(feedTabsRow?.tabs)
+      ? (feedTabsRow.tabs as FeedTab[])
+      : [],
+    // 行が無い＝一度もカスタムしていない。クライアントはこれを既定タブの合図に使う。
+    ...(feedTabsRow
+      ? { feedTabsUpdatedAt: feedTabsRow.updatedAt.toISOString() }
       : {}),
   };
 }
@@ -151,7 +236,12 @@ export async function putPreferences(
     ? parseEmojiFavorites(input.emojiFavorites)
     : [];
   const favoritesUpdatedAt = hasFavorites
-    ? parseFavoritesUpdatedAt(input.emojiFavoritesUpdatedAt)
+    ? parseUpdatedAt("emojiFavoritesUpdatedAt", input.emojiFavoritesUpdatedAt)
+    : undefined;
+  const hasFeedTabs = input.feedTabs !== undefined;
+  const feedTabs = hasFeedTabs ? parseFeedTabs(input.feedTabs) : [];
+  const feedTabsUpdatedAt = hasFeedTabs
+    ? parseUpdatedAt("feedTabsUpdatedAt", input.feedTabsUpdatedAt)
     : undefined;
 
   if (readPositions.length) {
@@ -192,6 +282,21 @@ export async function putPreferences(
           updatedAt: sql`excluded.updated_at`,
         },
         setWhere: sql`excluded.updated_at > emoji_favorites.updated_at`,
+      });
+  }
+
+  if (feedTabsUpdatedAt) {
+    // お気に入りと同じく、順序のある1本の配列なので updated_at による後勝ち。
+    await db
+      .insert(nagiFeedTabs)
+      .values({ did, tabs: feedTabs, updatedAt: feedTabsUpdatedAt })
+      .onConflictDoUpdate({
+        target: nagiFeedTabs.did,
+        set: {
+          tabs: sql`excluded.tabs`,
+          updatedAt: sql`excluded.updated_at`,
+        },
+        setWhere: sql`excluded.updated_at > feed_tabs.updated_at`,
       });
   }
 

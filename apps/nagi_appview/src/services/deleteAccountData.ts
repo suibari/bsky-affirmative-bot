@@ -18,6 +18,7 @@ import {
   nagiBotReplyJobs,
   nagiEmojis,
   nagiEmojiFavorites,
+  nagiFeedTabs,
   nagiMutes,
   nagiNotifications,
   nagiNews,
@@ -203,6 +204,7 @@ export async function deleteAccountData(did: string) {
     // 端末間で同期していた設定。既読位置は閲覧履歴そのものなので必ず消す。
     await tx.delete(nagiReadPositions).where(eq(nagiReadPositions.did, did));
     await tx.delete(nagiEmojiFavorites).where(eq(nagiEmojiFavorites.did, did));
+    await tx.delete(nagiFeedTabs).where(eq(nagiFeedTabs.did, did));
 
     // 重複排除ログ。id は `${did}:${time_us}:...` なので前方一致で引ける。
     await tx

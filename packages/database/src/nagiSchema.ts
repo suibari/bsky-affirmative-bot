@@ -827,3 +827,18 @@ export const nagiEmojiFavorites = nagiSchema.table("emoji_favorites", {
     .defaultNow()
     .notNull(),
 });
+
+/**
+ * フィードのタブ構成（並び順と、追加したチャンネル/検索タブ）。
+ * お気に入り絵文字と同じく順序のある1本の配列なので updated_at による後勝ち。
+ * 絵文字と同居させないのは、性質の違う2つの設定が1行の updated_at を共有すると
+ * 片方の更新でもう片方の後勝ち判定が壊れるため。
+ * 行が無い＝一度もカスタムしていない（クライアントは既定タブを使う）。
+ */
+export const nagiFeedTabs = nagiSchema.table("feed_tabs", {
+  did: text("did").primaryKey(),
+  tabs: jsonb("tabs").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
