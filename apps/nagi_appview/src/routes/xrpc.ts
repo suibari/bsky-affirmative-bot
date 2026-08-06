@@ -290,7 +290,13 @@ xrpc.get(
       res
         .set(
           "Cache-Control",
-          req.viewerDid ? "private, no-store" : "public, max-age=15",
+          // 候補は打鍵ごとに叩かれるので、ビューア付きでも15秒だけブラウザに持たせる
+          // （private なので PDS プロキシを含む共有キャッシュには乗らない）。
+          req.viewerDid
+            ? typeahead
+              ? "private, max-age=15"
+              : "private, no-store"
+            : "public, max-age=15",
         )
         .json(
           await (typeahead

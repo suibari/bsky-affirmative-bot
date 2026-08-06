@@ -137,22 +137,27 @@ export async function hydratePostViews(
         string,
         { uri: string; cid: string; kossori: boolean; channelOnly: boolean }
       >();
-  // バッジ表示用にチャンネル名を引く（uri→name）。所属 CH のある投稿だけ。
+  // バッジ表示用にチャンネルを引く（uri→{name,cid}）。所属 CH のある投稿だけ。
+  // 返信はレコードに channel を持たない（ルート所有）ので、cid もここから解決する。
   const channelUris = [
     ...new Set(
       rows.flatMap((r) => (r.post.channelUri ? [r.post.channelUri] : [])),
     ),
   ];
-  const channelNames = channelUris.length
+  const channelRefs = channelUris.length
     ? new Map(
         (
           await db
-            .select({ uri: nagiChannels.uri, name: nagiChannels.name })
+            .select({
+              uri: nagiChannels.uri,
+              cid: nagiChannels.cid,
+              name: nagiChannels.name,
+            })
             .from(nagiChannels)
             .where(inArray(nagiChannels.uri, channelUris))
-        ).map((c) => [c.uri, c.name]),
+        ).map((c) => [c.uri, { cid: c.cid, name: c.name }]),
       )
-    : new Map<string, string>();
+    : new Map<string, { cid: string; name: string }>();
   const views = rows.map(({ post, actor, profile, score }) => {
     const deleted = Boolean(post.deletedAt);
     const recordReply = (post.recordJson as any)?.reply;
@@ -265,9 +270,12 @@ export async function hydratePostViews(
       channel: post.channelUri
         ? {
             uri: post.channelUri,
-            cid: (post.recordJson as any)?.channel?.cid ?? "",
-            ...(channelNames.has(post.channelUri)
-              ? { name: channelNames.get(post.channelUri) }
+            cid:
+              (post.recordJson as any)?.channel?.cid ??
+              channelRefs.get(post.channelUri)?.cid ??
+              "",
+            ...(channelRefs.has(post.channelUri)
+              ? { name: channelRefs.get(post.channelUri)!.name }
               : {}),
           }
         : undefined,

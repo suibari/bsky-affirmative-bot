@@ -288,6 +288,20 @@ export async function applyMutation(
       if (collection === NAGI.post) {
         // 既存投稿 かつ cid が変わった＝投稿後編集。翻訳キャッシュ破棄と edited フラグ立てに使う。
         const isEdit = !!existingPost[0] && existingPost[0].cid !== commit.cid;
+        // 所属チャンネルはこっそりと同じくスレッドルートが所有する。返信は自分のレコードの
+        // channel を見ない（旧クライアントが複製した値が残っていても無視する）ことで、
+        // ルートの編集で所属が変わってもスレッド全体が必ず一致する。ルート未取り込みの
+        // 間は null になるが、後からルートが届いた時点で下の伝播 UPDATE が埋める。
+        const replyRootUri: string | null = value.reply?.root?.uri ?? null;
+        const channelUri = replyRootUri
+          ? ((
+              await tx
+                .select({ channelUri: nagiPosts.channelUri })
+                .from(nagiPosts)
+                .where(eq(nagiPosts.uri, replyRootUri))
+                .limit(1)
+            )[0]?.channelUri ?? null)
+          : (value.channel?.uri ?? null);
         if (isEdit) {
           const quotingSourceUris = (
             await tx
@@ -350,7 +364,7 @@ export async function applyMutation(
                 ? value.embed.record.cid
                 : null,
             kossori: value.kossori === true,
-            channelUri: value.channel?.uri ?? null,
+            channelUri,
             channelOnly: value.channelOnly === true,
             repoRev: commit.rev,
             recordCreatedAt: createdAt,
@@ -366,7 +380,7 @@ export async function applyMutation(
               cid: commit.cid,
               text: value.text,
               facets: value.facets,
-              tags: extractTags(value.facets),
+              tags: extractTags(value),
               langs: value.langs,
               recordJson: value,
               replyRootUri: value.reply?.root.uri ?? null,
@@ -381,7 +395,7 @@ export async function applyMutation(
                   ? value.embed.record.cid
                   : null,
               kossori: value.kossori === true,
-              channelUri: value.channel?.uri ?? null,
+              channelUri,
               channelOnly: value.channelOnly === true,
               repoRev: commit.rev,
               recordCreatedAt: createdAt,
@@ -393,6 +407,19 @@ export async function applyMutation(
               deletedAt: null,
             },
           });
+        // スレッドルートの所属を配下の返信へ配る。これ1つで「返信がルートより先に届いた
+        // （firehose の順序前後・reconcile・backfill）」と「ルートの編集で所属が変わった」の
+        // 両方を吸収する。差分がある行だけ触るので、通常の新規投稿では0行更新で済む。
+        if (!replyRootUri)
+          await tx
+            .update(nagiPosts)
+            .set({ channelUri })
+            .where(
+              and(
+                eq(nagiPosts.replyRootUri, uri),
+                sql`${nagiPosts.channelUri} is distinct from ${channelUri}::text`,
+              ),
+            );
         if (
           shouldStartEnglishPrewarm(
             Boolean(existingPost[0]),

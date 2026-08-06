@@ -173,10 +173,9 @@ export async function createNagiReply(
     label: "NAGI_REPLY",
     rkey: sourceRkey,
     langs: [language.code],
-    // 元投稿がチャンネル所属なら返信も同じ channel を継承し、CH TL に並ぶ（Misskey 同様）。
-    // こっそりはスレッドルートだけが所有し、AppView が返信にも有効範囲を適用する。
-    // 返信へ複製すると、返信単位で公開範囲を持てるように見えてしまうため保存しない。
-    ...(record.channel ? { channel: record.channel } : {}),
+    // 所属チャンネルもこっそりと同じくスレッドルートだけが所有する。返信レコードへは
+    // 複製せず、AppView が reply.root から channel_uri を解決して CH TL に並べる
+    // （複製すると、返信単位で所属や公開範囲を持てるように見えてしまう）。
     reply: {
       root,
       parent: {

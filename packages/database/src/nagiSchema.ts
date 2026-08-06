@@ -108,7 +108,9 @@ export const nagiPosts = nagiSchema.table(
     // こっそりはスレッドルートだけが所有する。返信の共有可否はこの行自身ではなく
     // replyRootUri の参照先から解決し、プロフィール・スレッドからは引き続き見える。
     kossori: boolean("kossori").default(false).notNull(),
-    // 所属チャンネル（com.suibari.nagi.channel）の AT-URI。返信は親の channel を継承する。
+    // 所属チャンネル（com.suibari.nagi.channel）の AT-URI。こっそりと同じくスレッドルートが
+    // 所有し、返信はレコードに channel を持たない。取り込み時に reply_root_uri から解決して
+    // ここへ非正規化コピーするので、CH TL はこの1列だけで引ける（ルート取り込み時に配下へ伝播）。
     channelUri: text("channel_uri"),
     // true なら CH 限定＝グローバル/全肯定TL非表示（kossori と同じ除外扱い）。CH TLには出る。
     channelOnly: boolean("channel_only").default(false).notNull(),
@@ -131,6 +133,8 @@ export const nagiPosts = nagiSchema.table(
   (t) => [
     index("nagi_posts_timeline_idx").on(t.indexedAt, t.uri),
     index("nagi_posts_parent_idx").on(t.replyParentUri),
+    // ルート取り込み時に配下の返信へ channel_uri を配るための索引。
+    index("nagi_posts_reply_root_idx").on(t.replyRootUri),
     index("nagi_posts_actor_idx").on(t.did, t.indexedAt),
     index("nagi_posts_channel_idx").on(t.channelUri, t.indexedAt),
     index("nagi_posts_tags_idx").using("gin", t.tags),

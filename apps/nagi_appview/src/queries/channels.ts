@@ -206,6 +206,10 @@ export async function searchChannels(opts: {
 /**
  * Composer の #チャンネル候補。キー入力ごとに呼ばれるため埋め込みは生成せず、
  * name の完全一致・前方一致・部分一致の順で軽量に返す。同名 CH も URI ごとに残す。
+ *
+ * 活動順（lastPostAt）は一覧と違って lastPostSub を JOIN しない。あれは nagi.posts 全体を
+ * GROUP BY する集約なので、打鍵のたびに投稿テーブル全走査になってしまう。ここでは絞り込みに
+ * 残った候補ごとの相関サブクエリにして nagi_posts_channel_idx(channel_uri, indexed_at) を効かせる。
  */
 export async function searchChannelsTypeahead(opts: {
   q: string;
@@ -215,6 +219,12 @@ export async function searchChannelsTypeahead(opts: {
   const q = opts.q.trim().toLowerCase();
   const mutes = await loadMutes(opts.viewerDid);
   const loweredName = sql<string>`lower(${nagiChannels.name})`;
+  // 外側の列は必ず修飾して書く。select 句の中で ${nagiChannels.uri} を使うと drizzle が
+  // 非修飾の "uri" を出し、nagi.posts にも uri 列があるため p.uri に解決されてしまう。
+  const lastPostAt = sql<Date | null>`(
+      select max(p.indexed_at) from nagi.posts p
+       where p.channel_uri = "nagi"."channels"."uri" and p.deleted_at is null
+    )`.as("last_post_at");
   const rows = await db
     .select({
       uri: nagiChannels.uri,
@@ -227,10 +237,9 @@ export async function searchChannelsTypeahead(opts: {
       pinnedPostCid: nagiChannels.pinnedPostCid,
       recordCreatedAt: nagiChannels.recordCreatedAt,
       indexedAt: nagiChannels.indexedAt,
-      lastPostAt: lastPostSub.lastPostAt,
+      lastPostAt,
     })
     .from(nagiChannels)
-    .leftJoin(lastPostSub, eq(lastPostSub.channelUri, nagiChannels.uri))
     .where(
       and(
         isNull(nagiChannels.deletedAt),
@@ -243,7 +252,9 @@ export async function searchChannelsTypeahead(opts: {
     .orderBy(
       sql`case when ${loweredName} = ${q} then 0 when position(${q} in ${loweredName}) = 1 then 1 else 2 end`,
       sql`position(${q} in ${loweredName})`,
-      sql`${sortAt} desc`,
+      // 出力列名で参照して相関サブクエリの二重評価を避ける。投稿ゼロの CH は末尾（一覧の
+      // coalesce(..., EPOCH) と同じ並び）。
+      sql`last_post_at desc nulls last`,
       sql`${nagiChannels.uri} desc`,
     )
     .limit(Math.min(10, opts.limit));
