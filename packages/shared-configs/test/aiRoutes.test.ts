@@ -75,7 +75,7 @@ const EXPECTED: Record<AiFeatureKey, [model: string, tier: "flex" | "standard" |
   BSKY_MY_MOOD_SONG: [LITE, "flex"],
   BSKY_IMAGE: ["gemini-2.5-flash-image-preview", undefined],
   // biorhythm_server（定期ポスト）
-  BIORHYTHM_STATUS: [LITE, "flex"],
+  BIORHYTHM_STATUS: [FLASH, "flex"],
   BIORHYTHM_GOOD_NIGHT: [FLASH, "flex"],
   BIORHYTHM_QUESTION: [FLASH, "flex"],
   BIORHYTHM_WHIMSICAL_POST_PLAN: [FLASH, "flex"],
@@ -84,7 +84,7 @@ const EXPECTED: Record<AiFeatureKey, [model: string, tier: "flex" | "standard" |
   NAGI_REPLY_ATTEMPT_EARLY: [LITE, "flex"],
   NAGI_REPLY_ATTEMPT_MID: [LITE, "standard"],
   NAGI_REPLY_ATTEMPT_LATE: [FLASH, "standard"],
-  NAGI_ANALYSIS: [LITE, "flex"],
+  NAGI_ANALYSIS: [LITE, "standard"],
   NAGI_CARD_COMMENT: [LITE, "standard"],
   NAGI_COMMUNITY_AFFIRMATION: [LITE, "flex"],
   NAGI_CHANNEL_WELCOME: [LITE, "flex"],

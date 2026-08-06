@@ -152,7 +152,10 @@ export const AI_FEATURES = {
   NAGI_REPLY_ATTEMPT_EARLY: "lite-flex", // リプライ 1〜2回目
   NAGI_REPLY_ATTEMPT_MID: "lite-standard", // リプライ 3〜4回目
   NAGI_REPLY_ATTEMPT_LATE: "flash-standard", // リプライ 5回目以降 + 会話は初回から
-  NAGI_ANALYSIS: "lite-flex", // 自動アクター分析
+  // 自動アクター分析（名刺）。発火は「初回登録 + Nagi投稿10件 + 100件ごと」と頻度が低く、
+  // 失敗すると名刺が出ないまま次の機会まで待つことになるので、flex ではなく standard に置く。
+  // flex は割引と引き換えのベストエフォート枠で 503(UNAVAILABLE) を踏みやすい。
+  NAGI_ANALYSIS: "lite-standard", // 自動アクター分析
   NAGI_CARD_COMMENT: "lite-standard", // カードのbotたんコメント
   NAGI_COMMUNITY_AFFIRMATION: "lite-flex", // コミュニティ全肯定
   NAGI_CHANNEL_WELCOME: "lite-flex", // チャンネル作成時の歓迎

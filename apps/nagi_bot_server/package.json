@@ -11,6 +11,7 @@
     "start": "node --env-file=../../.env dist/index.js",
     "dev": "tsx watch --env-file=../../.env src/index.ts",
     "analysis": "tsx --env-file=../../.env scripts/runAnalysis.ts",
+    "analysis:backfill": "tsx --env-file=../../.env scripts/backfillNagiAnalysis.ts",
     "diary:backfill": "tsx --env-file=../../.env scripts/backfillNagiDiary.ts",
     "diary:emoji:backfill": "tsx --env-file=../../.env scripts/backfillDiaryEmojis.ts",
     "diary:activity:backfill": "tsx --env-file=../../.env scripts/backfillDiaryPostCounts.ts",

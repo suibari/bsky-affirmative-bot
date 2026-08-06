@@ -34,6 +34,13 @@ import {
   parseContentWarning,
 } from "../util/contentWarning.js";
 
+/**
+ * 自動分析（名刺）を撃つ Nagi 投稿数の節目。10 → 100 → 200 → 300 → …。
+ * 10 は初回登録時の Bluesky 分析が成立しなかった人の受け皿で、分析が無いときだけ撃つ。
+ */
+const FIRST_NAGI_ANALYSIS_POSTS = 10;
+const NAGI_ANALYSIS_POSTS_INTERVAL = 100;
+
 /** 日記など、投稿以外のプッシュ本文用に長い本文を詰める。 */
 const preview = (text: unknown, max = 80): string => {
   const s = typeof text === "string" ? text.replace(/\s+/g, " ").trim() : "";
@@ -430,16 +437,29 @@ export async function applyMutation(
         ) {
           englishPrewarmUris.push(uri);
         }
-        // 新規投稿が 100 の倍数に到達したら自動分析（Nagi投稿+リアクション）をキューする。
-        // 編集(existingPost)ではカウントが変わらないので発火させない。件数は
-        // プロフィールの postCount と同条件（非削除の全投稿）で数える。
+        // 新規投稿が節目に達したら自動分析（Nagi投稿+リアクション）をキューする。発火点は
+        // 10 → 100 → 200 → 300 → …。編集(existingPost)ではカウントが変わらないので発火させない。
+        // 件数はプロフィールの postCount と同条件（非削除の全投稿）で数える。
         if (!existingPost[0] && did !== config.botDid) {
           const [counted] = await tx
             .select({ count: sql<number>`count(*)::int` })
             .from(nagiPosts)
             .where(and(eq(nagiPosts.did, did), isNull(nagiPosts.deletedAt)));
           const count = counted?.count ?? 0;
-          if (count > 0 && count % 100 === 0) {
+          // 100件ごとは定期リフレッシュなので、分析の有無を問わず撃つ。
+          let shouldQueue = count > 0 && count % NAGI_ANALYSIS_POSTS_INTERVAL === 0;
+          // 10件は「初回登録時の Bluesky 分析が成立しなかった人」の受け皿。Bluesky に投稿が
+          // 無い Nagi 専用ユーザーや、bot がブロックされていて読めない人は初回がスキップされ、
+          // 従来は100件まで名刺が出なかった。既に分析があるなら不要なので、そのときは撃たない。
+          if (!shouldQueue && count === FIRST_NAGI_ANALYSIS_POSTS) {
+            const existingAnalysis = await tx
+              .select({ did: nagiActorAnalyses.did })
+              .from(nagiActorAnalyses)
+              .where(eq(nagiActorAnalyses.did, did))
+              .limit(1);
+            shouldQueue = !existingAnalysis[0];
+          }
+          if (shouldQueue) {
             await tx
               .insert(nagiAnalysisJobs)
               .values({
