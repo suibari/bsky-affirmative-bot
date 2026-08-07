@@ -57,8 +57,50 @@ export const postSelection = {
   score: nagiPostScores.score,
   botReplyUri: nagiPostScores.botReplyUri,
 };
-/** ホーム候補の可視性条件。本人の kossori だけを許し、返信と CH 限定は全員分除外する。 */
+/**
+ * ホーム候補の DID 集合を text[] として1回だけ束縛する。
+ * 素の配列を埋めるとレコード構成子に展開されて壊れる（mutedActorsParam と同じ理由）。
+ */
+const homeActorsParam = (actorDids: string[]) =>
+  sql`${sql.param(actorDids)}::text[]`;
+
+/**
+ * ホーム候補の可視性条件。スレッド単位の最新活動順に並べるため、リストメンバーの返信も
+ * 候補に含める。公開範囲(kossori)と CH 限定はスレッドルートが所有するので、ルート行を
+ * 引いて判定する（ルート行では coalesce が自分自身を指すので、ルート・返信を1本で扱える）。
+ * 本人の kossori だけを許し、channelOnly は本人分も含めてホームへ出さない。
+ */
 export function homeTimelineVisibility(
+  homeDid: string,
+  actorDids: string[],
+): SQL[] {
+  return [
+    inArray(nagiPosts.did, actorDids),
+    sql`exists (
+      select 1 from nagi.posts as thread_root
+      where thread_root.uri = coalesce(${nagiPosts.replyRootUri}, ${nagiPosts.uri})
+        and thread_root.deleted_at is null
+        and thread_root.did = any(${homeActorsParam(actorDids)})
+        and thread_root.channel_only = false
+        and (not thread_root.kossori or thread_root.did = ${homeDid})
+    )`,
+  ];
+}
+
+/**
+ * 会話グループ化の代表選出 `not exists (... sib ...)` に足す、ホーム専用の条件。
+ * ホームの代表は「そのスレッドでリストメンバーが最後に書いた投稿」。兄弟をメンバーに
+ * 限らないと、リスト外の人の返信が代表になり、その代表が候補条件（homeTimelineVisibility）
+ * で落ちてスレッドごとホームから消える。リスト外の返信は会話バブルとしては表示される。
+ */
+export const homeSiblingFilter = (actorDids: string[] | undefined) =>
+  actorDids ? sql` and sib.did = any(${homeActorsParam(actorDids)})` : sql``;
+
+/**
+ * my Nagi の「リストの動き」用。1人1件の最新ルート投稿を選ぶ経路なので、返信は候補に
+ * 入れない（スレッド単位の最新活動順で見せるホームTLとは意味が違う）。
+ */
+export function homeRootVisibility(
   homeDid: string,
   actorDids: string[],
 ): SQL[] {
@@ -569,8 +611,9 @@ export async function getTimeline(opts: {
    */
   group?: boolean;
   /**
-   * 本人向けホーム。指定時は本人・botたん・本人の非公開リストのルート投稿だけを候補にする。
-   * 本人の kossori だけは表示するが、channelOnly は本人分も含めてホームへ出さない。
+   * 本人向けホーム。指定時は本人・botたん・本人の非公開リストの投稿（返信を含む）を候補にし、
+   * スレッド単位の最新活動順に並べる。公開範囲はスレッドルートで判定するので、本人の kossori
+   * だけは表示するが、channelOnly は本人分も含めてホームへ出さない。
    */
   homeDid?: string;
   /** 呼び出し側が既に引いている場合に渡す。省略時は viewerDid から自分で引く。 */
@@ -663,9 +706,7 @@ export async function getTimeline(opts: {
   // kossori判定は上の case 式が担うので、ここでは重複して書かない。
   // ミュート著者の投稿は代表になれないので sib からも除く（1つ前へフォールバックさせる）。
   const sibMuteFilter = sibNotMuted(mutes, muteActors);
-  const homeRootSibling = opts.homeDid
-    ? sql` and sib.reply_parent_uri is null`
-    : sql``;
+  const homeSibling = homeSiblingFilter(homeActors);
   if (groupsByThreadActivity(opts.group, opts.filter))
     filters.push(sql`
       not exists (
@@ -674,7 +715,7 @@ export async function getTimeline(opts: {
             = coalesce(${nagiPosts.replyRootUri}, ${nagiPosts.uri})
           and sib.deleted_at is null
           and (sib.did <> ${config.botDid} or sib.reply_parent_uri is null)${sibMuteFilter}
-          ${homeRootSibling}
+          ${homeSibling}
           and (
             sib.indexed_at > ${nagiPosts.indexedAt}
             or (sib.indexed_at = ${nagiPosts.indexedAt} and sib.uri > ${nagiPosts.uri})
