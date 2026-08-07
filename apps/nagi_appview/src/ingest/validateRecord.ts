@@ -334,6 +334,13 @@ export function validateRecord(
         (typeof value.titleJa === "string" && graphemes(value.titleJa) <= 64)) &&
       (value.titleEn === undefined ||
         (typeof value.titleEn === "string" && graphemes(value.titleEn) <= 64)) &&
+      (value.emoji === undefined ||
+        (typeof value.emoji === "string" &&
+          // 既存の1絵文字レコードは読み込み互換のため残し、新規形式は3絵文字。
+          [1, 3].includes(graphemes(value.emoji)) &&
+          Buffer.byteLength(value.emoji) <= 192)) &&
+      (value.postCount === undefined ||
+        (Number.isInteger(value.postCount) && value.postCount > 0)) &&
       (value.langs === undefined ||
         (Array.isArray(value.langs) &&
           value.langs.length <= 4 &&

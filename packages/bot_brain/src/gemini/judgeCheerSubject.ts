@@ -1,7 +1,8 @@
-import { PartListUnion, Type, ServiceTier } from "@google/genai";
-import { MODEL_GEMINI, SYSTEM_INSTRUCTION, MODEL_GEMINI_LITE, safeFetch } from "@bsky-affirmative-bot/shared-configs";
+import { PartListUnion, Type } from "@google/genai";
+import { SYSTEM_INSTRUCTION, safeFetch } from "@bsky-affirmative-bot/shared-configs";
 import { UserInfoGemini, GeminiScore } from "@bsky-affirmative-bot/shared-configs";
 import { gemini } from "./index.js";
+import { withRoute } from "./aiRoute.js";
 
 
 type GeminiJudgeResult = {
@@ -54,15 +55,13 @@ commentには、そう判断した理由を出力してください。
       });
     }
   }
-  const response = await gemini.models.generateContent({
-    model: MODEL_GEMINI_LITE,
+  const response = await gemini.models.generateContent(withRoute("BSKY_CHEER_SUBJECT", {
     contents,
     config: {
       responseMimeType: "application/json",
       responseSchema: SCHEMA_CHECKCHEER,
-      serviceTier: userinfo.isSubscriber ? ServiceTier.STANDARD : ServiceTier.FLEX,
     }
-  });
+  }));
   const result = JSON.parse(response.text || "") as GeminiJudgeResult[];
 
   // Geminiリクエスト数加算

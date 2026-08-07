@@ -1,5 +1,6 @@
 import { NAGI, type NagiPost } from "@bsky-affirmative-bot/nagi-lexicon";
 import { agent } from "./agent.js";
+import { trackedCreateRecord, trackedPutRecord } from "@bsky-affirmative-bot/clients";
 import { buildNagiPostAttachments } from "./nagiLinkCards.js";
 import { clipNagiPostText } from "./nagiPostText.js";
 
@@ -41,6 +42,7 @@ export async function buildNagiPostRecord({
  */
 export async function publishNagiPost(request: PublishNagiPostRequest) {
   const record = await buildNagiPostRecord(request);
+  const source = `nagi.post.${request.label ?? "NAGI_POST"}`;
   const common = {
     repo: process.env.NAGI_BOT_DID!,
     collection: NAGI.post,
@@ -48,11 +50,11 @@ export async function publishNagiPost(request: PublishNagiPostRequest) {
     record,
   };
   const response = request.rkey
-    ? await agent.api.com.atproto.repo.putRecord({
+    ? await trackedPutRecord(agent, {
         ...common,
         rkey: request.rkey,
-      } as any)
-    : await agent.api.com.atproto.repo.createRecord(common as any);
+      } as any, source)
+    : await trackedCreateRecord(agent, common as any, source);
 
   return { uri: response.data.uri, cid: response.data.cid };
 }

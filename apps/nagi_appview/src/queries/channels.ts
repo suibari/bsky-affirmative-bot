@@ -6,7 +6,15 @@ import {
   getTimeline,
   hydratePostViews,
 } from "./timeline.js";
-import { embedQuery, hybridConditions } from "./hybridSearch.js";
+import {
+  embedQuery,
+  hybridConditions,
+  lexicalMatch,
+  relativeCut,
+  SEMANTIC_LIMIT,
+  semanticConditions,
+  type SearchMode,
+} from "./hybridSearch.js";
 import { channelView, iso } from "./channelView.js";
 import { isChannelMuted, loadMutes } from "./mutes.js";
 import { loadSubscribedAmong } from "./channelSubscriptions.js";
@@ -113,20 +121,48 @@ export async function searchChannels(opts: {
   limit: number;
   cursor?: string;
   viewerDid?: string;
+  mode?: SearchMode;
 }) {
   const q = opts.q.trim();
+  const mode: SearchMode = opts.mode ?? "hybrid";
   const offset = decodeOffset(opts.cursor);
   const [embedding, mutes] = await Promise.all([
-    embedQuery(q),
+    // exact は埋め込みを使わないので Ollama 往復ごと省く。
+    mode === "exact" ? Promise.resolve(null) : embedQuery(q),
     loadMutes(opts.viewerDid),
   ]);
   const textExpr = sql`coalesce(${nagiChannels.name}, '') || ' ' || coalesce(${nagiChannels.description}, '')`;
-  const { match, orderBy } = hybridConditions({
-    embedding,
-    q,
-    embeddingCol: nagiChannels.embedding,
-    textExpr,
-  });
+  const noDistance = sql<number>`0`;
+  const conditions =
+    mode === "exact"
+      ? {
+          match: lexicalMatch({ q, textExpr }),
+          // 一致は活動順（getChannels と同じ sortAt）。スコアで並べる理由がない。
+          orderBy: sql`${sortAt} desc`,
+          distance: noDistance,
+        }
+      : mode === "semantic"
+        ? semanticConditions({
+            embedding,
+            q,
+            embeddingCol: nagiChannels.embedding,
+            textExpr,
+          })
+        : {
+            ...hybridConditions({
+              embedding,
+              q,
+              embeddingCol: nagiChannels.embedding,
+              textExpr,
+            }),
+            distance: noDistance,
+          };
+  if (!conditions) {
+    // Ollama 不通で意味検索ができない。気まぐれだけ空にして一致検索は生かす。
+    return { channels: [], hasMore: false };
+  }
+  // 気まぐれは相対しきい値で裾を切るのでページングせず打ち止め。
+  const semantic = mode === "semantic";
   const rows = await db
     .select({
       uri: nagiChannels.uri,
@@ -140,6 +176,7 @@ export async function searchChannels(opts: {
       recordCreatedAt: nagiChannels.recordCreatedAt,
       indexedAt: nagiChannels.indexedAt,
       lastPostAt: lastPostSub.lastPostAt,
+      semDistance: conditions.distance,
     })
     .from(nagiChannels)
     .leftJoin(lastPostSub, eq(lastPostSub.channelUri, nagiChannels.uri))
@@ -149,14 +186,16 @@ export async function searchChannels(opts: {
         ...(mutes.channels.length
           ? [notInArray(nagiChannels.uri, mutes.channels)]
           : []),
-        match,
+        conditions.match,
       ),
     )
-    .orderBy(orderBy, sql`${nagiChannels.uri} desc`)
-    .limit(opts.limit + 1)
-    .offset(offset);
-  const page = rows.slice(0, opts.limit);
-  const hasMore = rows.length > opts.limit;
+    .orderBy(conditions.orderBy, sql`${nagiChannels.uri} desc`)
+    .limit(semantic ? SEMANTIC_LIMIT : opts.limit + 1)
+    .offset(semantic ? 0 : offset);
+  const page = semantic
+    ? relativeCut(rows, (row) => Number(row.semDistance))
+    : rows.slice(0, opts.limit);
+  const hasMore = !semantic && rows.length > opts.limit;
   return {
     channels: page.map(channelView),
     cursor: hasMore ? encodeOffset(offset + opts.limit) : undefined,
@@ -167,6 +206,10 @@ export async function searchChannels(opts: {
 /**
  * Composer の #チャンネル候補。キー入力ごとに呼ばれるため埋め込みは生成せず、
  * name の完全一致・前方一致・部分一致の順で軽量に返す。同名 CH も URI ごとに残す。
+ *
+ * 活動順（lastPostAt）は一覧と違って lastPostSub を JOIN しない。あれは nagi.posts 全体を
+ * GROUP BY する集約なので、打鍵のたびに投稿テーブル全走査になってしまう。ここでは絞り込みに
+ * 残った候補ごとの相関サブクエリにして nagi_posts_channel_idx(channel_uri, indexed_at) を効かせる。
  */
 export async function searchChannelsTypeahead(opts: {
   q: string;
@@ -176,6 +219,12 @@ export async function searchChannelsTypeahead(opts: {
   const q = opts.q.trim().toLowerCase();
   const mutes = await loadMutes(opts.viewerDid);
   const loweredName = sql<string>`lower(${nagiChannels.name})`;
+  // 外側の列は必ず修飾して書く。select 句の中で ${nagiChannels.uri} を使うと drizzle が
+  // 非修飾の "uri" を出し、nagi.posts にも uri 列があるため p.uri に解決されてしまう。
+  const lastPostAt = sql<Date | null>`(
+      select max(p.indexed_at) from nagi.posts p
+       where p.channel_uri = "nagi"."channels"."uri" and p.deleted_at is null
+    )`.as("last_post_at");
   const rows = await db
     .select({
       uri: nagiChannels.uri,
@@ -188,10 +237,9 @@ export async function searchChannelsTypeahead(opts: {
       pinnedPostCid: nagiChannels.pinnedPostCid,
       recordCreatedAt: nagiChannels.recordCreatedAt,
       indexedAt: nagiChannels.indexedAt,
-      lastPostAt: lastPostSub.lastPostAt,
+      lastPostAt,
     })
     .from(nagiChannels)
-    .leftJoin(lastPostSub, eq(lastPostSub.channelUri, nagiChannels.uri))
     .where(
       and(
         isNull(nagiChannels.deletedAt),
@@ -204,7 +252,9 @@ export async function searchChannelsTypeahead(opts: {
     .orderBy(
       sql`case when ${loweredName} = ${q} then 0 when position(${q} in ${loweredName}) = 1 then 1 else 2 end`,
       sql`position(${q} in ${loweredName})`,
-      sql`${sortAt} desc`,
+      // 出力列名で参照して相関サブクエリの二重評価を避ける。投稿ゼロの CH は末尾（一覧の
+      // coalesce(..., EPOCH) と同じ並び）。
+      sql`last_post_at desc nulls last`,
       sql`${nagiChannels.uri} desc`,
     )
     .limit(Math.min(10, opts.limit));

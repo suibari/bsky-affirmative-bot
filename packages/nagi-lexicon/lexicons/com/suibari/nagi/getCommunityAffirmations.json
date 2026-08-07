@@ -49,6 +49,14 @@
         "reactions": {
           "type": "array",
           "items": { "type": "unknown" }
+        },
+        "images": {
+          "type": "array",
+          "items": { "type": "unknown" }
+        },
+        "linkCards": {
+          "type": "array",
+          "items": { "type": "unknown" }
         }
       }
     }

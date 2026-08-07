@@ -2,12 +2,12 @@ import webpush from "web-push";
 import { db, nagiActors, nagiProfiles } from "@bsky-affirmative-bot/database";
 import { eq } from "drizzle-orm";
 import { config } from "../config.js";
-import { deleteSubscription, listSubscriptions } from "../queries/pushSubscriptions.js";
-import { loadMutes } from "../queries/mutes.js";
 import {
-  buildPushPayload,
-  type PushNotificationType,
-} from "./pushPayload.js";
+  deleteSubscription,
+  listSubscriptions,
+} from "../queries/pushSubscriptions.js";
+import { loadMutes } from "../queries/mutes.js";
+import { buildPushPayload, type PushNotificationType } from "./pushPayload.js";
 
 let configured = false;
 let warnedMissingConfig = false;
@@ -43,8 +43,10 @@ export interface PushJob {
    * 直後の returning から必ず渡すこと。
    */
   notificationId: string;
-  /** 本文プレビュー（返信/メンションはポスト本文、リアクションは絵文字、日記はタイトル）。 */
-  bodyText?: string;
+  /** リアクション絵文字など、操作そのものを説明する短い文字列。 */
+  actionText?: string;
+  /** 新規内容。リアクションだけは対象投稿のプレビュー。 */
+  contentText?: string;
 }
 
 async function actorName(did: string): Promise<string> {
@@ -91,7 +93,8 @@ export async function dispatchPush(job: PushJob): Promise<void> {
       type: job.type,
       notificationId: job.notificationId,
       actorName: await actorName(job.actorDid),
-      bodyText: job.bodyText ?? "",
+      actionText: job.actionText,
+      contentText: job.contentText,
     }),
   );
   let accepted = 0;
@@ -101,7 +104,10 @@ export async function dispatchPush(job: PushJob): Promise<void> {
     subs.map(async (sub) => {
       try {
         await webpush.sendNotification(
-          { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+          {
+            endpoint: sub.endpoint,
+            keys: { p256dh: sub.p256dh, auth: sub.auth },
+          },
           payload,
           {
             // web-push の既定は4週間。端末が長く落ちていた場合に、もう意味のない

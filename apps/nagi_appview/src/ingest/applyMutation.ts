@@ -9,6 +9,7 @@ import {
   nagiIngestState,
   nagiNotifications,
   nagiNews,
+  nagiNewsReviewJobs,
   nagiPosts,
   nagiProcessedEvents,
   nagiProfiles,
@@ -20,6 +21,7 @@ import { and, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { config } from "../config.js";
 import { indexEmoji, resolveEmoji, type EmojiRow } from "../services/emoji.js";
 import { dispatchPushAll, type PushJob } from "../services/pushDispatch.js";
+import { postPushBody } from "../services/pushPayload.js";
 import {
   shouldStartEnglishPrewarm,
   startEnglishPrewarm,
@@ -32,31 +34,51 @@ import {
   parseContentWarning,
 } from "../util/contentWarning.js";
 
-/** プッシュ本文用に長い本文を詰める。 */
+/**
+ * 自動分析（名刺）を撃つ Nagi 投稿数の節目。10 → 100 → 200 → 300 → …。
+ * 10 は初回登録時の Bluesky 分析が成立しなかった人の受け皿で、分析が無いときだけ撃つ。
+ */
+const FIRST_NAGI_ANALYSIS_POSTS = 10;
+const NAGI_ANALYSIS_POSTS_INTERVAL = 100;
+
+/** 日記など、投稿以外のプッシュ本文用に長い本文を詰める。 */
 const preview = (text: unknown, max = 80): string => {
   const s = typeof text === "string" ? text.replace(/\s+/g, " ").trim() : "";
   return s.length > max ? `${s.slice(0, max)}…` : s;
 };
 
 /**
- * facets の #tag feature から小文字タグ配列を抽出する（/search 用のインデックス列）。
- * マッチングは小文字で正規化し、重複は除く。tag が無ければ null（列は NULL のまま）。
+ * facets の #tag feature やレコード直下の tags 配列から小文字タグ配列を抽出する（/search 用のインデックス列）。
+ * マッチングは先頭の # / ＃ をトリムして小文字で正規化し、重複は除く。tag が無ければ null（列は NULL のまま）。
  */
-const extractTags = (facets: unknown): string[] | null => {
-  if (!Array.isArray(facets)) return null;
+const extractTags = (value: any): string[] | null => {
+  if (!value || typeof value !== "object") return null;
   const tags = new Set<string>();
-  for (const facet of facets) {
-    if (!Array.isArray(facet?.features)) continue;
-    for (const feature of facet.features) {
-      if (
-        feature?.$type === "app.bsky.richtext.facet#tag" &&
-        typeof feature.tag === "string"
-      ) {
-        const tag = feature.tag.trim().toLowerCase();
+
+  if (Array.isArray(value.facets)) {
+    for (const facet of value.facets) {
+      if (!Array.isArray(facet?.features)) continue;
+      for (const feature of facet.features) {
+        if (
+          feature?.$type === "app.bsky.richtext.facet#tag" &&
+          typeof feature.tag === "string"
+        ) {
+          const tag = feature.tag.replace(/^[#＃]+/, "").trim().toLowerCase();
+          if (tag) tags.add(tag);
+        }
+      }
+    }
+  }
+
+  if (Array.isArray(value.tags)) {
+    for (const rawTag of value.tags) {
+      if (typeof rawTag === "string") {
+        const tag = rawTag.replace(/^[#＃]+/, "").trim().toLowerCase();
         if (tag) tags.add(tag);
       }
     }
   }
+
   return tags.size ? [...tags] : null;
 };
 
@@ -239,11 +261,20 @@ export async function applyMutation(
           .delete(nagiNotifications)
           .where(eq(nagiNotifications.reasonUri, uri));
       }
-      if (collection === NAGI.news)
+      if (collection === NAGI.news) {
         await tx
           .update(nagiNews)
           .set({ deletedAt: new Date() })
           .where(eq(nagiNews.uri, uri));
+        await tx
+          .update(nagiNewsReviewJobs)
+          .set({
+            status: "cancelled",
+            reasonCode: "record_deleted",
+            finishedAt: new Date(),
+          })
+          .where(eq(nagiNewsReviewJobs.newsUri, uri));
+      }
       // CH 削除はソフト削除。所属投稿の channel_uri はそのまま残す（通常投稿はグローバルに残る）。
       if (collection === NAGI.channel)
         await tx
@@ -264,6 +295,20 @@ export async function applyMutation(
       if (collection === NAGI.post) {
         // 既存投稿 かつ cid が変わった＝投稿後編集。翻訳キャッシュ破棄と edited フラグ立てに使う。
         const isEdit = !!existingPost[0] && existingPost[0].cid !== commit.cid;
+        // 所属チャンネルはこっそりと同じくスレッドルートが所有する。返信は自分のレコードの
+        // channel を見ない（旧クライアントが複製した値が残っていても無視する）ことで、
+        // ルートの編集で所属が変わってもスレッド全体が必ず一致する。ルート未取り込みの
+        // 間は null になるが、後からルートが届いた時点で下の伝播 UPDATE が埋める。
+        const replyRootUri: string | null = value.reply?.root?.uri ?? null;
+        const channelUri = replyRootUri
+          ? ((
+              await tx
+                .select({ channelUri: nagiPosts.channelUri })
+                .from(nagiPosts)
+                .where(eq(nagiPosts.uri, replyRootUri))
+                .limit(1)
+            )[0]?.channelUri ?? null)
+          : (value.channel?.uri ?? null);
         if (isEdit) {
           const quotingSourceUris = (
             await tx
@@ -311,7 +356,7 @@ export async function applyMutation(
             did,
             text: value.text,
             facets: value.facets,
-            tags: extractTags(value.facets),
+            tags: extractTags(value),
             langs: value.langs,
             recordJson: value,
             replyRootUri: value.reply?.root.uri,
@@ -326,7 +371,7 @@ export async function applyMutation(
                 ? value.embed.record.cid
                 : null,
             kossori: value.kossori === true,
-            channelUri: value.channel?.uri ?? null,
+            channelUri,
             channelOnly: value.channelOnly === true,
             repoRev: commit.rev,
             recordCreatedAt: createdAt,
@@ -342,7 +387,7 @@ export async function applyMutation(
               cid: commit.cid,
               text: value.text,
               facets: value.facets,
-              tags: extractTags(value.facets),
+              tags: extractTags(value),
               langs: value.langs,
               recordJson: value,
               replyRootUri: value.reply?.root.uri ?? null,
@@ -357,7 +402,7 @@ export async function applyMutation(
                   ? value.embed.record.cid
                   : null,
               kossori: value.kossori === true,
-              channelUri: value.channel?.uri ?? null,
+              channelUri,
               channelOnly: value.channelOnly === true,
               repoRev: commit.rev,
               recordCreatedAt: createdAt,
@@ -369,6 +414,19 @@ export async function applyMutation(
               deletedAt: null,
             },
           });
+        // スレッドルートの所属を配下の返信へ配る。これ1つで「返信がルートより先に届いた
+        // （firehose の順序前後・reconcile・backfill）」と「ルートの編集で所属が変わった」の
+        // 両方を吸収する。差分がある行だけ触るので、通常の新規投稿では0行更新で済む。
+        if (!replyRootUri)
+          await tx
+            .update(nagiPosts)
+            .set({ channelUri })
+            .where(
+              and(
+                eq(nagiPosts.replyRootUri, uri),
+                sql`${nagiPosts.channelUri} is distinct from ${channelUri}::text`,
+              ),
+            );
         if (
           shouldStartEnglishPrewarm(
             Boolean(existingPost[0]),
@@ -379,16 +437,29 @@ export async function applyMutation(
         ) {
           englishPrewarmUris.push(uri);
         }
-        // 新規投稿が 100 の倍数に到達したら自動分析（Nagi投稿+リアクション）をキューする。
-        // 編集(existingPost)ではカウントが変わらないので発火させない。件数は
-        // プロフィールの postCount と同条件（非削除の全投稿）で数える。
+        // 新規投稿が節目に達したら自動分析（Nagi投稿+リアクション）をキューする。発火点は
+        // 10 → 100 → 200 → 300 → …。編集(existingPost)ではカウントが変わらないので発火させない。
+        // 件数はプロフィールの postCount と同条件（非削除の全投稿）で数える。
         if (!existingPost[0] && did !== config.botDid) {
           const [counted] = await tx
             .select({ count: sql<number>`count(*)::int` })
             .from(nagiPosts)
             .where(and(eq(nagiPosts.did, did), isNull(nagiPosts.deletedAt)));
           const count = counted?.count ?? 0;
-          if (count > 0 && count % 100 === 0) {
+          // 100件ごとは定期リフレッシュなので、分析の有無を問わず撃つ。
+          let shouldQueue = count > 0 && count % NAGI_ANALYSIS_POSTS_INTERVAL === 0;
+          // 10件は「初回登録時の Bluesky 分析が成立しなかった人」の受け皿。Bluesky に投稿が
+          // 無い Nagi 専用ユーザーや、bot がブロックされていて読めない人は初回がスキップされ、
+          // 従来は100件まで名刺が出なかった。既に分析があるなら不要なので、そのときは撃たない。
+          if (!shouldQueue && count === FIRST_NAGI_ANALYSIS_POSTS) {
+            const existingAnalysis = await tx
+              .select({ did: nagiActorAnalyses.did })
+              .from(nagiActorAnalyses)
+              .where(eq(nagiActorAnalyses.did, did))
+              .limit(1);
+            shouldQueue = !existingAnalysis[0];
+          }
+          if (shouldQueue) {
             await tx
               .insert(nagiAnalysisJobs)
               .values({
@@ -631,6 +702,8 @@ export async function applyMutation(
               text: value.text,
               titleJa: value.titleJa ?? null,
               titleEn: value.titleEn ?? null,
+              emoji: value.emoji ?? null,
+              postCount: value.postCount ?? null,
               langs: value.langs ?? null,
               recordCreatedAt: createdAt,
             })
@@ -643,6 +716,8 @@ export async function applyMutation(
                 text: value.text,
                 titleJa: value.titleJa ?? null,
                 titleEn: value.titleEn ?? null,
+                emoji: value.emoji ?? null,
+                postCount: value.postCount ?? null,
                 langs: value.langs ?? null,
                 recordCreatedAt: createdAt,
               },
@@ -667,7 +742,9 @@ export async function applyMutation(
               type: "diary",
               actorDid: did,
               notificationId: inserted[0].id,
-              bodyText: preview(value.titleJa ?? value.titleEn ?? value.text),
+              contentText: preview(
+                value.titleJa ?? value.titleEn ?? value.text,
+              ),
             });
         }
       }
@@ -758,9 +835,12 @@ export async function applyMutation(
               type: "reply",
               actorDid: did,
               notificationId: inserted[0].id,
-              bodyText: hasContentWarning(value.text)
-                ? ""
-                : preview(value.text),
+              contentText: postPushBody({
+                text: value.text,
+                contentWarning: hasContentWarning(value.text),
+                hasImages: Array.isArray(value.embed?.images),
+                hasQuote: value.embed?.$type === `${NAGI.post}#quote`,
+              }),
             });
         }
       }
@@ -806,9 +886,12 @@ export async function applyMutation(
                 type: "mention",
                 actorDid: did,
                 notificationId: inserted[0].id,
-                bodyText: hasContentWarning(value.text)
-                  ? ""
-                  : preview(value.text),
+                contentText: postPushBody({
+                  text: value.text,
+                  contentWarning: hasContentWarning(value.text),
+                  hasImages: Array.isArray(value.embed?.images),
+                  hasQuote: value.embed?.$type === `${NAGI.post}#quote`,
+                }),
               });
           }
         }
@@ -842,9 +925,17 @@ export async function applyMutation(
               type: "reaction",
               actorDid: did,
               notificationId: inserted[0].id,
-              bodyText: bluemoji
+              actionText: bluemoji
                 ? `:${bluemoji.name}:`
                 : preview(value.emoji, 8),
+              contentText: postPushBody({
+                text: subject[0].text,
+                contentWarning: hasContentWarning(subject[0].text),
+                hasImages:
+                  Array.isArray(subject[0].embedImages) &&
+                  subject[0].embedImages.length > 0,
+                hasQuote: Boolean(subject[0].quoteUri),
+              }),
             });
         }
       }

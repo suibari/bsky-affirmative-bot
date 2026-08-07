@@ -9,10 +9,7 @@
     "test": "tsx --test test/*.test.ts",
     "start": "node --env-file=../../.env dist/index.js",
     "dev": "tsx watch --env-file=../../.env src/index.ts",
-    "news:preview": "tsx --env-file=../../.env src/newsPreview.ts",
-    "news:feed:preview": "tsx --env-file=../../.env src/newsFeedAdmin.ts preview",
-    "news:feed:list": "tsx --env-file=../../.env src/newsFeedAdmin.ts list",
-    "news:feed:hide": "tsx --env-file=../../.env src/newsFeedAdmin.ts hide"
+    "whimsical:news:preview": "tsx --env-file=../../.env src/whimsicalPostPreview.ts"
   },
   "dependencies": {
     "@atproto/api": "^0.18.21",
@@ -24,6 +21,7 @@
     "@types/async-retry": "^1.4.9",
     "async-retry": "^1.3.3",
     "axios": "^1.6.0",
+    "cors": "^2.8.6",
     "dotenv": "^16.4.5",
     "drizzle-orm": "^0.45.1",
     "express": "^5.0.0",
@@ -31,6 +29,7 @@
     "ws": "^8.19.0"
   },
   "devDependencies": {
+    "@types/cors": "^2.8.19",
     "@types/express": "^5.0.0",
     "@types/node": "^22.0.0",
     "@types/ws": "^8.18.1",

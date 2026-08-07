@@ -21,11 +21,7 @@
 
 /** 通知種別。nagi.notifications.type と対応する。 */
 export type PushNotificationType =
-  | "reply"
-  | "reaction"
-  | "mention"
-  | "diary"
-  | "analysis";
+  "reply" | "reaction" | "mention" | "diary" | "analysis";
 
 export interface PushPayload {
   title: string;
@@ -40,6 +36,33 @@ export interface PushPayload {
 /** 通知一覧ページ。今はすべての通知がここへ着地する。 */
 const NOTIF_URL = "/notifications";
 
+const CONTENT_WARNING_BODY = "Content Warning付き投稿";
+const IMAGE_POST_BODY = "画像付きの投稿";
+const QUOTE_POST_BODY = "引用付きの投稿";
+
+/**
+ * 投稿を端末通知へ安全に載せるための共通プレビュー。
+ *
+ * 本文は80文字に詰め、CW本文は露出しない。本文が空でも添付の種類だけは伝え、
+ * 「何に対する通知か」が空欄にならないようにする。
+ */
+export function postPushBody(input: {
+  text: unknown;
+  contentWarning?: boolean;
+  hasImages?: boolean;
+  hasQuote?: boolean;
+}): string {
+  if (input.contentWarning) return CONTENT_WARNING_BODY;
+  const text =
+    typeof input.text === "string"
+      ? input.text.replace(/\s+/g, " ").trim()
+      : "";
+  if (text) return text.length > 80 ? `${text.slice(0, 80)}…` : text;
+  if (input.hasImages) return IMAGE_POST_BODY;
+  if (input.hasQuote) return QUOTE_POST_BODY;
+  return "";
+}
+
 /**
  * payload を組み立てる唯一の入口。文面はサーバー側で作る（受信者の locale を
  * 持たないため日本語既定）。
@@ -51,11 +74,14 @@ export function buildPushPayload(input: {
   type: PushNotificationType;
   notificationId: string;
   actorName: string;
-  bodyText: string;
+  /** リアクション絵文字など、操作そのものを説明する短い文字列。 */
+  actionText?: string;
+  /** 新規内容。リアクションだけは対象投稿のプレビュー。 */
+  contentText?: string;
 }): PushPayload {
-  const { type, notificationId, actorName, bodyText } = input;
+  const { type, notificationId, actorName, actionText, contentText } = input;
   return {
-    ...compose(type, actorName, bodyText),
+    ...compose(type, actorName, actionText, contentText),
     type,
     tag: `${type}-${notificationId}`,
     url: NOTIF_URL,
@@ -65,19 +91,28 @@ export function buildPushPayload(input: {
 function compose(
   type: PushNotificationType,
   name: string,
-  body: string,
+  actionText = "",
+  contentText = "",
 ): { title: string; body: string } {
   switch (type) {
     case "reply":
-      return { title: `${name}さんが返信しました`, body };
+      return { title: `${name}さんが返信しました`, body: contentText };
     case "mention":
-      return { title: `${name}さんがあなたをメンションしました`, body };
+      return {
+        title: `${name}さんがあなたをメンションしました`,
+        body: contentText,
+      };
     case "reaction":
-      return { title: `${name}さんがリアクションしました`, body };
+      return {
+        title: actionText
+          ? `${name}さんが${actionText}でリアクションしました`
+          : `${name}さんがリアクションしました`,
+        body: contentText,
+      };
     case "diary":
-      return { title: "botたんが日記を書きました", body };
+      return { title: "botたんが日記を書きました", body: contentText };
     case "analysis":
       // 分析＝名刺の更新。actorName は常に botたんなので使わない。
-      return { title: "botたんがあなたの名刺を更新しました", body };
+      return { title: "botたんがあなたの名刺を更新しました", body: "" };
   }
 }

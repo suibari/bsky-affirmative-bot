@@ -1,7 +1,6 @@
-import { Type, ServiceTier } from "@google/genai";
+import { Type } from "@google/genai";
 import { generateContentWithRetry } from "./util.js";
 import {
-  MODEL_GEMINI,
   SYSTEM_INSTRUCTION,
   TONE_RULES_JA,
   type CardDefinition,
@@ -58,17 +57,17 @@ export async function generateNagiCardComment(
   const format = commentFormat(input.card);
   const response = await generateContentWithRetry(
     {
-      model: MODEL_GEMINI,
+      /*
+       * NAGI_CARD_COMMENT のルートは lite-standard。ここだけ他の生成と違って FLEX を使わない。
+       * ユーザーはドロー演出を見ながらこの1文を待っているので、待ち時間がそのまま体験の質になる。
+       * 呼び出しは「1ユーザーにつき1日1回・数十文字」なので、STANDARD にしても
+       * 総量はごくわずか（会話や分析のほうが桁違いに重い）。
+       * モデル/tier を変えたいときは shared-configs の aiRoutes.ts か AI_ROUTE_NAGI_CARD_COMMENT で。
+       */
+      feature: "NAGI_CARD_COMMENT",
       contents: [buildNagiCardCommentPrompt(input)],
       config: {
         systemInstruction: SYSTEM_INSTRUCTION,
-        /*
-         * ここだけ他の生成と違って FLEX を使わない。ユーザーはドロー演出を見ながら
-         * この1文を待っているので、待ち時間がそのまま体験の質になる。
-         * 呼び出しは「1ユーザーにつき1日1回・数十文字」なので、STANDARD にしても
-         * 総量はごくわずか（会話や分析のほうが桁違いに重い）。
-         */
-        serviceTier: ServiceTier.STANDARD,
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,

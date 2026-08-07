@@ -1,4 +1,14 @@
-import { pgTable, text, integer, timestamp, jsonb, serial, pgSchema, customType } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  text,
+  integer,
+  timestamp,
+  jsonb,
+  serial,
+  pgSchema,
+  customType,
+  index,
+} from "drizzle-orm/pg-core";
 
 const vector = customType<{ data: number[]; driverData: string; config: { dimensions: number } }>({
   dataType(config) {
@@ -37,6 +47,9 @@ export const followers = affirmativeBotSchema.table("followers", {
   last_answered_at: timestamp("last_answered_at"),
   last_recap_at: timestamp("last_recap_at"),
   is_diary: integer("is_diary").default(0),
+  // 日記を書き終えたユーザーのローカル日付 "YYYY-MM-DD"。
+  // 二重投稿の防止と、22時を過ぎた取りこぼしの回収判定に使う。
+  last_diary_date: text("last_diary_date"),
   is_anniv: integer("is_anniv").default(1),
   last_whimsical_responded_uri: text("last_whimsical_responded_uri"),
   positivity_level: integer("positivity_level").default(0),
@@ -116,6 +129,40 @@ export const biorhythm_history = affirmativeBotSchema.table("biorhythm_history",
   created_at: timestamp("created_at").defaultNow().notNull(),
 });
 
+/**
+ * bot-tan.com のダッシュボードが描く推移の元データ。
+ *
+ * 日次カウンタは resetDailyStats() で毎晩ゼロに戻ってしまうので、消える直前の
+ * 確定値をここに1行だけ残す。指標が増えるたびに列を足す（= マイグレーションする）
+ * ことになるのを避けるため、値は jsonb 1つにまとめている。
+ */
+export const daily_metrics = affirmativeBotSchema.table("daily_metrics", {
+  /** リセット時点の JST 日付 "YYYY-MM-DD"。 */
+  date: text("date").primaryKey(),
+  /** { bsky: {...}, nagi: {...}, common: {...} } */
+  metrics: jsonb("metrics").notNull(),
+  created_at: timestamp("created_at").defaultNow().notNull(),
+});
+
+/**
+ * botたんのDIDに対してPDSが受理したrepo書き込み。
+ *
+ * 日次カウンタでは1時間/24時間のローリング窓を正しく復元できず、並行更新でも
+ * 取りこぼすため、成功した操作を追記専用で残す。
+ */
+export const repo_write_points = affirmativeBotSchema.table(
+  "repo_write_points",
+  {
+    id: serial("id").primaryKey(),
+    did: text("did").notNull(),
+    action: text("action").notNull(),
+    points: integer("points").notNull(),
+    source: text("source").notNull(),
+    created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [index("repo_write_points_did_created_idx").on(table.did, table.created_at)],
+);
+
 export const gifts = affirmativeBotSchema.table("gifts", {
   id: serial("id").primaryKey(),
   did: text("did").notNull(),
@@ -126,6 +173,28 @@ export const gifts = affirmativeBotSchema.table("gifts", {
   // "new": 未言及, "introduced": 新着紹介済み, "used": 使用報告済み（再選択あり）
   // updated_at から3日経過で再使用可能
 });
+
+/**
+ * お部屋で起きたできごと。
+ *
+ * biorhythm_server が未読を読んで status_text（いま何をしているか）の生成材料にし、既読にする。
+ * エネルギー加算は followers.room_interaction_count が担当していて、こちらは描写専用。
+ * 表示名は読み出し時に did から解決するので持たない（改名に追随させるため）。
+ */
+export const room_events = affirmativeBotSchema.table(
+  "room_events",
+  {
+    id: serial("id").primaryKey(),
+    did: text("did").notNull(),
+    /** "gift" | "chat" | "greeting" */
+    type: text("type").notNull(),
+    /** プレゼント内容・会話の話題など。ユーザー入力なので下流では必ずデータとして扱う */
+    detail: text("detail"),
+    is_read: integer("is_read").default(0).notNull(),
+    created_at: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [index("room_events_unread_idx").on(table.is_read, table.created_at)],
+);
 
 export const youtube_shorts = affirmativeBotSchema.table("youtube_shorts", {
   id: serial("id").primaryKey(),

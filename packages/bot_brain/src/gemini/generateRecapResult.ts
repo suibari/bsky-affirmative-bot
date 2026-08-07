@@ -4,7 +4,7 @@ import { generateSingleResponse } from "./util.js";
 
 export async function generateRecapResult(userinfo: UserInfoGemini) {
   const prompt = PROMPT_RECAP(userinfo);
-  const response = await generateSingleResponse(prompt, userinfo);
+  const response = await generateSingleResponse(prompt, userinfo, "BSKY_RECAP");
 
   // Geminiリクエスト数加算
   

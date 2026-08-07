@@ -1,5 +1,6 @@
 import { MemoryService } from "@bsky-affirmative-bot/clients";
 
+// This is bot-life memory used only by whimsical post generation, not news-feed state.
 export const RECENT_NEWS_STATE_KEY = "recent_positive_news_articles";
 const RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 const MAX_RECENT_ARTICLES = 100;

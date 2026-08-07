@@ -9,7 +9,12 @@ import {
 } from "../api/newsdata/index.js";
 import { sanitizePositiveNewsSelection } from "./positiveNewsSelection.js";
 import { ToolListUnion, Type } from "@google/genai";
-import { MODEL_GEMINI_HIGH, SYSTEM_INSTRUCTION } from "@bsky-affirmative-bot/shared-configs";
+import { SYSTEM_INSTRUCTION } from "@bsky-affirmative-bot/shared-configs";
+
+export const NAGI_FEATURE_INTRO_JA =
+  "botたんのために作られた全肯定SNS「Nagi」の紹介：反応数やフォロワー数などの数字を気にせず、botたんと穏やかに過ごせる。毎晩botたんが書く日記をカレンダーで振り返れる。URLは https://nagi.suibari.com/";
+export const NAGI_FEATURE_INTRO_EN =
+  "Introducing Nagi, the all-affirming social network made for bot-tan: spend calm time with bot-tan without worrying about reaction or follower counts, and look back on the daily diaries bot-tan writes for you in a calendar. URL: https://nagi.suibari.com/";
 
 export interface WhimsicalPostGenerateParams {
   topFollower?: ProfileView;
@@ -53,7 +58,7 @@ export class WhimsicalPostGenerator {
 
     // --- Step 1 各パーツ生成 ---
     const first = await generateContentWithRetry({
-      model: MODEL_GEMINI_HIGH,
+      feature: "BIORHYTHM_WHIMSICAL_POST_PLAN",
       config: { tools: this.tools, systemInstruction: SYSTEM_INSTRUCTION },
       contents: [
         {
@@ -63,7 +68,7 @@ export class WhimsicalPostGenerator {
   Create a structured SNS whimsical post.
   * "greeting": A cheerful greeting to start the post. **Take into consideration the "Date" below when greeting**. (Don't say "Good morning" at night.)
   * ${params.giftContext
-    ? `"currentMood": You are currently enjoying a gift you received from ${params.giftContext.displayName}: "${params.giftContext.content}" in your room (Bot-tan's Room / https://room-bot-tan.suibari.com). Output this as your current mood/activity.`
+    ? `"currentMood": You are currently enjoying a gift you received from ${params.giftContext.displayName}: "${params.giftContext.content}" in your room (Bot-tan's Room / https://room.bot-tan.com). Output this as your current mood/activity.`
     : `"currentMood": Your current mood. Output the following "Mood" as is.`}
   * "replyAction": If your followers mention an object or place in "Follower replies", describe it as your activity. (If Follower replies is None, output "None".)
   * "whatDay": What day is it today? Please choose one that interests you and explain what kind of day it is.
@@ -112,7 +117,7 @@ export class WhimsicalPostGenerator {
 
     // --- Step 2: 最終文章生成 ---
     const second = await generateContentWithRetry({
-      model: MODEL_GEMINI_HIGH,
+      feature: "BIORHYTHM_WHIMSICAL_POST_WRITE",
       config: {
         systemInstruction: SYSTEM_INSTRUCTION,
         responseMimeType: "application/json",
@@ -227,18 +232,20 @@ Structure: ${JSON.stringify(structure)}`
       "あなたが持っている「占い」機能の紹介：1日1回今日の運勢が占える。「占い」とリプすれば、結果画像とともに【今日のラッキーバッジ】がもらえる。",
       "あなたが持っている「性格分析」機能の紹介：1週間に1回性格診断ができる。「分析して」とリプすれば、分析結果画像とともにあなたの性格に合った【称号バッジ】がもらえる。",
       "あなたが持っている「ラベラー」機能の紹介：条件を満たすと様々なバッジをプレゼント。バッジの表示にはラベラーアカウント（https://bsky.app/profile/labeler.bot-tan.com ）を登録してもらう必要がある。",
-      "botたんのステータスを確認できるダッシュボードの紹介：URLは https://suibari.com/character/",
+      "botたんのステータスを確認できるダッシュボードの紹介：URLは https://bot-tan.com/",
       "botたんのイラストを見れるフィードの紹介：URLは https://bsky.app/profile/did:plc:uixgxpiqf4i63p6rgpu7ytmx/feed/196e948a58f4af5",
       "みんなで集まるファンコミュニティサーバー（Discord）の紹介：URLは https://discord.gg/hshXWQEMgu 。Discordサーバーに参加・Bluesky連携するとメンバー限定機能も使えるようになるよ。",
       "実はLeafletに日記を書いてるんだ、気が向いたら読んでねということの紹介。URLは https://leaflet.pub/p/bot-tan.com",
+      NAGI_FEATURE_INTRO_JA,
     ] : [
       "Introducing the Fortune Telling feature you have. You can get your fortune told once a day and receive a Today's Lucky Badge by replying \"Fortune\".",
       "Introducing the Personality Analysis feature you have. You can get a personality diagnosis once a week and receive a special Title Badge by replying \"Analyze me\".",
       "Introducing the Labeler feature you have: I'll present you with various badges when you meet certain conditions! To display the badges, register to my labeler account: https://bsky.app/profile/labeler.bot-tan.com",
-      "Introducing the dashboard where the user can check bot-tan's status: URL: https://suibari.com/character/",
+      "Introducing the dashboard where the user can check bot-tan's status: URL: https://bot-tan.com/",
       "Introducing the feed where the user can check bot-tan's illustration: URL: https://bsky.app/profile/did:plc:uixgxpiqf4i63p6rgpu7ytmx/feed/196e948a58f4af5",
       "Introducing the fan community server (Discord) where everyone gathers: URL: https://discord.gg/hshXWQEMgu — Joining the Discord server and linking your Bluesky account also unlocks member-exclusive features!",
       "Introducing bot-tan's Leaflet diary! I've been writing a diary there — feel free to read it when you're in the mood. URL: https://leaflet.pub/p/bot-tan.com",
+      NAGI_FEATURE_INTRO_EN,
     ];
 
     const crossSells = params.langStr === "日本語" ? [

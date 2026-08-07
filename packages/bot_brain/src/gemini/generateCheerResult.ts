@@ -17,7 +17,7 @@ export async function generateCheerResult(userinfo: UserInfoGemini) {
 ポスト内容: ${userinfo.posts || ""}
 `;
 
-  const response = await generateSingleResponse(prompt, userinfo);
+  const response = await generateSingleResponse(prompt, userinfo, "BSKY_CHEER_RESULT");
 
   // Geminiリクエスト数加算
   

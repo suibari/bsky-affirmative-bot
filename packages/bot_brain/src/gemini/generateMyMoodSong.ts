@@ -1,5 +1,5 @@
 import { PartListUnion } from "@google/genai";
-import { MODEL_GEMINI, SYSTEM_INSTRUCTION } from "@bsky-affirmative-bot/shared-configs";
+import { SYSTEM_INSTRUCTION } from "@bsky-affirmative-bot/shared-configs";
 import { gemini } from "./index.js";
 
 import { extractJSON, generateContentWithRetry } from "./util.js";
@@ -26,7 +26,7 @@ export class MyMoodSongGenerator {
     const contents: PartListUnion = [prompt];
 
     const response = await generateContentWithRetry({
-      model: MODEL_GEMINI,
+      feature: "BSKY_MY_MOOD_SONG",
       contents,
       config: {
         systemInstruction: SYSTEM_INSTRUCTION,

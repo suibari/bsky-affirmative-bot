@@ -6,20 +6,42 @@ import eventsEveningWorkday from "@bsky-affirmative-bot/shared-configs/json/even
 import eventsEveningDayoff from "@bsky-affirmative-bot/shared-configs/json/event_evening_dayoff.json" with { type: "json" };
 import eventsNight from "@bsky-affirmative-bot/shared-configs/json/event_night.json" with { type: "json" };
 import eventsMidnight from "@bsky-affirmative-bot/shared-configs/json/event_midnight.json" with { type: "json" };
-import { MODEL_GEMINI, SYSTEM_INSTRUCTION } from '@bsky-affirmative-bot/shared-configs';
+import { SYSTEM_INSTRUCTION, botDayRange } from '@bsky-affirmative-bot/shared-configs';
 import { gemini, generateContentWithRetry } from '@bsky-affirmative-bot/bot-brain';
 import { DailyReport, Stats } from '@bsky-affirmative-bot/shared-configs';
 import EventEmitter from "events";
 import { MemoryService } from "@bsky-affirmative-bot/clients";
+import type {
+  NagiStats,
+  RepoWritePointUsage,
+  RoomEvent,
+  TopPost,
+} from "@bsky-affirmative-bot/database";
+import { getCachedHealthSnapshot, type HealthSnapshot } from "./healthMonitor.js";
 import { getFullDateAndTimeString } from "@bsky-affirmative-bot/shared-configs";
 import { LanguageName } from "@bsky-affirmative-bot/shared-configs";
 
 import { UtilityAI } from "./utilityAI.js";
+import { fetchDisplayName } from "./displayName.js";
+import {
+  buildRoomEventsSection,
+  toRoomEventsForPrompt,
+  type RoomEventForPrompt,
+} from "./roomEventPrompt.js";
 import { getYokohamaWeather } from "@bsky-affirmative-bot/bot-brain";
 import { Type } from "@google/genai";
 
 import { Status } from "@bsky-affirmative-bot/shared-configs";
 import { postGoodNight, postMorning, postWhimsical } from "./ScheduledPostCoordinator.js";
+import {
+  DASHBOARD_TOP_POST_SOURCE,
+  getDailyTopPostCandidate,
+  toDashboardTopPost,
+} from "./DailyTopPostProvider.js";
+import {
+  shouldConsiderWhimsicalPost,
+  shouldPostGoodMorning,
+} from "./scheduledPostGate.js";
 
 // WebSocket用にlangプロパティを配列に変換したDailyStatsの型を定義
 interface DailyStatsForWebSocket extends Omit<DailyReport, 'lang'> { // DailyStatsをDailyReportに変更
@@ -35,11 +57,19 @@ interface BotStat {
   totalStats: Stats; // 追加: totalStatsプロパティ
   utilities: Record<Status, number>;
   nextStepTime: string;
+  /** bot-tan.com のダッシュボード用。既存フィールドは互換のため触らない。 */
+  bsky: { currentFollowers: number };
+  nagi: NagiStats;
+  repoWritePoints: RepoWritePointUsage;
+  health: HealthSnapshot | null;
+  topPost: TopPost | null;
 }
 
 const ENERGY_MAXIMUM = 10000;
 const SCHEDULE_STEP_MIN = 60;
 const SCHEDULE_STEP_MAX = 90;
+const NAGI_STATS_TTL_MS = 60_000;
+const REPO_WRITE_POINTS_TTL_MS = 10_000;
 
 export class BiorhythmManager extends EventEmitter {
   private status: Status = 'Sleep';
@@ -51,6 +81,14 @@ export class BiorhythmManager extends EventEmitter {
   private moodPrevEn: string = "";
   private nextStepTime: string = "";
   private _generatedImage: Buffer | null = null;
+  private currentFollowers = 0;
+  /**
+   * Nagi の集計は6本のクエリを束ねたもので、getCurrentState() は statsChange の
+   * たびに呼ばれる。毎回叩かないよう短い TTL で持ち回す。
+   */
+  private nagiStatsCache: { at: number; value: NagiStats } | null = null;
+  private repoWritePointsCache: { at: number; value: RepoWritePointUsage } | null =
+    null;
   private firstStepDone = false;
   private lastGoodNightPostDate?: string;
   private lastGoodMorningPostDate?: string;
@@ -83,8 +121,14 @@ export class BiorhythmManager extends EventEmitter {
     }
     this.lastGoodNightPostDate = state.lastGoodNightPostDate;
     this.lastGoodMorningPostDate = state.lastGoodMorningPostDate;
-    await this.updateTopPostUri();
-    setInterval(() => this.updateTopPostUri(), 10 * 60 * 1000);
+
+    const lastFollowers = await MemoryService.getBotState("last_follower_count");
+    if (typeof lastFollowers === "number") this.currentFollowers = lastFollowers;
+
+    await this.refreshDailyTopPost();
+    await this.updateFollowerCount();
+    setInterval(() => this.refreshDailyTopPost(), 10 * 60 * 1000);
+    setInterval(() => this.updateFollowerCount(), 10 * 60 * 1000);
   }
 
   // --------
@@ -142,17 +186,69 @@ export class BiorhythmManager extends EventEmitter {
     return this._generatedImage;
   }
 
-  async updateTopPostUri() {
-    const rows = await MemoryService.getHighestScorePosts();
-    if (rows && rows.length > 0) {
-      await MemoryService.updateTopPost(rows[0].uri, rows[0].comment);
-      // this.emit('statsChange', this.getCurrentState()); // getCurrentState is async now? No, but depends on async MemoryService calls.
+  async refreshDailyTopPost() {
+    try {
+      // 公開ダッシュボードは定期投稿の設定に影響されず、常に両ネットワークから選ぶ。
+      const candidate = await getDailyTopPostCandidate(DASHBOARD_TOP_POST_SOURCE);
+      await MemoryService.updateTopPost(
+        candidate ? toDashboardTopPost(candidate) : null,
+      );
+      this.emit('statsChange', await this.getCurrentState());
+    } catch (error) {
+      // 一時的なDB/API障害では、直前に正常取得できた表示を維持する。
+      console.error("[ERROR][BIO] Failed to refresh daily top post:", error);
     }
+  }
+
+  /**
+   * Bluesky の現在フォロワー数。日次のおやすみポストでも取得しているが、それだと
+   * ダッシュボードの「現在のフォロワー」が最大24時間古くなるので、ここでも回す。
+   */
+  async updateFollowerCount() {
+    const actor = process.env.BSKY_DID;
+    if (!actor) return;
+    try {
+      const response = await fetch(
+        `https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile?actor=${encodeURIComponent(actor)}`,
+      );
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const profile = (await response.json()) as { followersCount?: number };
+      if (typeof profile.followersCount === "number") {
+        this.currentFollowers = profile.followersCount;
+        await MemoryService.setBotState("last_follower_count", profile.followersCount);
+      }
+    } catch (error) {
+      console.error("[ERROR][BIO] Failed to refresh follower count:", error);
+    }
+  }
+
+  private async getNagiStatsCached(): Promise<NagiStats> {
+    if (this.nagiStatsCache && Date.now() - this.nagiStatsCache.at < NAGI_STATS_TTL_MS) {
+      return this.nagiStatsCache.value;
+    }
+    const value = await MemoryService.getNagiStats();
+    this.nagiStatsCache = { at: Date.now(), value };
+    return value;
+  }
+
+  private async getRepoWritePointsCached(): Promise<RepoWritePointUsage> {
+    if (
+      this.repoWritePointsCache &&
+      Date.now() - this.repoWritePointsCache.at < REPO_WRITE_POINTS_TTL_MS
+    ) {
+      return this.repoWritePointsCache.value;
+    }
+    const value = await MemoryService.getRepoWritePointUsage(process.env.BSKY_DID);
+    this.repoWritePointsCache = { at: Date.now(), value };
+    return value;
   }
 
   async getCurrentState(): Promise<BotStat> {
     const dailyStats = await MemoryService.getDailyStats();
     const totalStats = await MemoryService.getTotalStats();
+    const nagiStats = await this.getNagiStatsCached();
+    const repoWritePoints = await this.getRepoWritePointsCached();
+    const topPost = await MemoryService.getTopPost();
 
     const now = new Date();
     const hour = now.getHours();
@@ -182,6 +278,11 @@ export class BiorhythmManager extends EventEmitter {
         currentAction: this.moodPrev
       }),
       nextStepTime: this.nextStepTime,
+      bsky: { currentFollowers: this.currentFollowers },
+      nagi: nagiStats,
+      repoWritePoints,
+      health: getCachedHealthSnapshot(),
+      topPost,
     };
   }
 
@@ -200,6 +301,10 @@ export class BiorhythmManager extends EventEmitter {
     // 未読のリプライ取得
     const unreadReply = await MemoryService.getUnreadReplies();
 
+    // お部屋で起きたできごと。誰が来て何をしてくれたかを行動生成に反映する。
+    const roomEvents = await MemoryService.getUnreadRoomEvents();
+    const roomEventsForPrompt = await this.resolveRoomEvents(roomEvents);
+
     // 新しいステータス候補を決定
     const nextStatus = UtilityAI.selectAction({
       hour,
@@ -208,8 +313,10 @@ export class BiorhythmManager extends EventEmitter {
       currentAction: this.moodPrev
     });
 
-    // 朝の時間帯（4時〜10時）にSleepから他の状態に遷移する場合、必ずWakeUpを経由させる
-    if (this.status === "Sleep" && nextStatus !== "Sleep" && (hour >= 4 && hour <= 10)) {
+    // その日まだおはようを言っていないときにSleepから他の状態へ遷移する場合、必ずWakeUpを経由させる。
+    // 時刻ではなく「おはよう未投稿か」で見るのは、おはようポスト側も時刻の窓を持たないため。
+    // 条件がずれると、起床ポストをしながら mood は勉強中、といった食い違いが起きる。
+    if (this.status === "Sleep" && nextStatus !== "Sleep" && this.canPostGoodMorning()) {
       this.status = "WakeUp";
     } else {
       this.status = nextStatus;
@@ -224,7 +331,7 @@ export class BiorhythmManager extends EventEmitter {
       isWeekend,
       energy: this.getEnergy,
       currentAction: this.moodPrev
-    }));
+    }), roomEventsForPrompt);
 
     // RPDチェック: 超過時は全処理スキップし、丸1日後に再実行
     if (!(await MemoryService.checkRPD())) {
@@ -256,6 +363,11 @@ export class BiorhythmManager extends EventEmitter {
       // 活動ログをDBに保存
       await MemoryService.addBiorhythmHistory(this.status, status_text, status_text_en, Math.round(this.getEnergy));
 
+      // 生成に成功したぶんだけ既読にする。ここが catch の中ではなく後ろにあるのは意図的で、
+      // LLM が失敗した回のできごとは次の step に持ち越したいため（未読リプライと違い、
+      // お部屋のできごとを取りこぼすと来てくれた人の体験がそのまま消える）。
+      await MemoryService.markRoomEventsRead(roomEvents.map((event) => event.id));
+
       // おやすみポスト
       if (this.firstStepDone) {
         if (this.status !== this.statusPrev && this.status === "Sleep" && (hour >= 21 || hour <= 3)) {
@@ -269,32 +381,37 @@ export class BiorhythmManager extends EventEmitter {
         }
       }
 
-      // おはようポスト
-      if (this.firstStepDone) {
-        if (this.status !== this.statusPrev && this.status === "WakeUp" && (hour >= 4 && hour <= 10)) {
-          if (this.canPostGoodMorning()) {
-            console.log(`[INFO][BIORHYTHM] post goodmorning!`);
-            await postMorning();
-            await this.changeEnergy(-6000);
-            await this.setGoodMorningPostDate();
-          } else {
-            console.log(`[INFO][BIORHYTHM] goodmorning post already done today, skipping`);
-          }
-        }
+      // おはようポスト。firstStepDone で抑えないのは、朝に再起動が挟まった日に撃ち漏らすため。
+      // 二重投稿は canPostGoodMorning() と同じ bot 日ガード（shouldPostGoodMorning）が防ぐ。
+      if (shouldPostGoodMorning({
+        status: this.status,
+        today: this.getAdjustedDateString(),
+        lastGoodMorningPostDate: this.lastGoodMorningPostDate,
+      })) {
+        console.log(`[INFO][BIORHYTHM] post goodmorning!`);
+        await postMorning();
+        await this.changeEnergy(-6000);
+        await this.setGoodMorningPostDate();
       }
       this.firstStepDone = true;
 
-      // 定期つぶやきポスト
-      const today = this.getAdjustedDateString();
-      const isSleepingPeriod = this.lastGoodNightPostDate === today && this.lastGoodMorningPostDate !== today;
-      if (!isSleepingPeriod) {
-        if (((this.getEnergy >= 60) && (this.status !== "Sleep") || process.env.NODE_ENV === "development")) {
-          const probability = Math.random() * 100;
-          if (probability < this.getEnergy || process.env.NODE_ENV === "development") {
-            console.log(`[INFO][BIORHYTHM] post and decrease energy!`);
-            await postWhimsical(this.getMood);
-            await this.changeEnergy(-6000);
-          }
+      // 定期つぶやきポスト。
+      // おはようより先に出ないのは、両方が status !== "Sleep" を要求したうえで、おはようを
+      // 撃った step では直前の changeEnergy(-6000) ＝ -60 によって定期つぶやきの下限60を
+      // 割り込むから（エネルギーの上限が100なので、-60 したあと60以上は残りえない）。
+      // この -60 は順序保証の一部でもある。
+      if (shouldConsiderWhimsicalPost({
+        status: this.status,
+        energy: this.getEnergy,
+        lastGoodNightPostDate: this.lastGoodNightPostDate,
+        lastGoodMorningPostDate: this.lastGoodMorningPostDate,
+        isDevelopment: process.env.NODE_ENV === "development",
+      })) {
+        const probability = Math.random() * 100;
+        if (probability < this.getEnergy || process.env.NODE_ENV === "development") {
+          console.log(`[INFO][BIORHYTHM] post and decrease energy!`);
+          await postWhimsical(this.getMood);
+          await this.changeEnergy(-6000);
         }
       }
 
@@ -308,7 +425,7 @@ export class BiorhythmManager extends EventEmitter {
     // this.handleEnergyByStatus();
 
     // ログ出力
-    console.log(`[INFO][BIORHYTHM] status: ${this.status}, energy: ${this.getEnergy}, action: ${this.getMood}, next: ${duration_minutes} min`);
+    console.log(`[INFO][BIORHYTHM] status: ${this.status}, energy: ${this.getEnergy}, roomEvents: ${roomEvents.length}, action: ${this.getMood}, next: ${duration_minutes} min`);
 
     // リプライ既読処理
     await MemoryService.markRepliesRead();
@@ -326,7 +443,15 @@ export class BiorhythmManager extends EventEmitter {
     }
   }
 
-  private buildPrompt(timeNow: string, isWeekend: Boolean, weather: string, unreadReply?: string[], utilities?: Record<Status, number>): string {
+  /** できごとに出てくる did の表示名をまとめて解決する。同じ人が複数回来ていても1回で済ませる。 */
+  private async resolveRoomEvents(events: RoomEvent[]): Promise<RoomEventForPrompt[]> {
+    if (events.length === 0) return [];
+    const dids = [...new Set(events.map((event) => event.did))];
+    const names = await Promise.all(dids.map((did) => fetchDisplayName(did)));
+    return toRoomEventsForPrompt(events, new Map(dids.map((did, i) => [did, names[i]!])));
+  }
+
+  private buildPrompt(timeNow: string, isWeekend: Boolean, weather: string, unreadReply?: string[], utilities?: Record<Status, number>, roomEvents: RoomEventForPrompt[] = []): string {
     const outfitInstruction = (this.status === "WakeUp" || !this.moodPrev)
       ? `今日の服装を自由に選んでください（ミント色のカーディガン以外のものも積極的に選ぶこと）。`
       : `服装は前回から変わっていないため、服装の描写は不要です。`;
@@ -335,7 +460,7 @@ export class BiorhythmManager extends EventEmitter {
     // ここに埋め込むとユーザ入力の一部として扱われ、モデルが設定文の文体に引っ張られる。
     return `
 以下のキャラクター（System Instruction に設定されている「全肯定botたん」）の行動を描写してほしいです。
-このキャラクターが現在どんな気分でなにをしているか、現在時刻・天候・ステータス・行動欲求・前回した行動をもとにして、具体的に考えてください。
+このキャラクターが現在どんな気分でなにをしているか、現在時刻・天候・ステータス・行動欲求・前回した行動・お部屋でのできごとをもとにして、具体的に考えてください。
 * ルール
 - 結果はJSON形式で出力してください。
 - "status_text": 「全肯定たんは～しています」という、AIに入力する平易なプロンプト文（200文字以内）。服装について：${outfitInstruction}
@@ -343,6 +468,7 @@ export class BiorhythmManager extends EventEmitter {
 - "duration_minutes": その行動にかかる時間（分）。行動の内容に合わせて5分から90分の範囲内で適切に決めてください。
 - ステータスについて、WakeUpは起床時、Studyは勉強中、FreeTimeは余暇時間、Relaxは休憩中、Sleepは就寝中(夢の中)を意味します。
 - 重要: status_textは必ず現在のステータス（${this.status}）に合った行動を描写すること。Sleepなら就寝・夢の中、Studyなら勉強中、FreeTimeなら余暇活動、Relaxなら休憩、WakeUpなら起床直後の行動のみとすること。
+- 重要: 「お部屋でのできごと」に gift（プレゼント）がある場合は、現在のステータスに合う形で、必ずその贈り物への言及を status_text に入れること。Sleep中なら夢に出てくる、といった扱いにすればよい。
 - 行動欲求は、あなたがどの行動をしたいか、です。たとえばSleepが一番高いのに、ステータスがFreeTimeの場合、眠いのに遊んでいる状態です。
 - 以下の日にはその日にふさわしい行動をさせること
   * 元旦 (1月1日)
@@ -366,6 +492,8 @@ ${this.status === "WakeUp" ? isWeekend ? `${JSON.stringify(eventsMorningDayoff)}
       }
 * 以下がユーザーからもらったコメントです。次の行動を考える際に参考にすること。
 ${JSON.stringify(unreadReply)}
+${buildRoomEventsSection(roomEvents)}
+
 -----以下がキャラクターの状態-----
 ・現在
 現在時刻：${timeNow}
@@ -383,7 +511,7 @@ ${JSON.stringify(unreadReply)}
 
   private async generateStatus(prompt: string): Promise<{ status_text: string, status_text_en: string, duration_minutes: number }> {
     const response = await generateContentWithRetry({
-      model: MODEL_GEMINI,
+      feature: 'BIORHYTHM_STATUS',
       contents: prompt,
       config: {
         // ペルソナはシステムターンに置く（ユーザ入力として扱わせない）。
@@ -404,11 +532,18 @@ ${JSON.stringify(unreadReply)}
       }
     });
 
-    if (response.text) {
-      return JSON.parse(response.text);
+    // 空を握り潰して返すと、mood が空のまま「生成成功」として扱われ、
+    // お部屋のできごとまで既読になって消える。失敗として扱い次の step に持ち越す。
+    if (!response.text) {
+      throw new Error("generateStatus returned an empty response");
     }
 
-    return { status_text: "", status_text_en: "", duration_minutes: 60 };
+    const result = JSON.parse(response.text);
+    if (!result.status_text) {
+      throw new Error("generateStatus returned an empty status_text");
+    }
+
+    return result;
   }
 
   private async changeEnergy(amount: number) {
@@ -454,16 +589,7 @@ ${JSON.stringify(unreadReply)}
   }
 
   private getAdjustedDateString(): string {
-    const now = new Date();
-    // 0~3時は前日扱いとする
-    if (now.getHours() < 4) {
-      now.setDate(now.getDate() - 1);
-    }
-    // YYYY-MM-DD形式
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
+    return botDayRange().date;
   }
 
   private canPostGoodNight(): boolean {

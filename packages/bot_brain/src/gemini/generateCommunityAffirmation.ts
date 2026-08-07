@@ -1,6 +1,5 @@
-import { ServiceTier, Type, type Part } from "@google/genai";
+import { Type, type Part } from "@google/genai";
 import {
-  MODEL_GEMINI,
   SYSTEM_INSTRUCTION,
   safeFetch,
   type ImageRef,
@@ -101,11 +100,10 @@ export async function generateCommunityAffirmation(
   contents.push(...(await imageParts(input.images ?? [])));
   const response = await generateContentWithRetry(
     {
-      model: MODEL_GEMINI,
+      feature: "NAGI_COMMUNITY_AFFIRMATION",
       contents,
       config: {
         systemInstruction: SYSTEM_INSTRUCTION,
-        serviceTier: ServiceTier.FLEX,
         temperature: 0.8,
         responseMimeType: "application/json",
         responseSchema: {

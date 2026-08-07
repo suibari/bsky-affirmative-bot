@@ -1,5 +1,9 @@
 import { startBotJetstream } from "@bsky-affirmative-bot/bot-runtime";
-import { initializeDatabases } from "@bsky-affirmative-bot/clients";
+import {
+  initializeDatabases,
+  reportHealthFailure,
+  reportHeartbeat,
+} from "@bsky-affirmative-bot/clients";
 import { NAGI } from "@bsky-affirmative-bot/nagi-lexicon";
 import { initAgent } from "./agent.js";
 import {
@@ -25,6 +29,9 @@ import {
   scheduleAllNagiDiaries,
 } from "./NagiDiaryFeature.js";
 import { publishNews } from "./NagiNewsFeature.js";
+import { schedulePositiveNewsUpdates } from "./positiveNewsUpdater.js";
+import { scheduleUserNewsReviews } from "./userNewsReviewWorker.js";
+import { logAiRouteTable } from "@bsky-affirmative-bot/shared-configs";
 
 /**
  * 開発環境かどうか。DEV 系のフラグを増やさないための単一の判定。
@@ -33,6 +40,8 @@ import { publishNews } from "./NagiNewsFeature.js";
 const isDev = process.env.NODE_ENV === "development";
 
 async function start() {
+  // どの機能がどのモデル/tierで動いているかを起動時に1回だけ出す。
+  logAiRouteTable({ prefixes: ["COMMON_", "NAGI_", "NEWS_", "OLLAMA_"] });
   await initializeDatabases();
   await initAgent();
 
@@ -49,7 +58,25 @@ async function start() {
       [NAGI.post]: onNagiPost,
       [NAGI.channel]: onNagiChannel,
     },
+    onHealth: (event) => {
+      const report = event.ok
+        ? reportHeartbeat("jetstream-nagi", event.detail)
+        : reportHealthFailure("jetstream-nagi", event.error);
+      report.catch((e) =>
+        console.error("[ERROR][NAGI] Failed to report Jetstream health:", e),
+      );
+    },
   });
+  // このプロセス自体の死活。bot-tan.com のダッシュボードが「botたんサーバー」
+  // タイルの内訳として読む。
+  const nagiBotHeartbeat = setInterval(() => {
+    reportHeartbeat("nagi-bot").catch((e) =>
+      console.error("[ERROR][NAGI] Failed to report heartbeat:", e),
+    );
+  }, 30_000);
+  nagiBotHeartbeat.unref();
+  reportHeartbeat("nagi-bot").catch(() => {});
+
   startNagiReplyWorker();
   // 自動分析（プロフィールの「botたんのひとこと」）ワーカー。エンキューは AppView ingest が担う。
   startNagiAnalysisWorker();
@@ -57,6 +84,10 @@ async function start() {
   startNagiCardCommentWorker();
   // 右サイドバー「みんなで全肯定」の匿名要約。候補選出と生成を作者単位で行う。
   startNagiCommunityAffirmationWorker();
+  // ニュースフィードの取得・公開とユーザー追加ニュースの審査は、
+  // Nagiへの投稿を所有するこのサーバーで完結させる。
+  schedulePositiveNewsUpdates();
+  scheduleUserNewsReviews();
   // 過疎チャンネルへの話題提供（Phase 2）。作成時の盛り上げ投稿は onNagiChannel が担う。
   startNagiChannelTopicScheduler();
 

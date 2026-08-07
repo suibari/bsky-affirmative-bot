@@ -6,15 +6,14 @@ import { DIARY_REGISTER_TRIGGER, DIARY_RELEASE_TRIGGER } from "@bsky-affirmative
 import { AppBskyFeedPost } from "@atproto/api"; type Record = AppBskyFeedPost.Record;
 import { handleMode } from "./utils.js";
 import { getLangStr, getTimezoneFromLang } from "../bsky/util.js";
-import { MemoryService, applyDiaryTitle, calculateDelayUntilLocal22 } from "@bsky-affirmative-bot/clients";
+import { MemoryService, applyDiaryTitle, calculateDelayUntilLocal22, isPastLocal22, localDateStr } from "@bsky-affirmative-bot/clients";
 import { LanguageName } from "@bsky-affirmative-bot/shared-configs";
 import { getConcatProfiles } from "../bsky/getConcatProfiles.js";
 import { getDaysAuthorFeed } from "../bsky/getDaysAuthorFeed.js";
-import { generateUserDiary, DiaryResult } from "@bsky-affirmative-bot/bot-brain";
+import { DIARY_MAX_ATTEMPTS, generateUserDiaryResilient, DiaryResult } from "@bsky-affirmative-bot/bot-brain";
 import { textToImageBufferWithBackground } from "../util/canvas.js";
 import { agent } from "../bsky/agent.js";
 import { postContinuous } from "../bsky/postContinuous.js";
-import retry from 'async-retry';
 
 const TEXT_REGISTER_DIARY = (langStr: LanguageName) => (langStr === "日本語") ?
     "日記モードを設定しました! これから毎日、PM10時にあなたの今日のできごとを日記にしてまとめるね!" :
@@ -24,7 +23,8 @@ const TEXT_RELEASE_DIARY = (langStr: LanguageName) => (langStr === "日本語") 
     "日記モードを解除しました! また使ってね!" :
     "Diary mode has been disabled! Please use it again!"
 
-const scheduledTimers = new Map<string, NodeJS.Timeout>(); // 多重スケジュール抑止用
+// 多重スケジュール抑止用。値が null なのは「タイマー待ちではなく今まさに実行中」。
+const scheduledTimers = new Map<string, NodeJS.Timeout | null>();
 
 export class DiaryFeature implements BotFeature {
     name = "Diary";
@@ -75,13 +75,25 @@ export { calculateDelayUntilLocal22 };
 /**
  * Processes the diary for a single user.
  * @param userDid The user's DID.
+ * @param timezone The user's timezone. その日ぶんを書き終えたかの判定に使う。
  */
-async function processUserDiary(userDid: string) {
+async function processUserDiary(userDid: string, timezone: string) {
     try {
         console.log(`[INFO][${userDid}] Processing diary...`);
 
+        const diaryDate = localDateStr(timezone);
+
+        // 取りこぼし回収で毎時呼ばれるので、書き終えた日はここで抜ける。
+        const follower = await MemoryService.getFollower(userDid);
+        if (follower?.last_diary_date === diaryDate) {
+            console.log(`[INFO][${userDid}] diary for ${diaryDate} already posted`);
+            return;
+        }
+
         // Nagi にその日のポストがあれば、日記は Nagi 側が書く。
         // クロスポスト（isNagiCrosspost）と同じく、片方が担当したらもう片方は黙る。
+        // ここでは last_diary_date を書かない。書くと Nagi 側が失敗したときに
+        // 両方欠測で確定してしまう。
         const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
         if (await MemoryService.hasNagiPostsSince(userDid, since)) {
             console.log(`[INFO][${userDid}] Nagi diary takes precedence, skipping Bluesky diary`);
@@ -119,27 +131,18 @@ async function processUserDiary(userDid: string) {
 
         let diaryResult: DiaryResult;
         try {
-            diaryResult = await retry(
-                async (_bail, attempt) => {
-                    const result = await generateUserDiary({
-                        follower: profile as ProfileView,
-                        posts: posts.reverse(),
-                        langStr,
-                    });
-                    if (!result || result.diary === "") {
-                        throw new Error("generateUserDiary returned empty");
-                    }
-                    return result;
-                },
+            // 失敗するたびにモデル/tier を上げながら最大3時間粘る。
+            // 使い切っても、22時を過ぎている人は毎時の再スキャンが拾い直す。
+            diaryResult = await generateUserDiaryResilient(
                 {
-                    retries: 3,
-                    onRetry: (err, attempt) => {
-                        console.warn(`[WARN][${userDid}][DIARY] generateUserDiary retry (${attempt}/3): ${String(err)}`);
-                    },
-                }
+                    follower: profile as ProfileView,
+                    posts: posts.reverse(),
+                    langStr,
+                },
+                { label: `[${userDid}][DIARY]` },
             );
         } catch (e: any) {
-            console.error(`[ERROR][${userDid}][DIARY] Failed to generate diary after 3 retries:`, e.message);
+            console.error(`[ERROR][${userDid}][DIARY] Failed to generate diary after up to ${DIARY_MAX_ATTEMPTS} attempts:`, e.message);
             return;
         }
 
@@ -176,30 +179,47 @@ async function processUserDiary(userDid: string) {
             record: latestPost.record as Record
         }, { blob, alt: `Dear ${profile.displayName}, From 全肯定botたん` });
 
-        console.log(`[INFO][${userDid}] finish to process diary`);
+        // 投稿できたときだけ記録する。ここより手前で落ちた日は取りこぼし扱いで再試行される。
+        await MemoryService.updateFollower(userDid, 'last_diary_date', diaryDate);
+
+        console.log(`[INFO][${userDid}] finish to process diary (${diaryDate})`);
 
     } catch (e: any) {
         console.error(`[ERROR][${userDid}] an error occured in diary process:`, e);
     }
 }
 
+/** 実行中も scheduledTimers に居座らせて、毎時の再スキャンによる二重起動を防ぐ。 */
+function runUserDiary(userDid: string, timezone: string) {
+    processUserDiary(userDid, timezone)
+        .catch(err => console.error(`[ERROR][${userDid}]`, err))
+        .finally(() => {
+            scheduledTimers.delete(userDid); // 終了後に削除
+        });
+}
+
 /**
  * Schedules the diary processing for a single user for their local 22:00.
+ * すでに22時を回っているなら即実行する。setTimeout に任せると次は約24時間後になり、
+ * 生成失敗やプロセス再起動でその日の日記が丸ごと欠測してしまうため。
+ * 二重投稿は processUserDiary 冒頭の last_diary_date チェックが防ぐ。
  * @param userDid The user's DID.
  * @param timezone The user's timezone.
  */
 function scheduleUserDiary(userDid: string, timezone: string) {
     if (scheduledTimers.has(userDid)) return; // すでにスケジュール済み
 
+    if (isPastLocal22(timezone)) {
+        console.log(`[INFO][${userDid}] past local 22:00, running diary now (tz: ${timezone})`);
+        // タイマーは無いが、実行中の印として同じ Map を使う。
+        scheduledTimers.set(userDid, null);
+        runUserDiary(userDid, timezone);
+        return;
+    }
+
     const delay = calculateDelayUntilLocal22(timezone);
     console.log(`[INFO][${userDid}] scheduling diary, tz: ${timezone}, next: ${delay}ms`);
-    const timer = setTimeout(() => {
-        processUserDiary(userDid)
-            .catch(err => console.error(`[ERROR][${userDid}]`, err))
-            .finally(() => {
-                scheduledTimers.delete(userDid); // 終了後に削除
-            });
-    }, delay);
+    const timer = setTimeout(() => runUserDiary(userDid, timezone), delay);
 
     scheduledTimers.set(userDid, timer);
 }

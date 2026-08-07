@@ -27,7 +27,8 @@ export async function generateRecommendedSong(userinfo: UserInfoGemini) {
           artist: song.artist,
           comment: song.comment || "お気に入りの曲を選んだよ！"
         };
-      }
+      },
+      "BSKY_RECOMMENDED_SONG"
     );
   } catch (e) {
     console.error("[ERROR] Failed to generate recommended song after retries:", e);

@@ -20,6 +20,8 @@ export const NAGI = {
   getCommunityAffirmations: "com.suibari.nagi.getCommunityAffirmations",
   getThread: "com.suibari.nagi.getThread",
   getProfile: "com.suibari.nagi.getProfile",
+  /** app.bsky.actor.profile の website を安全なリンクカードとして返す公開ビュー。 */
+  getProfileWebsite: "com.suibari.nagi.getProfileWebsite",
   searchActors: "com.suibari.nagi.searchActors",
   getNotifications: "com.suibari.nagi.getNotifications",
   getUnreadCount: "com.suibari.nagi.getUnreadCount",
@@ -37,6 +39,9 @@ export const NAGI = {
   getEmoji: "com.suibari.nagi.getEmoji",
   getDiaries: "com.suibari.nagi.getDiaries",
   getPositiveNews: "com.suibari.nagi.getPositiveNews",
+  getNewsSubmissionPreview: "com.suibari.nagi.getNewsSubmissionPreview",
+  requestNewsReview: "com.suibari.nagi.requestNewsReview",
+  getMyNewsSubmissions: "com.suibari.nagi.getMyNewsSubmissions",
   resolveLexicon: "com.suibari.nagi.resolveLexicon",
   getAppIcon: "com.suibari.nagi.getAppIcon",
   getChannels: "com.suibari.nagi.getChannels",
@@ -79,6 +84,19 @@ export const NAGI = {
    * PDS レコードにはしない。要認証。
    */
   drawCard: "com.suibari.nagi.drawCard",
+  /**
+   * 姉妹アプリ（botたんのお部屋など）へサインイン済みのまま移動するための、
+   * 短命・単回使用の署名付きチケットを発行する。チケットは「この利用者は指定の DID
+   * である」という主張だけを運び、アクセストークンや権限は一切含まない。
+   * 認可の実体は既存の service auth（viewerDid）なので、新しい認証経路は増えない。
+   */
+  createSsoTicket: "com.suibari.nagi.createSsoTicket",
+  /**
+   * 端末をまたいで同期する本人の設定（my Nagi の既読位置・お気に入り絵文字）。
+   * ミュートと同じく他ユーザーに見せない情報なので PDS レコードにはせず AppView だけが持つ。
+   */
+  getPreferences: "com.suibari.nagi.getPreferences",
+  putPreferences: "com.suibari.nagi.putPreferences",
 } as const;
 
 /** Bluemoji (moji.blue) の絵文字定義レコード。カスタム絵文字はユーザー自身のPDSに置く。 */
@@ -131,6 +149,7 @@ export const NAGI_COLLECTIONS = [
   NAGI.profile,
   NAGI.appLinks,
   NAGI.channel,
+  NAGI.news,
   NAGI.bluemoji,
   BLUEMOJI_ITEM,
 ] as const;
@@ -162,6 +181,9 @@ export const NAGI_AFFIRMATION_THRESHOLD = Number(
 );
 /** permission set の NSID。定義は lexicons/com/suibari/nagi/appviewAccess.json。 */
 export const NAGI_PERMISSION_SET = "com.suibari.nagi.appviewAccess";
+/** Nagi のプロフィール設定で app.bsky.actor.profile.website を更新する。 */
+export const NAGI_BLUESKY_PROFILE_SCOPE =
+  "repo:app.bsky.actor.profile?action=create&action=update";
 
 /**
  * Nagi の OAuth スコープ（真実源はこの1箇所）。Nagi namespace の repo/rpc 権限は permission
@@ -183,6 +205,7 @@ export const NAGI_OAUTH_SCOPE = [
   "blob:image/*",
   `include:${NAGI_PERMISSION_SET}`,
   `repo:${BLUEMOJI_ITEM}`,
+  NAGI_BLUESKY_PROFILE_SCOPE,
 ].join(" ");
 
 /**

@@ -4,7 +4,7 @@ import { generateSingleResponse } from "./util.js";
 import { getRandomItems } from "@bsky-affirmative-bot/shared-configs";
 
 export async function generateOmikuji(userinfo: UserInfoGemini) {
-  const response = await generateSingleResponse(await PROMPT_OMIKUJI(userinfo));
+  const response = await generateSingleResponse(await PROMPT_OMIKUJI(userinfo), undefined, "BSKY_OMIKUJI");
 
   
 

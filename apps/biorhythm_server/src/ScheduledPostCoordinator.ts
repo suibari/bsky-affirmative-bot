@@ -11,25 +11,18 @@ import {
   WhimsicalPostGenerator,
 } from "@bsky-affirmative-bot/bot-brain";
 import retry from "async-retry";
-import { getGoodNightCandidate } from "./GoodNightCandidateProvider.js";
-import { getRecentNewsArticleIds, recordRecentNewsArticle } from "./newsHistory.js";
-import { buildWhimsicalPostTexts } from "./scheduledPostContent.js";
+import {
+  getDailyTopPostCandidate,
+  parseDailyTopPostSource,
+} from "./DailyTopPostProvider.js";
+import { fetchDisplayName } from "./displayName.js";
+import { jstDateString as jstDate } from "./jstDate.js";
+import { getRecentNewsArticleIds, recordRecentNewsArticle } from "./whimsicalPostNewsHistory.js";
+import { buildGoodNightPostTexts, buildWhimsicalPostTexts } from "./scheduledPostContent.js";
 
 const whimsicalPostGenerator = new WhimsicalPostGenerator();
 const moodSongGenerator = new MyMoodSongGenerator();
 let isJapanesePost = true;
-
-async function fetchDisplayName(did: string): Promise<string> {
-  try {
-    const response = await fetch(`https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile?actor=${encodeURIComponent(did)}`);
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const profile = await response.json() as { displayName?: string; handle?: string };
-    return profile.displayName || profile.handle || did;
-  } catch (error) {
-    console.warn(`[WARN] Failed to fetch display name for ${did}:`, error);
-    return did;
-  }
-}
 
 async function publish(request: ScheduledPostPublishRequest) {
   return ScheduledPostService.publish(request);
@@ -169,7 +162,9 @@ export async function postGoodNight(currentMood: string) {
     if (current > previous) followerMilestone = current * 1000;
   }
 
-  const candidate = await getGoodNightCandidate();
+  const candidate = await getDailyTopPostCandidate(
+    parseDailyTopPostSource(process.env.GOOD_NIGHT_TOP_POST_SOURCE),
+  );
   try {
     if (!candidate) {
       console.log("[INFO] No valid top post found for good-night post.");
@@ -188,21 +183,27 @@ export async function postGoodNight(currentMood: string) {
     const generated = await generateGoodNight({
       topFollower: candidate.profile,
       topPost: candidate.text,
+      topPostNetwork: candidate.network,
       currentMood,
       followerMilestone,
       giftCandidates,
     });
 
     if (generated.textJa) {
+      const texts = buildGoodNightPostTexts({
+        textJa: generated.textJa,
+        textEn: generated.textEn,
+        sourcePost: { network: candidate.network, uri: candidate.uri },
+      });
       const results = await publish({
         kind: "good-night",
         contentByTarget: {
-          bsky: { text: `${generated.textJa}\n\n${generated.textEn}` },
+          bsky: { text: texts.bsky },
           nagi: {
-            text: generated.textJa,
+            text: texts.nagiJa,
             langs: ["ja"],
-            ...(generated.textEn
-              ? { translations: [{ lang: "en", text: generated.textEn }] }
+            ...(texts.nagiEn
+              ? { translations: [{ lang: "en", text: texts.nagiEn }] }
               : {}),
           },
         },
@@ -217,7 +218,55 @@ export async function postGoodNight(currentMood: string) {
     }
   } finally {
     if (currentFollowers > 0) await MemoryService.setBotState("last_follower_count", currentFollowers);
+    // リセットで日次カウンタが消える前に、その日の確定値を1行残す。
+    // ここが bot-tan.com の推移グラフの唯一の供給源なので、失敗してもリセット自体は
+    // 続けられるよう例外を飲む（1日欠けるだけで済ませる）。
+    await snapshotDailyMetrics(currentFollowers).catch((error) =>
+      console.error("[ERROR][BIO] Failed to snapshot daily metrics:", error),
+    );
     await MemoryService.resetDailyStats();
     await MemoryService.clearPosts();
   }
+}
+
+/**
+ * 日次リセットの直前に呼ぶ。Bluesky / Nagi / 共通をひとまとめの jsonb で残すので、
+ * 指標が増えてもテーブル定義は変えなくてよい。
+ */
+async function snapshotDailyMetrics(currentFollowers: number) {
+  const [daily, nagi] = await Promise.all([
+    MemoryService.getDailyStats(),
+    MemoryService.getNagiStats(),
+  ]);
+
+  const rpd = daily.rpd ?? 0;
+  const rpdError = daily.rpdError ?? 0;
+  const requests = rpd + rpdError;
+
+  await MemoryService.saveDailyMetrics(jstDate(), {
+    bsky: {
+      currentFollowers,
+      followers: daily.followers ?? 0,
+      likes: daily.likes ?? 0,
+      affirmations: daily.affirmationCount ?? 0,
+      affirmedUsers: daily.uniqueAffirmationUserCount ?? 0,
+      fortune: daily.fortune ?? 0,
+      cheer: daily.cheer ?? 0,
+      analysis: daily.analysis ?? 0,
+      dj: daily.dj ?? 0,
+      anniversary: daily.anniversary ?? 0,
+      answer: daily.answer ?? 0,
+    },
+    nagi: {
+      totalUsers: nagi.totalUsers,
+      totalReactions: nagi.totalReactions,
+      totalPosts: nagi.totalPosts,
+      totalChannels: nagi.totalChannels,
+    },
+    common: {
+      aiRequests: rpd,
+      aiErrors: rpdError,
+      aiErrorRate: requests > 0 ? rpdError / requests : 0,
+    },
+  });
 }

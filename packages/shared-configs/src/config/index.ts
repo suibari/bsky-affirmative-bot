@@ -5,6 +5,8 @@ import wordDislikes from "../json/dislikethings.json" with { type: "json" };
 import { UserInfoGemini } from "../types.js";
 import { getFullDateAndTimeString, getRandomItems, getWhatDay } from "../util/common.js";
 export { getCurrentEventSet } from "./functions.js";
+export * from "./aiRoutes.js";
+export * from "./aiRetryLadder.js";
 
 export const NICKNAMES_BOT = [
   "全肯定botたん",
@@ -137,12 +139,10 @@ export const POST_TEXT_LIMIT = 2100;
 
 // -------------------
 // Prompt系
+//
+// モデル名の定数はここには置かない。どの機能にどのモデル/ServiceTierを充てるかは
+// ./aiRoutes.ts の AI_FEATURES が一元管理する（aiModel("<機能キー>") で引く）。
 // -------------------
-export const MODEL_GEMINI = "gemini-2.5-flash-lite";
-export const MODEL_GEMINI_HIGH = "gemini-2.5-flash"; // 会話のみ、高品質を使う
-export const MODEL_GEMINI_LITE = "gemini-2.5-flash-lite"; // 判定系のGemini利用のみ、LITEを使う
-export const MODEL_GEMINI_EMBEDDING = "gemini-embedding-001";
-export const MODEL_GEMINI_IMAGE = "gemini-2.5-flash-image-preview";
 /**
  * botたんの口調ルール。SYSTEM_INSTRUCTION の「言葉遣い・話し方」に埋め込むほか、
  * ニュース記事など硬い原文に引きずられやすいプロンプトでは本文側にも再掲する。

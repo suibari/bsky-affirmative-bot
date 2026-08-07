@@ -1,0 +1,305 @@
+import {
+  db,
+  nagiEmojiFavorites,
+  nagiFeedTabs,
+  nagiReadPositions,
+} from "@bsky-affirmative-bot/database";
+import {
+  EMOJI_FAVORITES_LIMIT,
+  FEED_TAB_KINDS,
+  FEED_TABS_LIMIT,
+  READ_POSITION_SECTIONS,
+  type EmojiFavorite,
+  type FeedTab,
+  type FeedTabKind,
+  type PreferencesView,
+  type PutPreferencesInput,
+  type ReadPosition,
+  type ReadPositionSection,
+} from "@bsky-affirmative-bot/nagi-lexicon";
+import { eq, sql } from "drizzle-orm";
+import { ApiError } from "../middleware/errors.js";
+
+const MAX_URI_LENGTH = 2048;
+const MAX_UNICODE_EMOJI_LENGTH = 64;
+
+const isSection = (value: unknown): value is ReadPositionSection =>
+  READ_POSITION_SECTIONS.includes(value as ReadPositionSection);
+
+const invalid = (field: string): never => {
+  throw new ApiError(400, "invalid_request", `Invalid ${field}`);
+};
+
+/** 入力は他人が書いた JSON として扱う。publish した lexicon は AppView を検証してくれない。 */
+function parseReadPositions(input: unknown): ReadPosition[] {
+  if (input === undefined) return [];
+  if (!Array.isArray(input) || input.length > READ_POSITION_SECTIONS.length)
+    invalid("readPositions");
+  const seen = new Set<string>();
+  return (input as unknown[]).map((raw) => {
+    const item = (raw ?? {}) as Partial<ReadPosition>;
+    if (!isSection(item.section)) invalid("readPositions.section");
+    const section = item.section as ReadPositionSection;
+    // 同じセクションを2つ送られると単調マージの勝敗が入力順に依存してしまう。
+    if (seen.has(section)) invalid("readPositions.section (duplicate)");
+    seen.add(section);
+    if (
+      typeof item.uri !== "string" ||
+      !item.uri ||
+      item.uri.length > MAX_URI_LENGTH
+    )
+      invalid("readPositions.uri");
+    if (
+      typeof item.indexedAt !== "string" ||
+      Number.isNaN(Date.parse(item.indexedAt))
+    )
+      invalid("readPositions.indexedAt");
+    return {
+      section,
+      indexedAt: item.indexedAt as string,
+      uri: item.uri as string,
+    };
+  });
+}
+
+/**
+ * お気に入りはクライアントの localStorage と同じ形をそのまま預かる。中身は表示用の
+ * スナップショットで、権威は custom なら uri（クライアントが getEmoji で再解決する）。
+ * ここでは「他人のデータで DB を膨らませない」ための最低限の形だけ確認する。
+ */
+function parseEmojiFavorites(input: unknown): EmojiFavorite[] {
+  if (!Array.isArray(input) || input.length > EMOJI_FAVORITES_LIMIT)
+    invalid("emojiFavorites");
+  return (input as unknown[]).map((raw) => {
+    const item = (raw ?? {}) as { kind?: unknown; emoji?: unknown };
+    if (item.kind === "unicode") {
+      if (
+        typeof item.emoji !== "string" ||
+        !item.emoji ||
+        item.emoji.length > MAX_UNICODE_EMOJI_LENGTH
+      )
+        invalid("emojiFavorites");
+      return { kind: "unicode" as const, emoji: item.emoji as string };
+    }
+    if (item.kind !== "custom" || !item.emoji || typeof item.emoji !== "object")
+      invalid("emojiFavorites");
+    const emoji = item.emoji as Record<string, unknown>;
+    for (const key of ["uri", "cid", "did", "name", "url", "mediaType"]) {
+      const value = emoji[key];
+      if (typeof value !== "string" || !value) invalid("emojiFavorites");
+    }
+    if ((emoji.uri as string).length > MAX_URI_LENGTH) invalid("emojiFavorites");
+    return { kind: "custom" as const, emoji } as EmojiFavorite;
+  });
+}
+
+function parseUpdatedAt(field: string, input: unknown): Date {
+  if (typeof input !== "string" || Number.isNaN(Date.parse(input)))
+    throw new ApiError(
+      400,
+      "invalid_request",
+      `${field} is required with ${field.replace("UpdatedAt", "")}`,
+    );
+  return new Date(input);
+}
+
+const isFeedTabKind = (value: unknown): value is FeedTabKind =>
+  FEED_TAB_KINDS.includes(value as FeedTabKind);
+
+const MAX_TAB_ID_LENGTH = 64;
+const MAX_TAB_QUERY_LENGTH = 128;
+const MAX_TAB_LABEL_LENGTH = 64;
+
+/**
+ * フィードのタブ。クライアントの normalizeFeedTabs と同じルールで見る
+ * （片方だけ緩いと、弾かれない値が入って描画側で落ちる）。
+ * 未知フィールドは落とし、任意の JSON を DB に貯めさせない。
+ */
+function parseFeedTabs(input: unknown): FeedTab[] {
+  if (!Array.isArray(input) || input.length > FEED_TABS_LIMIT)
+    invalid("feedTabs");
+  const seen = new Set<string>();
+  return (input as unknown[]).map((raw) => {
+    const item = (raw ?? {}) as Record<string, unknown>;
+    const id = item.id;
+    if (typeof id !== "string" || !id || id.length > MAX_TAB_ID_LENGTH)
+      invalid("feedTabs.id");
+    // id が重なると、クライアントが ?tab= で引くタブが入力順に依存してしまう。
+    if (seen.has(id as string)) invalid("feedTabs.id (duplicate)");
+    seen.add(id as string);
+    const kind = item.kind;
+    if (!isFeedTabKind(kind)) invalid("feedTabs.kind");
+    const tab: FeedTab = { id: id as string, kind: kind as FeedTabKind };
+    if (typeof item.label === "string" && item.label)
+      tab.label = (item.label as string).slice(0, MAX_TAB_LABEL_LENGTH);
+    // list / custom は「入れ物」で、どれを指すかは source が持つ。
+    // 今はそれぞれ1つずつしか無いので、未指定なら既定へ寄せる。
+    if (tab.kind === "list") {
+      if (item.source !== undefined && item.source !== "home")
+        invalid("feedTabs.source");
+      tab.source = "home";
+    }
+    if (tab.kind === "custom") {
+      if (item.source !== undefined && item.source !== "affirmation")
+        invalid("feedTabs.source");
+      tab.source = "affirmation";
+    }
+    if (tab.kind === "channel") {
+      const uri = item.uri;
+      if (
+        typeof uri !== "string" ||
+        !uri.startsWith("at://") ||
+        uri.length > MAX_URI_LENGTH
+      )
+        invalid("feedTabs.uri");
+      tab.uri = uri as string;
+    }
+    if (tab.kind === "search") {
+      const query =
+        typeof item.query === "string" ? (item.query as string).trim() : "";
+      if (!query || query.length > MAX_TAB_QUERY_LENGTH)
+        invalid("feedTabs.query");
+      if (item.queryKind !== undefined && !["keyword", "tag"].includes(
+        item.queryKind as string,
+      ))
+        invalid("feedTabs.queryKind");
+      tab.query = query;
+      tab.queryKind = (item.queryKind as "keyword" | "tag") ?? "keyword";
+    }
+    return tab;
+  });
+}
+
+async function selectPreferences(did: string): Promise<PreferencesView> {
+  const [positions, favorites, feedTabs] = await Promise.all([
+    db
+      .select({
+        section: nagiReadPositions.section,
+        indexedAt: nagiReadPositions.indexedAt,
+        uri: nagiReadPositions.uri,
+      })
+      .from(nagiReadPositions)
+      .where(eq(nagiReadPositions.did, did)),
+    db
+      .select({
+        choices: nagiEmojiFavorites.choices,
+        updatedAt: nagiEmojiFavorites.updatedAt,
+      })
+      .from(nagiEmojiFavorites)
+      .where(eq(nagiEmojiFavorites.did, did))
+      .limit(1),
+    db
+      .select({ tabs: nagiFeedTabs.tabs, updatedAt: nagiFeedTabs.updatedAt })
+      .from(nagiFeedTabs)
+      .where(eq(nagiFeedTabs.did, did))
+      .limit(1),
+  ]);
+  const favoritesRow = favorites[0];
+  const feedTabsRow = feedTabs[0];
+  return {
+    readPositions: positions
+      .filter((row) => isSection(row.section))
+      .map((row) => ({
+        section: row.section as ReadPositionSection,
+        indexedAt: row.indexedAt.toISOString(),
+        uri: row.uri,
+      })),
+    emojiFavorites: Array.isArray(favoritesRow?.choices)
+      ? (favoritesRow.choices as EmojiFavorite[])
+      : [],
+    // 未同期（行が無い）なら省略する。クライアントはこれを「初回同期」の合図に使う。
+    ...(favoritesRow
+      ? { emojiFavoritesUpdatedAt: favoritesRow.updatedAt.toISOString() }
+      : {}),
+    feedTabs: Array.isArray(feedTabsRow?.tabs)
+      ? (feedTabsRow.tabs as FeedTab[])
+      : [],
+    // 行が無い＝一度もカスタムしていない。クライアントはこれを既定タブの合図に使う。
+    ...(feedTabsRow
+      ? { feedTabsUpdatedAt: feedTabsRow.updatedAt.toISOString() }
+      : {}),
+  };
+}
+
+/** 本人の同期設定を返す唯一の読み出し口。呼び出し側は必ず requiredServiceAuth を使うこと。 */
+export function getPreferences(did: string): Promise<PreferencesView> {
+  return selectPreferences(did);
+}
+
+export async function putPreferences(
+  did: string,
+  input: PutPreferencesInput,
+): Promise<PreferencesView> {
+  const readPositions = parseReadPositions(input.readPositions);
+  const hasFavorites = input.emojiFavorites !== undefined;
+  const emojiFavorites = hasFavorites
+    ? parseEmojiFavorites(input.emojiFavorites)
+    : [];
+  const favoritesUpdatedAt = hasFavorites
+    ? parseUpdatedAt("emojiFavoritesUpdatedAt", input.emojiFavoritesUpdatedAt)
+    : undefined;
+  const hasFeedTabs = input.feedTabs !== undefined;
+  const feedTabs = hasFeedTabs ? parseFeedTabs(input.feedTabs) : [];
+  const feedTabsUpdatedAt = hasFeedTabs
+    ? parseUpdatedAt("feedTabsUpdatedAt", input.feedTabsUpdatedAt)
+    : undefined;
+
+  if (readPositions.length) {
+    await db
+      .insert(nagiReadPositions)
+      .values(
+        readPositions.map((position) => ({
+          did,
+          section: position.section,
+          indexedAt: new Date(position.indexedAt),
+          uri: position.uri,
+        })),
+      )
+      // 既読は前にしか進まない。復帰の遅れた端末が古い位置を送っても巻き戻らないよう、
+      // クライアントの isNewerPosition と同じ (indexedAt, uri) 辞書順で勝った方だけ残す。
+      // ON CONFLICT の WHERE では対象行を非修飾のテーブル名で参照する。
+      .onConflictDoUpdate({
+        target: [nagiReadPositions.did, nagiReadPositions.section],
+        set: {
+          indexedAt: sql`excluded.indexed_at`,
+          uri: sql`excluded.uri`,
+          updatedAt: sql`now()`,
+        },
+        setWhere: sql`(excluded.indexed_at, excluded.uri) > (read_positions.indexed_at, read_positions.uri)`,
+      });
+  }
+
+  if (favoritesUpdatedAt) {
+    // 順序のある1本の配列なので部分マージに意味がない。updated_at による後勝ち。
+    // 初回の突き合わせ（サーバとローカルの和集合）はクライアント側で作って送ってくる。
+    await db
+      .insert(nagiEmojiFavorites)
+      .values({ did, choices: emojiFavorites, updatedAt: favoritesUpdatedAt })
+      .onConflictDoUpdate({
+        target: nagiEmojiFavorites.did,
+        set: {
+          choices: sql`excluded.choices`,
+          updatedAt: sql`excluded.updated_at`,
+        },
+        setWhere: sql`excluded.updated_at > emoji_favorites.updated_at`,
+      });
+  }
+
+  if (feedTabsUpdatedAt) {
+    // お気に入りと同じく、順序のある1本の配列なので updated_at による後勝ち。
+    await db
+      .insert(nagiFeedTabs)
+      .values({ did, tabs: feedTabs, updatedAt: feedTabsUpdatedAt })
+      .onConflictDoUpdate({
+        target: nagiFeedTabs.did,
+        set: {
+          tabs: sql`excluded.tabs`,
+          updatedAt: sql`excluded.updated_at`,
+        },
+        setWhere: sql`excluded.updated_at > feed_tabs.updated_at`,
+      });
+  }
+
+  // 送った値ではなくマージ後の確定値を返す。負けた端末はこれで自分側を直せる。
+  return selectPreferences(did);
+}

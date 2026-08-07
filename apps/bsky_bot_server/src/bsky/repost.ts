@@ -1,4 +1,4 @@
-import { MemoryService } from '@bsky-affirmative-bot/clients';
+import { recordRepoWritePoint } from '@bsky-affirmative-bot/clients';
 import { agent } from './agent.js';
 
 /**
@@ -12,15 +12,12 @@ export async function repost(uri: string, cid: string): Promise<{
 }> {
   if (process.env.NODE_ENV === "production") {
     const response = await agent.repost(uri, cid);
+    await recordRepoWritePoint(agent.did, "create", "bsky.repost");
     return {
       uri: response.uri,
       cid: response.cid,
     };
   }
-
-  // RateLimit加算
-  MemoryService.incrementStats('bskyrate', 3).catch(e => console.error("Failed to increment bskyrate:", e));
-
   return {
     uri: "dev-stub-uri",
     cid: "dev-stub-cid",

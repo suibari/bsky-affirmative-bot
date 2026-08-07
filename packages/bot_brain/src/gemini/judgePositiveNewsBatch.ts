@@ -1,11 +1,17 @@
-import { MODEL_GEMINI_LITE, SYSTEM_INSTRUCTION as BOT_PERSONA, TONE_RULES_JA } from "@bsky-affirmative-bot/shared-configs";
+import { aiModel, SYSTEM_INSTRUCTION as BOT_PERSONA, TONE_RULES_JA } from "@bsky-affirmative-bot/shared-configs";
 import { Type } from "@google/genai";
 import type { PositiveNewsCandidate } from "../api/newsdata/index.js";
 import { gemini } from "./index.js";
 import { withNewsGeminiRetry } from "./newsGeminiRetry.js";
+import { withRoute } from "./aiRoute.js";
 
 export const POSITIVE_NEWS_PROMPT_VERSION = "nagi-positive-news-v8";
-export const POSITIVE_NEWS_MODEL = MODEL_GEMINI_LITE;
+/**
+ * ニュース承認を DB に記録するときの model 値。
+ * const ではなく関数にしているのは、import 時点（= dotenv.config() より前）の値で
+ * 凍結させないため。必ず呼び出し時に解決する。
+ */
+export const positiveNewsModel = () => aiModel("NEWS_POSITIVE_COMMENT");
 const REASONS = ["positive_result", "unresolved", "dark", "politics", "crime", "incident", "accident", "promotion", "pr", "unclear"] as const;
 export type PositiveNewsReasonCode = typeof REASONS[number];
 
@@ -223,15 +229,14 @@ async function gateNewsBatch(input: PositiveNewsCandidate[]): Promise<GateDecisi
   for (let attempt = 0; attempt < 2 && !decisions; attempt++) {
     const response = await withNewsGeminiRetry(
       { stage: "gate" },
-      () => gemini.models.generateContent({
-        model: MODEL_GEMINI_LITE,
+      () => gemini.models.generateContent(withRoute("NEWS_POSITIVE_GATE", {
         config: {
           responseMimeType: "application/json",
           responseSchema: GATE_SCHEMA,
           systemInstruction: GATE_SYSTEM_INSTRUCTION,
         },
         contents: [{ role: "user", parts: [{ text: userText }] }],
-      }),
+      })),
     );
     decisions = parseDecisions(response.text);
     if (!decisions && attempt === 0) {
@@ -255,11 +260,10 @@ async function generateNewsComment(candidate: PositiveNewsCandidate): Promise<Ne
   ): Promise<string | undefined> => {
     const response = await withNewsGeminiRetry(
       { stage: "comment", articleId: candidate.articleId, mode },
-      () => gemini.models.generateContent({
-        model: MODEL_GEMINI_LITE,
+      () => gemini.models.generateContent(withRoute("NEWS_POSITIVE_COMMENT", {
         config: { systemInstruction: BOT_PERSONA, ...(tools.length ? { tools } : {}) },
         contents: [{ role: "user", parts: [{ text: userText }] }],
-      }),
+      })),
     );
     return response.text;
   };

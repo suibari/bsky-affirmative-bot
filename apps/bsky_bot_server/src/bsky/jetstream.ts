@@ -3,6 +3,7 @@ import {
   type BotJetstreamConnection,
   type JetstreamCallback,
 } from "@bsky-affirmative-bot/bot-runtime";
+import { reportHealthFailure, reportHeartbeat } from "@bsky-affirmative-bot/clients";
 
 let connection: BotJetstreamConnection | null = null;
 
@@ -30,6 +31,14 @@ export async function startWebSocket(
       ...(followDeleteCallback
         ? { "app.bsky.graph.follow": followDeleteCallback }
         : {}),
+    },
+    onHealth: (event) => {
+      const report = event.ok
+        ? reportHeartbeat("jetstream-bsky", event.detail)
+        : reportHealthFailure("jetstream-bsky", event.error);
+      report.catch((e) =>
+        console.error("[ERROR] Failed to report Jetstream health:", e),
+      );
     },
   });
 }

@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, asc, eq, gte, lt } from "drizzle-orm";
 import {
   db,
   MemoryService,
@@ -11,8 +11,16 @@ import {
   calculateDelayUntilLocal22,
   getLangStr,
   getTimezoneFromLang,
+  isPastLocal22,
+  localDateStr,
+  trackedDeleteRecord,
+  trackedPutRecord,
 } from "@bsky-affirmative-bot/clients";
-import { generateUserDiary, type DiaryResult } from "@bsky-affirmative-bot/bot-brain";
+import {
+  DIARY_MAX_ATTEMPTS,
+  generateUserDiaryResilient,
+  type DiaryResult,
+} from "@bsky-affirmative-bot/bot-brain";
 import type { AppBskyActorDefs } from "@atproto/api";
 import { NAGI, type NagiDiary } from "@bsky-affirmative-bot/nagi-lexicon";
 import retry from "async-retry";
@@ -22,17 +30,14 @@ import { clipNagiPostText } from "./nagiPostText.js";
 const DAY_MS = 24 * 60 * 60 * 1000;
 const RESCAN_INTERVAL_MS = 60 * 60 * 1000;
 
-const scheduledTimers = new Map<string, NodeJS.Timeout>(); // 多重スケジュール抑止用
+// 多重スケジュール抑止用。値が null なのは「タイマー待ちではなく今まさに実行中」。
+const scheduledTimers = new Map<string, NodeJS.Timeout | null>();
 
-/** 指定タイムゾーンでの "YYYY-MM-DD"。 */
-function localDateStr(timezone: string, now = new Date()): string {
-  // en-CA は YYYY-MM-DD 形式で返る。
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: timezone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(now);
+/** "YYYY-MM-DD" からUTC基準で指定日数を引く。日付文字列同士のDB比較に使う。 */
+function daysBefore(date: string, days: number): string {
+  const value = new Date(`${date}T00:00:00.000Z`);
+  value.setUTCDate(value.getUTCDate() - days);
+  return value.toISOString().slice(0, 10);
 }
 
 /**
@@ -60,17 +65,41 @@ async function getDisplayName(did: string): Promise<string> {
   return profile?.displayName || actor?.handle || did;
 }
 
+export type NagiDiaryRunOptions = {
+  /**
+   * 収集窓の終端。既定は現在時刻で、材料は [until-24h, until] のポスト。
+   * 過去日をバックフィルするときはその日のローカル22時を渡す。
+   */
+  until?: Date;
+  /** 生成する日記の日付 "YYYY-MM-DD"。既定は until のユーザーローカル日付。 */
+  date?: string;
+  /** ポストの言語から決まるタイムゾーンの上書き。 */
+  timezone?: string;
+};
+
 /**
  * 1ユーザー分の日記を書く。
  * ポストではなく com.suibari.nagi.diary レコードを bot のリポジトリに置くので、
  * グローバルタイムラインには出ない。通知は AppView が取り込み時に作る。
+ *
+ * 引数なしで呼べば「今この瞬間から24時間ぶん」を今日の日記として書く（定時実行の経路）。
+ * options を渡すと過去日のバックフィルになる（scripts/backfillNagiDiary.ts）。
+ * どちらでも (subject, date) の存在チェックが二重生成を防ぐ。
  */
-export async function processNagiDiary(userDid: string): Promise<void> {
+export async function processNagiDiary(
+  userDid: string,
+  options: NagiDiaryRunOptions = {},
+): Promise<void> {
   try {
     console.log(`[INFO][NAGI][${userDid}] Processing diary...`);
 
-    const since = new Date(Date.now() - DAY_MS);
-    const recentPosts = await MemoryService.getNagiPostsSince(userDid, since);
+    const until = options.until ?? new Date();
+    const since = new Date(until.getTime() - DAY_MS);
+    // getNagiPostsSince は下限しか持たないので、窓の終端はここで切る。
+    // 定時実行では until = 現在時刻なので、この絞り込みは何も落とさない。
+    const recentPosts = (
+      await MemoryService.getNagiPostsSince(userDid, since)
+    ).filter((post) => !post.recordCreatedAt || post.recordCreatedAt <= until);
     if (recentPosts.length === 0) {
       console.log(`[INFO][NAGI][${userDid}] today's post not found`);
       return;
@@ -82,8 +111,8 @@ export async function processNagiDiary(userDid: string): Promise<void> {
       | string[]
       | undefined;
     const langStr = getLangStr(latestLangs);
-    const timezone = getTimezoneFromLang(latestLangs?.[0]);
-    const date = localDateStr(timezone);
+    const timezone = options.timezone ?? getTimezoneFromLang(latestLangs?.[0]);
+    const date = options.date ?? localDateStr(timezone, until);
 
     const existing = await db
       .select({ uri: nagiDiaries.uri })
@@ -100,6 +129,21 @@ export async function processNagiDiary(userDid: string): Promise<void> {
       return;
     }
 
+    const recentEmojiRows = await db
+      .select({ date: nagiDiaries.diaryDate, emoji: nagiDiaries.emoji })
+      .from(nagiDiaries)
+      .where(
+        and(
+          eq(nagiDiaries.subjectDid, userDid),
+          gte(nagiDiaries.diaryDate, daysBefore(date, 3)),
+          lt(nagiDiaries.diaryDate, date),
+        ),
+      )
+      .orderBy(asc(nagiDiaries.diaryDate));
+    const recentEmojis = recentEmojiRows.flatMap((row) =>
+      row.emoji ? [{ date: row.date, emoji: row.emoji }] : [],
+    );
+
     const displayName = await getDisplayName(userDid);
     // generateUserDiary が見るのは displayName だけだが、型は Bluesky の ProfileView。
     const follower: AppBskyActorDefs.ProfileView = {
@@ -111,30 +155,19 @@ export async function processNagiDiary(userDid: string): Promise<void> {
     console.log(`[INFO][NAGI][${userDid}] generating diary...`);
     let diaryResult: DiaryResult;
     try {
-      diaryResult = await retry(
-        async () => {
-          const result = await generateUserDiary({
-            follower,
-            posts: recentPosts.map((post) => post.text),
-            langStr,
-          });
-          if (!result || result.diary === "") {
-            throw new Error("generateUserDiary returned empty");
-          }
-          return result;
-        },
+      // 失敗するたびにモデル/tier を上げながら最大3時間粘る。
+      // 使い切っても、22時を過ぎている人は毎時の再スキャンが拾い直す。
+      diaryResult = await generateUserDiaryResilient(
         {
-          retries: 3,
-          onRetry: (error, attempt) => {
-            console.warn(
-              `[WARN][NAGI][${userDid}][DIARY] generateUserDiary retry (${attempt}/3): ${String(error)}`,
-            );
-          },
+          follower,
+          posts: recentPosts.map((post) => post.text),
+          langStr,
         },
+        { recentEmojis, label: `[NAGI][${userDid}][DIARY]` },
       );
     } catch (error: any) {
       console.error(
-        `[ERROR][NAGI][${userDid}][DIARY] Failed to generate diary after 3 retries:`,
+        `[ERROR][NAGI][${userDid}][DIARY] Failed to generate diary after up to ${DIARY_MAX_ATTEMPTS} attempts:`,
         error.message,
       );
       return;
@@ -147,19 +180,21 @@ export async function processNagiDiary(userDid: string): Promise<void> {
       text: clipNagiPostText(diaryResult.diary, "DIARY"),
       titleJa: diaryResult.title_ja,
       titleEn: diaryResult.title_en,
+      emoji: diaryResult.emoji,
+      postCount: recentPosts.length,
       ...(latestLangs?.length ? { langs: latestLangs } : {}),
       createdAt: new Date().toISOString(),
     };
 
     await retry(
       async () => {
-        await agent.api.com.atproto.repo.putRecord({
+        await trackedPutRecord(agent, {
           repo: process.env.NAGI_BOT_DID!,
           collection: NAGI.diary,
           rkey: diaryRkey(userDid, date),
           validate: false,
           record,
-        } as any);
+        } as any, "nagi.diary");
       },
       {
         retries: 2,
@@ -186,19 +221,35 @@ export async function processNagiDiary(userDid: string): Promise<void> {
   }
 }
 
-/** ユーザーのローカル22時に日記処理を1回だけ予約する。 */
+/** 実行中も scheduledTimers に居座らせて、毎時の再スキャンによる二重起動を防ぐ。 */
+function runNagiDiary(userDid: string) {
+  processNagiDiary(userDid)
+    .catch((error) => console.error(`[ERROR][NAGI][${userDid}]`, error))
+    .finally(() => {
+      scheduledTimers.delete(userDid); // 終了後に削除
+    });
+}
+
+/**
+ * ユーザーのローカル22時に日記処理を1回だけ予約する。
+ * すでに22時を回っているなら即実行する。setTimeout に任せると次は約24時間後になり、
+ * 生成失敗やプロセス再起動でその日の日記が丸ごと欠測してしまうため。
+ * 二重に書かないことは processNagiDiary の (subject, date) 存在チェックが担保する。
+ */
 function scheduleUserDiary(userDid: string, timezone: string) {
   if (scheduledTimers.has(userDid)) return; // すでにスケジュール済み
 
+  if (isPastLocal22(timezone)) {
+    console.log(`[INFO][NAGI][${userDid}] past local 22:00, running diary now (tz: ${timezone})`);
+    // タイマーは無いが、実行中の印として同じ Map を使う。
+    scheduledTimers.set(userDid, null);
+    runNagiDiary(userDid);
+    return;
+  }
+
   const delay = calculateDelayUntilLocal22(timezone);
   console.log(`[INFO][NAGI][${userDid}] scheduling diary, tz: ${timezone}, next: ${delay}ms`);
-  const timer = setTimeout(() => {
-    processNagiDiary(userDid)
-      .catch((error) => console.error(`[ERROR][NAGI][${userDid}]`, error))
-      .finally(() => {
-        scheduledTimers.delete(userDid); // 終了後に削除
-      });
-  }, delay);
+  const timer = setTimeout(() => runNagiDiary(userDid), delay);
 
   scheduledTimers.set(userDid, timer);
 }
@@ -261,11 +312,11 @@ export async function purgeNagiDiaries(userDid: string): Promise<number> {
     const rkey = uri.split("/").pop();
     if (!rkey) continue;
     try {
-      await agent.api.com.atproto.repo.deleteRecord({
+      await trackedDeleteRecord(agent, {
         repo: process.env.NAGI_BOT_DID!,
         collection: NAGI.diary,
         rkey,
-      });
+      }, "nagi.diary.purge");
       deleted += 1;
     } catch (error) {
       console.error(`[ERROR][NAGI][DIARY] Failed to delete diary record ${uri}:`, error);

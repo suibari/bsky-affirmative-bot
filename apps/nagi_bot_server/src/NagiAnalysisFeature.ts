@@ -13,7 +13,7 @@ import {
   type NagiAnalysisInput,
   type NagiAnalysisResult,
 } from "@bsky-affirmative-bot/bot-brain";
-import { MODEL_GEMINI } from "@bsky-affirmative-bot/shared-configs";
+import { aiModel } from "@bsky-affirmative-bot/shared-configs";
 import { and, desc, eq, isNull } from "drizzle-orm";
 import { agent } from "./agent.js";
 import { getConcatAuthorFeed } from "./bsky/getConcatAuthorFeed.js";
@@ -30,7 +30,13 @@ export interface AnalysisJobLike {
   postCountAt: number | null;
 }
 
-/** ジョブをキューする（冪等キーで二重投入を防ぐ）。動作確認用の内部エンドポイントからも使う。 */
+/**
+ * ジョブをキューする（冪等キーで二重投入を防ぐ）。動作確認用の内部エンドポイントからも使う。
+ *
+ * 冪等キーが決め打ちなので、以前の試行が failed で終わっていると再エンキューが
+ * onConflictDoNothing で黙って消え、そのユーザーは二度と分析されない（実際に
+ * Gemini 503 でこれを踏んだ）。そのため failed の行だけは pending に戻して蘇生させる。
+ */
 export async function enqueueAnalysis(params: {
   did: string;
   source: AnalysisSource;
@@ -47,6 +53,7 @@ export async function enqueueAnalysis(params: {
     : params.source === "bluesky"
       ? `${params.did}#first`
       : `${params.did}#nagi#${params.postCountAt ?? 0}`;
+  const now = new Date();
   await db
     .insert(nagiAnalysisJobs)
     .values({
@@ -55,7 +62,20 @@ export async function enqueueAnalysis(params: {
       source: params.source,
       postCountAt: params.postCountAt ?? null,
     })
-    .onConflictDoNothing();
+    .onConflictDoUpdate({
+      target: nagiAnalysisJobs.id,
+      set: {
+        state: "pending",
+        attempts: 0,
+        leaseExpiresAt: null,
+        nextAttemptAt: now,
+        lastError: null,
+        updatedAt: now,
+      },
+      // 走行中(pending/processing)と成功済み(posted)には触らない。setWhere が無いと
+      // ワーカーが処理中の行のリースを剥がして二重実行になる。
+      setWhere: eq(nagiAnalysisJobs.state, "failed"),
+    });
 }
 
 /** Bluesky 投稿＋いいねを集める（Nagi 初回登録時）。public appview 読み出しで認可不要。 */
@@ -63,8 +83,19 @@ async function gatherBlueskyInput(did: string): Promise<NagiAnalysisInput> {
   const profile = await agent.getProfile({ actor: did }).catch(() => undefined);
   const displayName = profile?.data.displayName || profile?.data.handle || did;
 
-  const feeds = await getConcatAuthorFeed(did, 100);
-  const posts = feeds.map((feed) => (feed.post.record as any).text as string);
+  // bot がブロックされている・アカウントが消えている等、何回試しても永久に読めないことがある。
+  // throw するとワーカーが全リトライを焼き切って failed で残るだけなので、投稿0件
+  // （＝スキップ）に倒す。Nagi 投稿10件到達で source='nagi' の分析が改めて走り、そちらで名刺が出る。
+  let posts: string[] = [];
+  try {
+    const feeds = await getConcatAuthorFeed(did, 100);
+    posts = feeds.map((feed) => (feed.post.record as any).text as string);
+  } catch (error) {
+    console.warn(
+      `[WARN][NAGI][ANALYSIS] Failed to collect Bluesky posts for ${did}:`,
+      error,
+    );
+  }
 
   // いいねは対象ユーザーの PDS から listRecords（原 AnalyzeFeature と同じ）。
   let liked: string[] = [];
@@ -169,7 +200,7 @@ export async function runNagiAnalysis(
       ...cardFields,
       source: job.source,
       postCountAt: job.postCountAt,
-      model: MODEL_GEMINI,
+      model: aiModel("NAGI_ANALYSIS"),
       promptVersion: NAGI_ANALYSIS_PROMPT_VERSION,
       updatedAt: now,
     })
@@ -181,7 +212,7 @@ export async function runNagiAnalysis(
         ...cardFields,
         source: job.source,
         postCountAt: job.postCountAt,
-        model: MODEL_GEMINI,
+        model: aiModel("NAGI_ANALYSIS"),
         promptVersion: NAGI_ANALYSIS_PROMPT_VERSION,
         updatedAt: now,
       },
@@ -195,8 +226,7 @@ export async function runNagiAnalysis(
     .where(eq(nagiProfiles.did, job.did));
 
   const updatedAt = now.toISOString();
-  await notifyAnalysisUpdated(job.did, updatedAt, result.taglineJa);
+  await notifyAnalysisUpdated(job.did, updatedAt);
 
   return { skipped: false, result, updatedAt };
 }
-

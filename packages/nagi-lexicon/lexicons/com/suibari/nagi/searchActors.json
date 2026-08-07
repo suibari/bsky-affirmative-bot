@@ -9,10 +9,16 @@
         "required": ["q"],
         "properties": {
           "q": { "type": "string", "maxLength": 256 },
+          "mode": {
+            "type": "string",
+            "knownValues": ["exact", "semantic", "hybrid"],
+            "default": "hybrid",
+            "description": "exact=handle/displayName の語彙一致のみ / semantic=プロフィール埋め込みの近傍のみ(語彙一致ヒットは除外・相対しきい値で足切り) / hybrid=両者を1本にまとめた従来の挙動(タイプアヘッド用)。"
+          },
           "limit": {
             "type": "integer",
             "minimum": 1,
-            "maximum": 10,
+            "maximum": 20,
             "default": 10
           }
         }
@@ -25,7 +31,7 @@
           "properties": {
             "actors": {
               "type": "array",
-              "maxLength": 10,
+              "maxLength": 20,
               "items": { "type": "unknown" }
             }
           }

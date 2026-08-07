@@ -8,7 +8,13 @@
         "type": "params",
         "description": "q（自由文キーワード検索）と tag（タグ絞り込み）のどちらか一方を指定する。q 優先。",
         "properties": {
-          "q": { "type": "string", "maxLength": 200, "description": "自由文キーワード。意味検索(埋め込み)＋語彙一致のハイブリッドで検索する。" },
+          "q": { "type": "string", "maxLength": 200, "description": "自由文キーワード。既定では意味検索(埋め込み)＋語彙一致のハイブリッドで検索する。" },
+          "mode": {
+            "type": "string",
+            "knownValues": ["exact", "semantic", "hybrid"],
+            "default": "hybrid",
+            "description": "q 指定時の検索方法。exact=語彙一致のみ(新着順) / semantic=意味近傍のみ(語彙一致ヒットは除外・近い順) / hybrid=両者を混ぜた1本。tag 指定時は無視される。"
+          },
           "tag": { "type": "string", "description": "小文字で正規化したタグ（# は含まない）。" },
           "limit": { "type": "integer", "minimum": 1, "maximum": 100, "default": 50 },
           "cursor": { "type": "string" }

@@ -5,7 +5,7 @@ import { getRandomItems } from "@bsky-affirmative-bot/shared-configs";
 
 export async function generateWhimsicalReply(userinfo: UserInfoGemini) {
   const prompt = PROMPT_WHIMSICALREPLY(userinfo);
-  const response = await generateSingleResponse(prompt, userinfo);
+  const response = await generateSingleResponse(prompt, userinfo, "BSKY_WHIMSICAL_REPLY");
 
   return response ?? "";
 }

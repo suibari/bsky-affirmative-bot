@@ -128,8 +128,37 @@ export type NewsView = {
   createdAt: string;
   indexedAt: string;
   reactions: ReactionView[];
+  /** ユーザー追加ニュースの投稿者。botたん所有ニュースでは省略する。 */
+  submittedBy?: ActorView;
   unavailable?: boolean;
 };
+export type NewsSubmissionPreview = {
+  articleId: string;
+  url: string;
+  title: string;
+  sourceName: string;
+  sourceUrl: string;
+  publishedAt?: string;
+  image?: string;
+};
+export type NewsSubmissionState =
+  | "pending"
+  | "processing"
+  | "approved"
+  | "rejected"
+  | "failed"
+  | "cancelled";
+export type NewsSubmissionItem = {
+  uri: string;
+  cid: string;
+  url: string;
+  title: string;
+  status: NewsSubmissionState;
+  reasonCode?: string;
+  requestedAt: string;
+  finishedAt?: string;
+};
+export type MyNewsSubmissions = { items: NewsSubmissionItem[] };
 export type BluemojiRef = {
   uri: string;
   cid: string;
@@ -206,6 +235,10 @@ export type NagiDiary = {
   /** その日の称号。 */
   titleJa?: string;
   titleEn?: string;
+  /** その日の具体的な出来事を表すUnicode絵文字3つ。旧レコードは1つの場合がある。 */
+  emoji?: string;
+  /** 日記生成の材料にした、返信を含むNagiポスト数。 */
+  postCount?: number;
   langs?: string[];
   createdAt: string;
 };
@@ -217,6 +250,8 @@ export type DiaryView = {
   text: string;
   titleJa?: string;
   titleEn?: string;
+  emoji?: string;
+  postCount?: number;
   langs?: string[];
   createdAt: string;
   indexedAt: string;
@@ -335,6 +370,18 @@ export type CommunityAffirmationView = {
   summary: string;
   createdAt: string;
   reactions: ReactionView[];
+  images?: Array<{
+    url: string;
+    alt: string;
+    contentWarning?: boolean;
+    aspectRatio?: AspectRatio;
+  }>;
+  linkCards?: Array<{
+    uri: string;
+    title: string;
+    description?: string;
+    thumb?: string;
+  }>;
 };
 export type CommunityAffirmationPage = {
   items: CommunityAffirmationView[];
@@ -429,6 +476,92 @@ export type SetPrivateListMemberResult = {
   memberDid: string;
   included: boolean;
 };
+
+// ---------------------------------------------------------------------------
+// 端末をまたいで同期する設定（既読位置・お気に入り絵文字）
+// ---------------------------------------------------------------------------
+/** my Nagi のドットを持つセクション。既読位置はセクションごとに1つ。 */
+export type ReadPositionSection =
+  "bot" | "community" | "list" | "channels" | "news";
+export const READ_POSITION_SECTIONS: readonly ReadPositionSection[] = [
+  "bot",
+  "community",
+  "list",
+  "channels",
+  "news",
+] as const;
+/**
+ * 「ここまで読んだ」位置。新旧は (indexedAt, uri) の辞書順で比較する
+ * （AppView のタイムライン順 indexedAt DESC, uri DESC と同じ規則）。
+ */
+export type ReadPosition = {
+  section: ReadPositionSection;
+  indexedAt: string;
+  uri: string;
+};
+/** お気に入り絵文字1つ。クライアントの localStorage と同じ形をそのまま保存する。 */
+export type EmojiFavorite =
+  { kind: "unicode"; emoji: string } | { kind: "custom"; emoji: EmojiView };
+/** お気に入りパレットの上限。クライアントの MAX_FAVORITES と揃える。 */
+export const EMOJI_FAVORITES_LIMIT = 32;
+/**
+ * フィードのタブ1枚の種別。
+ * list / custom は「入れ物」で、どれを指すかは source が持つ（list はいまホームだけ、
+ * custom はいま全肯定だけ）。将来ユーザーが定義したカスタムフィードも custom に入る。
+ */
+export type FeedTabKind = "list" | "global" | "custom" | "channel" | "search";
+export const FEED_TAB_KINDS: readonly FeedTabKind[] = [
+  "list",
+  "global",
+  "custom",
+  "channel",
+  "search",
+] as const;
+/** list / custom が指す組み込みの中身。ユーザー定義のフィードは将来 uri で指す。 */
+export type FeedTabSource = "home" | "affirmation";
+export const FEED_TAB_SOURCES: readonly FeedTabSource[] = [
+  "home",
+  "affirmation",
+] as const;
+/**
+ * フィードのタブ1枚。種別ごとの union にせずフラットに持つのは、lexicon で
+ * タグ付き union を表しづらく、将来の種別追加を optional フィールドの追加で
+ * 吸収したいため。どのフィールドが要るかは kind ごとに parse 側で見る。
+ */
+export type FeedTab = {
+  id: string;
+  kind: FeedTabKind;
+  /** kind が list / custom のときの参照先（list=home, custom=affirmation）。 */
+  source?: FeedTabSource;
+  /** kind==='channel' のときのチャンネル AT-URI。 */
+  uri?: string;
+  /** kind==='search' のときの保存クエリ。 */
+  query?: string;
+  queryKind?: "keyword" | "tag";
+  /** 表示名のスナップショット。権威は uri / query 側で、これは初回描画用。 */
+  label?: string;
+};
+/** タブ数の上限。チャンネル追加の上限（50）より意図的に少ない。 */
+export const FEED_TABS_LIMIT = 16;
+export type PreferencesView = {
+  readPositions: ReadPosition[];
+  emojiFavorites: EmojiFavorite[];
+  /** 未同期（まだ一度も書き込んでいない）なら undefined。 */
+  emojiFavoritesUpdatedAt?: string;
+  feedTabs: FeedTab[];
+  /** 未設定（一度もカスタムしていない）なら undefined。クライアントは既定タブを使う。 */
+  feedTabsUpdatedAt?: string;
+};
+export type PutPreferencesInput = {
+  readPositions?: ReadPosition[];
+  emojiFavorites?: EmojiFavorite[];
+  /** emojiFavorites を送るときは必須。保存済みより古ければ書き込まない。 */
+  emojiFavoritesUpdatedAt?: string;
+  feedTabs?: FeedTab[];
+  /** feedTabs を送るときは必須。保存済みより古ければ書き込まない。 */
+  feedTabsUpdatedAt?: string;
+};
+export type PutPreferencesResult = PreferencesView;
 
 // ---------------------------------------------------------------------------
 // 全肯定カード（1日1回引けるトレカ）

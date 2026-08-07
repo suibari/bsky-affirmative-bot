@@ -1,7 +1,7 @@
-import { Type, ServiceTier } from "@google/genai";
+import { Type } from "@google/genai";
 import { gemini } from "./index.js";
 import { generateContentWithRetry } from "./util.js";
-import { getRandomItems, UserInfoGemini, MODEL_GEMINI, SYSTEM_INSTRUCTION, safeFetch } from "@bsky-affirmative-bot/shared-configs";
+import { getRandomItems, UserInfoGemini, SYSTEM_INSTRUCTION, safeFetch } from "@bsky-affirmative-bot/shared-configs";
 
 export interface FortuneResult {
   fortune: string;
@@ -81,11 +81,10 @@ ${getRandomItems(part_prompt_luckys, 3)}
   }
 
   const response = await generateContentWithRetry({
-    model: MODEL_GEMINI,
+    feature: "BSKY_FORTUNE",
     contents,
     config: {
       systemInstruction: SYSTEM_INSTRUCTION,
-      serviceTier: userinfo.isSubscriber ? ServiceTier.STANDARD : ServiceTier.FLEX,
       responseMimeType: "application/json",
       responseSchema: {
         type: Type.OBJECT,

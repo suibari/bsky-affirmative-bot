@@ -1,11 +1,16 @@
 import express from "express";
 import cors from "cors";
 import { rateLimit, ipKeyGenerator } from "express-rate-limit";
-import { initializeDatabases } from "@bsky-affirmative-bot/database";
+import {
+  initializeDatabases,
+  reportHeartbeat,
+} from "@bsky-affirmative-bot/database";
 import { config } from "./config.js";
+import { logAiRouteTable } from "@bsky-affirmative-bot/shared-configs";
 import { xrpc } from "./routes/xrpc.js";
 import { internal } from "./routes/internal.js";
 import { wellKnownDid } from "./routes/wellKnownDid.js";
+import { passportJwks } from "./routes/passportJwks.js";
 import { getBlob } from "./routes/blob.js";
 import { getEmojiAsset } from "./routes/emojiAsset.js";
 import { errorHandler, notFound } from "./middleware/errors.js";
@@ -47,6 +52,8 @@ app.get("/health", (_req, res) =>
   res.json({ ok: true, pushConfigured: Boolean(config.vapid) }),
 );
 app.get("/.well-known/did.json", wellKnownDid);
+// SSO チケットの検証用公開鍵。消費アプリがサーバ側から取りに来る公開エンドポイント。
+app.get("/.well-known/nagi-passport-jwks.json", passportJwks);
 app.use(
   "/xrpc",
   rateLimit({
@@ -78,8 +85,16 @@ app.get(
 );
 app.use(notFound);
 app.use(errorHandler);
+logAiRouteTable({ prefixes: ["OLLAMA_"] });
 await initializeDatabases();
 const stream = await startJetstream();
+const appviewHeartbeat = setInterval(() => {
+  reportHeartbeat("nagi-appview").catch((error) =>
+    console.error("[ERROR][APPVIEW] Failed to report heartbeat:", error),
+  );
+}, 30_000);
+appviewHeartbeat.unref();
+reportHeartbeat("nagi-appview").catch(() => {});
 // NL検索(意味検索)用の投稿本文埋め込みを非同期生成（既存投稿のバックフィルも兼ねる）。
 // OLLAMA_BASE_URL 未設定なら実質 no-op。
 startEmbeddingWorker();
@@ -114,6 +129,7 @@ let shuttingDown = false;
 const shutdown = async () => {
   if (shuttingDown) return;
   shuttingDown = true;
+  clearInterval(appviewHeartbeat);
   const serverClosed = new Promise<void>((resolve) => server.close(() => resolve()));
   const internalClosed = new Promise<void>((resolve) =>
     internalServer.close(() => resolve()),

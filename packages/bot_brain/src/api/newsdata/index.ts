@@ -1,3 +1,4 @@
+import { aiModel } from "@bsky-affirmative-bot/shared-configs";
 import { createHash } from "node:crypto";
 import { db, nagiNewsScreening } from "@bsky-affirmative-bot/database";
 import { and, eq, gt } from "drizzle-orm";
@@ -199,7 +200,7 @@ export class PositiveNewsService {
     this.getOllamaBaseUrl = dependencies.getOllamaBaseUrl
       ?? (() => process.env.OLLAMA_BASE_URL);
     this.getOllamaModel = dependencies.getOllamaModel
-      ?? (() => process.env.OLLAMA_MODEL || "gemma3:4b");
+      ?? (() => aiModel("OLLAMA_NEWS_PRESCREEN"));
     this.logger = dependencies.logger ?? console;
     this.getPersistentScreening = dependencies.getPersistentScreening;
     this.setPersistentScreening = dependencies.setPersistentScreening;

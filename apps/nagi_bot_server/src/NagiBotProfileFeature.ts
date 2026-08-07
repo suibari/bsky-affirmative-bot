@@ -1,5 +1,6 @@
 import { NAGI } from "@bsky-affirmative-bot/nagi-lexicon";
 import { agent } from "./agent.js";
+import { trackedPutRecord } from "@bsky-affirmative-bot/clients";
 
 function getLoggedInBotDid() {
   const loggedInDid = agent.session?.did;
@@ -54,13 +55,13 @@ export async function syncNagiBotProfile() {
     createdAt: new Date().toISOString(),
   };
 
-  await agent.api.com.atproto.repo.putRecord({
+  await trackedPutRecord(agent, {
     repo: botDid,
     collection: NAGI.profile,
     rkey: "self",
     validate: false,
     record,
-  } as any);
+  } as any, "nagi.profile");
 
   console.log("[INFO][NAGI] Synced Bot Bluesky profile to nagi.profile/self.");
 }

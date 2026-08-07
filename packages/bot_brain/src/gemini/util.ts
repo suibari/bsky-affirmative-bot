@@ -1,9 +1,11 @@
-import { PartListUnion, Type, ServiceTier } from '@google/genai';
+import { PartListUnion, Type } from '@google/genai';
 import { gemini } from './index.js';
-import { MODEL_GEMINI, SYSTEM_INSTRUCTION, POST_TEXT_LIMIT, safeFetch } from '@bsky-affirmative-bot/shared-configs';
+import { SYSTEM_INSTRUCTION, POST_TEXT_LIMIT, safeFetch, resolveAiRoute } from '@bsky-affirmative-bot/shared-configs';
+import type { AiFeatureKey } from '@bsky-affirmative-bot/shared-configs';
 import { UserInfoGemini, GeminiScore, BotContext, LanguageName } from '@bsky-affirmative-bot/shared-configs';
-import { MemoryService } from '@bsky-affirmative-bot/database';
+import { MemoryService, reportHealthFailure, reportHeartbeat } from '@bsky-affirmative-bot/database';
 import { buildAffirmativeImageParts } from './affirmativeImages.js';
+import { toServiceTier } from './aiRoute.js';
 
 export type GeminiRequestOptions = {
   /** 実際の Gemini HTTP リクエストを送る直前に呼ぶ。 */
@@ -45,11 +47,27 @@ export function formatBotContext(
  * userinfo が渡された場合、プロンプトの末尾に共通コンテキスト（日時・天気・bot状態）を自動付与する
  */
 export async function generateContentWithRetry(
-  params: any,
+  params: any & { feature?: AiFeatureKey },
   retryCount = 3,
   userinfo?: UserInfoGemini,
   requestOptions: GeminiRequestOptions = {},
 ): Promise<any> {
+  // 呼び出し側は model ではなく feature（機能キー）を名乗る。実モデルと serviceTier は
+  // レジストリが決める。feature は Gemini API のペイロードに混ぜてはいけないので必ず剥がす。
+  const { feature, ...rest } = params;
+  const routed = feature ? resolveAiRoute(feature) : undefined;
+  // 優先順位: 明示 requestOptions（Nagi の再試行ラダー） > feature のルート > params の生 model
+  const serviceTier = toServiceTier(requestOptions.serviceTier ?? routed?.serviceTier);
+  params = {
+    ...rest,
+    model: requestOptions.model ?? routed?.model ?? rest.model,
+    config: {
+      ...rest.config,
+      // ルートが "auto" のときは serviceTier を積まない（現状の未設定挙動を維持）
+      ...(serviceTier ? { serviceTier } : {}),
+    },
+  };
+
   if (userinfo?.botContext) {
     const botCtx = formatBotContext(userinfo.botContext, userinfo.langStr);
     if (Array.isArray(params.contents) && typeof params.contents[0] === 'string') {
@@ -72,12 +90,17 @@ export async function generateContentWithRetry(
       MemoryService.incrementStats('rpdError', 1).catch((err: any) =>
         console.error('Failed to increment rpdError:', err),
       );
+      // 死活監視は「最後に成功したのはいつか」だけでは足りない。エラーを返し続けて
+      // いる状態を検知するため、失敗そのものを記録する。追加の API 呼び出しは
+      // しない（プローブで RPD を消費したくない）。
+      reportHealthFailure('gemini', e).catch(() => {});
       throw e;
     }
     const text = response.text || '';
 
     // Increment RPD on success
     MemoryService.incrementStats('rpd', 1).catch((e: any) => console.error('Failed to increment RPD:', e));
+    reportHeartbeat('gemini').catch(() => {});
 
     // 文字数制限チェック（文字数超過時のみ、モデル生成のやり直しとして内部リトライを許容）
     if (text.length <= POST_TEXT_LIMIT) {
@@ -95,8 +118,16 @@ export async function generateContentWithRetry(
 
 /**
  * 必要に応じて画像を付与してシングルレスポンスを得る
+ *
+ * この関数は多くの機能から共有されるため、モデル/tier は呼び出し側が名乗る feature キーで決まる。
+ * feature に既定値を持たせないのは、新しい呼び出しがどれかの機能キーに必ず紐づくよう
+ * コンパイラに強制させるため。
  */
-export async function generateSingleResponse(prompt: string, userinfo?: UserInfoGemini): Promise<string> {
+export async function generateSingleResponse(
+  prompt: string,
+  userinfo: UserInfoGemini | undefined,
+  feature: AiFeatureKey,
+): Promise<string> {
   const contents: PartListUnion = [prompt];
 
   if (userinfo?.image) {
@@ -124,11 +155,10 @@ export async function generateSingleResponse(prompt: string, userinfo?: UserInfo
 
   const response = await generateContentWithRetry(
     {
-      model: MODEL_GEMINI,
+      feature,
       contents,
       config: {
         systemInstruction: SYSTEM_INSTRUCTION,
-        serviceTier: userinfo?.isSubscriber ? ServiceTier.STANDARD : ServiceTier.FLEX,
         tools: [
           {
             googleSearch: {},
@@ -215,18 +245,11 @@ export async function generateSingleResponseWithScore(
   const request = (requestTools: any[]) =>
     generateContentWithRetry(
       {
-        model: requestOptions.model ?? MODEL_GEMINI,
+        // model / serviceTier は generateContentWithRetry がレジストリと requestOptions から決める
+        feature: 'BSKY_AFFIRMATIVE_REPLY' satisfies AiFeatureKey,
         contents,
         config: {
           systemInstruction: SYSTEM_INSTRUCTION,
-          serviceTier:
-            requestOptions.serviceTier === 'standard'
-              ? ServiceTier.STANDARD
-              : requestOptions.serviceTier === 'flex'
-                ? ServiceTier.FLEX
-                : userinfo?.isSubscriber
-                  ? ServiceTier.STANDARD
-                  : ServiceTier.FLEX,
           // responseMimeType: "application/json", // Removed
           // responseSchema, // Removed
           tools: requestTools,
@@ -286,7 +309,8 @@ export async function generateSingleResponseJSON<T>(
   prompt: string,
   userinfo: UserInfoGemini | undefined,
   parser: (text: string) => T,
+  feature: AiFeatureKey,
 ): Promise<T> {
-  const responseText = await generateSingleResponse(prompt, userinfo);
+  const responseText = await generateSingleResponse(prompt, userinfo, feature);
   return parser(responseText);
 }

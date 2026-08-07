@@ -257,6 +257,8 @@ export interface DailyReport {
   lang: Map<LanguageName, number>;
   topPost: string;
   botComment: string;
+  /** おすすめ投稿がどちらのネットワークのものか。 */
+  topPostNetwork: 'bsky' | 'nagi';
   bskyrate: number;
   rpd: number;
   rpdError: number;

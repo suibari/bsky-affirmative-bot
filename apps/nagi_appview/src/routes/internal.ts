@@ -30,8 +30,6 @@ internal.post("/notifications/analysis", async (req, res, next) => {
   try {
     const did = String(req.body?.did ?? "");
     const updatedAt = String(req.body?.updatedAt ?? "");
-    const bodyText =
-      typeof req.body?.bodyText === "string" ? req.body.bodyText : "";
     if (!did.startsWith("did:")) {
       res.status(400).json({ error: "did is required" });
       return;
@@ -67,7 +65,6 @@ internal.post("/notifications/analysis", async (req, res, next) => {
       type: "analysis",
       actorDid: config.botDid,
       notificationId: inserted[0].id,
-      bodyText,
     });
 
     res.status(200).json({ created: true, notificationId: inserted[0].id });

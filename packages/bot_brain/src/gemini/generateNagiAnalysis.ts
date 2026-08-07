@@ -1,6 +1,6 @@
-import { Type, ServiceTier } from "@google/genai";
+import { Type } from "@google/genai";
 import { generateContentWithRetry } from "./util.js";
-import { MODEL_GEMINI, SYSTEM_INSTRUCTION, TONE_RULES_JA } from "@bsky-affirmative-bot/shared-configs";
+import { SYSTEM_INSTRUCTION, TONE_RULES_JA } from "@bsky-affirmative-bot/shared-configs";
 
 /** 自動分析（プロフィールの「botたんのひとこと」）の入力。 */
 export interface NagiAnalysisInput {
@@ -50,11 +50,10 @@ export async function generateNagiAnalysis(
   const prompt = PROMPT_NAGI_ANALYSIS(input);
 
   const response = await generateContentWithRetry({
-    model: MODEL_GEMINI,
+    feature: "NAGI_ANALYSIS",
     contents: [prompt],
     config: {
       systemInstruction: SYSTEM_INSTRUCTION,
-      serviceTier: input.isSubscriber ? ServiceTier.STANDARD : ServiceTier.FLEX,
       responseMimeType: "application/json",
       responseSchema: {
         type: Type.OBJECT,

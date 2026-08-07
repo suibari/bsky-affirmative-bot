@@ -4,6 +4,7 @@ import {
   nagiActorAnalyses,
   nagiChannels,
   nagiNews,
+  nagiNewsApprovals,
   nagiPosts,
   nagiProfiles,
 } from "@bsky-affirmative-bot/database";
@@ -129,11 +130,25 @@ const sources: EmbedSource[] = [
       const rows = await db
         .select({
           uri: nagiNews.uri,
-          titleJa: nagiNews.titleJa,
-          sourceName: nagiNews.sourceName,
+          cid: nagiNews.cid,
+          titleJa: nagiNewsApprovals.snapshotTitleJa,
+          sourceName: nagiNewsApprovals.snapshotSourceName,
         })
         .from(nagiNews)
-        .where(and(isNull(nagiNews.embedding), isNull(nagiNews.deletedAt)))
+        .innerJoin(
+          nagiNewsApprovals,
+          and(
+            eq(nagiNewsApprovals.newsUri, nagiNews.uri),
+            eq(nagiNewsApprovals.newsCid, nagiNews.cid),
+          ),
+        )
+        .where(
+          and(
+            isNull(nagiNews.embedding),
+            isNull(nagiNews.deletedAt),
+            eq(nagiNewsApprovals.status, "approved"),
+          ),
+        )
         .orderBy(desc(nagiNews.indexedAt))
         .limit(limit);
       return rows.map((r) => ({
@@ -142,7 +157,7 @@ const sources: EmbedSource[] = [
           const w = await db
             .update(nagiNews)
             .set({ embedding })
-            .where(and(eq(nagiNews.uri, r.uri), eq(nagiNews.titleJa, r.titleJa)))
+            .where(and(eq(nagiNews.uri, r.uri), eq(nagiNews.cid, r.cid)))
             .returning({ uri: nagiNews.uri });
           return w.length > 0;
         },

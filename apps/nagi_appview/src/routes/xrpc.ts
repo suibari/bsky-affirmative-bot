@@ -5,8 +5,13 @@ import {
   optionalServiceAuth,
   requiredServiceAuth,
 } from "../auth/serviceAuth.js";
+import {
+  createSsoTicket,
+  isAllowedAudience,
+  ssoTicketEnabled,
+} from "../services/ssoTicket.js";
 import { getTimeline } from "../queries/timeline.js";
-import { searchPostsByText } from "../queries/search.js";
+import { searchPostsByText, type SearchMode } from "../queries/search.js";
 import {
   getChannel,
   getChannelTimeline,
@@ -15,7 +20,7 @@ import {
   searchChannelsTypeahead,
 } from "../queries/channels.js";
 import { getActorProfile, getReactedFeed } from "../queries/profile.js";
-import { searchActors } from "../queries/actors.js";
+import { resolveActorDid, searchActors } from "../queries/actors.js";
 import { getThread } from "../queries/thread.js";
 import {
   getNotifications,
@@ -43,11 +48,18 @@ import {
   getPrivateList,
   setPrivateListMember,
 } from "../queries/privateList.js";
+import { getPreferences, putPreferences } from "../queries/preferences.js";
 import { setChannelSubscription } from "../queries/channelSubscriptions.js";
 import { getMyNagi } from "../queries/myNagi.js";
 import { drawCard, getCards } from "../queries/cards.js";
 import { getCommunityAffirmations } from "../queries/communityAffirmations.js";
+import { getProfileWebsiteCard } from "../services/profileWebsite.js";
 import { config } from "../config.js";
+import {
+  getMyNewsSubmissions,
+  getNewsSubmissionPreview,
+  requestNewsReview,
+} from "../services/userNewsSubmissions.js";
 import {
   ensurePdsRecord,
   isReconcilableCollection,
@@ -57,6 +69,14 @@ import { parseRecordUri } from "../ingest/recordUri.js";
 export const xrpc = Router();
 const limit = (value: unknown) =>
   Math.min(100, Math.max(1, Number(value ?? 50) || 50));
+/**
+ * 検索の 🔍一致 / botたんの気まぐれ の出し分け。未知の値は 400 にせず従来の hybrid に倒す
+ * （古いクライアントや手打ちの URL を壊さない）。
+ */
+const searchMode = (value: unknown): SearchMode => {
+  const raw = String(value ?? "");
+  return raw === "exact" || raw === "semantic" ? raw : "hybrid";
+};
 
 xrpc.get(
   `/${NAGI.getCommunityAffirmations}`,
@@ -181,9 +201,10 @@ xrpc.get(
   optionalServiceAuth(NAGI.getProfile),
   async (req, res, next) => {
     try {
-      const actor = String(req.query.actor ?? "");
-      if (!actor)
+      const actorParam = String(req.query.actor ?? "");
+      if (!actorParam)
         throw new ApiError(400, "invalid_request", "actor is required");
+      const actor = await resolveActorDid(actorParam);
       const filter = String(req.query.filter ?? "posts");
       if (!["posts", "replies", "media", "reactions"].includes(filter))
         throw new ApiError(400, "invalid_request", "Invalid filter");
@@ -222,6 +243,18 @@ xrpc.get(
     }
   },
 );
+xrpc.get(`/${NAGI.getProfileWebsite}`, async (req, res, next) => {
+  try {
+    const actorParam = String(req.query.actor ?? "");
+    if (!actorParam)
+      throw new ApiError(400, "invalid_request", "actor is required");
+    const did = await resolveActorDid(actorParam);
+    const card = await getProfileWebsiteCard(did);
+    res.set("Cache-Control", "public, max-age=60").json({ card });
+  } catch (e) {
+    next(e);
+  }
+});
 xrpc.get(
   `/${NAGI.getChannels}`,
   optionalServiceAuth(NAGI.getChannels),
@@ -257,7 +290,13 @@ xrpc.get(
       res
         .set(
           "Cache-Control",
-          req.viewerDid ? "private, no-store" : "public, max-age=15",
+          // 候補は打鍵ごとに叩かれるので、ビューア付きでも15秒だけブラウザに持たせる
+          // （private なので PDS プロキシを含む共有キャッシュには乗らない）。
+          req.viewerDid
+            ? typeahead
+              ? "private, max-age=15"
+              : "private, no-store"
+            : "public, max-age=15",
         )
         .json(
           await (typeahead
@@ -268,6 +307,7 @@ xrpc.get(
               })
             : searchChannels({
                 q,
+                mode: searchMode(req.query.mode),
                 limit: limit(req.query.limit),
                 cursor: String(req.query.cursor ?? "") || undefined,
                 viewerDid: req.viewerDid,
@@ -334,6 +374,7 @@ xrpc.get(
         .slice(0, 200);
       const tag = String(req.query.tag ?? "")
         .trim()
+        .replace(/^[#＃]+/, "")
         .toLowerCase();
       if (!q && !tag) {
         throw new ApiError(400, "invalid_request", "q or tag is required");
@@ -345,6 +386,7 @@ xrpc.get(
         res.set("Cache-Control", cacheControl).json(
           await searchPostsByText({
             q,
+            mode: searchMode(req.query.mode),
             limit: limit(req.query.limit),
             cursor: String(req.query.cursor ?? "") || undefined,
             viewerDid: req.viewerDid,
@@ -495,6 +537,7 @@ xrpc.get(
         .json(
           await searchNews({
             q,
+            mode: searchMode(req.query.mode),
             limit: Math.min(20, limit(req.query.limit)),
             cursor: String(req.query.cursor ?? "") || undefined,
             lang,
@@ -506,12 +549,60 @@ xrpc.get(
     }
   },
 );
+xrpc.get(
+  `/${NAGI.getNewsSubmissionPreview}`,
+  requiredServiceAuth(NAGI.getNewsSubmissionPreview),
+  async (req, res, next) => {
+    try {
+      res
+        .set("Cache-Control", "private, no-store")
+        .json(await getNewsSubmissionPreview(String(req.query.url ?? "")));
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+xrpc.post(
+  `/${NAGI.requestNewsReview}`,
+  requiredServiceAuth(NAGI.requestNewsReview),
+  async (req, res, next) => {
+    try {
+      const subject = req.body?.subject;
+      if (!subject || typeof subject.uri !== "string" || typeof subject.cid !== "string")
+        throw new ApiError(400, "invalid_request", "subject StrongRef is required");
+      res
+        .set("Cache-Control", "private, no-store")
+        .json(await requestNewsReview(req.viewerDid!, subject));
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+xrpc.get(
+  `/${NAGI.getMyNewsSubmissions}`,
+  requiredServiceAuth(NAGI.getMyNewsSubmissions),
+  async (req, res, next) => {
+    try {
+      res
+        .set("Cache-Control", "private, no-store")
+        .json(await getMyNewsSubmissions(req.viewerDid!, Math.min(20, limit(req.query.limit))));
+    } catch (error) {
+      next(error);
+    }
+  },
+);
 xrpc.get(`/${NAGI.searchActors}`, async (req, res, next) => {
   try {
     const query = String(req.query.q ?? "");
     res
       .set("Cache-Control", "public, max-age=15")
-      .json(await searchActors(query, Math.min(10, limit(req.query.limit))));
+      .json(
+        await searchActors(
+          query,
+          Math.min(20, limit(req.query.limit)),
+          searchMode(req.query.mode),
+        ),
+      );
   } catch (e) {
     next(e);
   }
@@ -631,6 +722,35 @@ xrpc.post(
     }
   },
 );
+// 端末間で同期する設定。既読位置は「いつ何を読んだか」そのものなので、ミュートと同じく
+// 本人以外へは一切出さない。DID は入力で受け取らず viewerDid だけを使う。
+xrpc.get(
+  `/${NAGI.getPreferences}`,
+  requiredServiceAuth(NAGI.getPreferences),
+  async (req, res, next) => {
+    try {
+      res
+        .set("Cache-Control", "private, no-store")
+        .json(await getPreferences(req.viewerDid!));
+    } catch (e) {
+      next(e);
+    }
+  },
+);
+xrpc.post(
+  `/${NAGI.putPreferences}`,
+  requiredServiceAuth(NAGI.putPreferences),
+  async (req, res, next) => {
+    try {
+      // 中身の検証は putPreferences 側にまとめてある（形が入れ子で長いため）。
+      res
+        .set("Cache-Control", "private, no-store")
+        .json(await putPreferences(req.viewerDid!, req.body ?? {}));
+    } catch (e) {
+      next(e);
+    }
+  },
+);
 // my Nagi の集約。本人のリストと購読状況が丸ごと出るので、必ず認証必須かつ no-store。
 xrpc.get(
   `/${NAGI.getMyNagi}`,
@@ -701,6 +821,41 @@ xrpc.post(
       res
         .set("Cache-Control", "private, no-store")
         .json(await drawCard(req.viewerDid!));
+    } catch (e) {
+      next(e);
+    }
+  },
+);
+// 姉妹アプリへ「サインイン済みのまま」移動するためのチケットを発行する。
+// 発行対象の DID は requiredServiceAuth が検証した viewerDid だけで、
+// リクエストから DID を受け取らない（他人のチケットを作れる余地を残さない）。
+xrpc.post(
+  `/${NAGI.createSsoTicket}`,
+  requiredServiceAuth(NAGI.createSsoTicket),
+  async (req, res, next) => {
+    try {
+      // 鍵が未設定なら発行できないことを明示する。クライアントはこれを見て
+      // ?did= ヒント経路へフォールバックする。
+      if (!ssoTicketEnabled()) {
+        return res
+          .status(501)
+          .json({ error: "NotConfigured", message: "SSO ticket issuing is not configured" });
+      }
+      const audience = req.body?.audience;
+      if (typeof audience !== "string" || !audience) {
+        return res
+          .status(400)
+          .json({ error: "InvalidRequest", message: "audience is required" });
+      }
+      // 許可リスト外は 400。ここを緩めるとオープンリダイレクタになる。
+      if (!isAllowedAudience(audience)) {
+        return res
+          .status(400)
+          .json({ error: "InvalidRequest", message: "audience is not allowed" });
+      }
+      res
+        .set("Cache-Control", "private, no-store")
+        .json(await createSsoTicket(req.viewerDid!, audience));
     } catch (e) {
       next(e);
     }

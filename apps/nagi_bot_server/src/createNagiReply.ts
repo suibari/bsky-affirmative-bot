@@ -24,11 +24,8 @@ import {
 } from "./nagiReplyContext.js";
 import { publishNagiPost } from "./nagiPost.js";
 import type { NagiReplyMode } from "./nagiAiQuota.js";
-import type { NagiAiRoute } from "./nagiReplyRetry.js";
-import {
-  MODEL_GEMINI,
-  MODEL_GEMINI_HIGH,
-} from "@bsky-affirmative-bot/shared-configs";
+import { nagiAiRouteForAttempt } from "./nagiReplyRetry.js";
+import type { NagiAiRouteDetails } from "./nagiReplyRetry.js";
 
 configureBotContext({
   getWeather: getYokohamaWeather,
@@ -54,7 +51,8 @@ async function generateConversationReply(
   job: any,
   context: Awaited<ReturnType<typeof buildNagiReplyContext>>,
   langStr: string,
-  beforeRequest?: () => Promise<void>,
+  beforeRequest: (() => Promise<void>) | undefined,
+  aiRoute: NagiAiRouteDetails,
 ) {
   const did = job.authorDid;
   const userText = context.posts[0] ?? "";
@@ -72,7 +70,9 @@ async function generateConversationReply(
       botContext: await getBotContext(),
       langStr,
     } as any,
-    { beforeRequest },
+    // 肯定返信と同じく、再試行ラダーが選んだモデル/tierを明示する。
+    // 渡さないと BSKY_CONVERSATION のルートに落ち、ワーカーのログと実態がずれる。
+    { beforeRequest, model: aiRoute.model, serviceTier: aiRoute.serviceTier },
   );
   const comment = result.text_bot ?? "";
   const newHistory: ConversationTurn[] = result.new_history ?? [];
@@ -109,7 +109,7 @@ export async function createNagiReply(
   options: {
     mode: NagiReplyMode;
     beforeGeminiRequest?: () => Promise<void>;
-    aiRoute?: NagiAiRoute;
+    aiRoute?: NagiAiRouteDetails;
   },
 ) {
   const record: any = job.recordJson;
@@ -128,7 +128,7 @@ export async function createNagiReply(
     };
   } else {
     const context = await buildNagiReplyContext(job);
-    const aiRoute = options.aiRoute ?? "lite-flex";
+    const aiRoute = options.aiRoute ?? nagiAiRouteForAttempt(1);
     console.log("[INFO][NAGI] Gemini reply context:", {
       ...context.diagnostics,
       mode: conversationMode ? "conversation" : "affirmative",
@@ -139,6 +139,7 @@ export async function createNagiReply(
           context,
           language.name,
           options.beforeGeminiRequest,
+          aiRoute,
         )
       : await generateAffirmativeWord(
           {
@@ -155,9 +156,8 @@ export async function createNagiReply(
           } as any,
           {
             beforeRequest: options.beforeGeminiRequest,
-            model:
-              aiRoute === "flash-standard" ? MODEL_GEMINI_HIGH : MODEL_GEMINI,
-            serviceTier: aiRoute === "lite-flex" ? "flex" : "standard",
+            model: aiRoute.model,
+            serviceTier: aiRoute.serviceTier,
           },
         );
   }
@@ -173,10 +173,9 @@ export async function createNagiReply(
     label: "NAGI_REPLY",
     rkey: sourceRkey,
     langs: [language.code],
-    // 元投稿がチャンネル所属なら返信も同じ channel を継承し、CH TL に並ぶ（Misskey 同様）。
-    // こっそりはスレッドルートだけが所有し、AppView が返信にも有効範囲を適用する。
-    // 返信へ複製すると、返信単位で公開範囲を持てるように見えてしまうため保存しない。
-    ...(record.channel ? { channel: record.channel } : {}),
+    // 所属チャンネルもこっそりと同じくスレッドルートだけが所有する。返信レコードへは
+    // 複製せず、AppView が reply.root から channel_uri を解決して CH TL に並べる
+    // （複製すると、返信単位で所属や公開範囲を持てるように見えてしまう）。
     reply: {
       root,
       parent: {

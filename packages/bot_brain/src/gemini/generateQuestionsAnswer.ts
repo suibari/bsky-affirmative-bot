@@ -22,7 +22,8 @@ export async function generateQuestionsAnswer(userinfo: UserInfoGemini, question
           summary_ja: json.summary_ja || "朝トーク",
           summary_en: json.summary_en || "Morning Talk"
         };
-      }
+      },
+      "BSKY_QUESTIONS_ANSWER"
     );
   } catch (e) {
     console.error("[ERROR] Failed to parse generateQuestionsAnswer JSON after retries:", e);

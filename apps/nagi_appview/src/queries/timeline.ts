@@ -137,22 +137,27 @@ export async function hydratePostViews(
         string,
         { uri: string; cid: string; kossori: boolean; channelOnly: boolean }
       >();
-  // バッジ表示用にチャンネル名を引く（uri→name）。所属 CH のある投稿だけ。
+  // バッジ表示用にチャンネルを引く（uri→{name,cid}）。所属 CH のある投稿だけ。
+  // 返信はレコードに channel を持たない（ルート所有）ので、cid もここから解決する。
   const channelUris = [
     ...new Set(
       rows.flatMap((r) => (r.post.channelUri ? [r.post.channelUri] : [])),
     ),
   ];
-  const channelNames = channelUris.length
+  const channelRefs = channelUris.length
     ? new Map(
         (
           await db
-            .select({ uri: nagiChannels.uri, name: nagiChannels.name })
+            .select({
+              uri: nagiChannels.uri,
+              cid: nagiChannels.cid,
+              name: nagiChannels.name,
+            })
             .from(nagiChannels)
             .where(inArray(nagiChannels.uri, channelUris))
-        ).map((c) => [c.uri, c.name]),
+        ).map((c) => [c.uri, { cid: c.cid, name: c.name }]),
       )
-    : new Map<string, string>();
+    : new Map<string, { cid: string; name: string }>();
   const views = rows.map(({ post, actor, profile, score }) => {
     const deleted = Boolean(post.deletedAt);
     const recordReply = (post.recordJson as any)?.reply;
@@ -265,9 +270,12 @@ export async function hydratePostViews(
       channel: post.channelUri
         ? {
             uri: post.channelUri,
-            cid: (post.recordJson as any)?.channel?.cid ?? "",
-            ...(channelNames.has(post.channelUri)
-              ? { name: channelNames.get(post.channelUri) }
+            cid:
+              (post.recordJson as any)?.channel?.cid ??
+              channelRefs.get(post.channelUri)?.cid ??
+              "",
+            ...(channelRefs.has(post.channelUri)
+              ? { name: channelRefs.get(post.channelUri)!.name }
               : {}),
           }
         : undefined,
@@ -290,7 +298,7 @@ export async function hydratePostViews(
       ? [{ uri: post.quoteUri, cid: post.quoteCid }]
       : [],
   );
-  const newsViews = await getNewsQuoteViews(newsRefs);
+  const newsViews = await getNewsQuoteViews(newsRefs, mutes.actors);
   if (!quoteUris.length && !newsRefs.length) return views;
   // 引用元がミュート著者なら引用カードだけを落とす（引用している投稿自体は残す）。
   const quoteRows = quoteUris.length
@@ -628,22 +636,28 @@ export async function getTimeline(opts: {
   // こっそりは返信ごとではなくスレッドルートが所有する。旧 channelOnly も互換性のため
   // ルートの非共有設定として扱う。ルート未解決時に true へ倒すのは、壊れた参照によって
   // 本来こっそりだった返信を共有TLへ露出させないため。
-  if (!opts.actorDid && !opts.channelUri && !opts.homeDid) {
-    filters.push(sql`
+	if (!opts.actorDid && !opts.channelUri && !opts.homeDid) {
+		const viewerMatch = opts.viewerDid
+			? sql`${nagiPosts.did} = ${opts.viewerDid}`
+			: sql`false`;
+		const threadRootViewerMatch = opts.viewerDid
+			? sql`thread_root.did = ${opts.viewerDid}`
+			: sql`false`;
+		filters.push(sql`
       case
         when ${nagiPosts.replyRootUri} is null
-          then not (${nagiPosts.kossori} or ${nagiPosts.channelOnly})
+          then not ${nagiPosts.channelOnly} and (not ${nagiPosts.kossori} or ${viewerMatch})
         else coalesce((
-          select not (thread_root.kossori or thread_root.channel_only)
+          select not thread_root.channel_only and (not thread_root.kossori or ${threadRootViewerMatch})
           from nagi.posts as thread_root
           where thread_root.uri = ${nagiPosts.replyRootUri}
             and thread_root.deleted_at is null
         ), false)
       end
     `);
-    // 将来チャンネル投稿をグローバル/全肯定TLへ流さない方針に変える場合は、
-    // ここに filters.push(isNull(nagiPosts.channelUri)); を1行足すだけでよい。
-  }
+		// 将来チャンネル投稿をグローバル/全肯定TLへ流さない方針に変える場合は、
+		// ここに filters.push(isNull(nagiPosts.channelUri)); を1行足すだけでよい。
+	}
   // 会話グループ化: 同スレッドに自分より後の共有可視投稿(=非削除・非bot返信)が無い投稿=代表
   // だけを残す。これで1スレッド1回・最新活動順になる。cursor/orderBy はそのまま代表に効く。
   // kossori判定は上の case 式が担うので、ここでは重複して書かない。

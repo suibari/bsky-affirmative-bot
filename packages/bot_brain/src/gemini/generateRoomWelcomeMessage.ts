@@ -20,7 +20,7 @@ export async function generateRoomWelcomeMessage(
   const prompt = anniversary
     ? PROMPT_ROOM_ANNIVERSARY(displayName, recentPosts, anniversary)
     : PROMPT_ROOM_WELCOME(displayName, recentPosts);
-  const responseText = await generateSingleResponse(prompt);
+  const responseText = await generateSingleResponse(prompt, undefined, "BSKY_ROOM_WELCOME");
   
   try {
     const json = extractJSON(responseText);

@@ -1,4 +1,5 @@
 import type { AtpAgent } from '@atproto/api';
+import { trackedPutRecord } from './RepoWritePointService.js';
 
 export const STANDARD_SITE_PUBLICATION = 'site.standard.publication';
 export const STANDARD_SITE_DOCUMENT = 'site.standard.document';
@@ -293,13 +294,13 @@ export async function migrateLegacyLeafletDocuments(
     if (report.dryRun) continue;
 
     try {
-      await agent.api.com.atproto.repo.putRecord({
+      await trackedPutRecord(agent, {
         repo: options.did,
         collection: STANDARD_SITE_DOCUMENT,
         rkey,
         validate: false,
         record,
-      });
+      }, 'standard.site.migration');
       report.created++;
       standardRkeys.add(rkey);
       options.onProgress?.(`Created ${STANDARD_SITE_DOCUMENT}/${rkey}`);

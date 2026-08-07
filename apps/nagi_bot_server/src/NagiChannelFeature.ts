@@ -77,7 +77,7 @@ export async function onNagiChannel(evt: any) {
     description: typeof record.description === "string" ? record.description : null,
   };
   try {
-    const text = await generateSingleResponse(welcomePrompt(name, channel.description));
+    const text = await generateSingleResponse(welcomePrompt(name, channel.description), undefined, "NAGI_CHANNEL_WELCOME");
     await postToChannel(channel, text);
     console.log(`[INFO][NAGI][channel] Welcome post created for ${uri}`);
   } catch (error) {
@@ -130,7 +130,7 @@ async function scanDormantChannels() {
 
   for (const ch of rows) {
     try {
-      const text = await generateSingleResponse(topicPrompt(ch.name, ch.description));
+      const text = await generateSingleResponse(topicPrompt(ch.name, ch.description), undefined, "NAGI_CHANNEL_TOPIC");
       await postToChannel(ch, text);
       console.log(`[INFO][NAGI][channel] Topic post created for ${ch.uri}`);
     } catch (error) {

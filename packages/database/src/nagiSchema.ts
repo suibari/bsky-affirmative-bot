@@ -58,6 +58,14 @@ export const communityAffirmationState = nagiSchema.enum(
   "community_affirmation_state",
   ["pending", "processing", "posted", "rejected", "failed"],
 );
+export const newsReviewState = nagiSchema.enum("news_review_state", [
+  "pending",
+  "processing",
+  "approved",
+  "rejected",
+  "failed",
+  "cancelled",
+]);
 export const nagiAiReplyMode = nagiSchema.enum("ai_reply_mode", [
   "ai",
   "template",
@@ -100,7 +108,9 @@ export const nagiPosts = nagiSchema.table(
     // こっそりはスレッドルートだけが所有する。返信の共有可否はこの行自身ではなく
     // replyRootUri の参照先から解決し、プロフィール・スレッドからは引き続き見える。
     kossori: boolean("kossori").default(false).notNull(),
-    // 所属チャンネル（com.suibari.nagi.channel）の AT-URI。返信は親の channel を継承する。
+    // 所属チャンネル（com.suibari.nagi.channel）の AT-URI。こっそりと同じくスレッドルートが
+    // 所有し、返信はレコードに channel を持たない。取り込み時に reply_root_uri から解決して
+    // ここへ非正規化コピーするので、CH TL はこの1列だけで引ける（ルート取り込み時に配下へ伝播）。
     channelUri: text("channel_uri"),
     // true なら CH 限定＝グローバル/全肯定TL非表示（kossori と同じ除外扱い）。CH TLには出る。
     channelOnly: boolean("channel_only").default(false).notNull(),
@@ -123,6 +133,8 @@ export const nagiPosts = nagiSchema.table(
   (t) => [
     index("nagi_posts_timeline_idx").on(t.indexedAt, t.uri),
     index("nagi_posts_parent_idx").on(t.replyParentUri),
+    // ルート取り込み時に配下の返信へ channel_uri を配るための索引。
+    index("nagi_posts_reply_root_idx").on(t.replyRootUri),
     index("nagi_posts_actor_idx").on(t.did, t.indexedAt),
     index("nagi_posts_channel_idx").on(t.channelUri, t.indexedAt),
     index("nagi_posts_tags_idx").using("gin", t.tags),
@@ -226,6 +238,27 @@ export const nagiNewsApprovals = nagiSchema.table(
     hiddenAt: timestamp("hidden_at", { withTimezone: true }),
   },
   (t) => [primaryKey({ columns: [t.newsUri, t.newsCid] })],
+);
+/** ユーザーが明示的に審査依頼したニュースだけを処理する非公開ジョブ。 */
+export const nagiNewsReviewJobs = nagiSchema.table(
+  "news_review_jobs",
+  {
+    newsUri: text("news_uri").notNull(),
+    newsCid: text("news_cid").notNull(),
+    did: text("did").notNull(),
+    normalizedUrl: text("normalized_url").notNull(),
+    status: newsReviewState("status").default("pending").notNull(),
+    reasonCode: text("reason_code"),
+    attemptCount: integer("attempt_count").default(0).notNull(),
+    requestedAt: timestamp("requested_at", { withTimezone: true }).defaultNow().notNull(),
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+  },
+  (t) => [
+    primaryKey({ columns: [t.newsUri, t.newsCid] }),
+    index("nagi_news_review_jobs_pending_idx").on(t.status, t.requestedAt),
+    index("nagi_news_review_jobs_did_idx").on(t.did, t.requestedAt),
+  ],
 );
 /** 24時間の不採用・Gemma判定キャッシュ。 */
 export const nagiNewsScreening = nagiSchema.table("news_screening", {
@@ -349,6 +382,8 @@ export const nagiDiaries = nagiSchema.table(
     text: text("text").notNull(),
     titleJa: text("title_ja"),
     titleEn: text("title_en"),
+    emoji: text("emoji"),
+    postCount: integer("post_count"),
     langs: jsonb("langs"),
     recordCreatedAt: timestamp("record_created_at", {
       withTimezone: true,
@@ -358,6 +393,10 @@ export const nagiDiaries = nagiSchema.table(
       .notNull(),
   },
   (t) => [
+    check(
+      "nagi_diaries_post_count_positive",
+      sql`${t.postCount} IS NULL OR ${t.postCount} > 0`,
+    ),
     uniqueIndex("nagi_diary_subject_date_idx").on(t.subjectDid, t.diaryDate),
     index("nagi_diary_subject_idx").on(t.subjectDid, t.diaryDate),
   ],
@@ -751,3 +790,55 @@ export const nagiCardCommentJobs = nagiSchema.table(
   },
   (t) => [index("nagi_card_comment_jobs_ready_idx").on(t.state, t.nextAttemptAt)],
 );
+
+/**
+ * 端末をまたいで同期する「ここまで読んだ」位置。my Nagi の各セクションのドットに使う。
+ * ミュートや非公開リストと同じく、PDS レコードにすると「いつ何を読んだか」が公開されて
+ * しまうので AppView だけが持ち、認証した本人にしか返さない。
+ *
+ * 書き込みは単調（monotonic）。(indexed_at, uri) が現在値より進むときだけ更新するため、
+ * 復帰の遅れた端末が古い位置を送っても既読が巻き戻らず、端末間のロックが要らない。
+ */
+export const nagiReadPositions = nagiSchema.table(
+  "read_positions",
+  {
+    did: text("did").notNull(),
+    /** "bot" | "community" | "list" | "channels" | "news"。将来の追加に備えて text のまま。 */
+    section: text("section").notNull(),
+    indexedAt: timestamp("indexed_at", { withTimezone: true }).notNull(),
+    uri: text("uri").notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  // 主キーがそのまま「本人の全セクションを引く」索引なので、追加の索引は要らない。
+  (t) => [primaryKey({ columns: [t.did, t.section] })],
+);
+
+/**
+ * お気に入り絵文字パレット。順序のある1本の配列で、部分マージに意味が無いため
+ * updated_at による後勝ち（last-write-wins）で丸ごと差し替える。
+ * choices はクライアントの localStorage と同じ形（ReactionChoice[]）をそのまま入れる。
+ */
+export const nagiEmojiFavorites = nagiSchema.table("emoji_favorites", {
+  did: text("did").primaryKey(),
+  choices: jsonb("choices").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+
+/**
+ * フィードのタブ構成（並び順と、追加したチャンネル/検索タブ）。
+ * お気に入り絵文字と同じく順序のある1本の配列なので updated_at による後勝ち。
+ * 絵文字と同居させないのは、性質の違う2つの設定が1行の updated_at を共有すると
+ * 片方の更新でもう片方の後勝ち判定が壊れるため。
+ * 行が無い＝一度もカスタムしていない（クライアントは既定タブを使う）。
+ */
+export const nagiFeedTabs = nagiSchema.table("feed_tabs", {
+  did: text("did").primaryKey(),
+  tabs: jsonb("tabs").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
