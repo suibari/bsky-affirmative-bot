@@ -52,6 +52,8 @@ export type NagiPost = {
    * 新しい返信レコードには設定しない。
    */
   kossori?: boolean;
+  /** true の投稿には botたんが返信しない。 */
+  botSilent?: boolean;
   /** 所属チャンネル（com.suibari.nagi.channel）への参照。返信は親の channel を継承する。 */
   channel?: StrongRef;
   /** true なら CH 限定＝グローバルTL非表示（kossori と同じ除外扱い）。 */
