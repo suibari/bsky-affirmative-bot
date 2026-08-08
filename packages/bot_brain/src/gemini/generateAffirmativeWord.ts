@@ -1,7 +1,7 @@
 import { UserInfoGemini, GeminiScore } from '@bsky-affirmative-bot/shared-configs';
 import { generateSingleResponseWithScore } from './util.js';
 import type { GeminiRequestOptions } from './util.js';
-import { getWhatDay, TONE_RULES_JA } from '@bsky-affirmative-bot/shared-configs';
+import { getWhatDay, TONE_RULES_JA, NAME_RULES_JA, NAME_RULES_EN } from '@bsky-affirmative-bot/shared-configs';
 
 export async function generateAffirmativeWord(userinfo: UserInfoGemini, requestOptions: GeminiRequestOptions = {}) {
   const prompt = await buildAffirmativePrompt(userinfo);
@@ -114,6 +114,9 @@ export const buildAffirmativePrompt = async (userinfo: UserInfoGemini) => {
 
    **注意: commentにはscoreに関する情報を絶対に含めないこと**
 
+## ユーザの呼び方について
+${NAME_RULES_JA(userinfo.follower.displayName)}
+
 ## commentの口調について
    ユーザのポスト、引用ポスト、リンク先のページがどんなに硬い文体でも、commentは必ずあなた自身の口調にしてください。
 ${TONE_RULES_JA}
@@ -181,6 +184,9 @@ ${TONE_RULES_JA}
     - ${urlContextEnabled(userinfo) && sharedLinks(userinfo).length ? "Use URL Context to inspect every shared link. If a link cannot be retrieved, use its card title and description below as fallback context. Specifically praise the user's interest or perspective by referring to the links' themes or content." : ''}
 
    **Important: Do not reveal score in the comment.**
+
+## How to address the user
+${NAME_RULES_EN(userinfo.follower.displayName)}
 
 ## About 'score'
    - Assign 0–100 points based on your impression. To maintain strict scarcity, apply a strict distribution:

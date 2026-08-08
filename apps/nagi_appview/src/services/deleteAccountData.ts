@@ -13,6 +13,7 @@ import {
   nagiCardDraws,
   nagiCardInstances,
   nagiChannels,
+  nagiChannelSubscriptions,
   nagiCommunityAffirmations,
   nagiDiaries,
   nagiBotReplyJobs,
@@ -76,6 +77,17 @@ type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
  * interaction だけは did を NULL にするに留める。botたんの日次日記が件数の集計に使って
  * いて（clients/diaryUtils.ts）、did は参照していないため、行を消すと本人と無関係な
  * 統計まで壊れる。DID を外せば個人との紐付きは消える。
+ *
+ * ここで消さないもの（affirmative_bot スキーマに DID 付きで残る）:
+ *
+ * - subscribers … did ↔ discord_id の Discord 連携。status に discord_only があることが
+ *   示すとおり、Nagi を使っていない人も持つ行で、Nagi の機能ではない。消すと「Nagi は
+ *   やめるが Discord には残る」人の連携が黙って切れ、本人が頼んでいない副作用になる。
+ * - room_events / gifts … 書き込み元は ChatVRM_bot-tan（botたんのお部屋）で、こちらも
+ *   Nagi ではない。Nagi をやめてもお部屋には来る人がいる。
+ *
+ * この線引きはプライバシーポリシーの「削除されないもの」と、設定の削除画面
+ * （deleteDataKeptNote）に明記してある。変えるときは3か所を揃えること。
  */
 async function deleteBotSchemaData(tx: Tx, did: string) {
   await tx
@@ -173,6 +185,17 @@ export async function deleteAccountData(did: string) {
     await tx.delete(nagiPosts).where(eq(nagiPosts.did, did));
     await tx.delete(nagiAnalysisJobs).where(eq(nagiAnalysisJobs.did, did));
     await tx.delete(nagiActorAnalyses).where(eq(nagiActorAnalyses.did, did));
+    // CH の購読はミュートと同じく2方向消す。自分の購読（どの CH を見ていたか＝興味の記録）
+    // だけでなく、他人が自分の CH を購読している行も残さない。channel_uri に退会者の DID が
+    // 入ったまま他人の行として残り続けるのを避ける。
+    await tx
+      .delete(nagiChannelSubscriptions)
+      .where(
+        or(
+          eq(nagiChannelSubscriptions.ownerDid, did),
+          like(nagiChannelSubscriptions.channelUri, channelUri),
+        ),
+      );
     // CH の行を消しても、他人の channelOnly 投稿が漏れることはない。可視性は投稿行の
     // channel_only が持っていて CH 行を参照しないため（queries/timeline.ts）。
     await tx.delete(nagiChannels).where(eq(nagiChannels.did, did));
