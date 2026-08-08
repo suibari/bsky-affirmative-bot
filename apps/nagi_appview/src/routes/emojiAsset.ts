@@ -4,10 +4,28 @@ import { and, eq } from "drizzle-orm";
 import { isNormalizedBluemojiFormats } from "../ingest/validateRecord.js";
 import { ApiError } from "../middleware/errors.js";
 import { DID, resolvePdsUrl } from "../util/pds.js";
+import { emojiAssetHeaders } from "../util/emojiAssetHeaders.js";
 import { resolveEmojiAsset } from "../services/emoji.js";
 
 const RKEY = /^[A-Za-z0-9._:~-]{1,512}$/;
 const CID = /^[A-Za-z0-9]+$/;
+
+type HeaderResponse = {
+  removeHeader(name: string): void;
+  set(headers: Record<string, string>): unknown;
+};
+
+const setSuccessHeaders = (
+  res: HeaderResponse,
+  mediaType: string,
+  contentLength?: number,
+) => {
+  // Origin依存・リクエスト時点依存のヘッダーをCDNへ保存しない。
+  for (const name of ["Vary", "RateLimit", "RateLimit-Policy"]) {
+    res.removeHeader(name);
+  }
+  res.set(emojiAssetHeaders(mediaType, contentLength));
+};
 
 /** formats_v0 の bytes は PDS blob ではないため、検証済みDB行から配信する。 */
 export const getEmojiAsset: RequestHandler = async (req, res, next) => {
@@ -42,11 +60,7 @@ export const getEmojiAsset: RequestHandler = async (req, res, next) => {
           "upstream_unavailable",
           "Emoji asset unavailable",
         );
-      res.set({
-        "Content-Type": asset.mediaType,
-        "Cache-Control": "public, max-age=31536000, immutable",
-        "X-Content-Type-Options": "nosniff",
-      });
+      setSuccessHeaders(res, asset.mediaType);
       await upstream.body.pipeTo(
         new WritableStream({
           write(chunk) {
@@ -63,12 +77,7 @@ export const getEmojiAsset: RequestHandler = async (req, res, next) => {
       return;
     }
     const bytes = Buffer.from(asset.value, "base64");
-    res.set({
-      "Content-Type": asset.mediaType,
-      "Content-Length": String(bytes.byteLength),
-      "Cache-Control": "public, max-age=31536000, immutable",
-      "X-Content-Type-Options": "nosniff",
-    });
+    setSuccessHeaders(res, asset.mediaType, bytes.byteLength);
     res.end(bytes);
   } catch (error) {
     next(error);

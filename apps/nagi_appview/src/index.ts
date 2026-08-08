@@ -13,6 +13,7 @@ import { wellKnownDid } from "./routes/wellKnownDid.js";
 import { passportJwks } from "./routes/passportJwks.js";
 import { getBlob } from "./routes/blob.js";
 import { getEmojiAsset } from "./routes/emojiAsset.js";
+import { emojiAssetNoStoreHeaders } from "./util/emojiAssetHeaders.js";
 import { errorHandler, notFound } from "./middleware/errors.js";
 import { startJetstream } from "./ingest/jetstream.js";
 import { startEmbeddingWorker } from "./ingest/embeddingWorker.js";
@@ -75,9 +76,14 @@ app.get(
 );
 app.get(
   "/api/emoji-asset/:did/:rkey/:cid",
+  (_req, res, next) => {
+    // rate limiterやroute handlerが返す失敗をCDNへ残さない。成功時だけimmutableへ上書きする。
+    res.set(emojiAssetNoStoreHeaders());
+    next();
+  },
   rateLimit({
     windowMs: 60_000,
-    limit: 120,
+    limit: config.emojiAssetRateLimit,
     standardHeaders: "draft-8",
     legacyHeaders: false,
   }),
