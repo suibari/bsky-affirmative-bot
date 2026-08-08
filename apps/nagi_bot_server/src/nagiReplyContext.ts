@@ -1,6 +1,7 @@
 import {
   db,
   filterRelatedHistory,
+  MemoryService,
   nagiActors,
   nagiPosts,
   nagiProfiles,
@@ -80,9 +81,11 @@ export async function buildNagiReplyContext(job: any) {
   const botDid = process.env.NAGI_BOT_DID!;
   const text = typeof record.text === "string" ? record.text : "";
 
-  const [author, ownRows, globalRows, reactionRows, quoteRows] =
+  const [author, preferredName, ownRows, globalRows, reactionRows, quoteRows] =
     await Promise.all([
       loadNagiReplyAuthor(job.authorDid),
+      // 本人が「こう呼んで」と申告していればそれを使う（無ければ displayName）。
+      MemoryService.getPreferredName(job.authorDid),
       db
         .select({ uri: nagiPosts.uri, text: nagiPosts.text })
         .from(nagiPosts)
@@ -231,6 +234,7 @@ export async function buildNagiReplyContext(job: any) {
 
   return {
     follower: author.view,
+    preferredName,
     posts: [text, ...relatedPosts],
     image: image.length ? image : undefined,
     embed: Object.keys(embed).length ? embed : undefined,

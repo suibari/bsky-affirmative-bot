@@ -20,6 +20,7 @@ import {
   nagiEmojis,
   nagiEmojiFavorites,
   nagiFeedTabs,
+  nagiPreferredNames,
   nagiMutes,
   nagiNotifications,
   nagiNews,
@@ -228,6 +229,8 @@ export async function deleteAccountData(did: string) {
     await tx.delete(nagiReadPositions).where(eq(nagiReadPositions.did, did));
     await tx.delete(nagiEmojiFavorites).where(eq(nagiEmojiFavorites.did, did));
     await tx.delete(nagiFeedTabs).where(eq(nagiFeedTabs.did, did));
+    // 呼んでほしい名前。本人が申告した情報なので必ず消す。
+    await tx.delete(nagiPreferredNames).where(eq(nagiPreferredNames.did, did));
 
     // 重複排除ログ。id は `${did}:${time_us}:...` なので前方一致で引ける。
     await tx

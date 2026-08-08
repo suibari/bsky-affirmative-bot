@@ -175,6 +175,17 @@ export const TONE_RULES_JA =
  * 第2引数は Phase 2 で入る「本人が希望した呼び名」を想定した口。今は呼び出し側が
  * displayName だけを渡す。
  */
+/**
+ * botたんが相手を呼ぶときに使う名前を1か所で決める。
+ * 本人が申告した呼び名があればそれを、無ければ displayName を使う。
+ * プロンプト内で `follower.displayName` を直接埋めると申告が無視されるので、
+ * 呼びかけに関わる箇所は必ずこれを通すこと。
+ */
+export const addressName = (userinfo: {
+  preferredName?: string | null;
+  follower: { displayName?: string };
+}) => userinfo.preferredName?.trim() || userinfo.follower.displayName;
+
 export const NAME_RULES_JA = (name?: string | null) =>
   name?.trim()
     ? `- 名前を呼ぶときは「${name.trim()}」をそのまま使うこと。

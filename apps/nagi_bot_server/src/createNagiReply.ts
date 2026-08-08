@@ -2,8 +2,10 @@ import {
   conversation,
   generateAffirmativeWord,
   getYokohamaWeather,
+  judgeNameIntent,
   predefinedAffirmation,
 } from "@bsky-affirmative-bot/bot-brain";
+import { aiModel } from "@bsky-affirmative-bot/shared-configs";
 import {
   botBiothythmManager,
   MemoryService,
@@ -44,6 +46,35 @@ function replyLanguage(langs: unknown) {
 }
 
 /**
+ * 本人が「こう呼んで」と言ってきたら覚える。
+ *
+ * **検知は Nagi 側だけに置く**（Bluesky から呼び方を変える経路は作らない方針）。
+ * 読み取りは DID キーなので Bluesky 側のリプライにも同じ呼称が効く。
+ *
+ * 判定は自然文なので必ず外すことがある。誤って変な呼び名を覚えると、以後ずっと
+ * その名前で呼び続けることになる（呼称ドリフトの事故と同じ実害）ので、
+ * judgeNameIntent 側で self 以外・低確信度・名前でない語をすべて捨てている。
+ * 失敗はここでも握り潰す。呼び名が更新されないだけで返信は成立する。
+ */
+async function detectPreferredName(did: string, userText: string) {
+  try {
+    const intent = await judgeNameIntent(userText);
+    if (intent.intent === "none" || !intent.name) return;
+    await MemoryService.setPreferredName({
+      did,
+      name: intent.name,
+      source: "declared",
+      model: aiModel("NAGI_NAME_INTENT"),
+    });
+    console.log(
+      `[INFO][NAGI][${did}] preferred name updated (${intent.intent}, confidence ${intent.confidence})`,
+    );
+  } catch (error) {
+    console.warn(`[WARN][NAGI][${did}] preferred name detection failed:`, error);
+  }
+}
+
+/**
  * 会話モード。Bluesky の ConversationFeature と同じく conv_history を記憶として
  * 引き回し、生成後に更新する。スコアは付けない（肯定ポストとして扱わない）。
  */
@@ -58,9 +89,16 @@ async function generateConversationReply(
   const userText = context.posts[0] ?? "";
   const history = await buildNagiConversationHistory(job);
 
+  // 呼び名の申告/訂正の判定は返信生成と**並列**に投げる。判定は grounding を使わないので
+  // responseSchema で構造を保証でき、返信の生成物には一切触れない。
+  // 結果が効くのは次回以降の返信で、その場の返信は会話プロンプトの
+  // 「訂正には従う」が受け持つ。判定が失敗しても返信は止めない。
+  const namePromise = detectPreferredName(did, userText);
+
   const result = await conversation(
     {
       follower: context.follower,
+      preferredName: context.preferredName,
       posts: [userText],
       image: context.image,
       embed: context.embed,
@@ -99,6 +137,9 @@ async function generateConversationReply(
   await MemoryService.updateFollower(did, "conv_history", newHistory);
   await MemoryService.updateFollower(did, "last_conv_at", new Date());
   await MemoryService.logUsage("conversation", did);
+  // ここで初めて待つ。生成と並列に走らせているので待ち時間はほぼ無いが、
+  // ワーカーのパスが終わる前に必ず決着させる（投げっぱなしにしない）。
+  await namePromise;
   console.log(`[INFO][NAGI][${did}] send conversation-result`);
 
   return { comment, score: undefined };
@@ -118,12 +159,16 @@ export async function createNagiReply(
   let generated: { comment: string; score?: number };
 
   if (options.mode === "template") {
-    const author = await loadNagiReplyAuthor(job.authorDid);
+    const [author, preferredName] = await Promise.all([
+      loadNagiReplyAuthor(job.authorDid),
+      MemoryService.getPreferredName(job.authorDid),
+    ]);
     generated = {
       comment: await predefinedAffirmation({
         text: typeof record.text === "string" ? record.text : "",
         languageName: language.name,
-        displayName: author.view.displayName,
+        // 定型文は ${name} を機械置換するだけなので、AI 生成側と同じ呼び名を渡せば揃う。
+        displayName: preferredName || author.view.displayName,
       }),
     };
   } else {
@@ -144,6 +189,7 @@ export async function createNagiReply(
       : await generateAffirmativeWord(
           {
             follower: context.follower,
+            preferredName: context.preferredName,
             posts: context.posts,
             image: context.image,
             embed: context.embed,

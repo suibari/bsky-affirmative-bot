@@ -11,7 +11,13 @@
           "type": "object",
           "required": ["readPositions", "emojiFavorites"],
           "properties": {
-            "readPositions": {
+            "preferredName": {
+        "type": "string",
+        "maxLength": 120,
+        "maxGraphemes": 40,
+        "description": "botたんに呼んでほしい名前。省略時は未設定＝表示名で呼ばれる。"
+      },
+      "readPositions": {
               "type": "array",
               "items": { "type": "ref", "ref": "#readPosition" }
             },

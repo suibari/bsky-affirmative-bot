@@ -551,6 +551,8 @@ export type PreferencesView = {
   feedTabs: FeedTab[];
   /** 未設定（一度もカスタムしていない）なら undefined。クライアントは既定タブを使う。 */
   feedTabsUpdatedAt?: string;
+  /** botたんに呼んでほしい名前。未設定なら undefined＝表示名で呼ばれる。 */
+  preferredName?: string;
 };
 export type PutPreferencesInput = {
   readPositions?: ReadPosition[];
@@ -560,6 +562,11 @@ export type PutPreferencesInput = {
   feedTabs?: FeedTab[];
   /** feedTabs を送るときは必須。保存済みより古ければ書き込まない。 */
   feedTabsUpdatedAt?: string;
+  /**
+   * botたんに呼んでほしい名前。空文字を送ると登録を解除して表示名に戻す。
+   * 送らなければ変更しない（他の項目と同じく差分更新）。
+   */
+  preferredName?: string;
 };
 export type PutPreferencesResult = PreferencesView;
 

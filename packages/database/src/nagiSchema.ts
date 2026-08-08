@@ -820,6 +820,39 @@ export const nagiReadPositions = nagiSchema.table(
  * updated_at による後勝ち（last-write-wins）で丸ごと差し替える。
  * choices はクライアントの localStorage と同じ形（ReactionChoice[]）をそのまま入れる。
  */
+/**
+ * botたんに呼んでほしい名前。
+ *
+ * これが無かった頃、botたんは displayName から毎回勝手に愛称を作り、同じ相手の
+ * 呼び方が数日のうちに何通りにも揺れた。本人が訂正しても、その訂正を「改名依頼」と
+ * 誤解してさらに悪化し、離脱につながった実例がある。
+ * displayName 固定にしてブレは止めたが、本人が別の呼び名を望んだときに応える先がここ。
+ *
+ * **PDS レコードにはしない。** 呼び名は他人に見せる情報ではないうえ、
+ * permission-set の再公開コストに見合わない（お気に入り絵文字と同じ判断）。
+ *
+ * DID をキーにしているので Bluesky 側のリプライからも同じ行を引ける。
+ * ただし**書き込むのは Nagi 側だけ**（Bsky bot は撤退方針のため、
+ * Bluesky から呼び方を変える経路は作らない）。
+ *
+ * source は由来。declared = 本人が会話で申告、manual = 設定画面で本人が入力。
+ * model / prompt_version は declared のときの判定の出所で、
+ * 変な呼び名が入ったときにどの判定が通したかを追うために持つ。
+ */
+export const nagiPreferredNames = nagiSchema.table("preferred_names", {
+  did: text("did").primaryKey(),
+  name: text("name").notNull(),
+  source: text("source").notNull(),
+  model: text("model"),
+  promptVersion: text("prompt_version"),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+
 export const nagiEmojiFavorites = nagiSchema.table("emoji_favorites", {
   did: text("did").primaryKey(),
   choices: jsonb("choices").notNull(),

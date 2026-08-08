@@ -89,6 +89,7 @@ const EXPECTED: Record<AiFeatureKey, [model: string, tier: "flex" | "standard" |
   NAGI_COMMUNITY_AFFIRMATION: [LITE, "flex"],
   NAGI_CHANNEL_WELCOME: [LITE, "flex"],
   NAGI_CHANNEL_TOPIC: [LITE, "flex"],
+  NAGI_NAME_INTENT: [LITE, "flex"],
   // ニュース
   NEWS_POSITIVE_GATE: [LITE, "flex"],
   NEWS_POSITIVE_COMMENT: [LITE, "flex"],

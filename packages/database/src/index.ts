@@ -20,6 +20,7 @@ import {
   nagiReactions,
   nagiChannels,
   nagiAnalysisJobs,
+  nagiPreferredNames,
   daily_metrics,
   repo_write_points,
 } from './db.js';
@@ -1279,6 +1280,73 @@ static async getPost(did: string): Promise<any> {
     } catch (e) {
       console.error('Failed to get interaction markers:', e);
       return [];
+    }
+  }
+
+  /**
+   * botたんに呼んでほしい名前。無ければ null（呼び出し側は displayName に落とす）。
+   *
+   * DID キーなので Bluesky 側のリプライからも同じ行を引ける。読み取りは両ボットから
+   * 行うが、**書き込むのは Nagi 側だけ**（Bluesky から呼び方を変える経路は作らない）。
+   *
+   * 失敗しても null を返す。呼び名が反映されないだけで、返信生成は止めない。
+   */
+  static async getPreferredName(did: string): Promise<string | null> {
+    try {
+      const rows = await db
+        .select({ name: nagiPreferredNames.name })
+        .from(nagiPreferredNames)
+        .where(eq(nagiPreferredNames.did, did))
+        .limit(1);
+      return rows[0]?.name ?? null;
+    } catch (e) {
+      console.error('Failed to get preferred name:', e);
+      return null;
+    }
+  }
+
+  /**
+   * 呼び名を登録・更新する。後勝ち（本人の最新の申告が常に正しい）。
+   * source は由来: declared = 会話での申告、manual = 設定画面での入力。
+   */
+  static async setPreferredName(input: {
+    did: string;
+    name: string;
+    source: 'declared' | 'manual';
+    model?: string;
+    promptVersion?: string;
+  }): Promise<void> {
+    try {
+      await db
+        .insert(nagiPreferredNames)
+        .values({
+          did: input.did,
+          name: input.name,
+          source: input.source,
+          model: input.model ?? null,
+          promptVersion: input.promptVersion ?? null,
+        })
+        .onConflictDoUpdate({
+          target: nagiPreferredNames.did,
+          set: {
+            name: sql`excluded.name`,
+            source: sql`excluded.source`,
+            model: sql`excluded.model`,
+            promptVersion: sql`excluded.prompt_version`,
+            updatedAt: sql`now()`,
+          },
+        });
+    } catch (e) {
+      console.error('Failed to set preferred name:', e);
+    }
+  }
+
+  /** 呼び名の登録を解除する。以降は displayName に戻る。 */
+  static async clearPreferredName(did: string): Promise<void> {
+    try {
+      await db.delete(nagiPreferredNames).where(eq(nagiPreferredNames.did, did));
+    } catch (e) {
+      console.error('Failed to clear preferred name:', e);
     }
   }
 }

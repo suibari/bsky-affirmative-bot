@@ -1,7 +1,13 @@
 import { UserInfoGemini, GeminiScore } from '@bsky-affirmative-bot/shared-configs';
 import { generateSingleResponseWithScore } from './util.js';
 import type { GeminiRequestOptions } from './util.js';
-import { getWhatDay, TONE_RULES_JA, NAME_RULES_JA, NAME_RULES_EN } from '@bsky-affirmative-bot/shared-configs';
+import {
+  getWhatDay,
+  TONE_RULES_JA,
+  NAME_RULES_JA,
+  NAME_RULES_EN,
+  addressName,
+} from '@bsky-affirmative-bot/shared-configs';
 
 export async function generateAffirmativeWord(userinfo: UserInfoGemini, requestOptions: GeminiRequestOptions = {}) {
   const prompt = await buildAffirmativePrompt(userinfo);
@@ -115,7 +121,7 @@ export const buildAffirmativePrompt = async (userinfo: UserInfoGemini) => {
    **注意: commentにはscoreに関する情報を絶対に含めないこと**
 
 ## ユーザの呼び方について
-${NAME_RULES_JA(userinfo.follower.displayName)}
+${NAME_RULES_JA(addressName(userinfo))}
 
 ## commentの口調について
    ユーザのポスト、引用ポスト、リンク先のページがどんなに硬い文体でも、commentは必ずあなた自身の口調にしてください。
@@ -134,7 +140,7 @@ ${TONE_RULES_JA}
 
 ---
 ## ユーザ投稿
-- ユーザ名: ${userinfo.follower.displayName}
+- ユーザ名: ${addressName(userinfo)}
 - 今回のポスト: ${postText}
 - ユーザが引用したポスト: ${userinfo.embed?.text_embed ? userinfo.embed.text_embed + ' by ' + userinfo.embed.profile_embed?.displayName : 'なし'}
 - ユーザが共有したリンク:\n${formatSharedLinks(userinfo, 'なし')}
@@ -186,7 +192,7 @@ ${TONE_RULES_JA}
    **Important: Do not reveal score in the comment.**
 
 ## How to address the user
-${NAME_RULES_EN(userinfo.follower.displayName)}
+${NAME_RULES_EN(addressName(userinfo))}
 
 ## About 'score'
    - Assign 0–100 points based on your impression. To maintain strict scarcity, apply a strict distribution:
@@ -201,7 +207,7 @@ ${NAME_RULES_EN(userinfo.follower.displayName)}
 
 ---
 ## User post
-- Username: ${userinfo.follower.displayName}  
+- Username: ${addressName(userinfo)}  
 - This Post: ${postText}
 - Posts quoted by this user: ${userinfo.embed?.text_embed ? userinfo.embed.text_embed + ' by ' + userinfo.embed.profile_embed?.displayName : 'None'}
 - Links shared by this user:\n${formatSharedLinks(userinfo, 'None')}
