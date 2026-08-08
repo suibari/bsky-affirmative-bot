@@ -1,5 +1,6 @@
 import {
   db,
+  followers,
   nagiEmojiFavorites,
   nagiFeedTabs,
   nagiPreferredNames,
@@ -189,8 +190,16 @@ function parsePreferredName(input: unknown): string | null | undefined {
   return name;
 }
 
+function parseReplyFreq(input: unknown): number | undefined {
+  if (input === undefined) return undefined;
+  if (typeof input !== "number" || !Number.isInteger(input) || input < 0 || input > 100) {
+    invalid("replyFreq");
+  }
+  return input as number;
+}
+
 async function selectPreferences(did: string): Promise<PreferencesView> {
-  const [positions, favorites, feedTabs, preferredNames] = await Promise.all([
+  const [positions, favorites, feedTabs, preferredNames, followerRows] = await Promise.all([
     db
       .select({
         section: nagiReadPositions.section,
@@ -217,10 +226,16 @@ async function selectPreferences(did: string): Promise<PreferencesView> {
       .from(nagiPreferredNames)
       .where(eq(nagiPreferredNames.did, did))
       .limit(1),
+    db
+      .select({ reply_freq: followers.reply_freq })
+      .from(followers)
+      .where(eq(followers.did, did))
+      .limit(1),
   ]);
   const favoritesRow = favorites[0];
   const feedTabsRow = feedTabs[0];
   const preferredName = preferredNames[0]?.name;
+  const followerRow = followerRows[0];
   return {
     readPositions: positions
       .filter((row) => isSection(row.section))
@@ -243,6 +258,7 @@ async function selectPreferences(did: string): Promise<PreferencesView> {
     ...(feedTabsRow
       ? { feedTabsUpdatedAt: feedTabsRow.updatedAt.toISOString() }
       : {}),
+    replyFreq: followerRow?.reply_freq != null ? followerRow.reply_freq : 100,
     // 未設定なら省略する。クライアントはこれを「表示名で呼ばれる」の合図に使う。
     ...(preferredName ? { preferredName } : {}),
   };
@@ -271,6 +287,7 @@ export async function putPreferences(
     ? parseUpdatedAt("feedTabsUpdatedAt", input.feedTabsUpdatedAt)
     : undefined;
   const preferredName = parsePreferredName(input.preferredName);
+  const replyFreq = parseReplyFreq(input.replyFreq);
 
   if (readPositions.length) {
     await db
@@ -335,6 +352,19 @@ export async function putPreferences(
           },
         });
     }
+  }
+
+  if (replyFreq !== undefined) {
+    await db
+      .insert(followers)
+      .values({ did, reply_freq: replyFreq })
+      .onConflictDoUpdate({
+        target: followers.did,
+        set: {
+          reply_freq: sql`excluded.reply_freq`,
+          updated_at: sql`now()`,
+        },
+      });
   }
 
   if (feedTabsUpdatedAt) {

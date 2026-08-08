@@ -11,6 +11,12 @@
           "type": "object",
           "required": ["readPositions", "emojiFavorites"],
           "properties": {
+            "replyFreq": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 100,
+              "description": "botたんからの返信確率（0〜100%）。Bluesky側のfreq設定と共用。"
+            },
             "preferredName": {
         "type": "string",
         "maxLength": 120,
