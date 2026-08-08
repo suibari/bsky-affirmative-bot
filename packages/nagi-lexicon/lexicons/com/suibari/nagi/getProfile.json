@@ -17,7 +17,7 @@
           "group": {
             "type": "boolean",
             "default": false,
-            "description": "Return each selected post as a timeline-style conversation with its replies."
+            "description": "Return one timeline-style conversation per thread matched by the filter, ordered by latest human activity."
           },
           "lang": {
             "type": "string",

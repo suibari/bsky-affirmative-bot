@@ -22,6 +22,7 @@
           "createdAt": { "type": "string", "format": "datetime" },
           "cwRestricted": { "type": "boolean" },
           "kossori": { "type": "boolean" },
+          "botSilent": { "type": "boolean" },
           "channel": { "type": "ref", "ref": "com.atproto.repo.strongRef" },
           "channelOnly": { "type": "boolean" },
           "reply": { "type": "ref", "ref": "#replyRef" },

@@ -25,11 +25,18 @@ type RepoRecord = {
   value: unknown;
 };
 
+type LocalRecord = {
+  cid?: string;
+  active: boolean;
+  tombstoned?: boolean;
+};
+
 type ReconcileStats = {
   created: number;
   updated: number;
   deleted: number;
   unchanged: number;
+  invalid: number;
 };
 
 export type BluemojiAudit = {
@@ -136,7 +143,7 @@ async function getRecord(
 async function localRecords(
   did: string,
   collection: string,
-): Promise<Map<string, { cid?: string; active: boolean }>> {
+): Promise<Map<string, LocalRecord>> {
   if (collection === NAGI.profile) {
     const rows = await db
       .select({ did: nagiProfiles.did })
@@ -160,7 +167,11 @@ async function localRecords(
     return new Map(
       rows.map((row) => [
         row.uri,
-        { cid: row.cid, active: row.deletedAt === null },
+        {
+          cid: row.cid,
+          active: row.deletedAt === null,
+          tombstoned: row.deletedAt !== null,
+        },
       ]),
     );
   }
@@ -185,7 +196,11 @@ async function localRecords(
     return new Map(
       rows.map((row) => [
         row.uri,
-        { cid: row.cid, active: row.deletedAt === null },
+        {
+          cid: row.cid,
+          active: row.deletedAt === null,
+          tombstoned: row.deletedAt !== null,
+        },
       ]),
     );
   }
@@ -226,7 +241,11 @@ async function localRecords(
     return new Map(
       rows.map((row) => [
         row.uri,
-        { cid: row.cid, active: row.deletedAt === null },
+        {
+          cid: row.cid,
+          active: row.deletedAt === null,
+          tombstoned: row.deletedAt !== null,
+        },
       ]),
     );
   }
@@ -315,6 +334,7 @@ export async function reconcileRepo(
     updated: 0,
     deleted: 0,
     unchanged: 0,
+    invalid: 0,
   };
 
   for (const collection of collections) {
@@ -327,8 +347,13 @@ export async function reconcileRepo(
     // listRecords が全ページ成功した後にだけ、欠落候補を個別確認する。
     // PDS にないローカル行を先に外すことで、意味重複の最新レコードが削除された場合も
     // この sweep 内で PDS に残る次のレコードへ復帰できるようにする。
-    for (const uri of local.keys()) {
+    for (const [uri, localRecord] of local) {
       if (remoteUris.has(uri)) continue;
+      // 投稿・チャンネル・ニュースの削除済み投影を毎回 deleted に数え直さない。
+      if (localRecord.tombstoned) {
+        stats.unchanged++;
+        continue;
+      }
       const result = await applyCurrentRecord(pds, did, collection, uri);
       if (result === "deleted") stats.deleted++;
       else stats.updated++;
@@ -336,11 +361,22 @@ export async function reconcileRepo(
 
     for (const record of remote) {
       const localRecord = local.get(record.uri);
-      if (
-        validateRecord(collection, record.value) &&
-        localRecord?.active &&
-        localRecord.cid === record.cid
-      ) {
+      if (!validateRecord(collection, record.value)) {
+        stats.invalid++;
+        // PDSに規格外レコードが残る限り、未投影のものを毎回 delete 扱いしない。
+        if (localRecord) {
+          const result = await applyCurrentRecord(
+            pds,
+            did,
+            collection,
+            record.uri,
+          );
+          if (result === "deleted") stats.deleted++;
+          else stats.updated++;
+        }
+        continue;
+      }
+      if (localRecord?.active && localRecord.cid === record.cid) {
         stats.unchanged++;
         continue;
       }

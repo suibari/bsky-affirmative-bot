@@ -25,6 +25,7 @@ RESTART_LABELER=false
 RESTART_DISCORD=false
 RESTART_NAGI_APPVIEW=false
 PUSH_DB=false
+PUBLISH_LEXICON=false
 
 # 判定ロジック
 if echo "$DIFF_FILES" | grep -q "packages/"; then
@@ -67,6 +68,11 @@ if echo "$DIFF_FILES" | grep -Eq \
     PUSH_DB=true
 fi
 
+# Lexicon 判定
+if echo "$DIFF_FILES" | grep -q "packages/nagi-lexicon/lexicons/"; then
+    PUBLISH_LEXICON=true
+fi
+
 if [ "$PUSH_DB" = true ]; then
     echo "♻️  Pushing DB..."
     pnpm --filter ./packages/database exec drizzle-kit push --config=drizzle.config.cjs
@@ -101,6 +107,11 @@ fi
 if [ "$RESTART_NAGI_APPVIEW" = true ]; then
     echo "♻️  Restarting Nagi AppView..."
     sudo systemctl restart nagi-appview.service
+fi
+
+if [ "$PUBLISH_LEXICON" = true ]; then
+    echo "♻️  Publishing Lexicon..."
+    pnpm --filter ./packages/nagi-lexicon lex:publish
 fi
 
 echo "✅ Deployment completed: $OLD_COMMIT -> $NEW_COMMIT"

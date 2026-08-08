@@ -52,6 +52,8 @@ export type NagiPost = {
    * 新しい返信レコードには設定しない。
    */
   kossori?: boolean;
+  /** true の投稿には botたんが返信しない。 */
+  botSilent?: boolean;
   /** 所属チャンネル（com.suibari.nagi.channel）への参照。返信は親の channel を継承する。 */
   channel?: StrongRef;
   /** true なら CH 限定＝グローバルTL非表示（kossori と同じ除外扱い）。 */
@@ -332,7 +334,7 @@ export type PostView = {
 };
 export type BotReplyState = "pending" | "processing" | "posted" | "failed";
 /**
- * 会話グループ化ビュー。共有TL(group モード)でのみ付き、1スレッドを
+ * 会話グループ化ビュー。group モードのタイムラインで付き、1スレッドを
  * 「ルート + 最新数件のバブル」に畳んで表示する。bot返信もバブルとして時刻順に含む。
  */
 /** 会話グループ内の1バブル。depth はルートからの返信ホップ数(root=0, 直リプ=1, ...)。 */
@@ -551,6 +553,10 @@ export type PreferencesView = {
   feedTabs: FeedTab[];
   /** 未設定（一度もカスタムしていない）なら undefined。クライアントは既定タブを使う。 */
   feedTabsUpdatedAt?: string;
+  /** botたんからの返信確率（0〜100%）。未設定なら undefined。 */
+  replyFreq?: number;
+  /** botたんに呼んでほしい名前。未設定なら undefined＝表示名で呼ばれる。 */
+  preferredName?: string;
 };
 export type PutPreferencesInput = {
   readPositions?: ReadPosition[];
@@ -560,6 +566,13 @@ export type PutPreferencesInput = {
   feedTabs?: FeedTab[];
   /** feedTabs を送るときは必須。保存済みより古ければ書き込まない。 */
   feedTabsUpdatedAt?: string;
+  /** botたんからの返信確率（0〜100%）。送らなければ変更しない。 */
+  replyFreq?: number;
+  /**
+   * botたんに呼んでほしい名前。空文字を送ると登録を解除して表示名に戻す。
+   * 送らなければ変更しない（他の項目と同じく差分更新）。
+   */
+  preferredName?: string;
 };
 export type PutPreferencesResult = PreferencesView;
 

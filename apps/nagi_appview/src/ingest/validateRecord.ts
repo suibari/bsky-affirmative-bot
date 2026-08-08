@@ -267,6 +267,8 @@ export function validateRecord(
       return false;
     if (value.kossori !== undefined && typeof value.kossori !== "boolean")
       return false;
+    if (value.botSilent !== undefined && typeof value.botSilent !== "boolean")
+      return false;
     if (
       value.cwRestricted !== undefined &&
       typeof value.cwRestricted !== "boolean"

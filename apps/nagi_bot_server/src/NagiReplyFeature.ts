@@ -54,6 +54,12 @@ export async function onNagiPost(evt: any) {
     return;
   }
 
+  // botたんサイレント機能がONの投稿には返信しない。
+  if (record.botSilent) {
+    console.log(`[INFO][NAGI][${did}] Skipping reply: botSilent flag enabled`);
+    return;
+  }
+
   const topLevel = !record.reply;
   const toBot = isReplyToBot(record, botDid);
 

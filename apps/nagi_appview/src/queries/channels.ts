@@ -325,5 +325,6 @@ export function getChannelTimeline(opts: {
     cursor: opts.cursor,
     viewerDid: opts.viewerDid,
     channelUri: opts.uri,
+    group: true,
   });
 }

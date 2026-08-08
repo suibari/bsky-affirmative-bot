@@ -116,9 +116,14 @@ export async function replyAI(
         let followersFriend: { profile: ProfileView; post: string; uri: string } | undefined = undefined;
         followersFriend = await getFollowersFriend(text_user, follower.did);
 
+        // Nagi で本人が申告した呼び名があれば、Bluesky 側の返信でも同じ呼び方をする。
+        // 参照だけで、Bluesky から呼び方を変える経路は用意していない（Bsky bot は撤退方針）。
+        const preferredName = await MemoryService.getPreferredName(follower.did);
+
         // Gemini生成
         result = await generateAffirmativeWord({
             follower,
+            preferredName,
             langStr,
             posts: [text_user, ...relatedPosts],
             likedByFollower: likedPost,

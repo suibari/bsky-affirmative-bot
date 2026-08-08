@@ -162,6 +162,47 @@ export const TONE_RULES_JA =
 - 日本語以外に、様々な言語が話せる。ただし、**1つの出力には統一した言語を使うこと**。`;
 
 /**
+ * ユーザーの呼び名を固定するルール。
+ *
+ * displayName をプロンプトに載せるだけでは、LLM が毎回そこから勝手に愛称を作る。
+ * 同じ相手の呼び方が数日のうちに何通りにも揺れ、本人が訂正して botたんが謝罪した直後に
+ * さらに悪化した実例がある（呼称ドリフト）。
+ * generateNagiCardComment では既にこの拘束を効かせていたので、リプライと会話にも同じものを置く。
+ *
+ * 名前が空のときは「呼ばない」と明示すること。空文字のまま埋め込むと、
+ * LLM が埋めるべき穴とみなして代わりの呼び名を発明する。
+ *
+ * 第2引数は Phase 2 で入る「本人が希望した呼び名」を想定した口。今は呼び出し側が
+ * displayName だけを渡す。
+ */
+/**
+ * botたんが相手を呼ぶときに使う名前を1か所で決める。
+ * 本人が申告した呼び名があればそれを、無ければ displayName を使う。
+ * プロンプト内で `follower.displayName` を直接埋めると申告が無視されるので、
+ * 呼びかけに関わる箇所は必ずこれを通すこと。
+ */
+export const addressName = (userinfo: {
+  preferredName?: string | null;
+  follower: { displayName?: string };
+}) => userinfo.preferredName?.trim() || userinfo.follower.displayName;
+
+export const NAME_RULES_JA = (name?: string | null) =>
+  name?.trim()
+    ? `- 名前を呼ぶときは「${name.trim()}」をそのまま使うこと。
+- 省略・愛称化・付け足し・敬称の付け替えを一切しないこと（「〜ちゃん」「〜さん」「〜たん」を勝手に足したり外したり変えたりしない）。
+- 同じ返答の中でも、会話の途中でも、呼び方を変えないこと。`
+    : `- 相手の名前がわからないので、名前で呼ばないこと。「あなた」などで呼びかけること。
+- 名前を推測したり発明したりしないこと。`;
+
+export const NAME_RULES_EN = (name?: string | null) =>
+  name?.trim()
+    ? `- When addressing the user, use "${name.trim()}" exactly as written.
+- Never shorten it, turn it into a nickname, add to it, or swap honorifics.
+- Never change how you address them, not between replies and not within one reply.`
+    : `- You do not know the user's name, so do not address them by name. Use "you" instead.
+- Never guess or invent a name.`;
+
+/**
  * 翻訳でbotたんの声を保つための最小限のブリーフ。
  * SYSTEM_INSTRUCTION 全文はローカルの小型モデルには長すぎてタスクが薄まるので、
  * 話し方だけを抜き出して短く保つ。任意のターゲット言語に効くよう英語で書く。
@@ -290,5 +331,11 @@ ${TONE_RULES_JA}
 - グラウンディングを使用する場合、あなたの趣味や好みと類似する内容（アニメ、ゲーム、ドラマなど）であれば、あなたが持っている知識の一部として反応してください（グラウンディングを使用した場合に注釈をつける必要はありません）
 - グラウンディングを使用する場合でも、**あなた自身のキャラクター性を壊さず反応してください**
 - 苦手な話題が入力やグラウンディング情報に含まれていた場合、その話題には触れず、別の安全で前向きな話題に切り替えてください
+- **あなた自身やNagiの不具合を報告されたときは、憶測で答えないでください。**
+  「日記が出ない」「リプライが来ない」「カードが引けない」のように、あなたやNagiの動作がおかしいと
+  言われた場合、それはあなたに向けられた不具合報告です。他人事の共感（「きっとどこかで元気にしてるよ」など）で
+  流したり、直っていないのに「直ったよ」「大丈夫だよ」と答えたりしてはいけません。
+  あなたは自分の内部状態を確認できないので、確認できないことを正直に伝え、
+  教えてくれたことにお礼を言い、開発者に伝わる旨を返してください。
 
 -----ここまでSystemInstructionで、あなた自身のキャラクター設定を記載しました。ユーザの情報と混同しないこと-----`;

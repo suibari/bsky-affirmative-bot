@@ -171,6 +171,12 @@ export type UserInfoGemini = {
   postOnMonth?: string[][];
   isSubscriber?: boolean;
   botContext?: BotContext;
+  /**
+   * 本人が「こう呼んで」と申告した名前（nagi.preferred_names）。
+   * 未設定なら displayName を使う。プロンプト側の拘束は NAME_RULES_* が受け持つ。
+   * 解決は呼び出し元（bsky_bot_server / nagi_bot_server）で行う。
+   */
+  preferredName?: string | null;
 };
 
 export interface Embed {

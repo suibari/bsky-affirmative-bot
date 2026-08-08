@@ -160,6 +160,9 @@ export const AI_FEATURES = {
   NAGI_COMMUNITY_AFFIRMATION: "lite-flex", // コミュニティ全肯定
   NAGI_CHANNEL_WELCOME: "lite-flex", // チャンネル作成時の歓迎
   NAGI_CHANNEL_TOPIC: "lite-flex", // チャンネルへの話題ふり
+  // 呼び名の指定/訂正かどうかの判定。返信生成と並列に走り、結果は次回以降に効くので
+  // 待たされても困らない＝flex でよい。grounding を使わないので responseSchema が効く。
+  NAGI_NAME_INTENT: "lite-flex",
 
   // ══════ ニュース ═══════════════════════════════════════════════════
   NEWS_POSITIVE_GATE: "lite-flex", // ポジニュース判定（構造化JSON）

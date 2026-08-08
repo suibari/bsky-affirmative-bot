@@ -8,7 +8,7 @@ import { and, inArray, isNull, sql } from "drizzle-orm";
 import {
   buildConversationItems,
   fetchPostRows,
-  homeTimelineVisibility,
+  homeRootVisibility,
 } from "./timeline.js";
 import { channelView } from "./channelView.js";
 import { loadPrivateListMemberDids } from "./privateList.js";
@@ -49,7 +49,9 @@ async function latestPerListUser(
   mutes: Awaited<ReturnType<typeof loadMutes>>,
 ): Promise<MyNagiView["listUsers"]> {
   if (!memberDids.length) return [];
-  // 可視条件はホームタイムラインと完全に同じ（返信除外 / CH 限定除外 / 他人の kossori 除外）。
+  // 可視条件はルート投稿だけを見る版（返信除外 / CH 限定除外 / 他人の kossori 除外）。
+  // ホームTLは返信も候補に入れてスレッドの最新活動順に並べるが、ここは「1人の最新の一言」を
+  // 見せる枠なので、返信で顔ぶれが入れ替わらないようルート投稿に限る。
   // 自分自身と botたん は別セクションで出すので、ここでは非公開リストの人だけを見る。
   const rows = await db
     .selectDistinctOn([nagiPosts.did], {
@@ -60,7 +62,7 @@ async function latestPerListUser(
     .where(
       and(
         isNull(nagiPosts.deletedAt),
-        ...homeTimelineVisibility(viewerDid, memberDids),
+        ...homeRootVisibility(viewerDid, memberDids),
         ...muteVisibility(mutes, { actors: true, channels: true }),
       ),
     )

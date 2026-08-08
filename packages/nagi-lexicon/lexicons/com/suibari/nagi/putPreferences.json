@@ -10,7 +10,19 @@
         "schema": {
           "type": "object",
           "properties": {
-            "readPositions": {
+            "replyFreq": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 100,
+              "description": "botたんからの返信確率（0〜100%）。送らなければ変更しない。"
+            },
+            "preferredName": {
+        "type": "string",
+        "maxLength": 120,
+        "maxGraphemes": 40,
+        "description": "botたんに呼んでほしい名前。空文字を送ると登録を解除し、表示名に戻す。送らなければ変更しない。"
+      },
+      "readPositions": {
               "type": "array",
               "maxLength": 16,
               "items": {
@@ -50,7 +62,19 @@
           "type": "object",
           "required": ["readPositions", "emojiFavorites"],
           "properties": {
-            "readPositions": {
+            "replyFreq": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 100,
+              "description": "botたんからの返信確率（0〜100%）。"
+            },
+            "preferredName": {
+        "type": "string",
+        "maxLength": 120,
+        "maxGraphemes": 40,
+        "description": "botたんに呼んでほしい名前。省略時は未設定＝表示名で呼ばれる。"
+      },
+      "readPositions": {
               "type": "array",
               "items": {
                 "type": "ref",

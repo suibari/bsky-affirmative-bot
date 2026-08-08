@@ -1,7 +1,9 @@
 import {
   db,
+  followers,
   nagiEmojiFavorites,
   nagiFeedTabs,
+  nagiPreferredNames,
   nagiReadPositions,
 } from "@bsky-affirmative-bot/database";
 import {
@@ -170,8 +172,34 @@ function parseFeedTabs(input: unknown): FeedTab[] {
   });
 }
 
+/** 呼び名の上限。lexicon の maxGraphemes と揃えること。 */
+const MAX_PREFERRED_NAME_LENGTH = 40;
+
+/**
+ * 呼び名は他の設定と違い updatedAt による後勝ちにしない。1個の短い文字列で、
+ * 端末間で競合しても「本人が最後に入力したもの」が常に正しいため。
+ * 空文字は「解除」の意味で、行ごと消して表示名に戻す。
+ */
+function parsePreferredName(input: unknown): string | null | undefined {
+  if (input === undefined) return undefined;
+  if (typeof input !== "string") invalid("preferredName");
+  const name = (input as string).trim();
+  if (!name) return null;
+  if ([...name].length > MAX_PREFERRED_NAME_LENGTH) invalid("preferredName");
+  if (/[\r\n]/.test(name)) invalid("preferredName");
+  return name;
+}
+
+function parseReplyFreq(input: unknown): number | undefined {
+  if (input === undefined) return undefined;
+  if (typeof input !== "number" || !Number.isInteger(input) || input < 0 || input > 100) {
+    invalid("replyFreq");
+  }
+  return input as number;
+}
+
 async function selectPreferences(did: string): Promise<PreferencesView> {
-  const [positions, favorites, feedTabs] = await Promise.all([
+  const [positions, favorites, feedTabs, preferredNames, followerRows] = await Promise.all([
     db
       .select({
         section: nagiReadPositions.section,
@@ -193,9 +221,21 @@ async function selectPreferences(did: string): Promise<PreferencesView> {
       .from(nagiFeedTabs)
       .where(eq(nagiFeedTabs.did, did))
       .limit(1),
+    db
+      .select({ name: nagiPreferredNames.name })
+      .from(nagiPreferredNames)
+      .where(eq(nagiPreferredNames.did, did))
+      .limit(1),
+    db
+      .select({ reply_freq: followers.reply_freq })
+      .from(followers)
+      .where(eq(followers.did, did))
+      .limit(1),
   ]);
   const favoritesRow = favorites[0];
   const feedTabsRow = feedTabs[0];
+  const preferredName = preferredNames[0]?.name;
+  const followerRow = followerRows[0];
   return {
     readPositions: positions
       .filter((row) => isSection(row.section))
@@ -218,6 +258,9 @@ async function selectPreferences(did: string): Promise<PreferencesView> {
     ...(feedTabsRow
       ? { feedTabsUpdatedAt: feedTabsRow.updatedAt.toISOString() }
       : {}),
+    replyFreq: followerRow?.reply_freq != null ? followerRow.reply_freq : 100,
+    // 未設定なら省略する。クライアントはこれを「表示名で呼ばれる」の合図に使う。
+    ...(preferredName ? { preferredName } : {}),
   };
 }
 
@@ -243,6 +286,8 @@ export async function putPreferences(
   const feedTabsUpdatedAt = hasFeedTabs
     ? parseUpdatedAt("feedTabsUpdatedAt", input.feedTabsUpdatedAt)
     : undefined;
+  const preferredName = parsePreferredName(input.preferredName);
+  const replyFreq = parseReplyFreq(input.replyFreq);
 
   if (readPositions.length) {
     await db
@@ -282,6 +327,43 @@ export async function putPreferences(
           updatedAt: sql`excluded.updated_at`,
         },
         setWhere: sql`excluded.updated_at > emoji_favorites.updated_at`,
+      });
+  }
+
+  if (preferredName !== undefined) {
+    if (preferredName === null) {
+      // 空文字＝解除。行を消せば以後は表示名に戻る。
+      await db.delete(nagiPreferredNames).where(eq(nagiPreferredNames.did, did));
+    } else {
+      await db
+        .insert(nagiPreferredNames)
+        .values({ did, name: preferredName, source: "manual" })
+        .onConflictDoUpdate({
+          target: nagiPreferredNames.did,
+          set: {
+            name: sql`excluded.name`,
+            // 本人が設定画面で入れた値は、会話からの自動検知より確かなので
+            // source を manual に上書きする。model/prompt_version は判定由来の
+            // 情報なので、手入力に変わった時点で消す。
+            source: sql`excluded.source`,
+            model: sql`null`,
+            promptVersion: sql`null`,
+            updatedAt: sql`now()`,
+          },
+        });
+    }
+  }
+
+  if (replyFreq !== undefined) {
+    await db
+      .insert(followers)
+      .values({ did, reply_freq: replyFreq })
+      .onConflictDoUpdate({
+        target: followers.did,
+        set: {
+          reply_freq: sql`excluded.reply_freq`,
+          updated_at: sql`now()`,
+        },
       });
   }
 
