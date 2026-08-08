@@ -15,7 +15,7 @@ import { resolvePdsUrl } from "../util/pds.js";
 
 export type EmojiRow = typeof nagiEmojis.$inferSelect;
 // drizzle のトランザクションもこの形を満たすので、ingest からは tx を渡せる。
-type Executor = Pick<typeof db, "select" | "insert" | "delete">;
+type Executor = Pick<typeof db, "select" | "insert" | "update" | "delete">;
 
 export function emojiView(row: EmojiRow): EmojiView | null {
   if (!isNormalizedBluemojiFormats(row.formats)) return null;
@@ -68,28 +68,11 @@ export async function indexEmoji(
     adultOnly: record.adultOnly === true,
     createdAt: new Date(record.createdAt),
   };
-  const sameUri = await executor
-    .select({
-      uri: nagiEmojis.uri,
-      did: nagiEmojis.did,
-      name: nagiEmojis.name,
-    })
-    .from(nagiEmojis)
-    .where(eq(nagiEmojis.uri, uri))
-    .limit(1);
-  // 同じ URI のレコードが名前を変えた場合、旧意味キーの投影を先に外す。
-  if (sameUri[0] && (sameUri[0].did !== did || sameUri[0].name !== values.name))
-    await executor.delete(nagiEmojis).where(eq(nagiEmojis.uri, uri));
-  await executor
-    .insert(nagiEmojis)
-    .values(values)
-    .onConflictDoUpdate({
-      target: [nagiEmojis.did, nagiEmojis.name],
-      set: values,
-      // 同じ URI の更新、または別 URI のうち createdAt が新しい方だけを採用する。
-      // 同時取り込みでも一意制約側で原子的に勝者を決める。
-      setWhere: sql`${nagiEmojis.uri} = excluded.uri or (${nagiEmojis.createdAt}, ${nagiEmojis.uri}) < (excluded.created_at, excluded.uri)`,
-    });
+  // 段階デプロイ中は旧 UNIQUE(did, name) が残っていても動作させる。
+  // 旧制約下では同名・別URIの INSERT だけが no-op になり、制約撤去後の
+  // reconcile でURIごとの行が追加される。同じURIの現在値は常に下のUPDATEで追従する。
+  await executor.insert(nagiEmojis).values(values).onConflictDoNothing();
+  await executor.update(nagiEmojis).set(values).where(eq(nagiEmojis.uri, uri));
 }
 
 const NEGATIVE_TTL_MS = 5 * 60_000;

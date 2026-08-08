@@ -333,7 +333,7 @@ export const nagiEmojis = nagiSchema.table(
       .notNull(),
   },
   (t) => [
-    uniqueIndex("nagi_emoji_did_name_idx").on(t.did, t.name),
+    index("nagi_emoji_did_name_idx").on(t.did, t.name),
     index("nagi_emoji_name_idx").on(t.name),
   ],
 );
