@@ -334,7 +334,7 @@ export type PostView = {
 };
 export type BotReplyState = "pending" | "processing" | "posted" | "failed";
 /**
- * 会話グループ化ビュー。共有TL(group モード)でのみ付き、1スレッドを
+ * 会話グループ化ビュー。group モードのタイムラインで付き、1スレッドを
  * 「ルート + 最新数件のバブル」に畳んで表示する。bot返信もバブルとして時刻順に含む。
  */
 /** 会話グループ内の1バブル。depth はルートからの返信ホップ数(root=0, 直リプ=1, ...)。 */

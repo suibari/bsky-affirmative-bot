@@ -446,14 +446,64 @@ const threadKeyOf = (post: {
   replyRootUri: string | null;
 }): string => post.replyRootUri ?? post.uri;
 
+type TimelineOrderPost = {
+  uri: string;
+  did: string;
+  replyRootUri: string | null;
+  replyParentUri: string | null;
+  indexedAt: Date;
+};
+
 /**
- * filter=posts はトップレベル投稿を先に選ぶ経路なので、後続返信を理由にそのルートを落とさない。
- * group は選ばれたルートへ会話を付加するためだけに使う。
+ * DBが返す代表行にも同じ順序規則を適用する安全網。botのトップレベル投稿は活動だが、
+ * 自動返信はスレッドを押し上げない。同時刻はURI降順でカーソルと同じ順序へ固定する。
  */
-export const groupsByThreadActivity = (
-  group: boolean | undefined,
+export function orderThreadRepresentatives<
+  T extends { post: TimelineOrderPost },
+>(rows: T[], botDid = config.botDid): T[] {
+  const latest = new Map<string, T>();
+  const compare = (a: T, b: T) => {
+    const time = a.post.indexedAt.getTime() - b.post.indexedAt.getTime();
+    return time !== 0
+      ? time
+      : a.post.uri === b.post.uri
+        ? 0
+        : a.post.uri > b.post.uri
+          ? 1
+          : -1;
+  };
+  for (const row of rows) {
+    if (row.post.did === botDid && row.post.replyParentUri) continue;
+    const key = threadKeyOf(row.post);
+    const current = latest.get(key);
+    if (!current || compare(row, current) > 0) latest.set(key, row);
+  }
+  return [...latest.values()].sort((a, b) => compare(b, a));
+}
+
+/**
+ * プロフィールの filter は、group モードでは「表示候補の投稿」ではなく
+ * 「どのスレッドをプロフィールに含めるか」を決める。代表はその後の最新活動から選ぶ。
+ */
+export function profileThreadMatch(
+  actorDid: string,
   filter: "posts" | "replies" | "media" | undefined,
-): boolean => Boolean(group && filter !== "posts");
+): SQL {
+  const match =
+    filter === "replies"
+      ? sql`candidate.reply_parent_uri is not null`
+      : filter === "media"
+        ? sql`jsonb_array_length(coalesce(candidate.embed_images, '[]'::jsonb)) > 0`
+        : sql`candidate.reply_parent_uri is null`;
+  return sql`exists (
+    select 1 from nagi.posts as candidate
+    where coalesce(candidate.reply_root_uri, candidate.uri)
+        = coalesce(${nagiPosts.replyRootUri}, ${nagiPosts.uri})
+      and candidate.deleted_at is null
+      and candidate.did = ${actorDid}
+      and ${match}
+  )`;
+}
 /**
  * 指定スレッド(ルートURI)群に属する非削除投稿を全部引く。bot返信も含む（バブルにするため）。
  * ミュート著者の投稿はここで落とすので、バブルからその発言だけが抜け、totalCount/hiddenCount も
@@ -594,6 +644,39 @@ export async function buildConversationItems(
     return [{ ...repView, conversation }];
   });
 }
+
+/**
+ * 検索順位を変えず、ルート一致だけを会話表示へ広げる。途中返信の一致は返信タブと同じく
+ * 返信元付きの単独カードにする。同じスレッドの複数投稿が一致した場合も検索結果として残す。
+ */
+export async function buildSearchFeedItems(
+  rows: PostRow[],
+  viewerDid?: string,
+  mutes: MuteSet = EMPTY_MUTES,
+): Promise<FeedItem[]> {
+  if (!rows.length) return [];
+  const roots = rows.filter((row) => !row.post.replyParentUri);
+  const replies = rows.filter((row) => row.post.replyParentUri);
+  const [rootItems, replyItems] = await Promise.all([
+    buildConversationItems(roots, viewerDid, mutes),
+    buildFeedItems(replies, viewerDid, true, true, mutes),
+  ]);
+  const byUri = new Map(
+    [...rootItems, ...replyItems].map((item) => [item.uri, item]),
+  );
+  return restoreSearchResultOrder(rows, byUri);
+}
+
+/** 検索用の並びは会話のハイドレート順に影響されず、元のSQL順位をそのまま維持する。 */
+export function restoreSearchResultOrder<T extends { uri: string }>(
+  rows: Array<{ post: { uri: string } }>,
+  byUri: ReadonlyMap<string, T>,
+): T[] {
+  return rows.flatMap((row) => {
+    const item = byUri.get(row.post.uri);
+    return item ? [item] : [];
+  });
+}
 export async function getTimeline(opts: {
   limit: number;
   cursor?: string;
@@ -606,10 +689,12 @@ export async function getTimeline(opts: {
   tag?: string;
   filter?: "posts" | "replies" | "media";
   /**
-   * 会話グループ化。メイン共有TLでのみ true。各スレッドの最新の共有可視投稿だけを代表として
-   * 1回だけ返し、buildConversationItems で会話ブロックに畳む。プロフィール/CH/検索/filter は false。
+   * 会話グループ化。各スレッドの最新の可視な人間投稿だけを代表として1回だけ返し、
+   * buildConversationItems で会話ブロックに畳む。プロフィールの filter は対象スレッド判定に使う。
    */
   group?: boolean;
+  /** 検索結果: 順位は維持し、ルート一致だけを会話表示へ広げる。 */
+  searchResults?: boolean;
   /**
    * 本人向けホーム。指定時は本人・botたん・本人の非公開リストの投稿（返信を含む）を候補にし、
    * スレッド単位の最新活動順に並べる。公開範囲はスレッドルートで判定するので、本人の kossori
@@ -647,7 +732,11 @@ export async function getTimeline(opts: {
         and(eq(nagiPosts.indexedAt, point[0]), lt(nagiPosts.uri, point[1])),
       ),
     );
-  if (opts.actorDid) filters.push(eq(nagiPosts.did, opts.actorDid));
+  if (opts.actorDid) {
+    if (opts.group)
+      filters.push(profileThreadMatch(opts.actorDid, opts.filter));
+    else filters.push(eq(nagiPosts.did, opts.actorDid));
+  }
   if (opts.homeDid) {
     filters.push(...homeTimelineVisibility(opts.homeDid, homeActors!));
   }
@@ -658,21 +747,22 @@ export async function getTimeline(opts: {
     filters.push(
       sql`${nagiPostScores.score} >= ${config.affirmationThreshold}`,
     );
-  if (opts.filter === "posts") filters.push(isNull(nagiPosts.replyParentUri));
-  if (opts.filter === "replies")
-    filters.push(isNotNull(nagiPosts.replyParentUri));
-  if (opts.filter === "media")
-    filters.push(
-      sql`jsonb_array_length(coalesce(${nagiPosts.embedImages}, '[]'::jsonb)) > 0`,
-    );
+  if (!opts.group || !opts.actorDid) {
+    if (opts.filter === "posts") filters.push(isNull(nagiPosts.replyParentUri));
+    if (opts.filter === "replies")
+      filters.push(isNotNull(nagiPosts.replyParentUri));
+    if (opts.filter === "media")
+      filters.push(
+        sql`jsonb_array_length(coalesce(${nagiPosts.embedImages}, '[]'::jsonb)) > 0`,
+      );
+  }
   // ミュート（投稿者・スレッドルート著者・所属CH）。条件の組み立ては検索と共通。
   filters.push(
     ...muteVisibility(mutes, { actors: muteActors, channels: muteChannels }),
   );
-  // Keep Bot replies grouped with their source post on shared timelines. An
-  // explicit actor feed still needs them so the Bot profile's replies tab works.
-  // CH TL も共有TL扱いで grouping する（botたんの返信は元投稿にまとめる）。
-  if (!opts.actorDid)
+  // group/共有TLでは bot返信を代表候補から外し、会話バブルとして元投稿にまとめる。
+  // group でないプロフィール返信タブでは bot本人の返信も検索対象なので残す。
+  if (opts.group || !opts.actorDid)
     filters.push(
       or(ne(nagiPosts.did, config.botDid), isNull(nagiPosts.replyParentUri)),
     );
@@ -705,23 +795,8 @@ export async function getTimeline(opts: {
   // だけを残す。これで1スレッド1回・最新活動順になる。cursor/orderBy はそのまま代表に効く。
   // kossori判定は上の case 式が担うので、ここでは重複して書かない。
   // ミュート著者の投稿は代表になれないので sib からも除く（1つ前へフォールバックさせる）。
-  const sibMuteFilter = sibNotMuted(mutes, muteActors);
-  const homeSibling = homeSiblingFilter(homeActors);
-  if (groupsByThreadActivity(opts.group, opts.filter))
-    filters.push(sql`
-      not exists (
-        select 1 from nagi.posts as sib
-        where coalesce(sib.reply_root_uri, sib.uri)
-            = coalesce(${nagiPosts.replyRootUri}, ${nagiPosts.uri})
-          and sib.deleted_at is null
-          and (sib.did <> ${config.botDid} or sib.reply_parent_uri is null)${sibMuteFilter}
-          ${homeSibling}
-          and (
-            sib.indexed_at > ${nagiPosts.indexedAt}
-            or (sib.indexed_at = ${nagiPosts.indexedAt} and sib.uri > ${nagiPosts.uri})
-          )
-      )
-    `);
+  if (opts.group)
+    filters.push(latestThreadActivity(mutes, muteActors, homeActors));
   const rows = await db
     .select(postSelection)
     .from(nagiPosts)
@@ -731,17 +806,22 @@ export async function getTimeline(opts: {
     .where(and(...filters))
     .orderBy(desc(nagiPosts.indexedAt), desc(nagiPosts.uri))
     .limit(opts.limit + 1);
-  const page = rows.slice(0, opts.limit);
+  const selectedPage = rows.slice(0, opts.limit);
+  const page = opts.group
+    ? orderThreadRepresentatives(selectedPage)
+    : selectedPage;
   const [items, botActor] = await Promise.all([
     opts.group
       ? buildConversationItems(page, opts.viewerDid, appliedMutes)
-      : buildFeedItems(
-          page,
-          opts.viewerDid,
-          true,
-          opts.filter === "replies" || Boolean(opts.channelUri),
-          appliedMutes,
-        ),
+      : opts.searchResults
+        ? buildSearchFeedItems(page, opts.viewerDid, appliedMutes)
+        : buildFeedItems(
+            page,
+            opts.viewerDid,
+            true,
+            opts.filter === "replies" || Boolean(opts.channelUri),
+            appliedMutes,
+          ),
     getBotActor(),
   ]);
   const last = page.at(-1)?.post;
@@ -754,6 +834,30 @@ export async function getTimeline(opts: {
         : undefined,
     hasMore: rows.length > opts.limit,
   };
+}
+
+/** getTimeline の代表選出SQL。純粋なSQL断片として順序仕様の回帰テストにも使う。 */
+export function latestThreadActivity(
+  mutes: MuteSet,
+  muteActors: boolean,
+  homeActors?: string[],
+): SQL {
+  const sibMuteFilter = sibNotMuted(mutes, muteActors);
+  const homeSibling = homeSiblingFilter(homeActors);
+  return sql`
+      not exists (
+        select 1 from nagi.posts as sib
+        where coalesce(sib.reply_root_uri, sib.uri)
+            = coalesce(${nagiPosts.replyRootUri}, ${nagiPosts.uri})
+          and sib.deleted_at is null
+          and (sib.did <> ${config.botDid} or sib.reply_parent_uri is null)${sibMuteFilter}
+          ${homeSibling}
+          and (
+            sib.indexed_at > ${nagiPosts.indexedAt}
+            or (sib.indexed_at = ${nagiPosts.indexedAt} and sib.uri > ${nagiPosts.uri})
+          )
+      )
+    `;
 }
 
 export async function getBotActor(): Promise<FeedItem["author"]> {

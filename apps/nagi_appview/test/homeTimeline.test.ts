@@ -7,10 +7,10 @@ process.env.NAGI_BOT_DID ??= "did:plc:bot";
 const { db, nagiPosts } = await import("@bsky-affirmative-bot/database");
 const { and } = await import("drizzle-orm");
 const {
-  groupsByThreadActivity,
   homeRootVisibility,
   homeSiblingFilter,
   homeTimelineVisibility,
+  profileThreadMatch,
 } = await import("../src/queries/timeline.js");
 
 const ACTORS = ["did:plc:self", "did:plc:bot", "did:plc:member"];
@@ -63,8 +63,18 @@ test("my Nagi list section stays root-only", () => {
     assert.ok(params.includes(did), `missing bound actor ${did}`);
 });
 
-test("profile posts keep the latest root even when conversation grouping is requested", () => {
-  assert.equal(groupsByThreadActivity(true, "posts"), false);
-  assert.equal(groupsByThreadActivity(true, undefined), true);
-  assert.equal(groupsByThreadActivity(false, "posts"), false);
+test("profile filters qualify whole threads before the latest activity is selected", () => {
+  const posts = render([profileThreadMatch("did:plc:actor", "posts")]);
+  assert.ok(
+    posts.text.includes("exists ( select 1 from nagi.posts as candidate"),
+  );
+  assert.ok(posts.text.includes("candidate.reply_parent_uri is null"));
+  assert.ok(posts.params.includes("did:plc:actor"));
+
+  const replies = render([profileThreadMatch("did:plc:actor", "replies")]);
+  assert.ok(replies.text.includes("candidate.reply_parent_uri is not null"));
+
+  const media = render([profileThreadMatch("did:plc:actor", "media")]);
+  assert.ok(media.text.includes("candidate.embed_images"));
+  assert.ok(media.text.includes("jsonb_array_length"));
 });

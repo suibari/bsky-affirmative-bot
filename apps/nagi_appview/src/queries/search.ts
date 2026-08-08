@@ -17,7 +17,11 @@ import {
   type SQL,
 } from "drizzle-orm";
 import { config } from "../config.js";
-import { buildFeedItems, getBotActor, postSelection } from "./timeline.js";
+import {
+  buildSearchFeedItems,
+  getBotActor,
+  postSelection,
+} from "./timeline.js";
 import {
   embedQuery,
   hybridConditions,
@@ -157,7 +161,7 @@ export async function searchPostsByText(opts: {
     ? relativeCut(rows, (row) => Number(row.semDistance))
     : rows.slice(0, opts.limit);
   const [items, botActor] = await Promise.all([
-    buildFeedItems(page, opts.viewerDid, true, false, mutes),
+    buildSearchFeedItems(page, opts.viewerDid, mutes),
     getBotActor(),
   ]);
   const hasMore = !semantic && rows.length > opts.limit;

@@ -400,6 +400,7 @@ xrpc.get(
           limit: limit(req.query.limit),
           cursor: String(req.query.cursor ?? "") || undefined,
           viewerDid: req.viewerDid,
+          searchResults: true,
         }),
       );
     } catch (e) {
