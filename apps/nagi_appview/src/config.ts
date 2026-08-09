@@ -125,6 +125,9 @@ export const config = {
   // 127.0.0.1 に束縛して OS にアクセス制御させるので、共有シークレットは持たない。
   internalPort: integer("NAGI_APPVIEW_INTERNAL_PORT", 3004, 1, 65_535),
   clientOrigins: clientOrigins("NAGI_CLIENT_ORIGIN", "http://localhost:5173"),
+  // カスタム絵文字一覧は60件単位で画像を取得し、スクロールで続けて読み込む。
+  // API全体の小さいIPバケットを流用せず、公開画像配信として独立して調整可能にする。
+  emojiAssetRateLimit: integer("NAGI_EMOJI_ASSET_RATE_LIMIT", 1_200, 1, 100_000),
   affirmationThreshold: integer(
     "NAGI_AFFIRMATION_THRESHOLD",
     Number(process.env.NAGI_TREND_THRESHOLD ?? 86),
