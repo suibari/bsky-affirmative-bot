@@ -342,11 +342,17 @@ export function extractJSON(text: string): any {
 
 /**
  * 必要に応じて画像を付与して、botたんスコア付きのシングルレスポンスを得る
+ *
+ * `options.maxTextLength` は暴走検知のしきい値。未指定なら投稿用の既定（POST_TEXT_LIMIT）。
+ * 呼び出し側がこれを渡すのは「プロンプトで長さを縛らない代わりに、明らかな暴走だけコードで
+ * 弾きたい」ケース（generateAffirmativeWord）。ガードは JSON 全体の文字数に効くので、
+ * comment の実効長は指定値よりいくらか短くなる。
  */
 export async function generateSingleResponseWithScore(
   prompt: string,
   userinfo?: UserInfoGemini,
   requestOptions: GeminiRequestOptions = {},
+  options: { maxTextLength?: number | null } = {},
 ) {
   const contents: PartListUnion = [prompt];
   // const responseSchema = { ... } // Removed due to conflict with Google Search
@@ -385,6 +391,7 @@ export async function generateSingleResponseWithScore(
       {
         // model / serviceTier は generateContentWithRetry がレジストリと requestOptions から決める
         feature: 'BSKY_AFFIRMATIVE_REPLY' satisfies AiFeatureKey,
+        ...(options.maxTextLength !== undefined ? { maxTextLength: options.maxTextLength } : {}),
         contents,
         config: {
           systemInstruction: SYSTEM_INSTRUCTION,

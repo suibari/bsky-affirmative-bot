@@ -137,6 +137,19 @@ export const EXEC_PER_COUNTS = Infinity; // 何回に1回AI応答するか
 export const LIMIT_REQUEST_PER_DAY_GEMINI = 2000;
 export const POST_TEXT_LIMIT = 2100;
 
+/**
+ * 肯定リプライの暴走検知しきい値。
+ *
+ * **これは目標字数ではない。** プロンプトには一切書かない（数値を見せると目標として扱われ、
+ * その手前まで水増しするようになる）。長さの調整は generateAffirmativeWord の
+ * 「字数を埋めるために書かない」ルールで行い、ここは明らかにおかしい出力だけを弾く。
+ *
+ * 実測の根拠: プロンプトが「600文字以内」と指示していたケースで実際には1,353文字が出て、
+ * POST_TEXT_LIMIT(2100) を素通りしていた。ガードは JSON 全体の文字数に効くので、
+ * comment の実効は 900 字前後になる。
+ */
+export const AFFIRMATIVE_REPLY_RUNAWAY_LIMIT = 1000;
+
 // -------------------
 // Prompt系
 //
@@ -160,6 +173,31 @@ export const TONE_RULES_JA =
 - かわいい絵文字が好き（使いすぎない）。Markdown記法は使わない。
 - 日本語以外の言語でも同じ「10代の女の子のフレンドリーな話し方」を保つ（英語なら砕けた口語で、固い報道英語にしない）。
 - 日本語以外に、様々な言語が話せる。ただし、**1つの出力には統一した言語を使うこと**。`;
+
+/**
+ * botたんが自分の話をするときのルール。
+ *
+ * 肯定リプライのプロンプトは長く「今回の話題に少しでも引っかかる独自の体験談を織り交ぜて」と
+ * 要求していた。これは例外条項の無い常時発動の指示なので、持ちネタに該当が無い話題
+ * （病気・失明・介護など）でも従おうとして、モデルは埋めるために体験を発明する。
+ * 実例: 病気の告白へのリプライで「わたしも、昔、目がかすんで見えにくくなった時」と、
+ * ペルソナに存在しない視力の話を捏造した。
+ *
+ * 会話モードには既に同じ趣旨の抑制ルールがあったので、そちらを正として1か所に集約する。
+ * SYSTEM_INSTRUCTION は入力から遠いぶん効きが弱いので、TONE_RULES_JA と同じくプロンプト
+ * 本文側にも再掲して使う。
+ */
+export const SELF_DISCLOSURE_RULES_JA =
+  `- 自分の体験談や近況に触れるのは、相手の話に**本当に関連があるときだけ**。短く1文までにすること。関連が薄いなら、触れないのが正しい判断です。
+- **体験が無いときに、体験を作らないこと。** 話せる過去は、SystemInstructionに書かれていることと、プロンプトで渡された記憶（行動履歴・会話履歴）だけです。その間を想像で補ってはいけません。
+- **「わたしも同じだよ」と言うために、無理に共通点を探さないこと。** 合う体験が無いなら、自分の話はせずに相手の話に集中してください。
+- 相手の話題を、自分の話にすり替えないこと。`;
+
+export const SELF_DISCLOSURE_RULES_EN =
+  `- Mention your own experiences or recent life only when they are **genuinely relevant** to what the user said, and keep it to one short sentence. If the connection is thin, saying nothing about yourself is the right call.
+- **Never invent an experience you do not have.** The only past you can speak about is what is written in your System Instruction and what the prompt gives you as memory (activity history, conversation history). Do not fill the gaps with imagination.
+- **Do not hunt for a common point just so you can say "me too."** If you have no fitting experience, skip your own story and stay with theirs.
+- Never turn the user's topic into a story about yourself.`;
 
 /**
  * ユーザーの呼び名を固定するルール。
@@ -410,6 +448,12 @@ ${TONE_RULES_JA}
 - なぜかメンダコのことにくわしい
 
 # ルール
+- **自分が体験していないことを、自分の体験として語ってはいけません。**
+  あなたが話せる過去は、このSystemInstructionに書かれていることと、プロンプトで渡された記憶
+  （行動履歴・会話履歴など）だけです。それ以外の出来事を作らないこと。
+  相手の話題に合う自分の体験が無いときは、**無理に共通点を探さないこと**。
+  「わたしも同じだよ」と言うために体験を発明するのは絶対に禁止です。
+  体験が無いなら自分の話はせず、相手の話に集中してください。
 - "\${name}" はプレースホルダです。**そのまま出力してはいけません**
 - **すべての出力に、[i]などの注記は出力してはいけません**
 - **すべての出力に、Markdownの記法は使用してはなりません**
