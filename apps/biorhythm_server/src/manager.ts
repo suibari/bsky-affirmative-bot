@@ -1,4 +1,4 @@
-import eventsMorningWorkday from "@bsky-affirmative-bot/shared-configs/json/event_evening_workday.json" with { type: "json" };
+import eventsMorningWorkday from "@bsky-affirmative-bot/shared-configs/json/event_morning_workday.json" with { type: "json" };
 import eventsMorningDayoff from "@bsky-affirmative-bot/shared-configs/json/event_morning_dayoff.json" with { type: "json" };
 import eventsNoonWorkday from "@bsky-affirmative-bot/shared-configs/json/event_noon_workday.json" with { type: "json" };
 import eventsNoonDayoff from "@bsky-affirmative-bot/shared-configs/json/event_noon_dayoff.json" with { type: "json" };
@@ -7,7 +7,7 @@ import eventsEveningDayoff from "@bsky-affirmative-bot/shared-configs/json/event
 import eventsNight from "@bsky-affirmative-bot/shared-configs/json/event_night.json" with { type: "json" };
 import eventsMidnight from "@bsky-affirmative-bot/shared-configs/json/event_midnight.json" with { type: "json" };
 import { SYSTEM_INSTRUCTION, botDayRange } from '@bsky-affirmative-bot/shared-configs';
-import { gemini, generateContentWithRetry } from '@bsky-affirmative-bot/bot-brain';
+import { gemini, generateContentWithRetry, isOllamaConfigured, ollamaChat } from '@bsky-affirmative-bot/bot-brain';
 import { DailyReport, Stats } from '@bsky-affirmative-bot/shared-configs';
 import EventEmitter from "events";
 import { MemoryService } from "@bsky-affirmative-bot/clients";
@@ -22,6 +22,20 @@ import { getFullDateAndTimeString } from "@bsky-affirmative-bot/shared-configs";
 import { LanguageName } from "@bsky-affirmative-bot/shared-configs";
 
 import { UtilityAI } from "./utilityAI.js";
+import { buildBiorhythmBotContext } from "./botMemory.js";
+import {
+  buildPlannedEventSection,
+  ensureDailyPlan,
+  markPlannedEventUsed,
+  takePlannedEvent,
+  type DailyPlan,
+} from "./dailyPlan.js";
+import {
+  buildLocalStatusPrompt,
+  buildLocalStatusTranslationPrompt,
+  validateStatusText,
+  validateStatusTextEn,
+} from "./localStatusPrompt.js";
 import { fetchDisplayName } from "./displayName.js";
 import {
   buildRoomEventsSection,
@@ -343,14 +357,33 @@ export class BiorhythmManager extends EventEmitter {
       return;
     }
 
+    // 今日の予定表。bot日が変わったときだけ Gemini を1回叩く（内部で作品リストも週1で更新）。
+    // 各stepの描写はこれを材料にローカルの小型モデルが書く。失敗しても undefined が返るだけで、
+    // その場合は従来どおり毎step Gemini に落ちる。
+    const plan = await ensureDailyPlan({
+      isWeekend,
+      eventSamples: this.eventSamplesForPlan(),
+    }).catch((error) => {
+      console.error("[ERROR][BIORHYTHM] ensureDailyPlan threw:", error);
+      return undefined;
+    });
+
     let duration_minutes = 60;
     let nextInterval = 60 * 60 * 1000;
+    let statusSource: "local" | "gemini" = "gemini";
 
     try {
-      const result = await this.generateStatus(prompt); // LLM出力取得
+      const result = await this.resolveStatus({
+        plan,
+        prompt,
+        weather,
+        hour,
+        roomEvents: roomEventsForPrompt,
+      });
       const status_text = result.status_text;
       const status_text_en = result.status_text_en;
       duration_minutes = result.duration_minutes;
+      statusSource = result.source;
 
       // 次回スケジュール（AIが決めた時間、ただし最小5分、最大180分とする）
       const duration = Math.max(5, Math.min(duration_minutes, 180));
@@ -363,6 +396,19 @@ export class BiorhythmManager extends EventEmitter {
       // 活動ログをDBに保存
       await MemoryService.addBiorhythmHistory(this.status, status_text, status_text_en, Math.round(this.getEnergy));
 
+      // 定期ポストへ渡す記憶。bot-runtime の getBotContext() は TTL 5分キャッシュを持つので
+      // ここでは使わない。setOutput() の直後に今の値から組み立てないと、「いまやってること」
+      // だけ1世代古くなって、まさにこれから潰したい矛盾を自分で作ってしまう。
+      const botContext = buildBiorhythmBotContext({
+        mood: status_text,
+        moodEn: status_text_en,
+        energy: this.getEnergy,
+        weather,
+        history: await MemoryService.getBiorhythmHistorySince(
+          new Date(Date.now() - 24 * 60 * 60 * 1000),
+        ),
+      });
+
       // 生成に成功したぶんだけ既読にする。ここが catch の中ではなく後ろにあるのは意図的で、
       // LLM が失敗した回のできごとは次の step に持ち越したいため（未読リプライと違い、
       // お部屋のできごとを取りこぼすと来てくれた人の体験がそのまま消える）。
@@ -373,7 +419,7 @@ export class BiorhythmManager extends EventEmitter {
         if (this.status !== this.statusPrev && this.status === "Sleep" && (hour >= 21 || hour <= 3)) {
           if (this.canPostGoodNight()) {
             console.log(`[INFO][BIORHYTHM] post goodnight!`);
-            await postGoodNight(this.getMood);
+            await postGoodNight(this.getMood, botContext);
             await this.setGoodNightPostDate();
           } else {
             console.log(`[INFO][BIORHYTHM] goodnight post already done today, skipping`);
@@ -389,7 +435,7 @@ export class BiorhythmManager extends EventEmitter {
         lastGoodMorningPostDate: this.lastGoodMorningPostDate,
       })) {
         console.log(`[INFO][BIORHYTHM] post goodmorning!`);
-        await postMorning();
+        await postMorning(botContext);
         await this.changeEnergy(-6000);
         await this.setGoodMorningPostDate();
       }
@@ -410,7 +456,7 @@ export class BiorhythmManager extends EventEmitter {
         const probability = Math.random() * 100;
         if (probability < this.getEnergy || process.env.NODE_ENV === "development") {
           console.log(`[INFO][BIORHYTHM] post and decrease energy!`);
-          await postWhimsical(this.getMood);
+          await postWhimsical(this.getMood, botContext);
           await this.changeEnergy(-6000);
         }
       }
@@ -425,7 +471,7 @@ export class BiorhythmManager extends EventEmitter {
     // this.handleEnergyByStatus();
 
     // ログ出力
-    console.log(`[INFO][BIORHYTHM] status: ${this.status}, energy: ${this.getEnergy}, roomEvents: ${roomEvents.length}, action: ${this.getMood}, next: ${duration_minutes} min`);
+    console.log(`[INFO][BIORHYTHM] status: ${this.status}, energy: ${this.getEnergy}, roomEvents: ${roomEvents.length}, source: ${statusSource}, action: ${this.getMood}, next: ${duration_minutes} min`);
 
     // リプライ既読処理
     await MemoryService.markRepliesRead();
@@ -449,6 +495,112 @@ export class BiorhythmManager extends EventEmitter {
     const dids = [...new Set(events.map((event) => event.did))];
     const names = await Promise.all(dids.map((did) => fetchDisplayName(did)));
     return toRoomEventsForPrompt(events, new Map(dids.map((did, i) => [did, names[i]!])));
+  }
+
+  /** 日次予定表を立てるときの雰囲気の参考。これまで各stepに丸ごと渡していた例文を1日1回に移した。 */
+  private eventSamplesForPlan(): Record<string, unknown> {
+    const isWeekend = [0, 6].includes(new Date().getDay());
+    return {
+      WakeUp: isWeekend ? eventsMorningDayoff : eventsMorningWorkday,
+      Study: isWeekend ? eventsNoonDayoff : eventsNoonWorkday,
+      FreeTime: isWeekend ? eventsEveningDayoff : eventsEveningWorkday,
+      Relax: eventsNight,
+      Sleep: eventsMidnight,
+    };
+  }
+
+  /**
+   * 状況描写を得る。通常はローカルの小型モデルが書き、駄目なときだけ Gemini に落ちる。
+   *
+   * ローカルを先に試すのは単純にコスト。stepは1日24〜48回走るので、ただの三人称描写に
+   * 毎回 flash を使うのは重い。品質の担保は「今日の予定表（Gemini・1日1回）が決めた予定を
+   * 描写に起こすだけ」という分担と、validateStatusText による受け入れ検査で行う。
+   */
+  private async resolveStatus(input: {
+    plan: DailyPlan | undefined;
+    prompt: string;
+    weather: string;
+    hour: number;
+    roomEvents: RoomEventForPrompt[];
+  }): Promise<{
+    status_text: string;
+    status_text_en: string;
+    duration_minutes: number;
+    source: "local" | "gemini";
+  }> {
+    const picked = takePlannedEvent(input.plan, this.status);
+    if (input.plan && picked && isOllamaConfigured()) {
+      try {
+        const raw = await ollamaChat(
+          "OLLAMA_BIORHYTHM_STATUS",
+          [
+            {
+              role: "user",
+              content: buildLocalStatusPrompt({
+                status: this.status,
+                plannedActivity: picked.event.activity,
+                outfit: input.plan.outfit,
+                companion: input.plan.companion,
+                moodDirection: input.plan.moodDirection,
+                hour: input.hour,
+                weather: input.weather,
+                energy: this.getEnergy,
+                moodPrev: this.moodPrev,
+                roomEvents: input.roomEvents,
+                // buildPrompt の outfitInstruction と同じ条件。起床時と再起動直後だけ服を決める。
+                describeOutfit: this.status === "WakeUp" || !this.moodPrev,
+              }),
+            },
+          ],
+          // 描写は毎回変わってほしいので temperature を上げる（分類系の 0 とは別物）。
+          { maxTokens: 400, temperature: 0.9, timeoutMs: 60_000 },
+        );
+        const validated = validateStatusText(raw);
+        if (validated.ok) {
+          const statusTextEn = await this.translateStatusLocally(validated.text);
+          // 消化を記録するのは生成に成功した回だけ。失敗した回の予定は次の step に残す。
+          await markPlannedEventUsed(input.plan, picked.index);
+          return {
+            status_text: validated.text,
+            status_text_en: statusTextEn,
+            duration_minutes: picked.event.durationMinutes,
+            source: "local",
+          };
+        }
+        console.warn(
+          `[WARN][BIORHYTHM] Local status rejected (${validated.reason}); falling back to Gemini`,
+        );
+      } catch (error) {
+        console.warn("[WARN][BIORHYTHM] Local status generation failed; falling back to Gemini:", error);
+      }
+    }
+
+    // 予定表があるならフォールバック側にも渡す。ここで渡さないと、ローカルが落ちた回だけ
+    // 今日の筋書き（服装・同行者・作品名）から外れた描写になり、記憶の中で1日が途切れる。
+    const result = await this.generateStatus(
+      input.prompt + buildPlannedEventSection(input.plan, picked?.event),
+    );
+    return { ...result, source: "gemini" };
+  }
+
+  /**
+   * status_text の英訳。失敗したら日本語をそのまま返す。
+   * 呼び出し側は mood_en を `mood_en || mood` で読むので、これは既存のフォールバックと同じ挙動。
+   */
+  private async translateStatusLocally(statusText: string): Promise<string> {
+    try {
+      const translated = await ollamaChat(
+        "OLLAMA_BOT_TRANSLATION",
+        [{ role: "user", content: buildLocalStatusTranslationPrompt(statusText) }],
+        { maxTokens: 300, temperature: 0.2, timeoutMs: 60_000 },
+      );
+      const validated = validateStatusTextEn(translated);
+      if (!validated) throw new Error("Unusable translation output");
+      return validated;
+    } catch (error) {
+      console.warn("[WARN][BIORHYTHM] Local status translation failed:", error);
+      return statusText;
+    }
   }
 
   private buildPrompt(timeNow: string, isWeekend: Boolean, weather: string, unreadReply?: string[], utilities?: Record<Status, number>, roomEvents: RoomEventForPrompt[] = []): string {

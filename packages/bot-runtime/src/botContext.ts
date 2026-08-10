@@ -1,9 +1,12 @@
+export type BotSurface = "nagi" | "bluesky";
+
 export type RuntimeBotContext = {
   datetime: string;
   weather: string;
   botActivity: string;
   botActivityEn: string;
   botEnergy: number;
+  surface?: BotSurface;
   recentActivities?: RuntimeBotActivity[];
 };
 
@@ -17,6 +20,8 @@ type BotContextSources = {
   getWeather: () => Promise<string>;
   getStatus: () => Promise<{ mood: string; mood_en: string; energy: number }>;
   getRecentActivities?: () => Promise<RuntimeBotActivity[]>;
+  /** このプロセスがどのSNSに向いているか。プロセス単位で固定なのでキャッシュに載せない。 */
+  surface?: BotSurface;
 };
 
 let sources: BotContextSources | undefined;
@@ -28,9 +33,19 @@ export function configureBotContext(value: BotContextSources) {
   sources = value;
 }
 
+const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
+
+/**
+ * botたんの「現在時刻」。JST 固定で出す。
+ *
+ * ローカルタイムゾーン依存だと、サーバーが UTC のときにこの値だけ9時間ずれ、同じプロンプトへ
+ * 一緒に載る行動履歴の時刻（formatJstActivityTime が JST で出す）と食い違う。
+ * shared-configs には依存していないパッケージなので、botDay.ts / jstDate.ts と同じ
+ * 固定オフセット方式をここにも置く。
+ */
 function dateTime() {
-  const now = new Date();
-  return `${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日${now.getHours()}時${now.getMinutes()}分`;
+  const jst = new Date(Date.now() + JST_OFFSET_MS);
+  return `${jst.getUTCFullYear()}年${jst.getUTCMonth() + 1}月${jst.getUTCDate()}日${jst.getUTCHours()}時${jst.getUTCMinutes()}分`;
 }
 
 export async function getBotContext(): Promise<RuntimeBotContext> {
@@ -52,5 +67,9 @@ export async function getBotContext(): Promise<RuntimeBotContext> {
       time: Date.now(),
     };
   }
-  return { datetime: dateTime(), ...cache.value };
+  return {
+    datetime: dateTime(),
+    ...cache.value,
+    ...(sources.surface ? { surface: sources.surface } : {}),
+  };
 }

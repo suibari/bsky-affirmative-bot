@@ -1,6 +1,6 @@
 import { PartListUnion, Type } from '@google/genai';
 import { gemini } from './index.js';
-import { SYSTEM_INSTRUCTION, POST_TEXT_LIMIT, safeFetch, resolveAiRoute } from '@bsky-affirmative-bot/shared-configs';
+import { SYSTEM_INSTRUCTION, POST_TEXT_LIMIT, safeFetch, resolveAiRoute, formatJstActivityTime, energyLabel } from '@bsky-affirmative-bot/shared-configs';
 import type { AiFeatureKey } from '@bsky-affirmative-bot/shared-configs';
 import { UserInfoGemini, GeminiScore, BotContext, LanguageName } from '@bsky-affirmative-bot/shared-configs';
 import { MemoryService, reportHealthFailure, reportHeartbeat } from '@bsky-affirmative-bot/database';
@@ -30,15 +30,22 @@ export type GeminiUsage = {
   latencyMs: number;
 };
 
-function energyLabel(energy: number, ja: boolean): string {
-  if (energy >= 80) return ja ? 'めちゃくちゃ元気！' : 'Super energetic!';
-  if (energy >= 60) return ja ? '元気' : 'Energetic';
-  if (energy >= 40) return ja ? 'まあまあ' : 'So-so';
-  if (energy >= 20) return ja ? 'ちょっとお疲れ気味…' : 'A bit tired...';
-  return ja ? 'ぐったり…' : 'Exhausted...';
-}
+/**
+ * プロンプトに載せる行動履歴の上限。
+ *
+ * step の最小間隔は5分なので、忙しい日は24時間で20件を超える。12件だと午前の記憶が丸ごと
+ * 落ちて「今日やってたこと」を聞かれても答えられなくなるため 20 まで引き上げている。
+ * 1件は status_text の200字上限に従うので、最悪でも4000字程度。
+ */
+const MAX_RECENT_ACTIVITIES = 20;
 
-function recentActivityLines(botContext: BotContext, ja: boolean): string {
+function recentActivityLines(
+  botContext: BotContext,
+  ja: boolean,
+  now: Date,
+): string {
+  // 連続する同一行動を潰す。userDiaryContext.ts の compactDiaryActivities が同型の処理をするが、
+  // あちらは {mood, mood_en} 型で until による打ち切りも持つので統合していない。
   const compact = (botContext.recentActivities ?? [])
     .filter((item, index, items) => {
       if (index === 0) return true;
@@ -48,47 +55,126 @@ function recentActivityLines(botContext: BotContext, ja: boolean): string {
         previous.activityEn !== item.activityEn
       );
     })
-    .slice(-12);
+    .slice(-MAX_RECENT_ACTIVITIES);
   if (compact.length === 0) return '';
   const lines = compact.map((item) =>
-    `- ${item.at}: ${ja ? item.activity : item.activityEn}`,
+    `- ${formatJstActivityTime(item.at, now, ja)}: ${ja ? item.activity : item.activityEn}`,
   );
   return ja
     ? `\n### 直近24時間の行動履歴（記録された事実・古い順）\n${lines.join('\n')}\n`
     : `\n### Activity history from the last 24 hours (recorded facts; oldest first)\n${lines.join('\n')}\n`;
 }
 
+/** いまいる場所。Nagi がホームで Bluesky が出張先、という関係をプロンプト側でも保つ。 */
+function surfaceLine(botContext: BotContext, ja: boolean): string {
+  if (!botContext.surface) return '';
+  if (botContext.surface === 'nagi') {
+    return ja
+      ? '\n- いまいる場所：ホームのNagi（おうち。落ち着いていられる場所）'
+      : "\n- Where you are: Nagi, your home (the calm place that's yours)";
+  }
+  return ja
+    ? '\n- いまいる場所：出張先のBluesky（ホームはNagi）'
+    : '\n- Where you are: Bluesky, where you visit every day (home is Nagi)';
+}
+
+/**
+ * botContext をプロンプトの節に整形する用途。
+ * - reply: リプライ・会話（相手がいる）
+ * - scheduledPost: おはよう / 気まぐれ / おやすみ（相手がいない、記憶を素材として使う）
+ */
+export type BotContextPurpose = 'reply' | 'scheduledPost';
+
+/** 見出しと注意書きだけが用途ごとに変わる。本体（箇条書き＋履歴）は共通。 */
+function botContextHeading(
+  purpose: BotContextPurpose,
+  conversationHistoryAware: boolean,
+  ja: boolean,
+): string {
+  if (purpose === 'scheduledPost') {
+    return ja
+      ? '## botたんの記憶（きょうまでの事実。過去に触れるときはここにあることだけを使うこと）'
+      : "## Bot-tan's memory (facts so far today; when mentioning the past, use only what is here)";
+  }
+  if (conversationHistoryAware) {
+    return ja
+      ? '## botたんの現在状況（必要な場合だけ参照する背景情報）\nこの情報を返答へ必ず盛り込む必要はありません。最新のユーザメッセージと会話の流れを優先してください。\n直近の会話ですでに触れた状況は繰り返さず、過去について話す場合は行動履歴と会話履歴を照合してください。記録にない出来事を作らず、時系列を推測で進めないでください。現在の状況で過去の事実を上書きしてはいけません。'
+      : "## Bot's current situation (background; use only when needed)\nYou do not need to mention this information in every response. Prioritize the user's latest message and the conversation flow.\nDo not repeat a situation already mentioned recently. When discussing the past, cross-check the activity history and conversation history. Do not invent how this snapshot progressed over time, add unrecorded events, or overwrite past facts with the current snapshot.";
+  }
+  return ja
+    ? '## botたんの状況（参考にして返答をパーソナライズしてください）\n過去に触れる場合は行動履歴を事実として使い、記録外の出来事を足したり現在の状況で上書きしたりしないでください。'
+    : "## Bot's situation (use this to personalize your response)\nWhen mentioning the past, treat the activity history as fact. Do not add unrecorded events or overwrite past facts with the current snapshot.";
+}
+
+/** 定期ポストだけ、記憶の使い方を末尾で締める（相手がいないぶん全部読み上げがちなため）。 */
+function botContextFooter(purpose: BotContextPurpose, ja: boolean): string {
+  if (purpose !== 'scheduledPost') return '';
+  return ja
+    ? 'ルール:\n- 履歴をぜんぶ書き並べる必要はありません。いまの気分に自然につながるものを1つか2つだけ拾ってください。\n- 記録にない出来事を作らないこと。履歴の出来事を「これからやる」ことのように書かないこと。\n'
+    : 'Rules:\n- Do not list the whole history. Pick only one or two entries that connect naturally to your current mood.\n- Do not invent events that are not recorded, and do not describe a past entry as something you are about to do.\n';
+}
+
 export function formatBotContext(
   botContext?: BotContext,
   langStr?: LanguageName,
-  options: { conversationHistoryAware?: boolean } = {},
+  options: {
+    conversationHistoryAware?: boolean;
+    purpose?: BotContextPurpose;
+    /** テスト用。相対時間の基準時刻。 */
+    now?: Date;
+  } = {},
 ): string {
   if (!botContext) return '';
-  if (!options.conversationHistoryAware) {
-    if (langStr === '日本語') {
-      return `\n---\n## botたんの状況（参考にして返答をパーソナライズしてください）\n過去に触れる場合は行動履歴を事実として使い、記録外の出来事を足したり現在の状況で上書きしたりしないでください。\n- 日時：${botContext.datetime}\n- 天気：${botContext.weather}\n- いまやってること：${botContext.botActivity}\n- 元気度：${energyLabel(botContext.botEnergy, true)}\n${recentActivityLines(botContext, true)}`;
-    }
-    return `\n---\n## Bot's situation (use this to personalize your response)\nWhen mentioning the past, treat the activity history as fact. Do not add unrecorded events or overwrite past facts with the current snapshot.\n- Date/Time: ${botContext.datetime}\n- Weather: ${botContext.weather}\n- Currently: ${botContext.botActivityEn}\n- Energy: ${energyLabel(botContext.botEnergy, false)}\n${recentActivityLines(botContext, false)}`;
-  }
-  if (langStr === '日本語') {
-    return `\n---\n## botたんの現在状況（必要な場合だけ参照する背景情報）\nこの情報を返答へ必ず盛り込む必要はありません。最新のユーザメッセージと会話の流れを優先してください。\n直近の会話ですでに触れた状況は繰り返さず、過去について話す場合は行動履歴と会話履歴を照合してください。記録にない出来事を作らず、時系列を推測で進めないでください。現在の状況で過去の事実を上書きしてはいけません。\n- 日時：${botContext.datetime}\n- 天気：${botContext.weather}\n- いまやってること：${botContext.botActivity}\n- 元気度：${energyLabel(botContext.botEnergy, true)}\n${recentActivityLines(botContext, true)}`;
-  }
-  return `\n---\n## Bot's current situation (background; use only when needed)\nYou do not need to mention this information in every response. Prioritize the user's latest message and the conversation flow.\nDo not repeat a situation already mentioned recently. When discussing the past, cross-check the activity history and conversation history. Do not invent how this snapshot progressed over time, add unrecorded events, or overwrite past facts with the current snapshot.\n- Date/Time: ${botContext.datetime}\n- Weather: ${botContext.weather}\n- Currently: ${botContext.botActivityEn}\n- Energy: ${energyLabel(botContext.botEnergy, false)}\n${recentActivityLines(botContext, false)}`;
+  const ja = langStr === '日本語';
+  const purpose = options.purpose ?? 'reply';
+  const now = options.now ?? new Date();
+  const heading = botContextHeading(
+    purpose,
+    Boolean(options.conversationHistoryAware),
+    ja,
+  );
+  const body = ja
+    ? `- 日時：${botContext.datetime}\n- 天気：${botContext.weather}${surfaceLine(botContext, ja)}\n- いまやってること：${botContext.botActivity}\n- 元気度：${energyLabel(botContext.botEnergy, true)}`
+    : `- Date/Time: ${botContext.datetime}\n- Weather: ${botContext.weather}${surfaceLine(botContext, ja)}\n- Currently: ${botContext.botActivityEn}\n- Energy: ${energyLabel(botContext.botEnergy, false)}`;
+  return `\n---\n${heading}\n${body}\n${recentActivityLines(botContext, ja, now)}${botContextFooter(purpose, ja)}`;
+}
+
+/**
+ * 応答が長さのガードに引っかかるか。
+ *
+ * このガードは「投稿本文が暴走していないか」を見るためのもので、投稿にならない応答
+ * （日次予定表のような長い構造化JSON）に効かせてはいけない。そこで引っかけても
+ * 縮まらないまま retryCount ぶん焼いて最後のものを返すだけになる。
+ * limit が null のときは制限なし。
+ */
+export function exceedsTextLimit(text: string, limit: number | null): boolean {
+  return limit !== null && text.length > limit;
+}
+
+/** maxTextLength 未指定なら投稿用の既定値。null は「上限なし」の明示。 */
+export function resolveTextLimit(maxTextLength: number | null | undefined): number | null {
+  return maxTextLength === undefined ? POST_TEXT_LIMIT : maxTextLength;
 }
 
 /**
  * POST_TEXT_LIMITを超える場合はリトライするgenerateContentのラッパー
  * userinfo が渡された場合、プロンプトの末尾に共通コンテキスト（日時・天気・bot状態）を自動付与する
+ *
+ * 長さのガードは「投稿本文が暴走していないか」を見るためのもの。投稿にならない応答
+ * （長い構造化JSONなど）では `maxTextLength: null` を渡して外すこと。外さないと、
+ * 正当に長い応答を縮まらないまま3回焼いて最後のものを返すだけになる。
  */
 export async function generateContentWithRetry(
-  params: any & { feature?: AiFeatureKey },
+  params: any & { feature?: AiFeatureKey; maxTextLength?: number | null },
   retryCount = 3,
   userinfo?: UserInfoGemini,
   requestOptions: GeminiRequestOptions = {},
 ): Promise<any> {
   // 呼び出し側は model ではなく feature（機能キー）を名乗る。実モデルと serviceTier は
   // レジストリが決める。feature は Gemini API のペイロードに混ぜてはいけないので必ず剥がす。
-  const { feature, ...rest } = params;
+  // maxTextLength も同様に API へ渡してはいけない内部向けの指定。
+  const { feature, maxTextLength, ...rest } = params;
+  const textLimit = resolveTextLimit(maxTextLength);
   const routed = feature ? resolveAiRoute(feature) : undefined;
   // 優先順位: 明示 requestOptions（Nagi の再試行ラダー） > feature のルート > params の生 model
   const serviceTier = toServiceTier(requestOptions.serviceTier ?? routed?.serviceTier);
@@ -155,15 +241,15 @@ export async function generateContentWithRetry(
     reportHeartbeat('gemini').catch(() => {});
 
     // 文字数制限チェック（文字数超過時のみ、モデル生成のやり直しとして内部リトライを許容）
-    if (text.length <= POST_TEXT_LIMIT) {
+    if (!exceedsTextLimit(text, textLimit)) {
       return response;
     }
     console.warn(
-      `[WARN] Generated content exceeded ${POST_TEXT_LIMIT} characters (${text.length}). Retrying... (${i + 1}/${retryCount})`,
+      `[WARN] Generated content exceeded ${textLimit} characters (${text.length}). Retrying... (${i + 1}/${retryCount})`,
     );
   }
   console.warn(
-    `[WARN] Failed to generate content under 2000 characters after ${retryCount} retries. Returning last response.`,
+    `[WARN] Failed to generate content under ${textLimit} characters after ${retryCount} retries. Returning last response.`,
   );
   return response;
 }

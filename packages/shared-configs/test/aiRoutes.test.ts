@@ -78,6 +78,11 @@ const EXPECTED: Record<AiFeatureKey, [model: string, tier: "flex" | "standard" |
   BSKY_MY_MOOD_SONG: [LITE, "flex"],
   BSKY_IMAGE: ["gemini-2.5-flash-image-preview", undefined],
   // biorhythm_server（定期ポスト）
+  // 今期の話題作リスト。grounding 付きだが7日キャッシュするので実質週1回。
+  BIORHYTHM_SEASONAL_WORKS: [FLASH, "flex"],
+  // 今日の予定表。1日1回しか撃たず、落ちると丸1日プラン無しになるので standard。
+  BIORHYTHM_DAILY_PLAN: [FLASH, "standard"],
+  // 各stepの状況描写は通常 OLLAMA_BIORHYTHM_STATUS が担当し、ここはフォールバック。
   BIORHYTHM_STATUS: [FLASH, "flex"],
   BIORHYTHM_GOOD_NIGHT: [FLASH, "flex"],
   BIORHYTHM_QUESTION: [FLASH, "flex"],
@@ -102,6 +107,7 @@ const EXPECTED: Record<AiFeatureKey, [model: string, tier: "flex" | "standard" |
   OLLAMA_EMBED: ["snowflake-arctic-embed2", undefined],
   OLLAMA_TRANSLATION: ["translategemma:4b", undefined],
   OLLAMA_BOT_TRANSLATION: ["gemma3:4b", undefined],
+  OLLAMA_BIORHYTHM_STATUS: ["gemma3:4b", undefined],
 };
 
 test("各機能に意図したモデル/tierが割り当たっている", () => {

@@ -1,12 +1,13 @@
 
-import { generateContentWithRetry } from "./util.js";
+import { formatBotContext, generateContentWithRetry } from "./util.js";
 import { getRandomItems } from "@bsky-affirmative-bot/shared-configs";
 import { SYSTEM_INSTRUCTION } from "@bsky-affirmative-bot/shared-configs";
+import type { BotContext } from "@bsky-affirmative-bot/shared-configs";
 import { Type } from "@google/genai";
 
-export async function generateQuestion() {
+export async function generateQuestion(botContext?: BotContext) {
   const theme = generateThemeOrSpecial();
-  const prompt = PROMPT_QUESTION(theme);
+  const prompt = PROMPT_QUESTION(theme, botContext);
   const response = await generateContentWithRetry({
     feature: "BIORHYTHM_QUESTION",
     contents: [prompt],
@@ -32,14 +33,17 @@ export async function generateQuestion() {
   }
 } 
 
-const PROMPT_QUESTION = (questionTheme: string) => {
+// botContext は定期ポスト側から明示的に渡す。generateContentWithRetry の userinfo 経由の
+// 自動連結は使えない（UserInfoGemini は follower 必須で、定期ポストには相手がいない）。
+export const PROMPT_QUESTION = (questionTheme: string, botContext?: BotContext) => {
   return `朝の挨拶と、全肯定質問コーナーの時間です。\n` +
   `フォロワーに質問を投げかけてください。\n` +
   `今回の質問のテーマは「${questionTheme}」です。\n` +
   `質問に回答してくれたフォロワーには、あなたからリプライすることを伝えてください。\n` +
   `ルール:\n` +
   `* 同じ質問内容について、自然な日本語版をtextJa、自然な英語版をtextEnに出力してください。\n` +
-  `* ハッシュタグは出力に含めないでください。`
+  `* ハッシュタグは出力に含めないでください。` +
+  formatBotContext(botContext, "日本語", { purpose: "scheduledPost" })
 }
 
 function generateThemeOrSpecial() {

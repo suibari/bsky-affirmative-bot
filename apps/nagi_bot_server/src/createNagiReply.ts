@@ -31,6 +31,7 @@ import { nagiAiRouteForAttempt } from "./nagiReplyRetry.js";
 import type { NagiAiRouteDetails } from "./nagiReplyRetry.js";
 
 configureBotContext({
+  surface: "nagi",
   getWeather: getYokohamaWeather,
   getStatus: () => botBiothythmManager.getContext(),
   getRecentActivities: async () => {

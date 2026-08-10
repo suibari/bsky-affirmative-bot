@@ -6,6 +6,7 @@ import {
 } from "@bsky-affirmative-bot/bot-runtime";
 
 configureBotContext({
+  surface: "bluesky",
   getWeather: getYokohamaWeather,
   getStatus: () => botBiothythmManager.getContext(),
   getRecentActivities: async () => {

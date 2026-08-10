@@ -1,4 +1,4 @@
-import { aiModel } from "@bsky-affirmative-bot/shared-configs";
+import { ollamaChat as sharedOllamaChat } from "./ollamaChat.js";
 import wordNeg from "@bsky-affirmative-bot/shared-configs/json/affirmativeword_negative.json" with { type: "json" };
 import wordNrm from "@bsky-affirmative-bot/shared-configs/json/affirmativeword_normal.json" with { type: "json" };
 import wordPos from "@bsky-affirmative-bot/shared-configs/json/affirmativeword_positive.json" with { type: "json" };
@@ -19,30 +19,12 @@ type Dependencies = {
   translate?: (text: string, targetLang: string) => Promise<string>;
 };
 
-async function ollamaChat(
+/** モデル選択はレジストリ（OLLAMA_PREDEFINED_AFFIRMATION）に任せる薄い束縛。 */
+const ollamaChat = (
   messages: { role: string; content: string }[],
   maxTokens: number,
-): Promise<string> {
-  const baseUrl = process.env.OLLAMA_BASE_URL;
-  // OLLAMA_MODEL の「有無」は Ollama が設定済みかどうかの判定として使い続ける。
-  // モデルの「選択」自体はレジストリ側（OLLAMA_PREDEFINED_AFFIRMATION）に任せる。
-  if (!baseUrl || !process.env.OLLAMA_MODEL) throw new Error("Ollama is not configured");
-  const model = aiModel("OLLAMA_PREDEFINED_AFFIRMATION");
-  const response = await fetch(`${baseUrl}/chat/completions`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model,
-      messages,
-      temperature: 0,
-      max_tokens: maxTokens,
-      stream: false,
-    }),
-  });
-  if (!response.ok) throw new Error(`Ollama HTTP ${response.status}`);
-  const data = (await response.json()) as any;
-  return (data?.choices?.[0]?.message?.content ?? "").trim();
-}
+): Promise<string> =>
+  sharedOllamaChat("OLLAMA_PREDEFINED_AFFIRMATION", messages, { maxTokens });
 
 const CLASSIFY_SYSTEM_PROMPT = `Classify the following text into exactly one of these 7 categories and reply with only that word:
 - morning  : morning greetings (good morning, おはよう, etc.)

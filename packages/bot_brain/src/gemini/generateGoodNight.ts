@@ -2,7 +2,8 @@ import { AppBskyActorDefs } from "@atproto/api";
 type ProfileView = AppBskyActorDefs.ProfileView;
 import { Type } from "@google/genai";
 import { SYSTEM_INSTRUCTION, TONE_RULES_JA } from "@bsky-affirmative-bot/shared-configs";
-import { generateContentWithRetry, normalizeUrlSpacing } from "./util.js";
+import type { BotContext } from "@bsky-affirmative-bot/shared-configs";
+import { formatBotContext, generateContentWithRetry, normalizeUrlSpacing } from "./util.js";
 
 export interface GoodNightInfo {
   topFollower?: ProfileView,
@@ -11,6 +12,8 @@ export interface GoodNightInfo {
   currentMood: string,
   followerMilestone?: number,
   giftCandidates?: { id: number; content: string; displayName: string }[],
+  /** 今日の行動履歴。「さっきまでしてたこと」を currentMood 1件だけで語らせないため。 */
+  botContext?: BotContext,
 }
 
 export interface GoodNightResult {
@@ -112,5 +115,6 @@ export const buildGoodNightPrompt = (param: GoodNightInfo) => {
     `\n# 口調\n紹介するポストがどんな文体でも、textJa は必ずあなた自身の口調にしてください。\n${TONE_RULES_JA}\n` +
     `---今日のあなたが全肯定されたポスト---` +
     `* ポストしたユーザ名: ${param.topFollower?.displayName ?? ""}` +
-    `* ポスト内容: ${param.topPost ?? ""}`;
+    `* ポスト内容: ${param.topPost ?? ""}` +
+    formatBotContext(param.botContext, "日本語", { purpose: "scheduledPost" });
 }

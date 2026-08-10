@@ -154,7 +154,14 @@ export const AI_FEATURES = {
   BSKY_IMAGE: "image-auto", // 画像生成（※現在は呼び出し元なし）
 
   // ══════ biorhythm_server（定期ポスト生成） ═════════════════════════
-  BIORHYTHM_STATUS: "flash-flex", // botたんの現在状況（三人称の描写文）
+  // 今期の話題作リスト（grounding）。日次予定表を作るときだけ呼び、さらに7日キャッシュするので実質週1回。
+  BIORHYTHM_SEASONAL_WORKS: "flash-flex",
+  // 今日の予定表。1日1回しか撃たず、落ちると丸1日プラン無しで走ることになるので
+  // NAGI_ANALYSIS と同じ理由で standard に置く（flex は 503 を踏みやすい）。
+  BIORHYTHM_DAILY_PLAN: "flash-standard",
+  // botたんの現在状況（三人称の描写文）。通常は OLLAMA_BIORHYTHM_STATUS が担当し、
+  // ここはローカルが失敗/未設定/バリデータ落ちしたときのフォールバック経路として残す。
+  BIORHYTHM_STATUS: "flash-flex",
   BIORHYTHM_GOOD_NIGHT: "flash-flex", // おやすみポスト
   BIORHYTHM_QUESTION: "flash-flex", // 質問生成
   BIORHYTHM_WHIMSICAL_POST_PLAN: "flash-flex", // 気まぐれ投稿: 企画フェーズ（function calling）
@@ -186,6 +193,7 @@ export const AI_FEATURES = {
   OLLAMA_EMBED: "ollama-embed", // 埋め込み（投稿/ユーザ/チャンネル/ニュース）
   OLLAMA_TRANSLATION: "ollama-translate", // 投稿の一般翻訳
   OLLAMA_BOT_TRANSLATION: "ollama-bot-translate", // botたん投稿のペルソナ翻訳
+  OLLAMA_BIORHYTHM_STATUS: "ollama-chat", // 各stepの状況描写（1日24〜48回。Gemini から移した）
 } as const satisfies Record<string, AiRouteName>;
 
 export type AiFeatureKey = keyof typeof AI_FEATURES;

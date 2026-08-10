@@ -11,6 +11,7 @@ import {
   WhimsicalPostGenerator,
 } from "@bsky-affirmative-bot/bot-brain";
 import retry from "async-retry";
+import type { BotContext } from "@bsky-affirmative-bot/shared-configs";
 import {
   getDailyTopPostCandidate,
   parseDailyTopPostSource,
@@ -28,8 +29,8 @@ async function publish(request: ScheduledPostPublishRequest) {
   return ScheduledPostService.publish(request);
 }
 
-export async function postMorning() {
-  const { textJa, textEn, theme } = await generateQuestion();
+export async function postMorning(botContext?: BotContext) {
+  const { textJa, textEn, theme } = await generateQuestion(botContext);
   const hashtags = "#全肯定質問コーナー #BottansQuestion";
   const results = await publish({
     kind: "morning",
@@ -49,7 +50,7 @@ export async function postMorning() {
   }
 }
 
-export async function postWhimsical(currentMood: string) {
+export async function postWhimsical(currentMood: string, botContext?: BotContext) {
   const langStr = isJapanesePost ? "日本語" : "English";
   const excludedNewsArticleIds = isJapanesePost
     ? await getRecentNewsArticleIds()
@@ -85,6 +86,7 @@ export async function postWhimsical(currentMood: string) {
       youtubeShortUrl: newShort?.url,
       youtubeShortTitle: newShort?.title ?? undefined,
       excludedNewsArticleIds,
+      botContext,
     });
     if (!result.textJa || !result.textEn) throw new Error("Whimsical post generation returned incomplete text");
     return result;
@@ -142,7 +144,7 @@ export async function postWhimsical(currentMood: string) {
   }
 }
 
-export async function postGoodNight(currentMood: string) {
+export async function postGoodNight(currentMood: string, botContext?: BotContext) {
   let currentFollowers = 0;
   try {
     const actor = process.env.BSKY_DID;
@@ -187,6 +189,7 @@ export async function postGoodNight(currentMood: string) {
       currentMood,
       followerMilestone,
       giftCandidates,
+      botContext,
     });
 
     if (generated.textJa) {
