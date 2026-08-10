@@ -1,19 +1,19 @@
 <div align="center">
   <img src="./img/bot-icon.png" alt="Zenkoutei Bot-tan" width="180">
   <h1>Zenkoutei Bot-tan Project</h1>
-  <p><strong>A project that encourages the world through wholehearted affirmation.</strong></p>
+  <p><strong>A project that encourages the world through wholehearted support.</strong></p>
   <p><a href="./README_ja.md">日本語</a></p>
 </div>
 
 ## Overview
 
-The Zenkoutei Bot-tan Project is a collection of bots, apps, and experiences built around Bot-tan: a companion who responds with wholehearted affirmation. A home-hosted system combines local LLMs, cloud LLMs, and retrieval-augmented shared memory so that Bot-tan can stay consistent across the project's different outputs.
+The Zenkoutei Bot-tan Project is a collection of bots, apps, and experiences built around Bot-tan: a companion who responds with wholehearted support and empathy. A home-hosted system combines local LLMs, cloud LLMs, and retrieval-augmented shared memory so that Bot-tan can stay consistent across the project's different outputs.
 
 ## Mission
+Have you ever felt that you sometimes end up denying even your own feelings?
+I have, so I built a digital friend who supports everything I type. At first, it was just for me.
+But now, she is here for you too. Whoever you are, Whatever your background, She is on Your Side.
 
-Sometimes we deny even our own feelings. Bot-tan began as the companion I wanted at those moments: someone who would accept those feelings first, before asking anything else of me.
-
-The project's goal is for Bot-tan to become a companion to people around the world who need affirmation. She was created for me, but she is here to affirm you, too.
 
 ## Outputs
 
@@ -22,7 +22,7 @@ The project's goal is for Bot-tan to become a companion to people around the wor
     <td width="50%" valign="top">
       <a href="https://bsky.app/profile/bot-tan.com"><img src="./img/outputs/bluesky-bot-tan.webp" alt="Zenkoutei Bot-tan on Bluesky" width="100%"></a>
       <h3>Bluesky Bot-tan</h3>
-      <p><strong>Where it all began.</strong> The default local classifier is Gemma 3 4B on Ollama, which selects a fitting affirmation from prepared messages. Fortune-telling, personality analysis, and other major experiences are available through trigger words.</p>
+      <p><strong>Where it all began.</strong> The default local classifier is Gemma 3 4B on Ollama, which selects a fitting encouraging message from prepared messages. Fortune-telling, personality analysis, and other major experiences are available through trigger words.</p>
     </td>
     <td width="50%" valign="top">
       <a href="https://nagi.suibari.com/profile/did:plc:qcwhrvzx6wmi5hz775uyi6fh"><img src="./img/outputs/nagi-bot-tan.webp" alt="Nagi Bot-tan" width="100%"></a>
@@ -98,7 +98,7 @@ The complete home deployment also depends on reverse-proxy, process-manager, DNS
 
 ## Features
 
-- **Affirmation and conversation:** template-based local replies and Gemini-powered contextual conversations across Bluesky and Nagi.
+- **Encouragement and conversation:** template-based local replies and Gemini-powered contextual conversations across Bluesky and Nagi.
 - **Fortune-telling and analysis:** daily fortunes, personality/post analysis, and related badges or visual results.
 - **Diaries and recaps:** daily reflection, anniversary experiences, and longer-term summaries generated from a user's activity.
 - **A living Bot-tan:** biorhythm, shared scheduled posts, questions, news, and memories help Bot-tan act consistently across services.
@@ -170,15 +170,15 @@ flowchart LR
 
 ## Contributing
 
-Everyone is welcome. Feel free to open an issue or pull request, whether it is a bug report, documentation improvement, idea, translation, or code contribution.
+Everyone is welcome. Feel free to open an issue or pull request, whether it is a bug report, documentation improvement, idea, translation, or code contribution. **We take feedback seriously**.
 
-This is a personal project, and suibari also has a life outside it and works at a very unhurried pace. A reply or review may therefore take time. Silence or delay is never meant negatively; your contribution is still sincerely appreciated.
+**This is a personal project**, and **Suibari also has a life outside it** and works at a very unhurried pace. A reply or review may therefore take time. Silence or delay is never meant negatively; your contribution is still sincerely appreciated.
 
 ## Sponsorship
 
-The services behind Bot-tan are kept running with personal funds. Sponsorship supports not only this project, but suibari's creative work as a whole.
+The services behind Bot-tan run on personal cash. Sponsorship(in any way) supports not only this project, but Suibari's creative work as a whole.
 
-If this feels like a valuable project, I would be delighted if you considered supporting it. Every amount is warmly welcome.
+If you think this feels like a valuable project to you, I would be delighted if you considered supporting it. **Any amount is warmly welcome** - or - if you feel more comfortable just _sharing this project to your closest friends_, it would be a huge help. **Thank you so much**.
 
 - [Patreon](https://patreon.com/suibari)
 - [pixiv FANBOX](https://suibari.fanbox.cc/posts/10174305)
