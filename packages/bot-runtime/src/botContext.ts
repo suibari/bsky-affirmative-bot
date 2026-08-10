@@ -4,11 +4,19 @@ export type RuntimeBotContext = {
   botActivity: string;
   botActivityEn: string;
   botEnergy: number;
+  recentActivities?: RuntimeBotActivity[];
+};
+
+export type RuntimeBotActivity = {
+  at: string;
+  activity: string;
+  activityEn: string;
 };
 
 type BotContextSources = {
   getWeather: () => Promise<string>;
   getStatus: () => Promise<{ mood: string; mood_en: string; energy: number }>;
+  getRecentActivities?: () => Promise<RuntimeBotActivity[]>;
 };
 
 let sources: BotContextSources | undefined;
@@ -28,9 +36,10 @@ function dateTime() {
 export async function getBotContext(): Promise<RuntimeBotContext> {
   if (!sources) throw new Error("Bot context sources are not configured");
   if (!cache || Date.now() - cache.time > TTL_MS) {
-    const [weather, status] = await Promise.all([
+    const [weather, status, recentActivities] = await Promise.all([
       sources.getWeather(),
       sources.getStatus(),
+      sources.getRecentActivities?.() ?? Promise.resolve([]),
     ]);
     cache = {
       value: {
@@ -38,6 +47,7 @@ export async function getBotContext(): Promise<RuntimeBotContext> {
         botActivity: status.mood,
         botActivityEn: status.mood_en,
         botEnergy: status.energy,
+        ...(recentActivities.length ? { recentActivities } : {}),
       },
       time: Date.now(),
     };

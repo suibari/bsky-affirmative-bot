@@ -150,6 +150,12 @@ export interface BotContext {
   botActivity: string;
   botActivityEn: string;
   botEnergy: number;
+  /** 会話の整合性確認に使う、古い順の直近行動。 */
+  recentActivities?: {
+    at: string;
+    activity: string;
+    activityEn: string;
+  }[];
 }
 
 export type UserInfoGemini = {

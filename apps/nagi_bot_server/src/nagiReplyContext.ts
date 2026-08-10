@@ -12,6 +12,7 @@ import {
   resolvePdsUrl,
 } from "@bsky-affirmative-bot/bot-runtime";
 import type { ImageRef } from "@bsky-affirmative-bot/shared-configs";
+import { loadPreferredName } from "@bsky-affirmative-bot/clients";
 import { and, desc, eq, isNull, ne } from "drizzle-orm";
 
 type ContextLink = { uri: string; title?: string; description?: string };
@@ -85,7 +86,7 @@ export async function buildNagiReplyContext(job: any) {
     await Promise.all([
       loadNagiReplyAuthor(job.authorDid),
       // 本人が「こう呼んで」と申告していればそれを使う（無ければ displayName）。
-      MemoryService.getPreferredName(job.authorDid),
+      loadPreferredName(job.authorDid),
       db
         .select({ uri: nagiPosts.uri, text: nagiPosts.text })
         .from(nagiPosts)

@@ -5,11 +5,13 @@
     "build": "pnpm -r build",
     "test": "pnpm -r test",
     "test:news": "tsx --test packages/bot_brain/test/newsdata.test.ts packages/bot_brain/test/positiveNewsSelection.test.ts apps/biorhythm_server/test/whimsicalPostNewsHistory.test.ts",
+    "diary:model:evaluate": "tsx scripts/evaluateUserDiaryModels.ts",
     "dev": "pnpm -r dev"
   },
   "devDependencies": {
     "typescript": "^5.8.3",
     "tsx": "^4.20.3",
-    "@types/node": "^22.15.12"
+    "@types/node": "^22.15.12",
+    "postgres": "^3.4.8"
   }
 }

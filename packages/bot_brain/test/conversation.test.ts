@@ -61,6 +61,10 @@ test("日本語会話は質問を強制せず再質問と冗長な返答を禁�
       botActivity: "友達とカフェにいるよ",
       botActivityEn: "I'm at a cafe with friends.",
       botEnergy: 11,
+      recentActivities: [
+        { at: "2026-07-30T03:00:00.000Z", activity: "朝ごはん", activityEn: "Breakfast" },
+        { at: "2026-07-30T06:00:00.000Z", activity: "お散歩", activityEn: "A walk" },
+      ],
     },
   });
 
@@ -71,6 +75,9 @@ test("日本語会話は質問を強制せず再質問と冗長な返答を禁�
   assert.match(prompt, /原則2〜4文、300文字以内/);
   assert.match(prompt, /必要な場合だけ参照する背景情報/);
   assert.match(prompt, /時系列を推測で進めない/);
+  assert.match(prompt, /直近24時間の行動履歴/);
+  assert.match(prompt, /朝ごはん/);
+  assert.match(prompt, /現在の状況を過去にも続いていたことにしたり/);
 });
 
 test("英語会話にも同じ再質問防止と簡潔さを適用する", () => {
@@ -97,6 +104,9 @@ test("現在状況は必須話題ではなく繰り返さない背景情報と�
     botActivity: "友達とカフェにいるよ",
     botActivityEn: "I'm at a cafe with friends.",
     botEnergy: 11,
+    recentActivities: [
+      { at: "2026-07-30T03:00:00.000Z", activity: "朝ごはん", activityEn: "Breakfast" },
+    ],
   };
 
   const ja = formatBotContext(context, "日本語", {
@@ -112,9 +122,11 @@ test("現在状況は必須話題ではなく繰り返さない背景情報と�
   assert.match(en, /use only when needed/i);
   assert.match(en, /do not repeat a situation/i);
   assert.match(en, /invent how this snapshot progressed/i);
+  assert.match(ja, /記録された事実・古い順/);
+  assert.match(en, /recorded facts; oldest first/i);
 });
 
-test("会話以外の現在状況パーソナライズは従来どおり維持する", () => {
+test("会話以外のリプライにも現在状況と過去の行動履歴を渡す", () => {
   const context = formatBotContext(
     {
       datetime: "2026年7月30日19時15分",
@@ -122,10 +134,15 @@ test("会話以外の現在状況パーソナライズは従来どおり維持�
       botActivity: "友達とカフェにいるよ",
       botActivityEn: "I'm at a cafe with friends.",
       botEnergy: 11,
+      recentActivities: [
+        { at: "2026-07-30T03:00:00.000Z", activity: "朝ごはん", activityEn: "Breakfast" },
+      ],
     },
     "日本語",
   );
 
   assert.match(context, /参考にして返答をパーソナライズしてください/);
+  assert.match(context, /直近24時間の行動履歴/);
+  assert.match(context, /記録外の出来事を足したり/);
   assert.doesNotMatch(context, /時系列を推測で進めない/);
 });

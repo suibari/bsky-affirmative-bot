@@ -11,6 +11,9 @@ importers:
       '@types/node':
         specifier: ^22.15.12
         version: 22.19.11
+      postgres:
+        specifier: ^3.4.8
+        version: 3.4.8
       tsx:
         specifier: ^4.20.3
         version: 4.21.0
@@ -463,6 +466,9 @@ importers:
       dotenv:
         specifier: ^16.4.5
         version: 16.6.1
+      drizzle-orm:
+        specifier: ^0.45.1
+        version: 0.45.1(@libsql/client@0.14.0)(postgres@3.4.8)
     devDependencies:
       tsx:
         specifier: ^4.20.3

@@ -14,6 +14,20 @@ export type GeminiRequestOptions = {
   model?: string;
   /** Nagi の耐障害フォールバック用。未指定時は従来の購読状態に従う。 */
   serviceTier?: 'flex' | 'standard';
+  /** Gemini 3.x の thinking level。未指定ならモデル既定値を使う。 */
+  thinkingLevel?: 'minimal' | 'low' | 'medium' | 'high';
+  /** 本文を含めず usage とレイテンシだけを観測する。 */
+  onUsage?: (usage: GeminiUsage) => void;
+};
+
+export type GeminiUsage = {
+  model: string;
+  serviceTier?: 'flex' | 'standard';
+  promptTokens: number;
+  outputTokens: number;
+  thinkingTokens: number;
+  totalTokens: number;
+  latencyMs: number;
 };
 
 function energyLabel(energy: number, ja: boolean): string {
@@ -24,6 +38,26 @@ function energyLabel(energy: number, ja: boolean): string {
   return ja ? 'ぐったり…' : 'Exhausted...';
 }
 
+function recentActivityLines(botContext: BotContext, ja: boolean): string {
+  const compact = (botContext.recentActivities ?? [])
+    .filter((item, index, items) => {
+      if (index === 0) return true;
+      const previous = items[index - 1];
+      return (
+        previous.activity !== item.activity ||
+        previous.activityEn !== item.activityEn
+      );
+    })
+    .slice(-12);
+  if (compact.length === 0) return '';
+  const lines = compact.map((item) =>
+    `- ${item.at}: ${ja ? item.activity : item.activityEn}`,
+  );
+  return ja
+    ? `\n### 直近24時間の行動履歴（記録された事実・古い順）\n${lines.join('\n')}\n`
+    : `\n### Activity history from the last 24 hours (recorded facts; oldest first)\n${lines.join('\n')}\n`;
+}
+
 export function formatBotContext(
   botContext?: BotContext,
   langStr?: LanguageName,
@@ -32,14 +66,14 @@ export function formatBotContext(
   if (!botContext) return '';
   if (!options.conversationHistoryAware) {
     if (langStr === '日本語') {
-      return `\n---\n## botたんの現在状況（参考にして返答をパーソナライズしてください）\n- 日時：${botContext.datetime}\n- 天気：${botContext.weather}\n- いまやってること：${botContext.botActivity}\n- 元気度：${energyLabel(botContext.botEnergy, true)}\n`;
+      return `\n---\n## botたんの状況（参考にして返答をパーソナライズしてください）\n過去に触れる場合は行動履歴を事実として使い、記録外の出来事を足したり現在の状況で上書きしたりしないでください。\n- 日時：${botContext.datetime}\n- 天気：${botContext.weather}\n- いまやってること：${botContext.botActivity}\n- 元気度：${energyLabel(botContext.botEnergy, true)}\n${recentActivityLines(botContext, true)}`;
     }
-    return `\n---\n## Bot's current situation (use this to personalize your response)\n- Date/Time: ${botContext.datetime}\n- Weather: ${botContext.weather}\n- Currently: ${botContext.botActivityEn}\n- Energy: ${energyLabel(botContext.botEnergy, false)}\n`;
+    return `\n---\n## Bot's situation (use this to personalize your response)\nWhen mentioning the past, treat the activity history as fact. Do not add unrecorded events or overwrite past facts with the current snapshot.\n- Date/Time: ${botContext.datetime}\n- Weather: ${botContext.weather}\n- Currently: ${botContext.botActivityEn}\n- Energy: ${energyLabel(botContext.botEnergy, false)}\n${recentActivityLines(botContext, false)}`;
   }
   if (langStr === '日本語') {
-    return `\n---\n## botたんの現在状況（必要な場合だけ参照する背景情報）\nこの情報を返答へ必ず盛り込む必要はありません。最新のユーザメッセージと会話の流れを優先してください。\n直近の会話ですでに触れた状況は繰り返さず、状況の時系列を推測で進めないでください。\n- 日時：${botContext.datetime}\n- 天気：${botContext.weather}\n- いまやってること：${botContext.botActivity}\n- 元気度：${energyLabel(botContext.botEnergy, true)}\n`;
+    return `\n---\n## botたんの現在状況（必要な場合だけ参照する背景情報）\nこの情報を返答へ必ず盛り込む必要はありません。最新のユーザメッセージと会話の流れを優先してください。\n直近の会話ですでに触れた状況は繰り返さず、過去について話す場合は行動履歴と会話履歴を照合してください。記録にない出来事を作らず、時系列を推測で進めないでください。現在の状況で過去の事実を上書きしてはいけません。\n- 日時：${botContext.datetime}\n- 天気：${botContext.weather}\n- いまやってること：${botContext.botActivity}\n- 元気度：${energyLabel(botContext.botEnergy, true)}\n${recentActivityLines(botContext, true)}`;
   }
-  return `\n---\n## Bot's current situation (background; use only when needed)\nYou do not need to mention this information in every response. Prioritize the user's latest message and the conversation flow.\nDo not repeat a situation already mentioned recently or invent how this snapshot progressed over time.\n- Date/Time: ${botContext.datetime}\n- Weather: ${botContext.weather}\n- Currently: ${botContext.botActivityEn}\n- Energy: ${energyLabel(botContext.botEnergy, false)}\n`;
+  return `\n---\n## Bot's current situation (background; use only when needed)\nYou do not need to mention this information in every response. Prioritize the user's latest message and the conversation flow.\nDo not repeat a situation already mentioned recently. When discussing the past, cross-check the activity history and conversation history. Do not invent how this snapshot progressed over time, add unrecorded events, or overwrite past facts with the current snapshot.\n- Date/Time: ${botContext.datetime}\n- Weather: ${botContext.weather}\n- Currently: ${botContext.botActivityEn}\n- Energy: ${energyLabel(botContext.botEnergy, false)}\n${recentActivityLines(botContext, false)}`;
 }
 
 /**
@@ -65,6 +99,9 @@ export async function generateContentWithRetry(
       ...rest.config,
       // ルートが "auto" のときは serviceTier を積まない（現状の未設定挙動を維持）
       ...(serviceTier ? { serviceTier } : {}),
+      ...(requestOptions.thinkingLevel
+        ? { thinkingConfig: { thinkingLevel: requestOptions.thinkingLevel } }
+        : {}),
     },
   };
 
@@ -85,7 +122,22 @@ export async function generateContentWithRetry(
     // APIの接続や高負荷エラー（503等）は内部リトライせず、上位関数（callbacks.ts）の一元リトライに即座に委ねる
     try {
       await requestOptions.beforeRequest?.();
+      const startedAt = Date.now();
       response = await gemini.models.generateContent(params);
+      const usage = response.usageMetadata ?? {};
+      requestOptions.onUsage?.({
+        model: params.model,
+        ...(requestOptions.serviceTier
+          ? { serviceTier: requestOptions.serviceTier }
+          : routed?.serviceTier === 'flex' || routed?.serviceTier === 'standard'
+            ? { serviceTier: routed.serviceTier }
+            : {}),
+        promptTokens: usage.promptTokenCount ?? 0,
+        outputTokens: usage.candidatesTokenCount ?? 0,
+        thinkingTokens: usage.thoughtsTokenCount ?? 0,
+        totalTokens: usage.totalTokenCount ?? 0,
+        latencyMs: Date.now() - startedAt,
+      });
     } catch (e) {
       MemoryService.incrementStats('rpdError', 1).catch((err: any) =>
         console.error('Failed to increment rpdError:', err),

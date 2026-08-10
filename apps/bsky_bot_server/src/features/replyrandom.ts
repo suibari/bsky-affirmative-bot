@@ -4,6 +4,7 @@ import { AppBskyFeedPost } from "@atproto/api";
 import { predefinedAffirmation } from "@bsky-affirmative-bot/bot-brain";
 import { getLangStr, uniteDidNsidRkey } from "../bsky/util.js";
 import { postContinuous } from "../bsky/postContinuous.js";
+import { loadPreferredName } from "@bsky-affirmative-bot/clients";
 
 type ProfileView = AppBskyActorDefs.ProfileView;
 type Record = AppBskyFeedPost.Record;
@@ -27,10 +28,11 @@ export async function replyRandom(
     console.log("[DEBUG] lang: " + languageName);
   }
 
+  const preferredName = await loadPreferredName(follower.did);
   const reply = await predefinedAffirmation({
     text: postText,
     languageName,
-    displayName: follower.displayName ?? follower.handle,
+    displayName: preferredName || follower.displayName || follower.handle,
   });
   await postContinuous(reply, { uri, cid, record });
   return null;

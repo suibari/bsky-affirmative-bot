@@ -41,5 +41,10 @@ export function getWhatDay() {
   const month = String(now.getMonth() + 1);
   const date = String(now.getDate());
 
-  return whatday[month][date];
+  return getWhatDayForMonthDay(month, date);
+}
+
+/** ユーザーのローカル日付など、現在日以外の「今日は何の日」を取得する。 */
+export function getWhatDayForMonthDay(month: string | number, date: string | number): string[] {
+  return whatday[String(Number(month))]?.[String(Number(date))] ?? [];
 }

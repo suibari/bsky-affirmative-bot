@@ -1,7 +1,7 @@
 import { CommitCreateEvent } from "@skyware/jetstream";
 import { AppBskyActorDefs } from "@atproto/api"; type ProfileView = AppBskyActorDefs.ProfileView;
 import { BotFeature, FeatureContext } from "./types.js";
-import { MemoryService, botLabelerManager } from "@bsky-affirmative-bot/clients";
+import { MemoryService, botLabelerManager, withPreferredName } from "@bsky-affirmative-bot/clients";
 import { followerMap } from "../bsky/followerManagement.js";
 import { isReplyOrMentionToMe, uniteDidNsidRkey, getImageUrl, getLangStr } from "../bsky/util.js";
 import { getBotContext } from "../util/botContext.js";
@@ -165,20 +165,22 @@ export class ConversationFeature implements BotFeature {
             return false; // スレッド解析に失敗した場合は処理を中止
         }
 
+        const userinfo = await withPreferredName({
+            follower,
+            posts: [record.text],
+            langStr: getLangStr(record.langs),
+            image,
+            history,
+            embed,
+            isSubscriber: true,
+        });
+
         return await handleMode(event, {
             dbColumn: "last_conv_at",
             dbValue: new Date(),
             generateText: this.waitAndGenReply.bind(this),
         },
-            {
-                follower,
-                posts: [record.text],
-                langStr: getLangStr(record.langs),
-                image,
-                history,
-                embed,
-                isSubscriber: true,
-            });
+            userinfo);
     }
 
     private async waitAndGenReply(userinfo: UserInfoGemini, event: CommitCreateEvent<"app.bsky.feed.post">): Promise<GeminiResponseResult> {

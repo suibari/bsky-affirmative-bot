@@ -8,6 +8,7 @@ import {
 import { aiModel } from "@bsky-affirmative-bot/shared-configs";
 import {
   botBiothythmManager,
+  loadPreferredName,
   MemoryService,
 } from "@bsky-affirmative-bot/clients";
 import {
@@ -32,6 +33,15 @@ import type { NagiAiRouteDetails } from "./nagiReplyRetry.js";
 configureBotContext({
   getWeather: getYokohamaWeather,
   getStatus: () => botBiothythmManager.getContext(),
+  getRecentActivities: async () => {
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const rows = await MemoryService.getBiorhythmHistorySince(since);
+    return rows.map((row) => ({
+      at: new Date(row.created_at).toISOString(),
+      activity: row.mood,
+      activityEn: row.mood_en || row.mood,
+    }));
+  },
 });
 
 function replyLanguage(langs: unknown) {
@@ -161,7 +171,7 @@ export async function createNagiReply(
   if (options.mode === "template") {
     const [author, preferredName] = await Promise.all([
       loadNagiReplyAuthor(job.authorDid),
-      MemoryService.getPreferredName(job.authorDid),
+      loadPreferredName(job.authorDid),
     ]);
     generated = {
       comment: await predefinedAffirmation({
