@@ -176,7 +176,7 @@ Everyone is welcome. Feel free to open an issue or pull request, whether it is a
 
 ## Sponsorship
 
-The services behind Bot-tan runs from personal cash. Sponsorship(in any way) supports not only this project, but Suibari's creative work as a whole.
+The services behind Bot-tan run on personal cash. Sponsorship(in any way) supports not only this project, but Suibari's creative work as a whole.
 
 If you think this feels like a valuable project to you, I would be delighted if you considered supporting it. **Any amount is warmly welcome** - or - if you feel more comfortable just _sharing this project to your closest friends_, it would be a huge help. **Thank you so much**.
 
