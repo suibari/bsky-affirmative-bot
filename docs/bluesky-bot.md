@@ -1,18 +1,20 @@
-# Zenkoutei Bot-tan (Full Affirmation Bot)
+# Zenkoutei Bot-tan on Bluesky
+
+[← Back to the Bot-tan Project README](../README.md) | [日本語](./bluesky-bot_ja.md)
 
 ![bot header](https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:qcwhrvzx6wmi5hz775uyi6fh/bafkreicd74lb33ywyc54lzgqfyotfuzs55x2cnxztpob5ifg2nr4kiji2e@jpeg)
 
-[Zenkoutei Bot-tan](https://bsky.app/profile/bot-tan.com) is a Bluesky bot designed to send replies that completely affirm its followers. By leveraging sentiment analysis and generative AI, its goal is to encourage and uplift its followers.
+[Zenkoutei Bot-tan](https://bsky.app/profile/bot-tan.com) is a Bluesky bot designed to send replies that completely affirm its followers. By combining a local LLM with generative AI, its goal is to encourage and uplift its followers.
 
 ---
 
 ## Overview
 
-This repository contains the code and configuration files for Affirmation Bot-tan.  
+This repository contains the code and configuration files for Affirmation Bot-tan.
 The bot has the following features:
 
 1. **AI-generated replies**: Uses generative AI (Google Gemini) to reply to follower posts (text or images).
-2. **Template replies**: Uses a sentiment polarity dictionary to analyze follower posts (text) and reply with preset messages.
+2. **Template replies**: Uses Gemma 3 4B on Ollama (overridable with `OLLAMA_MODEL`) to classify posts and choose a preset response. Earlier versions used Japanese and English sentiment polarity dictionaries.
 3. **Fortune-telling**: Provides fortunes upon user request and presents you with a "Lucky Badge" of the day (valid for 24 hours).
 4. **Reply frequency adjustment**: Users can adjust how often the bot replies (0–100%).
 5. **Conversation mode**: Allows continuous conversation with the bot.
@@ -43,10 +45,10 @@ Below is a summary of features available at each tier.
 ---
 
 ## How to Use
-1. Follow the bot on Bluesky.  
-2. After some time, the bot will follow you back and start replying to your posts.  
+1. Follow the bot on Bluesky.
+2. After some time, the bot will follow you back and start replying to your posts.
 
-Unfollowing or blocking the bot will stop all future replies.  
+Unfollowing or blocking the bot will stop all future replies.
 
 The flowchart below illustrates how the bot responds to your posts:
 
@@ -182,17 +184,17 @@ This bot collects and processes the following types of information:
 The information collected is only used for generating replies. However, for AI-generated replies, data communication is conducted with Google LLC in compliance with Google Gemini API usage policies.
 
 ### Age Restriction
-AI-based features comply with Google Gemini’s Terms of Service and are only available to users **18 years and older**.  
-Template replies (non-AI) are available to all users.  
+AI-based features comply with Google Gemini’s Terms of Service and are only available to users **18 years and older**.
+Template replies are classified by the home-hosted local model and do not use the Gemini API.
 
 ### Regional Restriction
 AI-based features cannot be used in the following regions (per Google Gemini’s Terms of Service):
 
-- United Kingdom (UK)  
-- Switzerland  
-- EU Member States  
+- United Kingdom (UK)
+- Switzerland
+- EU Member States
 
-Template replies (non-AI) are available regardless of region.  
+Template replies use the home-hosted local model rather than the Gemini API.
 
 ### Privacy Policy Updates
 
@@ -200,19 +202,19 @@ The privacy policy may be updated from time to time. Any significant changes wil
 
 ### Contact
 
-For inquiries about this bot or its privacy policy, please contact:  
+For inquiries about this bot or its privacy policy, please contact:
 [Suibari (suibari.com)](https://bsky.app/profile/suibari.com)
 
 ---
 
 ## License
-This project is OSS, released under the MIT License.  
-See [LICENSE](./LICENSE) for details.  
+This project is OSS, released under the MIT License.
+See [LICENSE](../LICENSE) for details.
 
-### References
-This bot uses:  
-- [Japanese Sentiment Polarity Dictionary](https://www.cl.ecei.tohoku.ac.jp/Open_Resources-Japanese_Sentiment_Polarity_Dictionary.html), Tohoku University (Inui/Okazaki Laboratory).  
-- [English Sentiment Polarity Dictionary](http://www.lr.pi.titech.ac.jp/~takamura/pndic_en.html), Tokyo Institute of Technology (Okumura/Takamura Laboratory).  
+### Historical references
+Earlier versions of the classifier used:
+- [Japanese Sentiment Polarity Dictionary](https://www.cl.ecei.tohoku.ac.jp/Open_Resources-Japanese_Sentiment_Polarity_Dictionary.html), Tohoku University (Inui/Okazaki Laboratory).
+- [English Sentiment Polarity Dictionary](http://www.lr.pi.titech.ac.jp/~takamura/pndic_en.html), Tokyo Institute of Technology (Okumura/Takamura Laboratory).
 
 ---
 

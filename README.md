@@ -1,237 +1,192 @@
-# 全肯定botたん
-
-![bot header](https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:qcwhrvzx6wmi5hz775uyi6fh/bafkreic7dxnqovwoytjla37gav4ovphnhmlb3dwqdh3nfsmku4vygxqiia@jpeg)
-
-[全肯定botたん](https://bsky.app/profile/bot-tan.com) は、フォロワーを全肯定するリプライを送るBluesky botです。
-感情分析および生成AIを活用し、フォロワーを励ますことを目的とします。
-
-Please refer [English README](./README_en.md) for not Japanese speakers.
-
----
-
-## 概要
-
-このリポジトリには、全肯定botたんのコードと設定ファイルが含まれています。
-本botは以下の機能を持ちます。
-
-1. **AI生成リプライ**: 生成AI (Google Gemini) を使用し、フォロワーの投稿内容（文章、画像）に応じてリプライします
-2. **定型文リプライ**: 日本語評価極性辞書（英語は単語感情極性対応表）を使用し、フォロワーの投稿内容（文章）に感情分析を行い、結果に従って定型文リストからリプライします
-3. **占い機能**: ユーザーの応答で占いを行い、その日のラッキーバッジ（24時間限定）をプレゼントします
-4. **リプ頻度調整**: ユーザーの応答で、botがリプライする頻度の調整が0~100%で行えます
-5. **会話機能**: ユーザーの応答で、botと連続した会話を行えます
-6. **分析機能**: 直近のポストからユーザーの性格を分析し、結果画像と称号バッジ（1週間限定）をプレゼントします
-7. **応援機能**: ハッシュタグ付きのポストをbotがリポストし、応援メッセージとともに宣伝します
-8. **DJ機能**: 直近のポストからユーザーの気分に合わせた曲をおすすめし、YouTube動画のリンク付きでリプライします
-9. **日記機能**: ユーザーのその日のポストをまとめ、毎晩22時頃に日記画像と称号バッジ（24時間限定）をプレゼントします
-10. **記念日機能**: 登録記念日や一般的な記念日、さらにBluesky登録日の到来時にお祝いします。ユーザー記念日には記念日バッジ（24時間限定）をプレゼントします
-11. **一年のまとめ (Recap) 機能**: 直近1年間のポスト（最大1000件）を収集し、投稿傾向やよく絡む仲良しユーザーを分析した1年の総括（画像付き）をリプライします
-12. **バッジ（Bluesky Label）機能**: 特定の条件を満たすことで、Bluesky上のあなたのプロフィールに特別なバッジを付与します
-
-本botのコミュニティに参加することで追加機能が利用できます。
-
-- 🎮 **Discordコミュニティ**: [botたんDiscordサーバー](https://discord.gg/hshXWQEMgu) に参加し、Blueskyアカウントと連携すると、日記機能・応援機能・記念日機能・一年のまとめ機能とチーム全肯定バッジが利用できます。
-- 💖 **サブスク（Pixiv Fanbox）**: [Fanbox](https://suibari.fanbox.cc/posts/10174305) でサポートすると、さらに会話機能・高品質AIリプライが利用できます。
-
-以下に各ティアで使用できる機能をまとめます。
-
-| ティア | 定型文リプライ | AI生成リプライ | 占い | リプ頻度調整 | 会話機能 | 分析機能 | 応援機能 | DJ機能 | 日記機能 | 記念日機能 | 一年のまとめ | バッジ機能※1 |
-| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| 通常フォロワー | ✓ | ※2 | ✓ | ✓ | | ✓ | | ✓ | | | | ✓ |
-| Discordメンバー | ✓ | ※2 | ✓ | ✓ | | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| サブスクメンバー | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-
-※1: 通常フォロワー・Discordメンバーはチーム全肯定バッジを除くバッジが獲得可能です。Discordメンバーはチーム全肯定バッジも獲得できます。
-※2: AI生成リプライはサブスクメンバー限定です。通常フォロワー・Discordメンバーには定型文リプライで応答します。
-
----
-
-## 使用方法
-1. Blueskyで本botをフォローしてください
-2. 一定時間後、本botがフォローバックし、以降、あなたのポストに反応するようになります
-
-本botのフォロー解除、またはユーザブロックにより、以降、本botはリプライしなくなります。
-
-おはよう・おやすみポストはBlueskyでは日本語と英語を併記し、定期ポストは日本語と英語を交互に投稿します。NagiでのBotたんの自律ポストはすべて日本語で投稿し、英訳はNagi AppViewの翻訳機能へ任せます。
-
-botフォロー後に、botがあなたのポストにどう反応するかの処理フローは以下です。
-
-![bot処理フロー](https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:uixgxpiqf4i63p6rgpu7ytmx/bafkreihxgiteyk25cpv3e7lkdsggntpb3jj6ybha4btq5ykf2fzdyq7j6u@jpeg)
-
-### 占い機能
-以下の手順を実施することで、本botが占い結果をリプライします。
-占いは1度行うと **8時間** 行えません（リプライ内では「1日1回」と案内されます）。
-
-1. "使用方法"に従い、本botからフォローされた状態となる
-2. 本botに対しメンションまたはリプライで **"占い"** （または "うらない", "占って", "うらなって", "fortune"）とポストする
-3. 本botがあなたに占い結果をリプライします。同時に、**「今日のラッキーバッジ（24時間限定）」**がプロフィールにプレゼントされます。
-
-### リプライ頻度調整
-以下の手順を実施することで、そのフォロワーに対してのリプライ頻度を変更します。
-
-1. "使用方法"に従い、本botからフォローされた状態となる
-2. 本botに対しメンションまたはリプライで **"freqN"(Nは0~100の整数)** とポストする
-3. 本botがあなたに設定完了をリプライします
-
-### 会話機能
-以下の手順を実施することで、そのフォロワーに対して会話を開始します（※サブスクメンバー限定機能です）。
-
-1. "使用方法"に従い、本botからフォローされた状態となる
-2. 自分がスレッド主であるスレッドで、botにリプライする
-3. 本botがあなたにいいねします
-4. 本botがあなたにリプライします
-5. 4のリプライに対してあなたがリプライした場合、会話が継続します。3に戻ります
-
-会話機能を説明した画像を以下に掲載します。
-
-![会話機能説明画像](https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:qcwhrvzx6wmi5hz775uyi6fh/bafkreib5x75mtoy7md2eegafwgl6ug4vr23bwy7wyorqrmlwxbyhppzim4@jpeg)
-
-### 分析機能
-以下の手順を実施することで、本botが性格分析結果をリプライします。
-分析機能は1度行うと **6日間** 行えません。
-
-1. "使用方法"に従い、本botからフォローされた状態となる
-2. 本botに対しメンションまたはリプライで **"分析して"** （または "analyze me"）とポストする
-3. 本botが直近100件のポストと100件のいいね履歴を分析し、分析結果を画像付きでリプライします。同時に、あなたの性格に合わせた**「称号バッジ（1週間限定）」**がプロフィールにプレゼントされます。
-
-### 応援機能
-以下の手順を実施することで、本botがあなたのポストをリポストして応援します（※Discordメンバーまたはサブスクメンバーのみご利用いただけます）。
-応援機能は1度行うと **8時間** 行えません。
-
-1. "使用方法"に従い、本botからフォローされた状態となる
-2. **"#全肯定応援団"** （または **"#suibotcheersquad"**）とハッシュタグをつけて、応援してほしい内容・画像をポストする（botへのリプライ不要）
-3. 本botが内容を判定したうえでリポストし、応援リプライ（フォロワー全体向けへの宣伝）を送ります。
-※開発者が定めたポリシーに基づき、不適切または応援にそぐわない内容と判定された場合はリポストや応援が行われない場合があります。
-
-### DJ機能
-以下の手順を実施することで、本botがあなたの気分にあった曲を選曲します。
-DJ機能は1度行うと **5分間** 行えません。
-
-1. "使用方法"に従い、本botからフォローされた状態となる
-2. 本botに対しメンションまたはリプライで **"DJお願い"** （または "djおねがい", "dj頼む", "djたのむ", "DJ, please"）とポストする
-3. 本botがあなたの直近のポストから気分を分析し、おすすめ曲の紹介コメント、曲名、アーティスト名をリプライします。さらに、その曲の **YouTube動画リンク** を自動検索して添えてくれます。
-
-### 日記機能
-以下の手順を実施することで、本botがあなたの1日のポストから日記をつけます（※Discordメンバーまたはサブスクメンバーのみご利用いただけます）。
-設定後、**毎晩22時頃**にリプライしてくれます。
-
-1. "使用方法"に従い、本botからフォローされた状態となる
-2. 本botに対しメンションまたはリプライで **"日記つけて"** （または "日記をつけて", "日記を付けて", "日記付けて", "keep a diary"）とポストする
-3. 本botが毎晩あなたに日記画像を添えてリプライを送ります。同時に、前日の日記要約に基づく**「称号バッジ（24時間限定）」**がプロフィールにプレゼントされます（分析機能の称号バッジを上書きします）。
-4. 本botに対しメンションまたはリプライで **"日記やめて"** （または "日記をやめて", "stop a diary"）とポストすることで、日記機能を解除できます。
-
-### 記念日機能
-※Discordメンバーまたはサブスクメンバーのみご利用いただけます。
-
-記念日が来た時、その日最初のユーザのポスト時にbotがお祝いします。
-記念日には **プリセット記念日** と **ユーザ登録記念日**、さらに **Bluesky登録日**（自動検知）の3種類があります。
-
-* **プリセット記念日** はクリスマスや元旦などの一般的な記念日を指します。元旦には特別な**おみくじ機能**が動作します。
-* **Bluesky登録日** は、あなたがBlueskyにアカウントを作成した記念日です。
-* **ユーザ登録記念日** は、ユーザにつき1つ設定できる記念日です。
-
-お祝いの際、botは「去年の同じ月日にあなたが何をポストしていたか」を自動検索し、もし投稿があればそれを引用（思い出振り返り）する形でGeminiがお祝いメッセージを生成します。また、ユーザ登録記念日のお祝い時には**「記念日バッジ（24時間限定）」**がプロフィールにプレゼントされます。
-
-ユーザ登録記念日は以下の方法で設定できます。
-
-1. "使用方法"に従い、本botからフォローされた状態となる
-2. 本botに対しメンションまたはリプライで **"記念日登録、MM/DD"** （または "remember anniversary, MM/DD"）とポストする (例:「記念日登録、12/31」)
-3. 登録成功すると、botがその旨を反応します（記念日登録は、一度行うと **6日間** 再登録できません）。
-4. 登録した記念日の確認は、本botに対しメンションまたはリプライで **"記念日確認"** （または "tell me anniversary"）とポストすると行えます。
-5. 記念日お祝い機能自体の有効/無効は、本botに対しメンションまたはリプライで **"記念日オン"** / **"記念日オフ"** （または "enable anniversary" / "disable anniversary"）とポストすることでいつでも切り替え可能です（デフォルトはオン）。
-
-### 一年のまとめ (Recap) 機能
-※Discordメンバーまたはサブスクメンバーのみご利用いただけます。
-
-以下の手順を実施することで、直近1年間のあなたのポスト傾向をまとめた総括を受け取ることができます。
-この機能は1度行うと **6日間** 行えません。
-
-1. "使用方法"に従い、本botからフォローされた状態となる
-2. 本botに対しメンションまたはリプライで **"一年のまとめ"** （または "1年のまとめ", "１年のまとめ", "一年のまとめ", "summarize this year"）とポストする
-3. 本botが直近1年間のポスト（最大1000件）を収集し、月ごとの投稿推移、よく使用する名詞（ワード）のカウント、特によく絡む仲良しユーザー上位5名を分析します。その内容をもとにGeminiが1年の総括テキストを生成し、特別な画像とともにリプライします。
-
----
-
-## バッジ（Bluesky Label）機能
-
-本botでは、特定の機能を利用したり条件を満たすことで、Bluesky上のあなたのプロフィールに特別な絵文字や称号が描かれた**「バッジ（Bluesky Label）」**をプレゼントする機能を提供しています。
-
-> [!IMPORTANT]
-> **バッジをプロフィールに表示させるための準備**
-> プレゼントされたバッジを自身のBlueskyアカウントに表示させるには、事前に以下のラベラーアカウントを登録（Subscribe）しておく必要があります。
->
-> 👉 **[botたんラベラー (labeler.bot-tan.com)](https://bsky.app/profile/labeler.bot-tan.com)**
->
-> リンク先のプロフィールから **「Subscribe (登録)」** ボタンを押すだけで準備完了です！
-
-### 獲得できるバッジ一覧
-
-| バッジ種類 | 識別キー | 獲得条件 | 有効期間 | 表示内容の例 |
-| :--- | :--- | :--- | :--- | :--- |
-| **チーム全肯定バッジ** | `team-affirmation` | [botたんDiscordサーバー](https://discord.gg/hshXWQEMgu) に参加・連携する | コミュニティメンバー期間中 (永続) | `チーム全肯定` |
-| **ラッキーバッジ** | `today-lucky-xxx` | 占い機能（"占い"）を利用する | 24時間限定 | `今日のラッキー: 🔮✨🍀` |
-| **称号バッジ (分析)** | `title-xxx` | 分析機能（"分析して"）を利用する | 1週間限定 | `称号: 〇〇` |
-| **称号バッジ (日記)** | `title-xxx` | 日記機能（"日記つけて"）を利用する | 24時間限定 | `称号: 〇〇`（分析の称号を上書き） |
-| **朝トークバッジ** | `morning-talk-xxx` | 朝の質問コーナーの投稿に回答リプライをする | 24時間限定 | `朝トーク: 〇〇` (回答の要約) |
-| **記念日バッジ** | `anniversary-xxx` | 登録した「ユーザー登録記念日」の当日を迎える | 24時間限定 | `記念日: 〇〇` |
-
-バッジが付与されると、botたんのラベラーアカウントからお祝いの通知ポストが投稿されます（メンション通知を避けるため、IDの `@` 記号を省いたリンク形式で投稿されます）。特別なバッジをプロフィールに飾って、botたんとの交流をぜひお楽しみください！
-
----
-
-## プライバシーポリシー
-
-### 情報の収集
-
-本botは、次の情報を収集し処理します：
-
-- **フォロワーの投稿内容**: 投稿内容はリプライを生成する目的でのみ利用され、保存や二次利用はいっさい行いません
-- **ユーザーメタデータ**: ユーザー名やプロフィール情報など、応答を個別化するための最低限のデータにアクセスしますが、これらのデータはいっさい保存されません
-
-### 情報の利用目的
-
-本botが収集した情報は、リプライ生成以外の目的では、第三者と共有されません。**ただしAI生成リプライ時には、Google Gemini API利用のため、Google LLCとのデータ通信を行います。**
-
-### 年齢制限
-本botのAIを用いた機能はGoogle Gemini APIの利用規約に準拠しており、18歳以上のユーザのみを対象としています。
-
-**18歳未満の方は、AIを用いた機能の利用をお控えください。**
-
-定型文リプライはAIを使わない機能なので、ご利用いただけます。
-
-### 地域制限
-本botのAIを用いた機能はGoogle Gemini APIの利用規約に準拠しており、次の地域ではご利用いただけません：
-
-- イギリス（UK）
-- スイス（Switzerland）
-- 欧州連合加盟国（EU Member States）
-
-**これらの地域にお住まいの方は、AIを用いた機能の利用をお控えください。**
-
-定型文リプライはAIを使わない機能なので、ご利用いただけます。
-
-### プライバシーポリシーの変更
-プライバシーポリシーは適宜更新されることがあります。重大な変更があった場合は、本リポジトリにて通知します。
-
-### 問い合わせ
-本ボットまたはプライバシーポリシーに関するお問い合わせは、次の連絡先までお願いします：
-[すいばり (suibari.com)](https://bsky.app/profile/suibari.com)
-
----
-
-## ライセンス
-このプロジェクトはOSSであり、MITライセンスの下で提供されています。詳細は [LICENSE](./LICENSE) ファイルをご覧ください。
-
-### 引用文献
-本botは日本語感情分析に東北大学 乾・岡崎研究室の [日本語評価極性辞書](https://www.cl.ecei.tohoku.ac.jp/Open_Resources-Japanese_Sentiment_Polarity_Dictionary.html) を使用しています。
-本botは英語感情分析に東京工業大学 奥村・高村研究室の [単語感情極性対応表](http://www.lr.pi.titech.ac.jp/~takamura/pndic_en.html) を使用しています。
-
----
-
-## 免責事項
-本botは、すいばり自身の技術スキルアップおよびAT-Protocolの理解のために、個人で開発・運用・管理されています。
-そのため、企業が実施しているような手厚いサポートやアップデートは実施が難しいです。
-
-本botは正常な稼働に向けて可能な限りの改善・改修の努力をしますが、前提として自己責任でのご利用をお願いいたします。
-また本botを利用したことによる過失や損害につきまして、開発者は一切の責任を負いません。ご了承ください。
-
----
+<div align="center">
+  <img src="./img/bot-icon.png" alt="Zenkoutei Bot-tan" width="180">
+  <h1>Zenkoutei Bot-tan Project</h1>
+  <p><strong>A project that encourages the world through wholehearted affirmation.</strong></p>
+  <p><a href="./README_ja.md">日本語</a></p>
+</div>
+
+## Overview
+
+The Zenkoutei Bot-tan Project is a collection of bots, apps, and experiences built around Bot-tan: a companion who responds with wholehearted affirmation. A home-hosted system combines local LLMs, cloud LLMs, and retrieval-augmented shared memory so that Bot-tan can stay consistent across the project's different outputs.
+
+## Mission
+
+Sometimes we deny even our own feelings. Bot-tan began as the companion I wanted at those moments: someone who would accept those feelings first, before asking anything else of me.
+
+The project's goal is for Bot-tan to become a companion to people around the world who need affirmation. She was created for me, but she is here to affirm you, too.
+
+## Outputs
+
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <a href="https://bsky.app/profile/bot-tan.com"><img src="./img/outputs/bluesky-bot-tan.webp" alt="Zenkoutei Bot-tan on Bluesky" width="100%"></a>
+      <h3>Bluesky Bot-tan</h3>
+      <p><strong>Where it all began.</strong> The default local classifier is Gemma 3 4B on Ollama, which selects a fitting affirmation from prepared messages. Fortune-telling, personality analysis, and other major experiences are available through trigger words.</p>
+    </td>
+    <td width="50%" valign="top">
+      <a href="https://nagi.suibari.com/profile/did:plc:qcwhrvzx6wmi5hz775uyi6fh"><img src="./img/outputs/nagi-bot-tan.webp" alt="Nagi Bot-tan" width="100%"></a>
+      <h3>Nagi Bot-tan</h3>
+      <p><strong>The flagship.</strong> It shares this monorepo and scheduled posts with the Bluesky bot. Gemini 2.5 Flash-Lite powers AI replies and post analysis, while the AppView also uses local embedding and translation models.</p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <a href="https://www.youtube.com/@%E3%81%99%E3%81%84%E3%81%B0%E3%82%8A"><img src="./img/outputs/youtube-bot-tan.webp" alt="YouTuber Bot-tan" width="100%"></a>
+      <h3>YouTuber Bot-tan</h3>
+      <p><strong>Promotion and playground.</strong> Gemini 2.5 Flash writes scripts, and the pipeline automates filming in Unity through video publishing. A proof of concept is exploring more varied motion generated with an LLM.</p>
+    </td>
+    <td width="50%" valign="top">
+      <a href="https://room.bot-tan.com/"><img src="./img/outputs/bot-tan-room.webp" alt="Bot-tan's Room" width="100%"></a>
+      <h3>Bot-tan's Room</h3>
+      <p>A game that deepens interactions from Bluesky and Nagi. Its dialogue uses Gemini 2.5 Flash-Lite, with speech generated by VOICEVOX running at home.</p>
+    </td>
+  </tr>
+  <tr>
+    <td colspan="2" valign="top">
+      <a href="https://bot-tan.com/"><img src="./img/outputs/bot-tan-portal.webp" alt="Bot-tan Portal" width="100%"></a>
+      <h3>Bot-tan Portal</h3>
+      <p>The project's front door: an introduction to Bot-tan and her friends, links to every app, and live dashboards for the services that bring her to life.</p>
+    </td>
+  </tr>
+</table>
+
+## Installation
+
+This repository contains the shared backend monorepo. The Nagi web client, portal, room frontend, and Unity video project are maintained separately.
+
+### Requirements
+
+- Node.js 22
+- pnpm 10 or later
+- PostgreSQL
+- Ollama for local classification, embeddings, and translation
+- Credentials for only the services you intend to run, such as AT Protocol accounts, Gemini, Discord, Spotify, YouTube, or NewsData.io
+
+### Common setup
+
+```sh
+pnpm install --frozen-lockfile
+cp .env.example .env
+# Fill in the required group(s) in .env for the service you want to run.
+pnpm --filter @bsky-affirmative-bot/database drizzle:push
+pnpm build
+```
+
+The database command applies the current Drizzle schema. Review it before pointing `DATABASE_URL` at an existing or production database. Pull the default local models when you need the corresponding features:
+
+```sh
+ollama pull gemma3:4b
+ollama pull snowflake-arctic-embed2
+ollama pull translategemma:4b
+```
+
+### Run a service
+
+Run only the services you are working on. Each command reads the repository-root `.env`.
+
+| Service | Command | Minimum configuration |
+| --- | --- | --- |
+| Bluesky Bot-tan | `pnpm --filter bsky-bot-server dev` | Common, Bluesky, AI |
+| Nagi Bot-tan | `pnpm --filter nagi-bot-server dev` | Common, Nagi Bot, AI |
+| Nagi AppView | `pnpm --filter nagi-appview dev` | Common, Nagi AppView, Ollama |
+| Biorhythm / shared scheduled posts | `pnpm --filter biorhythm-server dev` | Common, Biorhythm, AI |
+| Bluesky labeler | `pnpm --filter labeler-server dev` | Labeler |
+| Discord integration | `pnpm --filter @bsky-affirmative-bot/discord-bot dev` | Discord, database |
+
+The complete home deployment also depends on reverse-proxy, process-manager, DNS, and account configuration that is intentionally not automated by this development setup. Never commit `.env`, `service-account.json`, app passwords, signing keys, or API tokens.
+
+## Features
+
+- **Affirmation and conversation:** template-based local replies and Gemini-powered contextual conversations across Bluesky and Nagi.
+- **Fortune-telling and analysis:** daily fortunes, personality/post analysis, and related badges or visual results.
+- **Diaries and recaps:** daily reflection, anniversary experiences, and longer-term summaries generated from a user's activity.
+- **A living Bot-tan:** biorhythm, shared scheduled posts, questions, news, and memories help Bot-tan act consistently across services.
+- **Nagi AppView:** AT Protocol indexing, semantic search with `snowflake-arctic-embed2`, and translation with `translategemma:4b` and a persona-aware Gemma route.
+- **Connected experiences:** Bluesky labels, room visits and VOICEVOX speech, plus an automated Gemini-and-Unity YouTube pipeline.
+
+The local model names are defaults. `OLLAMA_MODEL`, the other model variables, and advanced `AI_ROUTE_*` settings in [`.env.example`](./.env.example) can replace them without changing feature code. For the complete Bluesky commands and policies, see the [Bluesky Bot-tan guide](./docs/bluesky-bot.md).
+
+## Home system architecture
+
+```mermaid
+flowchart LR
+  subgraph outputs[Project outputs]
+    bluesky[Bluesky Bot-tan]
+    nagi[Nagi Bot-tan]
+    youtube[YouTuber Bot-tan]
+    room[Bot-tan's Room]
+    portal[Bot-tan Portal]
+  end
+
+  subgraph home[Home-hosted system]
+    bskyServer[bsky_bot_server]
+    nagiServer[nagi_bot_server]
+    appview[nagi_appview]
+    biorhythm[biorhythm_server]
+    labeler[labeler_server]
+    roomServer[Room backend]
+    brain[Shared bot brain and RAG]
+    memory[(PostgreSQL shared memory)]
+    ollama[Ollama: Gemma / embeddings / translation]
+    voicevox[VOICEVOX]
+    unity[Unity video automation]
+  end
+
+  subgraph cloud[External and cloud services]
+    atproto[AT Protocol / PDS / Jetstream]
+    gemini[Google Gemini]
+    youtubeApi[YouTube]
+    cloudflare[Cloudflare / public endpoints]
+  end
+
+  bluesky <--> atproto
+  nagi <--> cloudflare
+  room <--> cloudflare
+  portal <--> cloudflare
+  bskyServer <--> atproto
+  nagiServer <--> atproto
+  appview <--> atproto
+  labeler <--> atproto
+  cloudflare <--> appview
+  cloudflare <--> biorhythm
+  cloudflare <--> roomServer
+  biorhythm --> bskyServer
+  biorhythm --> nagiServer
+  bskyServer --> brain
+  nagiServer --> brain
+  appview --> brain
+  biorhythm --> brain
+  roomServer --> brain
+  roomServer <--> memory
+  roomServer --> voicevox
+  brain <--> memory
+  brain <--> ollama
+  brain <--> gemini
+  brain --> unity
+  unity --> youtubeApi
+  youtubeApi --> youtube
+```
+
+## Contributing
+
+Everyone is welcome. Feel free to open an issue or pull request, whether it is a bug report, documentation improvement, idea, translation, or code contribution.
+
+This is a personal project, and suibari also has a life outside it and works at a very unhurried pace. A reply or review may therefore take time. Silence or delay is never meant negatively; your contribution is still sincerely appreciated.
+
+## Sponsorship
+
+The services behind Bot-tan are kept running with personal funds. Sponsorship supports not only this project, but suibari's creative work as a whole.
+
+If this feels like a valuable project, I would be delighted if you considered supporting it. Every amount is warmly welcome.
+
+- [Patreon](https://patreon.com/suibari)
+- [pixiv FANBOX](https://suibari.fanbox.cc/posts/10174305)
+
+## License
+
+This project is open source under the [MIT License](./LICENSE).
+
+<div align="center">
+  <img src="./img/suibari-logo.png" alt="suibari" width="360">
+</div>
