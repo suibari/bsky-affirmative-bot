@@ -4,9 +4,13 @@ import {
   UserInfoGemini,
   SYSTEM_INSTRUCTION,
   TONE_RULES_JA,
+  NAME_RULES_JA,
+  NAME_RULES_EN,
+  addressName,
   safeFetch,
   type AiRouteDetails,
 } from "@bsky-affirmative-bot/shared-configs";
+import type { GeminiUsage } from "./util.js";
 
 export interface DiaryResult {
   diary: string;
@@ -15,10 +19,52 @@ export interface DiaryResult {
   emoji: string;
 }
 
+export interface DiaryDraft extends Omit<DiaryResult, "emoji"> {
+  usedContextId: string;
+  emojiCandidates: unknown;
+}
+
 export type RecentDiaryEmoji = {
   date: string;
   emoji: string;
 };
+
+export type UserDiaryContextKind = "bot_activity" | "observance" | "news";
+
+export type UserDiaryContextCandidate = {
+  id: string;
+  kind: UserDiaryContextKind;
+  textJa: string;
+  textEn: string;
+};
+
+export type UserDiaryDayContext = {
+  date: string;
+  preferredKind: UserDiaryContextKind;
+  candidates: UserDiaryContextCandidate[];
+};
+
+export function formatUserDiaryDayContext(
+  context: UserDiaryDayContext | undefined,
+  japanese: boolean,
+): string {
+  if (!context) return "";
+  const section = (kind: UserDiaryContextKind, tag: string) => {
+    const lines = context.candidates
+      .filter((candidate) => candidate.kind === kind)
+      .map(
+        (candidate) =>
+          `[${candidate.id}] ${japanese ? candidate.textJa : candidate.textEn}`,
+      );
+    return `<${tag}>\n${lines.join("\n") || (japanese ? "候補なし" : "No candidates")}\n</${tag}>`;
+  };
+  return `
+<diary_context date="${context.date}" preferred_kind="${context.preferredKind}">
+${section("bot_activity", "bot_memories")}
+${section("observance", "observances")}
+${section("news", "news")}
+</diary_context>`;
+}
 
 const ABSTRACT_DIARY_EMOJIS = new Set([
   "✨",
@@ -101,6 +147,7 @@ const diaryEmojiPromptRules = `
 絵文字は、本文に実際に登場する出来事を見分けられる、異なる具体的なUnicode絵文字の候補を関連度順に10個選んでください。候補から検証済みの上位3つを最終表示に使います。
 - 食べ物、乗り物、場所、動物、道具、スポーツ、創作物など、「何が起きたか」を指す具体物・具体的活動を優先する
 - 候補はすべて本文またはポストに根拠があるものにし、書かれていない出来事を推測で足さない。同じ出来事の異なる具体物を候補にしてよい
+- 本文の出来事や達成を直感的に象徴する比喩的な具体物も使ってよい（例: 大きな前進を表す🚀、記録達成を表す🏆）。その物が実際に登場した出来事だったとは書かない
 - 同じ日の候補内でも、同じ絵文字の別表現ばかりにしない（例: 🐈と🐈‍⬛、💻と🖥️、🎵と🎶を同時に選ばない）
 - 顔、ハート、吹き出し、光、記号など、単なる装飾、気分、会話、称賛、勢い、達成感を表す抽象的な絵文字は禁止する
 - 禁止例: ✨ 💬 😊 ❤️ 🎉 ⭐ 🌟 💫 🔥 🌱 ✅
@@ -213,107 +260,169 @@ export function selectDiaryEmojis(
   return normalizeDiaryEmoji(selected.join(""));
 }
 
-export async function generateUserDiary(
-  userinfo: UserInfoGemini,
-  options: {
-    recentEmojis?: RecentDiaryEmoji[];
-    /**
-     * 再試行ラダーが選んだモデル/tier。未指定なら COMMON_USER_DIARY のルートを使う。
-     * 実運用は generateUserDiaryResilient 経由なので必ず渡ってくる。
-     */
-    aiRoute?: AiRouteDetails;
-  } = {},
-): Promise<DiaryResult> {
-  const maxLength =
-    userinfo.langStr === "日本語"
-      ? "出力する日記本文の文字数は最大500文字までです。"
-      : "The diary body content can be up to 1000 characters.";
+export type GenerateUserDiaryOptions = {
+  recentEmojis?: RecentDiaryEmoji[];
+  dayContext?: UserDiaryDayContext;
+  aiRoute?: AiRouteDetails;
+  thinkingLevel?: "minimal" | "low" | "medium" | "high";
+  onUsage?: (usage: GeminiUsage) => void;
+};
 
-  const prompt =
-    userinfo.langStr === "日本語"
-      ? `ユーザの今日1日の日記をつけてあげてください。ユーザのポストを総括して、あなたの感想を述べてください。
-日記の目的はユーザのストレスを軽減し、自律神経を整えて、明日へのモチベーションを高めることです。
-日本語で出力してください。
+export function buildUserDiaryPrompt(
+  userinfo: UserInfoGemini,
+  options: GenerateUserDiaryOptions = {},
+): string {
+  const japanese = userinfo.langStr === "日本語";
+  const name = addressName(userinfo);
+  const hasContext = Boolean(options.dayContext?.candidates.length);
+  const maxLength = japanese
+    ? "日記本文は最大500文字です。"
+    : "The diary body can be up to 1000 characters.";
+  const lengthTarget =
+    (userinfo.posts?.length ?? 0) >= 4
+      ? japanese
+        ? "投稿が十分あるので、350〜500文字を目安に、具体的な出来事とbotたんの反応を丁寧に描いてください。"
+        : "There is enough material, so aim for 600–1000 characters with concrete events and Bot-tan's vivid reactions."
+      : japanese
+        ? "材料量に合わせて180〜350文字を目安にし、推測で水増ししないでください。"
+        : "Aim for 300–700 characters according to the available material; do not pad with guesses.";
+  const context = formatUserDiaryDayContext(options.dayContext, japanese);
+  if (japanese) {
+    return `ユーザーの一日を、botたんから贈る短い日記として日本語で書いてください。
 ${maxLength}
-日記本文には以下の要素を含めてください。
-* 今日失敗したこと
-* 今日一番よかったこと、心が動いたこと
-* 明日の目標
-悪い内容は含まず、全肯定のスタンスで出力してください。
+${lengthTarget}
+
+# 最重要の事実境界
+- <user_posts> 内の「私」「ぼく」「わたし」はユーザー本人です。botたんの経験へ移してはいけません。
+- <user_posts> の各投稿は別々の発言・出来事として扱ってください。複数投稿を関連づけることはできますが、別の投稿にある対象・行動・評価を一つの出来事の属性として混ぜてはいけません。特に、ユーザーが見かけた他者の作品と、ユーザー自身が作ったものを区別してください。
+- botたんが「わたしは〜した」と自分の記憶として話せるのは <bot_memories> の候補だけです。
+- <observances> と <news> は背景資料です。ユーザーが知った、参加した、反応したとは書かないでください。
+- ユーザーの出来事・感情・評価・因果関係・明日の予定を、ポストに根拠なく作らないでください。
+- botたんの出来事は <bot_memories> の事実だけを使います。その事実に対してbotたんが抱いた気持ちや感想は、キャラクターとして自然な範囲で創作して構いません。候補にない追加の行動は作らないでください。
+
+# 構成
+- 投稿を順番になぞる要約ではなく、その日に似合う焦点を選んで一篇にしてください。
+- 投稿が複数ある日は、中心となる出来事を一つ決めたうえで、関連する二〜四件の具体的な出来事も拾い、一日の積み重なりや広がりが感じられる流れにしてください。
+- 「失敗」「一番よかったこと」「明日の目標」を毎回揃える必要はありません。根拠のある内容だけを使い、日ごとに書き出し・結び・構成を変えてください。
+- 候補がある場合は必ず1件以上を本文へ実際に使い、そのIDを usedContextId に返してください。ユーザーの出来事と最も強い感情的・テーマ的なつながりを作れる候補を選び、同程度なら preferred_kind を優先してください。候補があるのに "none" は禁止です。
+- <bot_memories> を使う場合は、ユーザーの出来事を受けて「実はわたしも今日、（候補にある事実）があって、（botたん自身の気持ち・感想）と思ったよ」のように共感を示してください。そのあと、驚き、うれしさ、挑戦、目覚め、粘り強さなど、二つの出来事に共通する感情・勢い・テーマを一文で明示してください。単に二つの出来事を隣に置くだけでは不十分です。
+- 共通点は比喩やbotたん自身の感想として表現し、二つの出来事に直接の因果があったとは書かないでください。ユーザーがポストで明示していない感情を、ユーザーの感情として断定してはいけません。
+- <observances> または <news> を使う場合は、「今日は○○の日なんだけど、まるで〜みたいだね」「今日○○というニュースがあったけど、まるで逆転満塁ホームランだね」のように、出典の事実と比喩を区別してユーザーの出来事を印象的にしてください。ユーザーがその記念日やニュースを知っていたとは書かないでください。
+- 補助材料は話の主役にせず、ユーザーの一日への共感や比喩を豊かにする短い一〜二文として使ってください。
+- 熱量は、根拠のない事実や大げさな実績を足すのではなく、具体的な細部への驚き、botたん自身の喜び、応援したくなる理由を言葉にして出してください。
+- 候補がない場合だけ usedContextId="none" にしてください。
+- 材料が少ない日は推測で水増しせず、短く率直にしてください。
+- 本文では「ユーザー」と呼ばず、名前または二人称で語りかけてください。
+- 生成時刻は本文の材料に含まれていません。「おはよう」「こんにちは」「こんばんは」など、時刻を決めつける挨拶は使わないでください。「今日もおつかれさま」のような時刻に依存しない言葉は使えます。
+- 本文は意味のまとまりごとに2〜4段落へ分け、段落の間に改行を二つ（JSON文字列では \\n\\n）入れてください。一続きの長文にしないでください。
 
 # 口調
-ユーザのポストがどんな文体でも、日記本文は必ずあなた自身の口調で書いてください。
+ポストの文体を模倣せず、必ずbotたん自身の口調で、穏やかに肯定してください。
+意味が伝わる範囲なら、勢いのある造語、ユーモラスな大げささ、親しみのあるネットスラングを使って構いません。これらを理由にbotたんらしい熱量を弱めないでください。ただし、新しい事実の捏造には使わないでください。
 ${TONE_RULES_JA}
+${NAME_RULES_JA(name)}
 
-また、ユーザの今日1日のポスト内容や様子から、今日1日を象徴するユーザにふさわしい「称号」を考えてください。
-称号は、日本語（20字以内）と、その英語訳（30字以内）の両方を考えてください。
+一日を象徴する称号を、日本語20字以内と英語30字以内で付けてください。
 ${diaryEmojiPromptRules}${recentDiaryEmojiPrompt(options.recentEmojis)}
-例：
-- 日本語: 「努力の守護者」, 英語: 「Guardian of Effort」
-- 日本語: 「癒やしの案内人」, 英語: 「Guide of Healing」
 
-以下がユーザ名およびポストです。
------
-ユーザ名: ${userinfo.follower.displayName}
-今日1日のポスト内容: ${userinfo.posts || ""}
-`
-      : `Please write a daily diary for the user. Summarize their posts and share your warm feedback.
-The purpose of the diary is to reduce their stress, regulate their autonomic nervous system, and boost their motivation for tomorrow.
-Please output in ${userinfo.langStr}.
+<user name="${name || ""}">
+<user_posts>
+${userinfo.posts || "（投稿なし）"}
+</user_posts>
+</user>
+${context}
+補助材料候補: ${hasContext ? "あり" : "なし"}`;
+  }
+  return `Write a short daily reflection from Bot-tan to the user in ${userinfo.langStr}.
 ${maxLength}
-Include the following elements in the diary body:
-* Today's challenges/failures (approached fully positively)
-* Today's highlight/best moments
-* Tomorrow's goals
-Do not include any negative content; keep a fully positive, affirming stance.
+${lengthTarget}
 
-Also, based on their posts, award them a fitting "title".
-Provide the title in both Japanese (within 20 characters) and English (within 30 characters).
-Also provide exactly ten different, concrete Unicode emoji candidates, ordered by relevance. The first three candidates that pass validation will be displayed.
-- Prefer specific foods, vehicles, places, animals, tools, sports, or creative activities explicitly supported by the posts.
-- Never invent an event that is not supported by the posts.
-- Do not fill the same day's candidates with near-identical alternatives such as 🐈 and 🐈‍⬛, 💻 and 🖥️, or 🎵 and 🎶.
-- Do not use faces, hearts, speech bubbles, light, symbols, or other abstract decoration, emotion, conversation, praise, momentum, or achievement symbols.
-- Forbidden examples: ✨ 💬 😊 ❤️ 🎉 ⭐ 🌟 💫 🔥 🌱 ✅
-- Good example: ramen, a train ride, and playing guitar → ["🍜", "🚃", "🎸", "🥢", "🚉", "🎵"]
+# Grounding and attribution
+- Every first-person statement inside <user_posts> belongs to the user, never to Bot-tan.
+- Treat each item in <user_posts> as a separate statement or event. You may connect separate posts thematically, but never merge the subject, action, or evaluation from one post into an event described by another. In particular, distinguish work the user saw from work the user created.
+- Bot-tan may describe something as its own memory only when it comes from <bot_memories>.
+- <observances> and <news> are background. Never claim the user knew, joined, or reacted to them.
+- Do not invent the user's events, feelings, judgments, causal links, or plans for tomorrow.
+- Bot-tan's event must come from <bot_memories>. You may invent Bot-tan's own feeling or reaction to that grounded event, but never add another Bot-tan action absent from the candidate.
+
+# Composition
+- Form one coherent reflection instead of paraphrasing posts in sequence.
+- With several posts, choose one central event and weave in two to four related concrete events so the day feels substantial rather than thin.
+- Do not force a fixed failure/highlight/tomorrow-goal template. Use only grounded material and vary the opening, ending, and structure.
+- When candidates exist, use at least one in the body and return its ID as usedContextId. Choose the candidate with the strongest emotional or thematic connection to the user's event; use preferred_kind only as a tie-breaker. Returning "none" when candidates exist is forbidden.
+- For <bot_memories>, empathize with a parallel experience: "Actually, I also [grounded event] today, and it made me feel [Bot-tan's invented but natural feeling]." Add one sentence naming the shared emotion, momentum, or theme. Merely placing the events next to each other is not enough. Do not claim the two events caused one another or invent the user's feelings.
+- For <observances> or <news>, clearly identify the factual reference and use it as an analogy for the user's grounded event. Never imply that the user knew about it.
+- Keep supporting context to one or two short sentences; the user's day remains the focus.
+- Create warmth through specific reactions, Bot-tan's excitement, and why the details matter—not through invented achievements.
+- Use usedContextId="none" only when no candidates exist.
+- If the material is sparse, be brief rather than filling gaps with guesses.
+- Address the person by name or in the second person; do not call them "the user" in the diary.
+- The generation time is not provided. Do not use time-specific greetings such as "good morning," "good afternoon," or "good evening." A time-neutral phrase such as "you did well today" is allowed.
+- Split the body into two to four meaningful paragraphs, separated by two newline characters (\\n\\n in the JSON string). Do not return one uninterrupted block.
+
+# Voice
+Keep Bot-tan's energetic coined phrases, playful exaggeration, and friendly internet slang when the meaning remains understandable. Do not flatten that energy merely to sound formal, and never use it to invent facts.
+
+# Name
+${NAME_RULES_EN(name)}
+
+Award a fitting title in Japanese (20 characters max) and English (30 characters max).
+Also provide exactly ten different, concrete Unicode emoji candidates ordered by relevance.
+- Prefer foods, vehicles, places, animals, tools, sports, or creative activities explicitly supported by the posts.
+- Concrete metaphorical symbols are allowed when they clearly represent a grounded event or achievement, such as 🚀 for major progress or 🏆 for a record. Do not imply the object literally appeared.
+- Do not invent an event, use abstract decoration, or fill the list with near-identical alternatives.
 ${recentDiaryEmojiPrompt(options.recentEmojis, "en")}
-Examples:
-- Japanese: 「努力の守護者」, English: 「Guardian of Effort」
-- Japanese: 「全肯定の達人」, English: 「Master of Affirmation」
 
------
-Username: ${userinfo.follower.displayName}
-Today's posts: ${userinfo.posts || ""}
-`;
+<user name="${name || ""}">
+<user_posts>
+${userinfo.posts || "(No posts)"}
+</user_posts>
+</user>
+${context}
+Supporting candidates: ${hasContext ? "available" : "none"}`;
+}
 
-  const contents: any[] = [prompt];
+export function validateUsedContextId(
+  value: unknown,
+  context: UserDiaryDayContext | undefined,
+): string {
+  if (typeof value !== "string") {
+    throw new Error("Diary usedContextId must be a string");
+  }
+  const ids = new Set(context?.candidates.map((candidate) => candidate.id));
+  if (value === "none") {
+    if (ids.size > 0) {
+      throw new Error("Diary must use a context candidate when candidates exist");
+    }
+    return value;
+  }
+  if (!ids.has(value)) {
+    throw new Error(`Diary returned invalid context ID: ${value}`);
+  }
+  return value;
+}
 
-  if (userinfo?.image) {
+export async function generateUserDiaryDraft(
+  userinfo: UserInfoGemini,
+  options: GenerateUserDiaryOptions = {},
+): Promise<DiaryDraft> {
+  const contents: any[] = [buildUserDiaryPrompt(userinfo, options)];
+  if (userinfo.image) {
     for (const img of userinfo.image) {
       try {
         const response = await safeFetch(img.image_url);
-        if (!response.ok) {
-          console.warn(
-            `[WARN] Failed to fetch image: ${img.image_url} (Status: ${response.status})`,
-          );
-          continue;
-        }
-        const imageArrayBuffer = await response.arrayBuffer();
-        const base64ImageData =
-          Buffer.from(imageArrayBuffer).toString("base64");
+        if (!response.ok) continue;
         contents.push({
           inlineData: {
             mimeType: img.mimeType,
-            data: base64ImageData,
+            data: Buffer.from(await response.arrayBuffer()).toString("base64"),
           },
         });
-      } catch (e) {
-        console.warn(`[WARN] Error fetching image: ${img.image_url}`, e);
-        continue;
+      } catch (error) {
+        console.warn(`[WARN] Error fetching diary image: ${img.image_url}`, error);
       }
     }
   }
-
   const response = await generateContentWithRetry(
     {
       feature: "COMMON_USER_DIARY",
@@ -324,71 +433,72 @@ Today's posts: ${userinfo.posts || ""}
         responseSchema: {
           type: Type.OBJECT,
           properties: {
-            diary: {
-              type: Type.STRING,
-              description:
-                "今日1日の日記本文（今日失敗したこと、今日一番よかったこと、明日の目標を含め、全肯定のスタンスで書くこと）",
-            },
-            title_ja: {
-              type: Type.STRING,
-              description:
-                "今日1日を象徴するユーザーにふさわしい日本語の称号（20字以内、例: 努力の守護者）",
-            },
-            title_en: {
-              type: Type.STRING,
-              description:
-                "同じ称号の英語訳（30字以内、例: Guardian of Effort）",
-            },
+            diary: { type: Type.STRING, description: "根拠のある材料だけから構成した日記本文" },
+            title_ja: { type: Type.STRING, description: "日本語の称号。20字以内" },
+            title_en: { type: Type.STRING, description: "英語の称号。30字以内" },
             emojiCandidates: {
               type: Type.ARRAY,
               items: { type: Type.STRING },
               minItems: "10",
               maxItems: "10",
-              description:
-                "実際の出来事が分かる、異なる具体的なUnicode絵文字候補10個。関連度順。抽象的・装飾的な絵文字は禁止",
+              description: "具体的なUnicode絵文字候補10個",
+            },
+            usedContextId: {
+              type: Type.STRING,
+              description: "本文へ接続した補助材料ID。不使用時だけnone",
             },
           },
-          required: ["diary", "title_ja", "title_en", "emojiCandidates"],
+          required: ["diary", "title_ja", "title_en", "emojiCandidates", "usedContextId"],
         },
       },
     },
     3,
     userinfo,
-    // ラダーが渡ってきたら feature のルートより優先される（util.ts の優先順位）
-    options.aiRoute ?? {},
+    {
+      ...(options.aiRoute ?? {}),
+      ...(options.thinkingLevel ? { thinkingLevel: options.thinkingLevel } : {}),
+      ...(options.onUsage ? { onUsage: options.onUsage } : {}),
+    },
   );
-
-  const responseText = response.text || "{}";
-  let json: Omit<DiaryResult, "emoji"> & { emojiCandidates?: unknown };
+  let json: Partial<DiaryDraft>;
   try {
-    json = JSON.parse(responseText) as Omit<DiaryResult, "emoji"> & {
-      emojiCandidates?: unknown;
-    };
+    json = JSON.parse(response.text || "{}") as Partial<DiaryDraft>;
   } catch (error) {
-    console.error(
-      "[ERROR] Failed to parse Structured Outputs JSON in generateUserDiary:",
-      error,
-    );
-    throw new Error("generateUserDiary returned invalid JSON", {
-      cause: error,
-    });
+    throw new Error("generateUserDiaryDraft returned invalid JSON", { cause: error });
   }
   return {
     diary: json.diary || "",
     title_ja: json.title_ja || "全肯定の旅人",
     title_en: json.title_en || "Affirmative Traveler",
-    emoji: selectDiaryEmojis(json.emojiCandidates, options.recentEmojis),
+    usedContextId: validateUsedContextId(json.usedContextId, options.dayContext),
+    emojiCandidates: json.emojiCandidates,
+  };
+}
+
+export async function generateUserDiary(
+  userinfo: UserInfoGemini,
+  options: GenerateUserDiaryOptions = {},
+): Promise<DiaryResult> {
+  const draft = await generateUserDiaryDraft(userinfo, options);
+  return {
+    diary: draft.diary,
+    title_ja: draft.title_ja,
+    title_en: draft.title_en,
+    emoji: selectDiaryEmojis(draft.emojiCandidates, options.recentEmojis),
   };
 }
 
 /** 既存の日記本文・称号を変えず、その日の具体的な3絵文字だけを再選定する。 */
-export async function generateDiaryEmojis(input: {
-  date: string;
-  text: string;
-  titleJa?: string;
-  titleEn?: string;
-  recentEmojis?: RecentDiaryEmoji[];
-}): Promise<string> {
+export async function generateDiaryEmojis(
+  input: {
+    date: string;
+    text: string;
+    titleJa?: string;
+    titleEn?: string;
+    recentEmojis?: RecentDiaryEmoji[];
+  },
+  options: Pick<GenerateUserDiaryOptions, "aiRoute" | "thinkingLevel" | "onUsage"> = {},
+): Promise<string> {
   const response = await generateContentWithRetry({
     feature: "COMMON_USER_DIARY_EMOJI",
     contents: `次の既存日記を読み、その日の絵文字だけを選び直してください。
@@ -418,6 +528,10 @@ ${input.text}`,
         required: ["emojiCandidates"],
       },
     },
+  }, 3, undefined, {
+    ...(options.aiRoute ?? {}),
+    ...(options.thinkingLevel ? { thinkingLevel: options.thinkingLevel } : {}),
+    ...(options.onUsage ? { onUsage: options.onUsage } : {}),
   });
 
   let json: { emojiCandidates?: unknown };

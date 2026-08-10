@@ -22,6 +22,8 @@
 export type ModelAliasName =
   | "gemini-lite"
   | "gemini-flash"
+  | "gemini-35-lite"
+  | "gemini-36-flash"
   | "gemini-image"
   | "gemini-embedding"
   | "ollama-chat"
@@ -39,6 +41,8 @@ type ModelAliasSpec = {
 const MODEL_ALIAS_SPECS: Record<ModelAliasName, ModelAliasSpec> = {
   "gemini-lite": { env: "MODEL_GEMINI_LITE", fallback: () => "gemini-2.5-flash-lite" },
   "gemini-flash": { env: "MODEL_GEMINI_FLASH", fallback: () => "gemini-2.5-flash" },
+  "gemini-35-lite": { env: "MODEL_GEMINI_35_LITE", fallback: () => "gemini-3.5-flash-lite" },
+  "gemini-36-flash": { env: "MODEL_GEMINI_36_FLASH", fallback: () => "gemini-3.6-flash" },
   "gemini-image": { env: "MODEL_GEMINI_IMAGE", fallback: () => "gemini-2.5-flash-image-preview" },
   "gemini-embedding": { env: "MODEL_GEMINI_EMBEDDING", fallback: () => "gemini-embedding-001" },
   "ollama-chat": { env: "OLLAMA_MODEL", fallback: () => "gemma3:4b" },
@@ -70,6 +74,10 @@ export type AiRouteName =
   | "flash-flex"
   | "flash-standard"
   | "flash-auto"
+  | "35-lite-flex"
+  | "35-lite-standard"
+  | "36-flash-flex"
+  | "36-flash-standard"
   | "image-auto"
   | "embedding-auto"
   | "ollama-chat"
@@ -86,6 +94,10 @@ export const AI_ROUTES = {
   "flash-flex": { provider: "gemini", alias: "gemini-flash", tier: "flex" },
   "flash-standard": { provider: "gemini", alias: "gemini-flash", tier: "standard" },
   "flash-auto": { provider: "gemini", alias: "gemini-flash", tier: "auto" },
+  "35-lite-flex": { provider: "gemini", alias: "gemini-35-lite", tier: "flex" },
+  "35-lite-standard": { provider: "gemini", alias: "gemini-35-lite", tier: "standard" },
+  "36-flash-flex": { provider: "gemini", alias: "gemini-36-flash", tier: "flex" },
+  "36-flash-standard": { provider: "gemini", alias: "gemini-36-flash", tier: "standard" },
   "image-auto": { provider: "gemini", alias: "gemini-image", tier: "auto" },
   "embedding-auto": { provider: "gemini", alias: "gemini-embedding", tier: "auto" },
   // Ollama はローカル実行なので ServiceTier の概念がない
@@ -110,13 +122,13 @@ export const AI_FEATURES = {
   // ユーザ日記の本文。実運用の呼び出し（generateUserDiaryResilient）は必ず下の
   // COMMON_DIARY_ATTEMPT_* を requestOptions で明示上書きするので、このキーが効くのは
   // ラダーを通さず generateUserDiary を直接呼んだときだけ。
-  COMMON_USER_DIARY: "lite-flex", // ユーザ日記 本文（bsky DiaryFeature + NagiDiaryFeature）
+  COMMON_USER_DIARY: "35-lite-flex", // ユーザ日記 本文（bsky DiaryFeature + NagiDiaryFeature）
   // 日記の再試行ラダー。1日1回しか機会が無いので、詰まったら段を上げて必ず書き切る。
-  // 平常時は EARLY で完結するのでコストは従来と同じ。
-  COMMON_DIARY_ATTEMPT_EARLY: "lite-flex", // 日記 1〜2回目
-  COMMON_DIARY_ATTEMPT_MID: "lite-standard", // 日記 3〜4回目（同モデル・Standard tier）
-  COMMON_DIARY_ATTEMPT_LATE: "flash-standard", // 日記 5回目以降（最終手段）
-  COMMON_USER_DIARY_EMOJI: "lite-standard", // 日記の絵文字だけ選び直し（backfillスクリプト専用）
+  // 品質比較後は3.5 Flash-Liteに固定し、tierだけを上げる。
+  COMMON_DIARY_ATTEMPT_EARLY: "35-lite-flex", // 日記 1〜2回目
+  COMMON_DIARY_ATTEMPT_MID: "35-lite-standard", // 日記 3〜4回目
+  COMMON_DIARY_ATTEMPT_LATE: "35-lite-standard", // 日記 5回目以降
+  COMMON_USER_DIARY_EMOJI: "35-lite-standard", // 日記の絵文字だけ選び直し
 
   // ══════ Bluesky 全肯定botたん（bsky_bot_server のみ） ══════════════
   //
@@ -142,7 +154,15 @@ export const AI_FEATURES = {
   BSKY_IMAGE: "image-auto", // 画像生成（※現在は呼び出し元なし）
 
   // ══════ biorhythm_server（定期ポスト生成） ═════════════════════════
-  BIORHYTHM_STATUS: "flash-flex", // botたんの現在状況（三人称の描写文）
+  // 今期の話題作リスト（grounding）。日次予定表を作るときだけ呼び、さらに7日キャッシュするので実質週1回。
+  BIORHYTHM_SEASONAL_WORKS: "flash-flex",
+  // 今日の予定表。1日1回しか撃たず、落ちると丸1日プラン無しで走ることになるので
+  // NAGI_ANALYSIS と同じ理由で standard に置く（flex は 503 を踏みやすい）。
+  BIORHYTHM_DAILY_PLAN: "flash-standard",
+  // botたんの現在状況（三人称の描写文）。1日24〜48回と呼び出しが多いが、今日の予定表が
+  // 「何を・誰と・何分」を決めているので、ここに残るのは決まった予定を情景に起こす作業だけ。
+  // systemInstruction も BOT_SCENE_BRIEF_JA（約1,000字）に絞ってあるので lite で足りる。
+  BIORHYTHM_STATUS: "lite-flex",
   BIORHYTHM_GOOD_NIGHT: "flash-flex", // おやすみポスト
   BIORHYTHM_QUESTION: "flash-flex", // 質問生成
   BIORHYTHM_WHIMSICAL_POST_PLAN: "flash-flex", // 気まぐれ投稿: 企画フェーズ（function calling）
@@ -269,6 +289,24 @@ export function resolveAiRoute(feature: AiFeatureKey): ResolvedAiRoute {
     cache.set(feature, hit);
   }
   return hit;
+}
+
+/**
+ * ルート名から直接モデルと ServiceTier を解く。
+ *
+ * 通常は機能キーから引く（resolveAiRoute）。これを使うのは、同じ機能を複数のルートで
+ * 撃ち比べたいときだけ。実モデル名を呼び出し側に書かせないために置いている。
+ * 機能キーを経由しないのでメモ化もしない（比較用途で頻度が低い）。
+ */
+export function resolveAiRouteByName(
+  route: AiRouteName,
+): { model: string; serviceTier?: "flex" | "standard" } {
+  const spec: AiRouteSpec = AI_ROUTES[route] ?? AI_ROUTES[FALLBACK_ROUTE];
+  const alias = MODEL_ALIAS_SPECS[spec.alias] ?? MODEL_ALIAS_SPECS["gemini-lite"];
+  return {
+    model: process.env[alias.env]?.trim() || alias.fallback(),
+    ...(spec.tier === "auto" ? {} : { serviceTier: spec.tier }),
+  };
 }
 
 /** 機能キー → 実モデルID。DBに記録する model カラムもこれを使う。 */

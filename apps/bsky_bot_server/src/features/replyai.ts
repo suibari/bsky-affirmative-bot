@@ -11,7 +11,7 @@ import {
     botDayRange,
     isInBotDayRange,
 } from "@bsky-affirmative-bot/shared-configs";
-import { MemoryService, awardSuperPositiveLevel } from "@bsky-affirmative-bot/clients";
+import { MemoryService, awardSuperPositiveLevel, loadPreferredName } from "@bsky-affirmative-bot/clients";
 import { postContinuous } from "../bsky/postContinuous.js";
 import { checkAndSendRoomInvitation } from "../bsky/roomInvitation.js";
 import { getConcatProfiles } from "../bsky/getConcatProfiles.js";
@@ -118,7 +118,7 @@ export async function replyAI(
 
         // Nagi で本人が申告した呼び名があれば、Bluesky 側の返信でも同じ呼び方をする。
         // 参照だけで、Bluesky から呼び方を変える経路は用意していない（Bsky bot は撤退方針）。
-        const preferredName = await MemoryService.getPreferredName(follower.did);
+        const preferredName = await loadPreferredName(follower.did);
 
         // Gemini生成
         result = await generateAffirmativeWord({

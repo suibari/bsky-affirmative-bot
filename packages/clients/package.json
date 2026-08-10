@@ -23,7 +23,8 @@
     "@bsky-affirmative-bot/database": "workspace:*",
     "@bsky-affirmative-bot/shared-configs": "workspace:*",
     "axios": "^1.13.5",
-    "dotenv": "^16.4.5"
+    "dotenv": "^16.4.5",
+    "drizzle-orm": "^0.45.1"
   },
   "devDependencies": {
     "tsx": "^4.20.3",

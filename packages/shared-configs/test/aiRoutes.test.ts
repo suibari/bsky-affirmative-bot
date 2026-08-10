@@ -13,6 +13,8 @@ import {
 const MODEL_ENV_VARS = [
   "MODEL_GEMINI_LITE",
   "MODEL_GEMINI_FLASH",
+  "MODEL_GEMINI_35_LITE",
+  "MODEL_GEMINI_36_FLASH",
   "MODEL_GEMINI_IMAGE",
   "MODEL_GEMINI_EMBEDDING",
   "OLLAMA_MODEL",
@@ -42,6 +44,7 @@ function withCleanEnv(fn: () => void): void {
 
 const LITE = "gemini-2.5-flash-lite";
 const FLASH = "gemini-2.5-flash";
+const FLASH_35_LITE = "gemini-3.5-flash-lite";
 
 /**
  * 各機能に「意図して」割り当てたモデルと ServiceTier のピン留め。
@@ -51,12 +54,12 @@ const FLASH = "gemini-2.5-flash";
  */
 const EXPECTED: Record<AiFeatureKey, [model: string, tier: "flex" | "standard" | undefined]> = {
   // 共通（bsky + Nagi 両方に効く）
-  COMMON_USER_DIARY: [LITE, "flex"],
+  COMMON_USER_DIARY: [FLASH_35_LITE, "flex"],
   // 日記の再試行ラダー。1日1回しか機会が無いので、詰まったら段を上げて必ず書き切る。
-  COMMON_DIARY_ATTEMPT_EARLY: [LITE, "flex"],
-  COMMON_DIARY_ATTEMPT_MID: [LITE, "standard"],
-  COMMON_DIARY_ATTEMPT_LATE: [FLASH, "standard"],
-  COMMON_USER_DIARY_EMOJI: [LITE, "standard"],
+  COMMON_DIARY_ATTEMPT_EARLY: [FLASH_35_LITE, "flex"],
+  COMMON_DIARY_ATTEMPT_MID: [FLASH_35_LITE, "standard"],
+  COMMON_DIARY_ATTEMPT_LATE: [FLASH_35_LITE, "standard"],
+  COMMON_USER_DIARY_EMOJI: [FLASH_35_LITE, "standard"],
   // bsky_bot_server（肯定返信/会話は Nagi が requestOptions で上書きするので実質 bsky 専用）
   BSKY_AFFIRMATIVE_REPLY: [LITE, "flex"],
   BSKY_CONVERSATION: [LITE, "flex"],
@@ -75,7 +78,12 @@ const EXPECTED: Record<AiFeatureKey, [model: string, tier: "flex" | "standard" |
   BSKY_MY_MOOD_SONG: [LITE, "flex"],
   BSKY_IMAGE: ["gemini-2.5-flash-image-preview", undefined],
   // biorhythm_server（定期ポスト）
-  BIORHYTHM_STATUS: [FLASH, "flex"],
+  // 今期の話題作リスト。grounding 付きだが7日キャッシュするので実質週1回。
+  BIORHYTHM_SEASONAL_WORKS: [FLASH, "flex"],
+  // 今日の予定表。1日1回しか撃たず、落ちると丸1日プラン無しになるので standard。
+  BIORHYTHM_DAILY_PLAN: [FLASH, "standard"],
+  // 予定表が骨組みを決め、systemInstruction も描写用ブリーフに絞ったので lite で足りる。
+  BIORHYTHM_STATUS: [LITE, "flex"],
   BIORHYTHM_GOOD_NIGHT: [FLASH, "flex"],
   BIORHYTHM_QUESTION: [FLASH, "flex"],
   BIORHYTHM_WHIMSICAL_POST_PLAN: [FLASH, "flex"],
@@ -155,6 +163,36 @@ test("AI_ROUTE_<機能> でその機能だけルートを差し替えられる",
 
     // 隣の機能は既定のまま
     assert.equal(resolveAiRoute("BIORHYTHM_WHIMSICAL_POST_PLAN").model, FLASH);
+  });
+});
+
+test("日記だけをGemini 3.5/3.6のFlex・Standardへ切り替えられる", () => {
+  withCleanEnv(() => {
+    process.env.AI_ROUTE_COMMON_DIARY_ATTEMPT_EARLY = "35-lite-flex";
+    process.env.AI_ROUTE_COMMON_DIARY_ATTEMPT_MID = "35-lite-standard";
+    process.env.AI_ROUTE_COMMON_DIARY_ATTEMPT_LATE = "36-flash-standard";
+    resetAiRouteCache();
+
+    assert.deepEqual(
+      resolveAiRoute("COMMON_DIARY_ATTEMPT_EARLY"),
+      {
+        feature: "COMMON_DIARY_ATTEMPT_EARLY",
+        route: "35-lite-flex",
+        provider: "gemini",
+        model: "gemini-3.5-flash-lite",
+        serviceTier: "flex",
+        source: "env",
+      },
+    );
+    assert.equal(resolveAiRoute("COMMON_DIARY_ATTEMPT_MID").serviceTier, "standard");
+    assert.equal(resolveAiRoute("COMMON_DIARY_ATTEMPT_LATE").model, "gemini-3.6-flash");
+
+    process.env.MODEL_GEMINI_35_LITE = "gemini-3.5-flash-lite-pinned";
+    resetAiRouteCache();
+    assert.equal(
+      resolveAiRoute("COMMON_DIARY_ATTEMPT_EARLY").model,
+      "gemini-3.5-flash-lite-pinned",
+    );
   });
 });
 

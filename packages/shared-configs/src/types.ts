@@ -144,12 +144,27 @@ export type WhatDayMap = {
   };
 };
 
+/**
+ * botたんがいまどのSNSにいるか。Nagi がホームで、Bluesky は出張先。
+ *
+ * 定期ポストは両ネットワークへ同一本文で配信されるので、そこでは設定しない（片方で嘘になる）。
+ */
+export type BotSurface = "nagi" | "bluesky";
+
 export interface BotContext {
   datetime: string;
   weather: string;
   botActivity: string;
   botActivityEn: string;
   botEnergy: number;
+  /** 未設定なら場所に触れない（＝サーフェス中立）。 */
+  surface?: BotSurface;
+  /** 会話の整合性確認に使う、古い順の直近行動。 */
+  recentActivities?: {
+    at: string;
+    activity: string;
+    activityEn: string;
+  }[];
 }
 
 export type UserInfoGemini = {

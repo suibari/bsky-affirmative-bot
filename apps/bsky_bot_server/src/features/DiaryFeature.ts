@@ -6,7 +6,7 @@ import { DIARY_REGISTER_TRIGGER, DIARY_RELEASE_TRIGGER } from "@bsky-affirmative
 import { AppBskyFeedPost } from "@atproto/api"; type Record = AppBskyFeedPost.Record;
 import { handleMode } from "./utils.js";
 import { getLangStr, getTimezoneFromLang } from "../bsky/util.js";
-import { MemoryService, applyDiaryTitle, calculateDelayUntilLocal22, isPastLocal22, localDateStr } from "@bsky-affirmative-bot/clients";
+import { MemoryService, applyDiaryTitle, buildUserDiaryContext, calculateDelayUntilLocal22, isPastLocal22, localDateStr, withPreferredName } from "@bsky-affirmative-bot/clients";
 import { LanguageName } from "@bsky-affirmative-bot/shared-configs";
 import { getConcatProfiles } from "../bsky/getConcatProfiles.js";
 import { getDaysAuthorFeed } from "../bsky/getDaysAuthorFeed.js";
@@ -81,7 +81,8 @@ async function processUserDiary(userDid: string, timezone: string) {
     try {
         console.log(`[INFO][${userDid}] Processing diary...`);
 
-        const diaryDate = localDateStr(timezone);
+        const until = new Date();
+        const diaryDate = localDateStr(timezone, until);
 
         // 取りこぼし回収で毎時呼ばれるので、書き終えた日はここで抜ける。
         const follower = await MemoryService.getFollower(userDid);
@@ -94,7 +95,7 @@ async function processUserDiary(userDid: string, timezone: string) {
         // クロスポスト（isNagiCrosspost）と同じく、片方が担当したらもう片方は黙る。
         // ここでは last_diary_date を書かない。書くと Nagi 側が失敗したときに
         // 両方欠測で確定してしまう。
-        const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+        const since = new Date(until.getTime() - 24 * 60 * 60 * 1000);
         if (await MemoryService.hasNagiPostsSince(userDid, since)) {
             console.log(`[INFO][${userDid}] Nagi diary takes precedence, skipping Bluesky diary`);
             return;
@@ -126,6 +127,14 @@ async function processUserDiary(userDid: string, timezone: string) {
             return;
         }
         const langStr = getLangStr((latestPost.record as Record).langs);
+        const dayContext = await buildUserDiaryContext({
+            did: userDid,
+            date: diaryDate,
+            since,
+            until,
+            timezone,
+            japanese: langStr === "日本語",
+        });
 
         console.log(`[INFO][${userDid}] generating diary...`);
 
@@ -133,13 +142,14 @@ async function processUserDiary(userDid: string, timezone: string) {
         try {
             // 失敗するたびにモデル/tier を上げながら最大3時間粘る。
             // 使い切っても、22時を過ぎている人は毎時の再スキャンが拾い直す。
+            const userinfo = await withPreferredName({
+                follower: profile as ProfileView,
+                posts: posts.reverse(),
+                langStr,
+            });
             diaryResult = await generateUserDiaryResilient(
-                {
-                    follower: profile as ProfileView,
-                    posts: posts.reverse(),
-                    langStr,
-                },
-                { label: `[${userDid}][DIARY]` },
+                userinfo,
+                { dayContext, label: `[${userDid}][DIARY]` },
             );
         } catch (e: any) {
             console.error(`[ERROR][${userDid}][DIARY] Failed to generate diary after up to ${DIARY_MAX_ATTEMPTS} attempts:`, e.message);

@@ -10,8 +10,7 @@ import {
 } from "../src/config/aiRetryLadder.js";
 import { resetAiRouteCache } from "../src/config/aiRoutes.js";
 
-const LITE = "gemini-2.5-flash-lite";
-const FLASH = "gemini-2.5-flash";
+const FLASH_35_LITE = "gemini-3.5-flash-lite";
 
 /** 日記の実ラダーそのもの。段の刻みが変わったらここが赤くなる。 */
 const DIARY_LADDER: readonly AiLadderStep[] = [
@@ -82,16 +81,16 @@ test("cause 連鎖をたどって1行に潰す", () => {
   assert.equal(formatAiError(error), "outer | caused by: inner");
 });
 
-test("試行回数に応じて lite-flex → lite-standard → flash-standard と上がる", () => {
+test("試行回数に応じて3.5 Flash-LiteのFlexからStandardへ上がる", () => {
   resetAiRouteCache();
   const at = (attempt: number) => aiRouteForAttempt(DIARY_LADDER, attempt);
-  assert.deepEqual(at(1), { model: LITE, serviceTier: "flex" });
-  assert.deepEqual(at(2), { model: LITE, serviceTier: "flex" });
-  assert.deepEqual(at(3), { model: LITE, serviceTier: "standard" });
-  assert.deepEqual(at(4), { model: LITE, serviceTier: "standard" });
-  assert.deepEqual(at(5), { model: FLASH, serviceTier: "standard" });
+  assert.deepEqual(at(1), { model: FLASH_35_LITE, serviceTier: "flex" });
+  assert.deepEqual(at(2), { model: FLASH_35_LITE, serviceTier: "flex" });
+  assert.deepEqual(at(3), { model: FLASH_35_LITE, serviceTier: "standard" });
+  assert.deepEqual(at(4), { model: FLASH_35_LITE, serviceTier: "standard" });
+  assert.deepEqual(at(5), { model: FLASH_35_LITE, serviceTier: "standard" });
   // 最終段より先は最後の段を使い回す
-  assert.deepEqual(at(99), { model: FLASH, serviceTier: "standard" });
+  assert.deepEqual(at(99), { model: FLASH_35_LITE, serviceTier: "standard" });
 });
 
 test("503が続くとモデルを上げながら再試行し、上がった段で成功する", async () => {
@@ -113,11 +112,11 @@ test("503が続くとモデルを上げながら再試行し、上がった段�
 
   assert.equal(result, "ok");
   assert.deepEqual(seen, [
-    { model: LITE, serviceTier: "flex" },
-    { model: LITE, serviceTier: "flex" },
-    { model: LITE, serviceTier: "standard" },
-    { model: LITE, serviceTier: "standard" },
-    { model: FLASH, serviceTier: "standard" },
+    { model: FLASH_35_LITE, serviceTier: "flex" },
+    { model: FLASH_35_LITE, serviceTier: "flex" },
+    { model: FLASH_35_LITE, serviceTier: "standard" },
+    { model: FLASH_35_LITE, serviceTier: "standard" },
+    { model: FLASH_35_LITE, serviceTier: "standard" },
   ]);
   // ジッタ係数1.0のときは遅延テーブルどおり
   assert.deepEqual(clock.slept, [30_000, 2 * 60_000, 10 * 60_000, 30 * 60_000]);

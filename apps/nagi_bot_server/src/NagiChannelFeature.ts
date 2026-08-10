@@ -1,10 +1,10 @@
 import { db, nagiChannels, nagiPosts } from "@bsky-affirmative-bot/database";
 import { generateSingleResponse } from "@bsky-affirmative-bot/bot-brain";
-import { TONE_RULES_JA } from "@bsky-affirmative-bot/shared-configs";
 import { NAGI } from "@bsky-affirmative-bot/nagi-lexicon";
 import { and, asc, desc, eq, isNotNull, isNull, lt, ne } from "drizzle-orm";
 import retry from "async-retry";
 import { publishNagiPost } from "./nagiPost.js";
+import { topicPrompt, welcomePrompt } from "./nagiChannelPrompt.js";
 
 /** 投稿が途絶えてから話題提供するまでの時間（時間）。既定1週間。 */
 const DORMANT_HOURS = Number(process.env.NAGI_CHANNEL_DORMANT_HOURS ?? 168);
@@ -35,26 +35,6 @@ async function postToChannel(channel: ChannelRef, text: string) {
     },
   );
 }
-
-// キャラクター設定は generateSingleResponse が systemInstruction に載せる共有ペルソナが担う。
-// ここでペルソナを再宣言すると（「SNSのマスコットです」など）硬いレジスターを誘発して
-// 敬語混入の原因になるので、タスクの説明だけを書き、口調は TONE_RULES_JA を再掲して固定する。
-const toneBlock = `\n\n# 口調\n${TONE_RULES_JA}`;
-
-const welcomePrompt = (name: string, description: string | null) =>
-  `Nagi に新しくチャンネル「${name}」ができたよ。` +
-  (description ? `チャンネルの説明は「${description}」。` : "") +
-  `このチャンネルの最初の投稿として、テーマに沿ってみんなが気軽に投稿したくなるような、` +
-  `やさしくて短い歓迎・盛り上げのメッセージを1つだけ日本語で書いて。` +
-  `説明文や鉤括弧の注釈は不要、投稿本文だけを140文字以内で。` +
-  toneBlock;
-
-const topicPrompt = (name: string, description: string | null) =>
-  `Nagi のチャンネル「${name}」はしばらく投稿が途絶えてるから、そっと盛り上げたい。` +
-  (description ? `チャンネルの説明は「${description}」。` : "") +
-  `このチャンネルのテーマに沿った、みんなが答えたくなる軽いお題や話題ふりを1つだけ日本語で書いて。` +
-  `押し付けがましくならず、やさしいトーンで。投稿本文だけを140文字以内で。` +
-  toneBlock;
 
 /**
  * チャンネル作成イベントのハンドラ（Phase 2）。

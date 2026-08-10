@@ -8,6 +8,7 @@ import {
 } from "@bsky-affirmative-bot/database";
 import {
   applyDiaryTitle,
+  buildUserDiaryContext,
   calculateDelayUntilLocal22,
   getLangStr,
   getTimezoneFromLang,
@@ -15,11 +16,13 @@ import {
   localDateStr,
   trackedDeleteRecord,
   trackedPutRecord,
+  withPreferredName,
 } from "@bsky-affirmative-bot/clients";
 import {
   DIARY_MAX_ATTEMPTS,
   generateUserDiaryResilient,
   type DiaryResult,
+  type UserDiaryDayContext,
 } from "@bsky-affirmative-bot/bot-brain";
 import type { AppBskyActorDefs } from "@atproto/api";
 import { NAGI, type NagiDiary } from "@bsky-affirmative-bot/nagi-lexicon";
@@ -47,6 +50,24 @@ function daysBefore(date: string, days: number): string {
  */
 function diaryRkey(subject: string, date: string): string {
   return `${subject.replaceAll(":", "_")}-${date}`;
+}
+
+async function loadDiaryDayContext(
+  did: string,
+  date: string,
+  since: Date,
+  until: Date,
+  timezone: string,
+  japanese: boolean,
+): Promise<UserDiaryDayContext> {
+  return buildUserDiaryContext({
+    did,
+    date,
+    since,
+    until,
+    timezone,
+    japanese,
+  });
 }
 
 async function getDisplayName(did: string): Promise<string> {
@@ -143,6 +164,14 @@ export async function processNagiDiary(
     const recentEmojis = recentEmojiRows.flatMap((row) =>
       row.emoji ? [{ date: row.date, emoji: row.emoji }] : [],
     );
+    const dayContext = await loadDiaryDayContext(
+      userDid,
+      date,
+      since,
+      until,
+      timezone,
+      langStr === "日本語",
+    );
 
     const displayName = await getDisplayName(userDid);
     // generateUserDiary が見るのは displayName だけだが、型は Bluesky の ProfileView。
@@ -157,13 +186,14 @@ export async function processNagiDiary(
     try {
       // 失敗するたびにモデル/tier を上げながら最大3時間粘る。
       // 使い切っても、22時を過ぎている人は毎時の再スキャンが拾い直す。
+      const userinfo = await withPreferredName({
+        follower,
+        posts: recentPosts.map((post) => post.text),
+        langStr,
+      });
       diaryResult = await generateUserDiaryResilient(
-        {
-          follower,
-          posts: recentPosts.map((post) => post.text),
-          langStr,
-        },
-        { recentEmojis, label: `[NAGI][${userDid}][DIARY]` },
+        userinfo,
+        { recentEmojis, dayContext, label: `[NAGI][${userDid}][DIARY]` },
       );
     } catch (error: any) {
       console.error(
