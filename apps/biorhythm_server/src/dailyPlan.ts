@@ -8,7 +8,11 @@ import {
   type Status,
 } from "@bsky-affirmative-bot/shared-configs";
 import { Type } from "@google/genai";
-import { buildSeasonalWorksSection, ensureSeasonalWorks } from "./seasonalWorks.js";
+import {
+  buildSeasonalWorksSection,
+  ensureSeasonalWorks,
+  findGenericMediaEvents,
+} from "./seasonalWorks.js";
 
 /**
  * botたんの「今日の予定表」。
@@ -264,30 +268,62 @@ export async function ensureDailyPlan(
 
   try {
     const works = await ensureSeasonalWorks(now);
-    const response = await generateContentWithRetry({
-      feature: "BIORHYTHM_DAILY_PLAN",
-      // 予定表は25件のイベントを持つ JSON なので、投稿本文用の POST_TEXT_LIMIT（2100字）を
-      // 平気で超える。これは暴走ではなく想定どおりの長さで、リトライしても縮まらないので外す。
-      maxTextLength: null,
-      contents: [
-        buildDailyPlanPrompt({
-          botDate,
-          isWeekend: input.isWeekend,
-          whatDay: getWhatDay(),
-          eventSamples: input.eventSamples,
-          worksSection: buildSeasonalWorksSection(works),
-        }),
-      ],
-      config: {
-        // ペルソナはシステムターンに置く。予定表は botたん自身の1日なので、口調ではなく
-        // 趣味・交友関係が効いてほしい（TONE_RULES_JA は status_text 側で当てない方針と同じ）。
-        systemInstruction: SYSTEM_INSTRUCTION,
-        responseMimeType: "application/json",
-        responseSchema: DAILY_PLAN_SCHEMA,
-      },
+    const basePrompt = buildDailyPlanPrompt({
+      botDate,
+      isWeekend: input.isWeekend,
+      whatDay: getWhatDay(),
+      eventSamples: input.eventSamples,
+      worksSection: buildSeasonalWorksSection(works),
     });
-    const plan = parseDailyPlan(JSON.parse(response.text || "{}"), botDate);
+
+    const generate = async (prompt: string) => {
+      const response = await generateContentWithRetry({
+        feature: "BIORHYTHM_DAILY_PLAN",
+        // 予定表は25件のイベントを持つ JSON なので、投稿本文用の POST_TEXT_LIMIT（2100字）を
+        // 平気で超える。これは暴走ではなく想定どおりの長さで、リトライしても縮まらないので外す。
+        maxTextLength: null,
+        contents: [prompt],
+        config: {
+          // ペルソナはシステムターンに置く。予定表は botたん自身の1日なので、口調ではなく
+          // 趣味・交友関係が効いてほしい（TONE_RULES_JA は status_text 側で当てない方針と同じ）。
+          systemInstruction: SYSTEM_INSTRUCTION,
+          responseMimeType: "application/json",
+          responseSchema: DAILY_PLAN_SCHEMA,
+        },
+      });
+      return parseDailyPlan(JSON.parse(response.text || "{}"), botDate);
+    };
+
+    let plan = await generate(basePrompt);
     if (!plan) throw new Error("Daily plan had no usable events");
+
+    // 「お気に入りのアニソンを聴きながら」のような一般名詞のままの予定が残ると、描写側は
+    // それを情景に起こすだけなので固有名詞にしようがない。指示だけでは守られなかったので
+    // 生成後に検査し、1回だけ直させる。1日1回の呼び出しなので追加コストは小さい。
+    const generic = findGenericMediaEvents(plan.events, works);
+    if (generic.length > 0) {
+      console.warn(
+        `[WARN][BIORHYTHM] Daily plan had ${generic.length} generic media event(s); retrying once: ` +
+          generic.map((event) => event.activity).join(" / "),
+      );
+      const retried = await generate(
+        `${basePrompt}
+
+-----やり直しの指示-----
+* 前回の予定表には、作品名の無い一般名詞だけの予定が残っていました:
+${generic.map((event) => `  - ${event.activity}`).join("\n")}
+* これらは「いま話題のもの」の候補から**具体的な名前を入れて書き直す**か、作品に触れない別の予定に差し替えてください。
+* ほかの予定はそのままでかまいません。予定表全体をもう一度出力してください。`,
+      );
+      const stillGeneric = retried ? findGenericMediaEvents(retried.events, works) : [];
+      if (retried && stillGeneric.length <= generic.length) plan = retried;
+      if (stillGeneric.length > 0) {
+        console.warn(
+          `[WARN][BIORHYTHM] ${stillGeneric.length} generic media event(s) remain after retry; keeping the plan`,
+        );
+      }
+    }
+
     await savePlan(plan);
     console.log(
       `[INFO][BIORHYTHM] Daily plan for ${botDate}: ${plan.events.length} events, companion=${plan.companion}`,

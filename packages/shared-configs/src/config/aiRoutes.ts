@@ -159,9 +159,10 @@ export const AI_FEATURES = {
   // 今日の予定表。1日1回しか撃たず、落ちると丸1日プラン無しで走ることになるので
   // NAGI_ANALYSIS と同じ理由で standard に置く（flex は 503 を踏みやすい）。
   BIORHYTHM_DAILY_PLAN: "flash-standard",
-  // botたんの現在状況（三人称の描写文）。通常は OLLAMA_BIORHYTHM_STATUS が担当し、
-  // ここはローカルが失敗/未設定/バリデータ落ちしたときのフォールバック経路として残す。
-  BIORHYTHM_STATUS: "flash-flex",
+  // botたんの現在状況（三人称の描写文）。1日24〜48回と呼び出しが多いが、今日の予定表が
+  // 「何を・誰と・何分」を決めているので、ここに残るのは決まった予定を情景に起こす作業だけ。
+  // systemInstruction も BOT_SCENE_BRIEF_JA（約1,000字）に絞ってあるので lite で足りる。
+  BIORHYTHM_STATUS: "lite-flex",
   BIORHYTHM_GOOD_NIGHT: "flash-flex", // おやすみポスト
   BIORHYTHM_QUESTION: "flash-flex", // 質問生成
   BIORHYTHM_WHIMSICAL_POST_PLAN: "flash-flex", // 気まぐれ投稿: 企画フェーズ（function calling）
@@ -193,7 +194,6 @@ export const AI_FEATURES = {
   OLLAMA_EMBED: "ollama-embed", // 埋め込み（投稿/ユーザ/チャンネル/ニュース）
   OLLAMA_TRANSLATION: "ollama-translate", // 投稿の一般翻訳
   OLLAMA_BOT_TRANSLATION: "ollama-bot-translate", // botたん投稿のペルソナ翻訳
-  OLLAMA_BIORHYTHM_STATUS: "ollama-chat", // 各stepの状況描写（1日24〜48回。Gemini から移した）
 } as const satisfies Record<string, AiRouteName>;
 
 export type AiFeatureKey = keyof typeof AI_FEATURES;
@@ -289,6 +289,24 @@ export function resolveAiRoute(feature: AiFeatureKey): ResolvedAiRoute {
     cache.set(feature, hit);
   }
   return hit;
+}
+
+/**
+ * ルート名から直接モデルと ServiceTier を解く。
+ *
+ * 通常は機能キーから引く（resolveAiRoute）。これを使うのは、同じ機能を複数のルートで
+ * 撃ち比べたいときだけ。実モデル名を呼び出し側に書かせないために置いている。
+ * 機能キーを経由しないのでメモ化もしない（比較用途で頻度が低い）。
+ */
+export function resolveAiRouteByName(
+  route: AiRouteName,
+): { model: string; serviceTier?: "flex" | "standard" } {
+  const spec: AiRouteSpec = AI_ROUTES[route] ?? AI_ROUTES[FALLBACK_ROUTE];
+  const alias = MODEL_ALIAS_SPECS[spec.alias] ?? MODEL_ALIAS_SPECS["gemini-lite"];
+  return {
+    model: process.env[alias.env]?.trim() || alias.fallback(),
+    ...(spec.tier === "auto" ? {} : { serviceTier: spec.tier }),
+  };
 }
 
 /** 機能キー → 実モデルID。DBに記録する model カラムもこれを使う。 */

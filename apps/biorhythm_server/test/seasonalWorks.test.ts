@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   buildSeasonalWorksSection,
+  findGenericMediaEvents,
   isInFailureBackoff,
   isSeasonalWorksFresh,
   parseSeasonalWorks,
@@ -150,4 +151,44 @@ test("種別は日本語で並べる（日本語プロンプトに英語キー�
   assert.match(section, /アニメ・漫画・ゲーム・ドラマ・映画・小説・音楽・ホビー/);
   // 種別キーは JSON データ側にだけ残る。
   assert.doesNotMatch(section.split("\n")[1] ?? "", /anime・manga/);
+});
+
+test("メディアに触れる予定は一般名詞のままにさせない", () => {
+  const section = buildSeasonalWorksSection([{ kind: "music", title: "蒼穹のカノン" }]);
+
+  // 「4〜6件だけ具体化」だと残りが一般名詞で書かれてしまう。触れるなら必ず固有名詞、が正しい。
+  assert.match(section, /必ず下の候補から具体的な名前を選んで予定文に書いてください/);
+  assert.match(section, /「アニメ」「アニソン」/);
+  assert.match(section, /その予定は作品に触れない別の内容にしてください/);
+});
+
+const works = [
+  { kind: "anime", title: "蒼穹のカノン" },
+  { kind: "music", title: "夜明けのオルカ" },
+] as const;
+
+test("固有名詞の無いメディア予定を見つける", () => {
+  const events = [
+    { status: "WakeUp", activity: "お気に入りのアニソンを聴きながらストレッチするよ" },
+    { status: "Relax", activity: "「夜明けのオルカ」を聴いて今日を振り返るんだ" },
+    { status: "FreeTime", activity: "モルフォと公園までサイクリングするんだ" },
+    { status: "Sleep", activity: "かっこいいロボットのアニメの夢を見てる" },
+  ];
+
+  const generic = findGenericMediaEvents(events, [...works]);
+
+  assert.deepEqual(
+    generic.map((event) => event.status),
+    ["WakeUp", "Sleep"],
+  );
+});
+
+test("勉強中は作品名を入れない方針なので検査から外す", () => {
+  const events = [{ status: "Study", activity: "アニメの話は我慢して数学の課題をやる" }];
+  assert.deepEqual(findGenericMediaEvents(events, [...works]), []);
+});
+
+test("候補が空なら検査しない（無い日を責めない）", () => {
+  const events = [{ status: "WakeUp", activity: "アニソンを聴くよ" }];
+  assert.deepEqual(findGenericMediaEvents(events, []), []);
 });
