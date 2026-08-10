@@ -109,6 +109,63 @@ The local model names are defaults. `OLLAMA_MODEL`, the other model variables, a
 
 ## Home system architecture
 
+| Host | Hardware | Workloads |
+| --- | --- | --- |
+| **Bot server** | Raspberry Pi 5 / RAM 8 GB / 256 GB SSD | JetsteamProxy; every app and package in this repository, including the Bluesky and Nagi bots and Nagi AppView; PostgreSQL for RAG and shared memory |
+| **LLM server** | Core i5 12400F / RTX 3060 Ti (VRAM 8 GB) / DDR5 32 GB | Ollama for translation and text embeddings; YouTuber Bot-tan scripts; VOICEVOX; NVIDIA ARDY for AI-powered real-time motion generation |
+
+### Hardware layout
+
+```mermaid
+flowchart TB
+  subgraph home[Home network]
+    direction LR
+
+    subgraph botHost[Bot server]
+      direction TB
+
+      subgraph jetstreamStack[JetsteamProxy]
+        jetsteamProxy[AT Protocol Jetstream proxy]
+      end
+
+      subgraph repositoryStack[This repository]
+        repoApps["Bluesky / Nagi bots<br/>Nagi AppView / biorhythm / labeler / Discord<br/>all apps and packages"]
+        brain[Shared bot brain and RAG]
+      end
+
+      subgraph databaseStack[RAG database]
+        memory[(PostgreSQL<br/>RAG and shared memory)]
+      end
+    end
+
+    subgraph llmHost[LLM server]
+      direction TB
+
+      subgraph ollamaStack[Local language processing]
+        ollama["Ollama<br/>translation / text embeddings"]
+      end
+
+      subgraph youtubeStack[YouTuber Bot-tan automation]
+        youtubeScripts["Bot-tan scripts<br/>Unity video automation"]
+        ardy["NVIDIA ARDY server<br/>AI real-time motion generation"]
+      end
+
+      subgraph voiceStack[Speech synthesis]
+        voicevox[VOICEVOX server]
+      end
+    end
+  end
+
+  jetsteamProxy --> repoApps
+  repoApps --> brain
+  brain <--> memory
+  repoApps <--> ollama
+  youtubeScripts --> voicevox
+  youtubeScripts <--> ardy
+```
+
+### Service connections
+
 ```mermaid
 flowchart LR
   subgraph outputs[Project outputs]
@@ -119,21 +176,18 @@ flowchart LR
     portal[Bot-tan Portal]
   end
 
-  subgraph home[Home-hosted system]
-    bskyServer[bsky_bot_server]
-    nagiServer[nagi_bot_server]
-    appview[nagi_appview]
-    biorhythm[biorhythm_server]
-    labeler[labeler_server]
-    roomServer[Room backend]
+  subgraph services[Bot-tan services]
+    jetsteamProxy[JetsteamProxy]
+    repoApps["Bots / Nagi AppView<br/>and shared services"]
     brain[Shared bot brain and RAG]
-    memory[(PostgreSQL shared memory)]
-    ollama[Ollama: Gemma / embeddings / translation]
+    memory[(PostgreSQL)]
+    ollama[Ollama]
+    youtubeScripts["YouTuber Bot-tan scripts<br/>Unity automation"]
     voicevox[VOICEVOX]
-    unity[Unity video automation]
+    ardy[NVIDIA ARDY]
   end
 
-  subgraph cloud[External and cloud services]
+  subgraph cloud[Platforms and cloud services]
     atproto[AT Protocol / PDS / Jetstream]
     gemini[Google Gemini]
     youtubeApi[YouTube]
@@ -144,27 +198,19 @@ flowchart LR
   nagi <--> cloudflare
   room <--> cloudflare
   portal <--> cloudflare
-  bskyServer <--> atproto
-  nagiServer <--> atproto
-  appview <--> atproto
-  labeler <--> atproto
-  cloudflare <--> appview
-  cloudflare <--> biorhythm
-  cloudflare <--> roomServer
-  biorhythm --> bskyServer
-  biorhythm --> nagiServer
-  bskyServer --> brain
-  nagiServer --> brain
-  appview --> brain
-  biorhythm --> brain
-  roomServer --> brain
-  roomServer <--> memory
-  roomServer --> voicevox
+  atproto <--> jetsteamProxy
+  jetsteamProxy --> repoApps
+  repoApps <--> atproto
+  cloudflare <--> repoApps
+  repoApps --> brain
   brain <--> memory
-  brain <--> ollama
-  brain <--> gemini
-  brain --> unity
-  unity --> youtubeApi
+  repoApps <--> ollama
+  repoApps <--> gemini
+  room -.-> voicevox
+  youtubeScripts <--> gemini
+  youtubeScripts --> voicevox
+  youtubeScripts <--> ardy
+  youtubeScripts --> youtubeApi
   youtubeApi --> youtube
 ```
 
@@ -188,5 +234,5 @@ If you think this feels like a valuable project to you, I would be delighted if 
 This project is open source under the [MIT License](./LICENSE).
 
 <div align="center">
-  <img src="./img/suibari-logo.png" alt="suibari" width="360">
+  <a href="https://suibari.com"><img src="./img/suibari-logo.png" alt="suibari" width="360"></a>
 </div>

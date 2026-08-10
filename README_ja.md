@@ -109,6 +109,63 @@ ollama pull translategemma:4b
 
 ## 自宅のシステム構成
 
+| ホスト | ハードウェア | 稼働するもの |
+| --- | --- | --- |
+| **botサーバー** | Raspberry Pi 5 / RAM 8 GB / 256 GB SSD | JetsteamProxy、Bluesky・Nagi botやNagi AppViewを含む本リポジトリの全アプリ・パッケージ、RAG・共有記憶用PostgreSQL |
+| **LLMサーバー** | Core i5 12400F / RTX 3060 Ti（VRAM 8 GB）/ DDR5 32 GB | 翻訳・テキストエンベディング用Ollama、YouTuber botたんスクリプト、VOICEVOX、AIリアルタイムモーション生成用NVIDIA ARDY |
+
+### ハードウェア構成
+
+```mermaid
+flowchart TB
+  subgraph home[自宅ネットワーク]
+    direction LR
+
+    subgraph botHost[botサーバー]
+      direction TB
+
+      subgraph jetstreamStack[JetsteamProxy]
+        jetsteamProxy[AT Protocol Jetstreamプロキシ]
+      end
+
+      subgraph repositoryStack[本リポジトリ]
+        repoApps["Bluesky / Nagi bot<br/>Nagi AppView / biorhythm / labeler / Discord<br/>すべてのアプリ・パッケージ"]
+        brain[共通bot brainとRAG]
+      end
+
+      subgraph databaseStack[RAGデータベース]
+        memory[(PostgreSQL<br/>RAG・共有記憶)]
+      end
+    end
+
+    subgraph llmHost[LLMサーバー]
+      direction TB
+
+      subgraph ollamaStack[ローカル言語処理]
+        ollama["Ollama<br/>翻訳 / テキストエンベディング"]
+      end
+
+      subgraph youtubeStack[YouTuber botたん自動化]
+        youtubeScripts["botたんスクリプト<br/>Unity動画自動化"]
+        ardy["NVIDIA ARDYサーバー<br/>AIリアルタイムモーション生成"]
+      end
+
+      subgraph voiceStack[音声合成]
+        voicevox[VOICEVOXサーバー]
+      end
+    end
+  end
+
+  jetsteamProxy --> repoApps
+  repoApps --> brain
+  brain <--> memory
+  repoApps <--> ollama
+  youtubeScripts --> voicevox
+  youtubeScripts <--> ardy
+```
+
+### サービス連携
+
 ```mermaid
 flowchart LR
   subgraph outputs[プロジェクトのアウトプット]
@@ -119,21 +176,18 @@ flowchart LR
     portal[botたんポータル]
   end
 
-  subgraph home[自宅稼働システム]
-    bskyServer[bsky_bot_server]
-    nagiServer[nagi_bot_server]
-    appview[nagi_appview]
-    biorhythm[biorhythm_server]
-    labeler[labeler_server]
-    roomServer[お部屋バックエンド]
+  subgraph services[botたんサービス]
+    jetsteamProxy[JetsteamProxy]
+    repoApps["bot / Nagi AppView<br/>共通サービス"]
     brain[共通bot brainとRAG]
-    memory[(PostgreSQL共有記憶)]
-    ollama[Ollama: Gemma / 埋め込み / 翻訳]
+    memory[(PostgreSQL)]
+    ollama[Ollama]
+    youtubeScripts["YouTuber botたんスクリプト<br/>Unity自動化"]
     voicevox[VOICEVOX]
-    unity[Unity動画自動化]
+    ardy[NVIDIA ARDY]
   end
 
-  subgraph cloud[外部・クラウドサービス]
+  subgraph cloud[プラットフォーム・クラウドサービス]
     atproto[AT Protocol / PDS / Jetstream]
     gemini[Google Gemini]
     youtubeApi[YouTube]
@@ -144,27 +198,19 @@ flowchart LR
   nagi <--> cloudflare
   room <--> cloudflare
   portal <--> cloudflare
-  bskyServer <--> atproto
-  nagiServer <--> atproto
-  appview <--> atproto
-  labeler <--> atproto
-  cloudflare <--> appview
-  cloudflare <--> biorhythm
-  cloudflare <--> roomServer
-  biorhythm --> bskyServer
-  biorhythm --> nagiServer
-  bskyServer --> brain
-  nagiServer --> brain
-  appview --> brain
-  biorhythm --> brain
-  roomServer --> brain
-  roomServer <--> memory
-  roomServer --> voicevox
+  atproto <--> jetsteamProxy
+  jetsteamProxy --> repoApps
+  repoApps <--> atproto
+  cloudflare <--> repoApps
+  repoApps --> brain
   brain <--> memory
-  brain <--> ollama
-  brain <--> gemini
-  brain --> unity
-  unity --> youtubeApi
+  repoApps <--> ollama
+  repoApps <--> gemini
+  room -.-> voicevox
+  youtubeScripts <--> gemini
+  youtubeScripts --> voicevox
+  youtubeScripts <--> ardy
+  youtubeScripts --> youtubeApi
   youtubeApi --> youtube
 ```
 
@@ -188,5 +234,5 @@ botたんを支える各種サービスは自費で稼働しています。ス�
 このプロジェクトは[MITライセンス](./LICENSE)で公開されています。
 
 <div align="center">
-  <img src="./img/suibari-logo.png" alt="すいばり" width="360">
+  <a href="https://suibari.com"><img src="./img/suibari-logo.png" alt="すいばり" width="360"></a>
 </div>
