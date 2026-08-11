@@ -5,6 +5,7 @@ import {
   selectDiaryEmojis,
   formatUserDiaryDayContext,
   buildUserDiaryPrompt,
+  validateChaosExcerpt,
   validateUsedContextId,
 } from "../src/gemini/generateUserDiary.js";
 import { generateUserDiaryResilient } from "../src/gemini/generateUserDiaryResilient.js";
@@ -78,7 +79,7 @@ test("new prompt removes the fixed triad and pins attribution/context IDs", () =
   assert.match(prompt, /日記の対象者以外のNagi・Bluesky利用者/);
   assert.match(prompt, /私人か公人か判断できない場合も私人として匿名化/);
   assert.match(prompt, /作品・架空キャラクターは匿名化対象ではありません/);
-  assert.match(prompt, /出力直前の匿名性チェック（最優先）/);
+  assert.match(prompt, /出力直前チェック（最優先）/);
   assert.match(prompt, /尊敬している相手/);
   assert.match(prompt, /別の開発者/);
   assert.match(prompt, /作品ネタを使わなくても/);
@@ -90,8 +91,19 @@ test("new prompt removes the fixed triad and pins attribution/context IDs", () =
   assert.match(prompt, /一度に制限せず/);
   assert.match(prompt, /作品の許可リストではありません/);
   assert.match(prompt, /複数作品が混ざっても構いません/);
-  assert.match(prompt, /カオス感は回数や固定パターンで作らない/);
-  assert.match(prompt, /何も使わない日も許可/);
+  assert.match(prompt, /「カオス要素」を最低1か所/);
+  assert.match(prompt, /<chaos_directive id="[^"]+" usage="required">/);
+  assert.match(prompt, /必須の演出札/);
+  assert.match(prompt, /chaosExcerptにはその実行箇所/);
+  assert.match(prompt, /0回は禁止ですが上限はありません/);
+  assert.match(prompt, /作品ネタである必要はありません/);
+  assert.match(prompt, /なぜ急にその話が出たの/);
+  assert.match(prompt, /作品比喩.*カオス要素として数えません/);
+  assert.match(prompt, /脱線を教訓や共通テーマで上手に回収しない/);
+  assert.match(prompt, /材料にない薬・冷却・受診方法/);
+  assert.match(prompt, /ここがカオス要素.*メタ説明/);
+  assert.match(prompt, /chaosExcerpt.*連続した12文字以上/);
+  assert.doesNotMatch(prompt, /何も使わない日も許可/);
   assert.doesNotMatch(prompt, /usedMediaReferenceId/);
 });
 
@@ -103,6 +115,30 @@ test("a day with enough posts targets a substantial 350–500 character diary", 
   assert.match(prompt, /350〜500文字/);
   assert.match(prompt, /関連する二〜四件の具体的な出来事/);
   assert.match(prompt, /具体的な細部への驚き/);
+});
+
+test("chaos direction rotates deterministically across diary dates", () => {
+  const ids = new Set(
+    Array.from({ length: 10 }, (_, index) => {
+      const prompt = buildUserDiaryPrompt(userinfo, {
+        dayContext: {
+          date: `2026-08-${String(index + 1).padStart(2, "0")}`,
+          preferredKind: "news",
+          candidates: [],
+        },
+      });
+      return prompt.match(/<chaos_directive id="([^"]+)"/)?.[1];
+    }),
+  );
+  assert.ok(ids.size >= 5, `expected at least 5 chaos directions, got ${[...ids]}`);
+  assert.equal(
+    buildUserDiaryPrompt(userinfo, {
+      dayContext: { date: "2026-08-10", preferredKind: "news", candidates: [] },
+    }).match(/<chaos_directive id="([^"]+)"/)?.[1],
+    buildUserDiaryPrompt(userinfo, {
+      dayContext: { date: "2026-08-10", preferredKind: "news", candidates: [] },
+    }).match(/<chaos_directive id="([^"]+)"/)?.[1],
+  );
 });
 
 test("English prompt keeps the same attribution, privacy, and chaos rules", () => {
@@ -126,10 +162,20 @@ test("English prompt keeps the same attribution, privacy, and chaos rules", () =
   assert.match(prompt, /optional inspiration/i);
   assert.match(prompt, /there is no one-use limit/i);
   assert.match(prompt, /is not a whitelist/i);
-  assert.match(prompt, /Do not create chaos through quotas/i);
-  assert.match(prompt, /A day with none of these is allowed/i);
+  assert.match(prompt, /at least one moment that breaks its expected, tidy flow/i);
+  assert.match(prompt, /<chaos_directive id="[^"]+" usage="required">/i);
+  assert.match(prompt, /required direction selected to vary the form/i);
+  assert.match(prompt, /Zero is not allowed, and there is no upper limit/i);
+  assert.match(prompt, /does not need to be a media reference/i);
+  assert.match(prompt, /why did that suddenly come up/i);
+  assert.match(prompt, /does not count/i);
+  assert.match(prompt, /Do not redeem the detour with a tidy lesson/i);
+  assert.match(prompt, /never recommend medication, cooling, a care method/i);
+  assert.match(prompt, /this is the chaos element/i);
+  assert.match(prompt, /chaosExcerpt.*contiguous passage of at least 12 characters/i);
+  assert.doesNotMatch(prompt, /A day with none of these is allowed/i);
   assert.match(prompt, /Terms available for association.*Force.*proton torpedo/i);
-  assert.match(prompt, /Final privacy check \(highest priority\)/i);
+  assert.match(prompt, /Final check \(highest priority\)/i);
   assert.match(prompt, /people they respect/i);
   assert.match(prompt, /Supporting context remains required/i);
   assert.match(prompt, /exceeding 1,000 characters somewhat is acceptable/i);
@@ -177,6 +223,22 @@ test("context candidates require a valid usedContextId", () => {
   );
 });
 
+test("chaos excerpt must be a substantial exact passage from the diary", () => {
+  const diary = "普通の話から、急に冷蔵庫が宇宙船の船長になった。どうして。";
+  assert.equal(
+    validateChaosExcerpt("急に冷蔵庫が宇宙船の船長になった", diary),
+    "急に冷蔵庫が宇宙船の船長になった",
+  );
+  assert.throws(
+    () => validateChaosExcerpt("短すぎる", diary),
+    /at least 12 characters/,
+  );
+  assert.throws(
+    () => validateChaosExcerpt("急に冷蔵庫が宇宙船の艦長になった", diary),
+    /exact contiguous excerpt/,
+  );
+});
+
 test("emoji repair preserves the successful body and does not regenerate it", async () => {
   let bodyCalls = 0;
   let emojiCalls = 0;
@@ -190,6 +252,7 @@ test("emoji repair preserves the successful body and does not regenerate it", as
         title_ja: "整備の達人",
         title_en: "Master of Maintenance",
         usedContextId: "none",
+        chaosExcerpt: "保存すべき本文にあるカオスな抜粋",
         emojiCandidates: ["✨"],
       };
     },

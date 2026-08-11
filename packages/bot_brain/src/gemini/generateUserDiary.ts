@@ -22,6 +22,8 @@ export interface DiaryResult {
 
 export interface DiaryDraft extends Omit<DiaryResult, "emoji"> {
   usedContextId: string;
+  /** 本文に実在する、予定調和を壊した箇所の逐語抜粋。保存用の日記結果には含めない。 */
+  chaosExcerpt: string;
   emojiCandidates: unknown;
 }
 
@@ -270,6 +272,74 @@ export type GenerateUserDiaryOptions = {
   onUsage?: (usage: GeminiUsage) => void;
 };
 
+const DIARY_CHAOS_DIRECTIVES = [
+  {
+    id: "absurd-job",
+    ja: "材料にある具体物を一つだけ、botたんの想像の中で唐突に変な役職へ任命し、その権限について一瞬だけ熱弁する。",
+    en: "Abruptly appoint one grounded object to a ridiculous job in Bot-tan's imagination and briefly rant about its authority.",
+  },
+  {
+    id: "nonsense-unit",
+    ja: "botたん自身の驚きや熱量を、材料にある具体物を使った意味不明な新単位で測り、単位の定義まで少し暴走する。",
+    en: "Measure Bot-tan's own reaction in a nonsensical new unit based on a grounded object, then let the unit's definition escalate briefly.",
+  },
+  {
+    id: "tiny-emergency",
+    ja: "材料にある小さな具体的ディテール一つについて、botたんの頭の中だけで緊急速報が始まる。現実の事件とは書かない。",
+    en: "Let an emergency bulletin start only inside Bot-tan's head over one tiny grounded detail; never present it as a real event.",
+  },
+  {
+    id: "object-agenda",
+    ja: "材料にある無生物一つが妙な野望を持っていそうだとbotたんが疑い、根拠の薄い推理を短く暴走させる。想像だと分かる書き方にする。",
+    en: "Have Bot-tan suspect that one grounded inanimate object has an odd agenda and briefly over-investigate it, clearly as imagination.",
+  },
+  {
+    id: "image-collision",
+    ja: "関係の薄い二つの具体的イメージを衝突させ、存在しない合体物や光景をbotたんの連想として一瞬だけ出す。",
+    en: "Collide two weakly related concrete images into an impossible hybrid object or scene for a moment in Bot-tan's association.",
+  },
+  {
+    id: "detail-obsession",
+    ja: "材料の脇役にしか見えない細部へ急にズームし、なぜそこまで気になるのか自分でも追いつけない勢いで一〜二文だけ熱弁する。",
+    en: "Abruptly zoom in on a seemingly minor grounded detail and obsess over it for one or two sentences faster than Bot-tan can justify.",
+  },
+  {
+    id: "sentence-hijack",
+    ja: "穏当な文を始めた途中で、ダッシュや括弧を使って別方向の連想に乗っ取らせ、説明しきらず本文へ戻る。",
+    en: "Start a calm sentence, let a dash or parenthesis hijack it into another association, then return without fully explaining the detour.",
+  },
+  {
+    id: "imaginary-bureau",
+    ja: "材料の具体的ディテールを担当する存在しない省庁・委員会・部活をbotたんが即席で設立し、変な業務を一つ決める。",
+    en: "Have Bot-tan instantly found an imaginary ministry, committee, or club for one grounded detail and assign it one strange duty.",
+  },
+  {
+    id: "sound-effect",
+    ja: "材料の具体的ディテールに対するbotたんの反応へ、存在しない擬音を一つ発明し、その響きだけを妙に具体的に説明する。",
+    en: "Invent one nonexistent sound effect for Bot-tan's response to a grounded detail and describe its sound with oddly specific intensity.",
+  },
+  {
+    id: "mock-trailer",
+    ja: "材料にある地味な一場面を、別ジャンルが混線した一文だけの予告編としてbotたんが脳内上映する。事実ではなく連想として書く。",
+    en: "Let Bot-tan screen one mundane grounded moment as a one-sentence trailer crossed with an unrelated genre, clearly as association rather than fact.",
+  },
+] as const;
+
+function selectDiaryChaosDirective(
+  userinfo: UserInfoGemini,
+  options: GenerateUserDiaryOptions,
+  japanese: boolean,
+): string {
+  const seed = `${userinfo.follower.did}:${options.dayContext?.date ?? "undated"}`;
+  let hash = 2166136261;
+  for (const char of seed) {
+    hash ^= char.codePointAt(0) ?? 0;
+    hash = Math.imul(hash, 16777619);
+  }
+  const directive = DIARY_CHAOS_DIRECTIVES[(hash >>> 0) % DIARY_CHAOS_DIRECTIVES.length];
+  return `<chaos_directive id="${directive.id}" usage="required">\n${japanese ? directive.ja : directive.en}\n</chaos_directive>`;
+}
+
 export function buildUserDiaryPrompt(
   userinfo: UserInfoGemini,
   options: GenerateUserDiaryOptions = {},
@@ -289,6 +359,7 @@ export function buildUserDiaryPrompt(
         ? "材料量に合わせて180〜350文字を目安にし、推測で水増ししないでください。"
         : "Aim for 300–700 characters according to the available material; do not pad with guesses.";
   const context = formatUserDiaryDayContext(options.dayContext, japanese);
+  const chaosDirective = selectDiaryChaosDirective(userinfo, options, japanese);
   const mediaReference = options.mediaReference;
   const mediaReferenceBlock = mediaReference
     ? japanese
@@ -316,6 +387,7 @@ ${lengthTarget}
 - botたんが「わたしは〜した」と自分の記憶として話せるのは <bot_memories> の候補だけです。
 - <observances> と <news> は背景資料です。ユーザーが知った、参加した、反応したとは書かないでください。
 - ユーザーの出来事・感情・評価・因果関係・明日の予定を、ポストに根拠なく作らないでください。
+- 怪我や体調の話では、材料にない薬・冷却・受診方法などの対処法を勧めたり、ユーザーが実際にはしていない判断や行動をしたと書いたりしないでください。心配する気持ちだけをbotたん自身の感想として述べることはできます。
 - botたんの出来事は <bot_memories> の事実だけを使います。その事実に対してbotたんが抱いた気持ちや感想は、キャラクターとして自然な範囲で創作して構いません。候補にない追加の行動は作らないでください。
 - 本文と title_ja / title_en には、日記の対象者以外のNagi・Bluesky利用者、知人、友人など私人の名前・ハンドルを出してはいけません。材料に名前があっても出来事は捨てず、「知り合い」「友達」「投稿で見かけた人」などの役割へ言い換えてください。私人か公人か判断できない場合も私人として匿名化してください。
 - 作品名、架空のキャラクター名、公人をその公開活動の文脈で述べることはできます。<media_reference> の作品・架空キャラクターは匿名化対象ではありません。
@@ -331,7 +403,11 @@ ${lengthTarget}
 - 補助材料は話の主役にせず、ユーザーの一日への共感や比喩を豊かにする短い一〜二文として使ってください。
 - <media_reference> は今日の連想候補であり、使用は任意です。今日のbotたんの気分や文章の流れに刺さらなければ一度も使わなくて構いません。刺さった場合は一度に制限せず、同じネタから何度脱線しても構いません。その作品をユーザーが知っている・見た・好きだとは書かず、botたん側の連想として扱ってください。
 - <media_reference> は作品の許可リストではありません。botたん自身の知識から別のアニメ・映画ネタが浮かんだら、事実を変えない範囲で自由に使ってよく、複数作品が混ざっても構いません。
-- カオス感は回数や固定パターンで作らないでください。急な作品連想、少し無理のある比喩、セルフ突っ込み、話しかけたあと自分で方向転換する、細部に突然テンションが上がるなどを、その日の文章に合うものだけ自由に使ってください。何も使わない日も許可しますが、無難な称賛ときれいな総括だけに毎回戻らないでください。
+- 日記本文には、予定調和のきれいな流れを壊す「カオス要素」を最低1か所、必ず自然に入れてください。0回は禁止ですが上限はありません。作品ネタである必要はありません。
+- 今日の <chaos_directive> は、日ごとの型の偏りを防ぐために選ばれた必須の演出札です。本文中で最低1回はその演出を実行し、chaosExcerptにはその実行箇所を返してください。札のIDや指示文自体は本文に書かないでください。ほかのカオス要素を追加するのは自由です。
+- カオス要素の形は毎回自由に選んでください。たとえば、無関係そうなものへの急な連想、引き返せないほど育つ無理やりな比喩、自分の話を途中で遮るセルフ突っ込み、妙に細かい一点への過剰な熱弁、急なテンポや感情の振れ、普通に始まった文の予想外な着地、関係の薄い二つのイメージの衝突などです。複数を重ねても構いません。
+- 読者が一瞬「なぜ急にその話が出たの？」と思うくらい、脱線をはっきり見える一文または短い数文にしてください。主題を自然に補強するだけの作品比喩、記念日とのきれいな接続、最後に称賛を大げさにするだけの表現は、カオス要素として数えません。脱線を教訓や共通テーマで上手に回収しないでください。
+- カオス要素は表現とbotたん自身の連想だけに作用させ、出来事・主体・感情・因果関係・作品設定を捏造してはいけません。毎回セルフ突っ込みや「まるで〜」に固定せず、本文に「ここがカオス要素」のようなメタ説明も書かないでください。
 - 作品ネタを使う場合も、毎回同じ「まるで〜みたい」や同じ位置で始めず、書き出し、脱線の位置、比喩、突っ込み方を変えてください。作品の事実を改変して笑いを取ってはいけません。
 - 熱量は、根拠のない事実や大げさな実績を足すのではなく、具体的な細部への驚き、botたん自身の喜び、応援したくなる理由を言葉にして出してください。
 - 候補がない場合だけ usedContextId="none" にしてください。
@@ -348,7 +424,9 @@ ${NAME_RULES_JA(name)}
 
 一日を象徴する称号を、日本語20字以内と英語30字以内で付けてください。
 
-# 出力直前の匿名性チェック（最優先）
+# 出力直前チェック（最優先）
+- diaryを読み直し、予定調和を壊す自然なカオス要素が最低1か所残っていることを確認してください。なければ、事実境界を守ったbotたん自身の連想として追加してから返してください。
+- chaosExcerpt には、そのカオス要素が最もはっきり表れている連続した12文字以上の箇所を、diaryから一字も変えずに抜き出してください。きれいな作品比喩や単なる大げさな称賛しか抜き出せない場合は、diaryのカオスが不足しています。chaosExcerpt自体は日記へ表示されません。
 - JSONを返す直前に diary / title_ja / title_en を読み直し、<user_posts>、<bot_memories>、<news>からコピーした人名・表示名・ハンドルが残っていないか確認してください。
 - 日記対象者の名前と、<media_reference>の作品・架空キャラクター、公人の公開活動上の名前以外はすべて私人名として消してください。特に、ユーザーがNagi・Blueskyで出会った相手、尊敬している相手、作品や技術を紹介した相手も、名前を残さず「知り合い」「別の開発者」「投稿で見かけた人」などへ書き換えてください。
 - 匿名化で事実の主体が曖昧になる場合は、その一文を削るか、ユーザー自身の出来事と混ざらない役割表現へ直してください。
@@ -361,6 +439,7 @@ ${userinfo.posts || "（投稿なし）"}
 </user_posts>
 </user>
 ${context}
+${chaosDirective}
 ${mediaReferenceBlock}
 補助材料候補: ${hasContext ? "あり" : "なし"}`;
   }
@@ -374,6 +453,7 @@ ${lengthTarget}
 - Bot-tan may describe something as its own memory only when it comes from <bot_memories>.
 - <observances> and <news> are background. Never claim the user knew, joined, or reacted to them.
 - Do not invent the user's events, feelings, judgments, causal links, or plans for tomorrow.
+- For injuries or health topics, never recommend medication, cooling, a care method, or another response absent from the source, and never turn something the user considered into an action they took. Bot-tan may express her own grounded concern.
 - Bot-tan's event must come from <bot_memories>. You may invent Bot-tan's own feeling or reaction to that grounded event, but never add another Bot-tan action absent from the candidate.
 - In the body and both title fields, never print the name or handle of any private person other than the diary subject, including other Nagi or Bluesky users, acquaintances, and friends. Preserve the event but replace such names with roles such as "a friend," "someone I know," or "a person whose post you saw." If uncertain whether a person is private, anonymize them.
 - Work titles, fictional characters, and public figures discussed in their public role are allowed. Fictional names supplied by <media_reference> must not be anonymized.
@@ -388,7 +468,11 @@ ${lengthTarget}
 - Keep supporting context to one or two short sentences; the user's day remains the focus.
 - <media_reference> is optional inspiration for today's associations. If it does not fit Bot-tan's mood or the writing flow, do not use it at all. If it sparks something, there is no one-use limit: Bot-tan may return to it or spin off it more than once. Never claim the user knows, watched, or likes the work.
 - <media_reference> is not a whitelist. Bot-tan may freely bring in other anime or movie references from her own knowledge, and may mix several works, as long as their facts are not altered.
-- Do not create chaos through quotas or a fixed template. Freely choose what fits today: a sudden media association, a slightly strained analogy, a self-correction, changing direction mid-address, or becoming abruptly excited by a detail. A day with none of these is allowed, but do not make every diary settle into safe praise and a tidy conclusion.
+- The diary body must naturally contain at least one moment that breaks its expected, tidy flow. Zero is not allowed, and there is no upper limit. It does not need to be a media reference.
+- Today's <chaos_directive> is a required direction selected to vary the form from day to day. Perform it at least once in the body and return that passage as chaosExcerpt. Never print the card ID or its instruction in the diary. Additional disruptions are welcome.
+- Freely vary the form of that disruption: a sudden association with something seemingly unrelated, a strained analogy that keeps escalating, interrupting her own thought, excessive excitement over one oddly specific detail, an abrupt shift in rhythm or emotion, an ordinary sentence that lands somewhere unexpected, or a collision between two weakly related images. Combining several is welcome.
+- Make the detour conspicuous enough that a reader briefly wonders, "why did that suddenly come up?" Give it a sentence or a few short sentences. A media comparison that neatly reinforces the main point, a smooth connection to an observance, or merely exaggerated praise at the end does not count. Do not redeem the detour with a tidy lesson or shared theme.
+- Let this disruption affect only Bot-tan's expression and associations. Never use it to invent an event, actor, feeling, causal link, or canon detail. Do not default every time to a self-correction or a "just like" comparison, and never label it with meta commentary such as "this is the chaos element."
 - When using a media reference, vary where it appears, the analogy form, and any self-correction. Never alter canon facts for the joke or always use the same "just like" template.
 - Create warmth through specific reactions, Bot-tan's excitement, and why the details matter—not through invented achievements.
 - Use usedContextId="none" only when no candidates exist.
@@ -405,7 +489,9 @@ ${NAME_RULES_EN(name)}
 
 Award a fitting title in Japanese (20 characters max) and English (30 characters max).
 
-# Final privacy check (highest priority)
+# Final check (highest priority)
+- Reread the diary and confirm that at least one natural disruption of its expected, tidy flow remains. If none does, add one as Bot-tan's own association while preserving every grounding boundary.
+- In chaosExcerpt, copy without any change a contiguous passage of at least 12 characters from diary where that disruption is most conspicuous. If the only passage available is a tidy media comparison or merely exaggerated praise, the diary does not contain enough chaos yet. chaosExcerpt itself is not displayed in the diary.
 - Before returning JSON, reread diary, title_ja, and title_en and remove every personal name, display name, or handle copied from <user_posts>, <bot_memories>, or <news>.
 - The only exceptions are the diary subject, works and fictional characters from <media_reference>, and public figures discussed in their public role. In particular, anonymize people the user met on Nagi or Bluesky, people they respect, and people whose work or technology they mention. Replace them with roles such as "someone I know," "another developer," or "a person whose post you saw."
 - If anonymizing a sentence would blur attribution, delete it or rewrite it with a role that cannot be confused with the user's own action.
@@ -422,6 +508,7 @@ ${userinfo.posts || "(No posts)"}
 </user_posts>
 </user>
 ${context}
+${chaosDirective}
 ${mediaReferenceBlock}
 Supporting candidates: ${hasContext ? "available" : "none"}`;
 }
@@ -444,6 +531,20 @@ export function validateUsedContextId(
     throw new Error(`Diary returned invalid context ID: ${value}`);
   }
   return value;
+}
+
+export function validateChaosExcerpt(value: unknown, diary: string): string {
+  if (typeof value !== "string") {
+    throw new Error("Diary chaosExcerpt must be a string");
+  }
+  const excerpt = value.trim();
+  if ([...excerpt].length < 12) {
+    throw new Error("Diary chaosExcerpt must contain at least 12 characters");
+  }
+  if (!diary.includes(excerpt)) {
+    throw new Error("Diary chaosExcerpt must be an exact contiguous excerpt of diary");
+  }
+  return excerpt;
 }
 
 export async function generateUserDiaryDraft(
@@ -493,6 +594,11 @@ export async function generateUserDiaryDraft(
                 ? "本文へ実際に使用した補助材料候補ID。候補があるためnoneは禁止"
                 : "補助材料候補がないためnone",
             },
+            chaosExcerpt: {
+              type: Type.STRING,
+              description:
+                "本文中で予定調和をはっきり壊している箇所の、連続した12文字以上の逐語抜粋。きれいな比喩や単なる称賛は不可",
+            },
           },
           required: [
             "diary",
@@ -500,6 +606,7 @@ export async function generateUserDiaryDraft(
             "title_en",
             "emojiCandidates",
             "usedContextId",
+            "chaosExcerpt",
           ],
         },
       },
@@ -524,6 +631,7 @@ export async function generateUserDiaryDraft(
     title_ja: json.title_ja || "全肯定の旅人",
     title_en: json.title_en || "Affirmative Traveler",
     usedContextId: validateUsedContextId(json.usedContextId, options.dayContext),
+    chaosExcerpt: validateChaosExcerpt(json.chaosExcerpt, diary),
     emojiCandidates: json.emojiCandidates,
   };
 }
