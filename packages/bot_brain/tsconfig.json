@@ -9,6 +9,7 @@
     "moduleResolution": "NodeNext"
   },
   "include": [
-    "src/**/*"
+    "src/**/*",
+    "src/predefinedReplySpecialRules.json"
   ]
 }

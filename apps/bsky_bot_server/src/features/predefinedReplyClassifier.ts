@@ -10,10 +10,16 @@ import {
   type SentimentLabel,
 } from "@bsky-affirmative-bot/bot-brain/predefined-affirmation";
 import { ollamaChat } from "@bsky-affirmative-bot/bot-brain/ollama-chat";
+import {
+  classifyProductionPredefinedReply,
+  classifyPolarityOllama,
+  detectDirectSpecialLabel,
+  type PolarityLabel,
+} from "@bsky-affirmative-bot/bot-brain/predefined-reply-pipeline";
 import { fetchSentiment } from "../util/negaposi.js";
-import specialRulesJson from "./predefinedReplySpecialRules.json" with {
-  type: "json",
-};
+
+export { classifyPolarityOllama, detectDirectSpecialLabel };
+export type { PolarityLabel };
 
 export const PREDEFINED_REPLY_CLASSIFIER_METHODS = [
   "legacy-dictionary",
@@ -28,10 +34,6 @@ export const PREDEFINED_REPLY_CLASSIFIER_PROMPT_VERSION =
 
 export type PredefinedReplyClassifierMethod =
   (typeof PREDEFINED_REPLY_CLASSIFIER_METHODS)[number];
-export type PolarityLabel = Extract<
-  SentimentLabel,
-  "negative" | "neutral" | "positive"
->;
 export type SpecialOrOtherLabel = Extract<
   SentimentLabel,
   "morning" | "night" | "gj" | "hny"
@@ -56,13 +58,6 @@ export type PredefinedReplyClassifierDependencies = {
   now?: () => number;
 };
 
-const THREE_WAY_PROMPT = `Classify the emotional sentiment of the user's text into exactly one category.
-Reply with only one word: negative, neutral, or positive.
-- negative: distress, disappointment, anger, complaints, or an overall negative experience
-- positive: joy, gratitude, satisfaction, hope, or an overall positive experience
-- neutral: factual statements, unclear/mixed sentiment, or content whose sentiment belongs to someone else
-Understand negation, double negation, quotation, and sarcasm from the whole sentence.`;
-
 const SPECIAL_OR_OTHER_PROMPT = `Classify the user's whole post into exactly one category.
 Reply with only one word: morning, night, gj, hny, or other.
 - morning: the author is directly greeting someone good morning
@@ -71,14 +66,6 @@ Reply with only one word: morning, night, gj, hny, or other.
 - hny: the author is directly giving a New Year greeting
 - other: none of the above
 Words merely quoted, reported as somebody else's speech, discussed as words, mentioned in a title/example, or embedded in an explanation are other. Read the entire post; do not classify from a keyword alone.`;
-
-const parsePolarity = (raw: string): PolarityLabel => {
-  const normalized = raw.trim().toLowerCase();
-  if (normalized === "negative") return "negative";
-  if (normalized === "positive") return "positive";
-  if (normalized === "neutral") return "neutral";
-  throw new Error("Ollama returned an invalid three-way classification");
-};
 
 const parseSpecialOrOther = (raw: string): SpecialOrOtherLabel => {
   const normalized = raw.trim().toLowerCase();
@@ -106,132 +93,6 @@ export async function classifySpecialOllama(
     { maxTokens: 5 },
   );
   return parseSpecialOrOther(raw);
-}
-
-export async function classifyPolarityOllama(
-  text: string,
-): Promise<PolarityLabel> {
-  const raw = await ollamaChat(
-    "OLLAMA_PREDEFINED_AFFIRMATION",
-    [
-      { role: "system", content: THREE_WAY_PROMPT },
-      { role: "user", content: text },
-    ],
-    { maxTokens: 5 },
-  );
-  return parsePolarity(raw);
-}
-
-const removeQuotedText = (text: string): string =>
-  text
-    .replace(/「[^」]*」|『[^』]*』/gu, " ")
-    .replace(/"[^"]*"|'[^']*'/gu, " ");
-
-type SpecialLabel = Extract<
-  SentimentLabel,
-  "morning" | "night" | "gj" | "hny"
->;
-type SpecialRule = {
-  label: SpecialLabel;
-  mode: "phrase" | "short-slang";
-  positions: Array<"start" | "end">;
-  aliases: string[];
-};
-
-const isSpecialRule = (value: unknown): value is SpecialRule => {
-  if (!value || typeof value !== "object") return false;
-  const candidate = value as Partial<SpecialRule>;
-  return (
-    ["morning", "night", "gj", "hny"].includes(candidate.label ?? "") &&
-    (candidate.mode === "phrase" || candidate.mode === "short-slang") &&
-    Array.isArray(candidate.positions) &&
-    candidate.positions.length > 0 &&
-    candidate.positions.every(
-      (position) => position === "start" || position === "end",
-    ) &&
-    Array.isArray(candidate.aliases) &&
-    candidate.aliases.length > 0 &&
-    candidate.aliases.every(
-      (alias) => typeof alias === "string" && alias.trim().length > 0,
-    )
-  );
-};
-
-const parsedSpecialRules = specialRulesJson as {
-  version?: unknown;
-  rules?: unknown;
-};
-if (
-  parsedSpecialRules.version !== 1 ||
-  !Array.isArray(parsedSpecialRules.rules) ||
-  !parsedSpecialRules.rules.every(isSpecialRule)
-) {
-  throw new Error("predefined reply special rules are invalid");
-}
-const DIRECT_SPECIAL_RULES: readonly SpecialRule[] =
-  parsedSpecialRules.rules;
-
-const escapeRegExp = (value: string): string =>
-  value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
-
-const INDIRECT_OR_METALINGUISTIC = [
-  /(?:と|って).{0,24}(?:言われ|言った|言って|言う|いう|聞いた|聞いて|呼ばれ|書いた)/iu,
-  /という.{0,16}(?:曲|歌|映画|本|作品|タイトル|言葉|表現|意味)/iu,
-  /\b(?:said|told|called|heard|quoted|wrote)\b/iu,
-  /\b(?:is|was|means?|refers? to)\s+(?:the\s+)?(?:title|name|word|phrase|expression)\b/iu,
-];
-
-const hasIndirectOrMetalinguisticContext = (text: string): boolean =>
-  INDIRECT_OR_METALINGUISTIC.some((pattern) => pattern.test(text));
-
-const SHORT_SLANG_ADDRESSEES = [
-  "everyone",
-  "everybody",
-  "all",
-  "folks",
-  "friends",
-  "guys",
-  "world",
-  "bsky",
-  "bluesky",
-];
-
-const matchesSpecialRule = (text: string, rule: SpecialRule): boolean => {
-  if (rule.mode === "short-slang") {
-    return rule.aliases.some((alias) => {
-      const escaped = escapeRegExp(alias);
-      const addressees = SHORT_SLANG_ADDRESSEES.join("|");
-      return new RegExp(
-        `^${escaped}(?:[\\p{P}\\p{S}\\s]*(?:${addressees})?[\\p{P}\\p{S}\\s]*)$`,
-        "u",
-      ).test(text);
-    });
-  }
-
-  return rule.aliases.some((alias) => {
-    const escaped = escapeRegExp(alias);
-    return rule.positions.some((position) => {
-      const source =
-        position === "start"
-          ? `^${escaped}(?=$|[^\\p{L}\\p{N}_])`
-          : `(?:^|[^\\p{L}\\p{N}_])${escaped}[\\p{P}\\p{S}\\s]*$`;
-      return new RegExp(source, "iu").test(text);
-    });
-  });
-};
-
-/** 引用を除外し、直接的かつ単一の挨拶だけを確定する。 */
-export function detectDirectSpecialLabel(
-  text: string,
-): Extract<SentimentLabel, "morning" | "night" | "gj" | "hny"> | null {
-  const normalized = removeQuotedText(text.normalize("NFKC")).trim();
-  if (!normalized || hasIndirectOrMetalinguisticContext(normalized)) return null;
-  const matches = new Set(
-    DIRECT_SPECIAL_RULES.filter((rule) =>
-      matchesSpecialRule(normalized, rule),
-    ).map(({ label }) => label),
-  );
-  return matches.size === 1 ? [...matches][0] : null;
 }
 
 /** 2026-06以前の部分一致と後勝ち優先順位をそのまま再現する。 */
@@ -330,15 +191,21 @@ export async function classifyPredefinedReply(
       return finish({ label: await threeWay(input.text) });
     }
 
+    if (input.method === "rules-ollama-three-way") {
+      const result = await classifyProductionPredefinedReply(input, {
+        classifyThreeWay: threeWay,
+        now,
+      });
+      return {
+        ...result,
+        method: input.method,
+      };
+    }
+
     const special = detectDirectSpecialLabel(input.text);
     if (special) {
       base.specialRule = "direct";
       return finish({ label: special });
-    }
-
-    if (input.method === "rules-ollama-three-way") {
-      base.llmCalls = 1;
-      return finish({ label: await threeWay(input.text) });
     }
 
     base.llmCalls = 1;

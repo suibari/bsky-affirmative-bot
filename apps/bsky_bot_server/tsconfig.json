@@ -14,8 +14,7 @@
     "noImplicitAny": false
   },
   "include": [
-    "src/**/*",
-    "src/features/predefinedReplySpecialRules.json"
+    "src/**/*"
   ],
   "exclude": [
     "src/util/twemoji"

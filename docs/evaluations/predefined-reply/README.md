@@ -1,6 +1,6 @@
 # 定型文リプライ分類方式の評価
 
-`bsky_bot_server` の定型文リプライについて、感情・挨拶カテゴリの分類方式を比較するための評価手順です。評価後、Bluesky側だけを `rules-ollama-three-way` へ切り替えました。共有関数を利用するNagi側の分類・選択動作は変更していません。
+`bsky_bot_server` の定型文リプライについて、感情・挨拶カテゴリの分類方式を比較するための評価手順です。評価後、採用した `rules-ollama-three-way` を共通パイプラインへ移し、BlueskyとNagiの定型文経路を統一しました。
 
 ## コーパス
 
@@ -26,7 +26,9 @@
 
 分類器だけを比較するため、最終返信はすべて現行の定型文選択器で生成します。同一ケース・同一予測カテゴリの選択結果は方式間で再利用します。旧方式のランダム選択は正式比較から分離し、参考値としてJSONにだけ記録します。
 
-採用後のBluesky本番経路はカテゴリ内ランダム選択を既定に変更しました。`BSKY_PREDEFINED_SELECTOR=llm` を指定すると、評価時と同じLLM選択へ戻せます。挨拶表記は `apps/bsky_bot_server/src/features/predefinedReplySpecialRules.json` で版管理し、追加時は直接発話と伝聞・別義の両方をテストします。
+採用後の共通本番経路はカテゴリ内ランダム選択を既定に変更しました。`PREDEFINED_REPLY_SELECTOR=llm` を指定すると、BlueskyとNagiの両方を評価時と同じLLM選択へ戻せます。旧 `BSKY_PREDEFINED_SELECTOR` は共通設定が未指定の場合だけ互換利用します。挨拶表記は `packages/bot_brain/src/predefinedReplySpecialRules.json` で版管理し、追加時は直接発話と伝聞・別義の両方をテストします。
+
+返信言語は各サービスが解決して共通パイプラインへ渡します。BlueskyもNagiと同様に `langs[0]` の基本言語コードを採用し、地域サブタグを除いて判定します。未指定・未知コードは英語へ戻します。
 
 ## 実行方法
 
@@ -106,6 +108,6 @@ pnpm predefined-reply:evaluate -- --review-only=docs/evaluations/predefined-repl
 ## 影響範囲
 
 - `apps/bsky_bot_server/src/util/negaposi.ts` はタイムアウトと応答検証を追加していますが、`RecapYearFeatures.ts` の利用方法は互換です。
-- `apps/bsky_bot_server/src/features/replyrandom.ts` は承認後、Bluesky専用の分類・選択経路へ接続しました。
-- `apps/nagi_bot_server` の定型文分類方式も変更しません。
+- `apps/bsky_bot_server/src/features/replyrandom.ts` と `apps/nagi_bot_server/src/createNagiReply.ts` は同じ `bot_brain` の共通パイプラインを呼びます。
+- Nagiが定型文へ切り替わる条件、スコア、投稿処理は変更しません。
 - デプロイと実投稿での確認は、この実装・静的検証とは別の証跡として扱います。

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   calculateDelayUntilLocal22,
+  getLangStr,
   isPastLocal22,
   localDateStr,
   localHourToUtc,
@@ -12,6 +13,15 @@ const HOUR_MS = 60 * 60 * 1000;
 /** UTC の壁時計を指定して Date を作る。 */
 const utc = (hour: number, minute = 0, day = 15) =>
   new Date(Date.UTC(2026, 7, day, hour, minute, 0));
+
+test('langsはNagiと同じく先頭の基本言語を採用する', () => {
+  assert.equal(getLangStr(['ja', 'en']), '日本語');
+  assert.equal(getLangStr(['es-MX', 'en']), 'Spanish');
+  assert.equal(getLangStr(['EN-us']), 'English');
+  assert.equal(getLangStr([]), 'English');
+  assert.equal(getLangStr(undefined), 'English');
+  assert.equal(getLangStr(['xx']), 'English');
+});
 
 test('22時ちょうどから翌0時までが「22時を過ぎた」扱い', () => {
   assert.equal(isPastLocal22('UTC', utc(21, 59)), false);

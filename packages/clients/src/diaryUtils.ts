@@ -11,9 +11,9 @@ export function getTimezoneFromLang(lang: string | undefined): string {
   return localeToTimezone[lang] || 'UTC';
 }
 
-/** langs からプロンプト用の言語名を決める。単一言語のときだけそれを採用し、それ以外は英語。 */
+/** langs の先頭要素からプロンプト用の基本言語名を決め、未指定・未知は英語にする。 */
 export function getLangStr(langs: string[] | undefined): LanguageName {
-  const code = langs?.length === 1 ? langs[0] : 'en';
+  const code = langs?.[0]?.split('-')[0]?.toLowerCase() || 'en';
   const name = languageData.find((lang) => lang.code === code)?.name;
   return name ?? languageData.find((lang) => lang.code === 'en')!.name;
 }

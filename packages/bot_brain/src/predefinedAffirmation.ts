@@ -119,7 +119,8 @@ export async function translatePredefinedAffirmation(
   targetLang: string,
 ): Promise<string> {
   try {
-    const translated = await ollamaChat(
+    const translated = await sharedOllamaChat(
+      "OLLAMA_TRANSLATION",
       [
         {
           role: "system",
@@ -127,7 +128,7 @@ export async function translatePredefinedAffirmation(
         },
         { role: "user", content: text },
       ],
-      200,
+      { maxTokens: 200 },
     );
     return translated || text;
   } catch (error) {

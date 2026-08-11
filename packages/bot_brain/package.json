@@ -19,6 +19,11 @@
       "types": "./dist/predefinedAffirmation.d.ts",
       "import": "./dist/predefinedAffirmation.js",
       "default": "./dist/predefinedAffirmation.js"
+    },
+    "./predefined-reply-pipeline": {
+      "types": "./dist/predefinedReplyPipeline.d.ts",
+      "import": "./dist/predefinedReplyPipeline.js",
+      "default": "./dist/predefinedReplyPipeline.js"
     }
   },
   "scripts": {

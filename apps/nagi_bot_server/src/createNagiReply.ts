@@ -3,7 +3,7 @@ import {
   generateAffirmativeWord,
   getYokohamaWeather,
   judgeNameIntent,
-  predefinedAffirmation,
+  createPredefinedReply,
 } from "@bsky-affirmative-bot/bot-brain";
 import { aiModel } from "@bsky-affirmative-bot/shared-configs";
 import {
@@ -175,12 +175,15 @@ export async function createNagiReply(
       loadPreferredName(job.authorDid),
     ]);
     generated = {
-      comment: await predefinedAffirmation({
-        text: typeof record.text === "string" ? record.text : "",
-        languageName: language.name,
-        // 定型文は ${name} を機械置換するだけなので、AI 生成側と同じ呼び名を渡せば揃う。
-        displayName: preferredName || author.view.displayName,
-      }),
+      comment: await createPredefinedReply(
+        {
+          text: typeof record.text === "string" ? record.text : "",
+          languageName: language.name,
+          // 定型文は ${name} を機械置換するだけなので、AI 生成側と同じ呼び名を渡せば揃う。
+          displayName: preferredName || author.view.displayName,
+        },
+        { surface: "nagi" },
+      ),
     };
   } else {
     const context = await buildNagiReplyContext(job);

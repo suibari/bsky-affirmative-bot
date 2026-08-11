@@ -4,7 +4,7 @@ import { AppBskyFeedPost } from "@atproto/api";
 import { getLangStr, uniteDidNsidRkey } from "../bsky/util.js";
 import { postContinuous } from "../bsky/postContinuous.js";
 import { loadPreferredName } from "@bsky-affirmative-bot/clients";
-import { createBskyPredefinedReply } from "./bskyPredefinedReply.js";
+import { createPredefinedReply } from "@bsky-affirmative-bot/bot-brain/predefined-reply-pipeline";
 
 type ProfileView = AppBskyActorDefs.ProfileView;
 type Record = AppBskyFeedPost.Record;
@@ -29,11 +29,14 @@ export async function replyRandom(
   }
 
   const preferredName = await loadPreferredName(follower.did);
-  const reply = await createBskyPredefinedReply({
-    text: postText,
-    languageName,
-    displayName: preferredName || follower.displayName || follower.handle,
-  });
+  const reply = await createPredefinedReply(
+    {
+      text: postText,
+      languageName,
+      displayName: preferredName || follower.displayName || follower.handle,
+    },
+    { surface: "bsky" },
+  );
   await postContinuous(reply, { uri, cid, record });
   return null;
 }
