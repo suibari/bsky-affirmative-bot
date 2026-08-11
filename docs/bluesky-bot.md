@@ -14,7 +14,7 @@ This repository contains the code and configuration files for Affirmation Bot-ta
 The bot has the following features:
 
 1. **AI-generated replies**: Uses generative AI (Google Gemini) to reply to follower posts (text or images).
-2. **Template replies**: Uses Gemma 3 4B on Ollama (overridable with `OLLAMA_MODEL`) to classify posts and choose a preset response. Earlier versions used Japanese and English sentiment polarity dictionaries.
+2. **Template replies**: Uses high-precision greeting rules followed by three-way sentiment classification on Gemma 3 4B. A response is randomly selected from the resulting category by default. Non-Japanese/English replies use an English template translated by the local LLM. See the [evaluation record](./evaluations/predefined-reply/2026-08-11-summary.md).
 3. **Fortune-telling**: Provides fortunes upon user request and presents you with a "Lucky Badge" of the day (valid for 24 hours).
 4. **Reply frequency adjustment**: Users can adjust how often the bot replies (0–100%).
 5. **Conversation mode**: Allows continuous conversation with the bot.

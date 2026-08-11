@@ -1,0 +1,69 @@
+{
+  "version": 1,
+  "rules": [
+    {
+      "label": "hny",
+      "mode": "phrase",
+      "positions": ["start"],
+      "aliases": [
+        "あけましておめでとう",
+        "明けましておめでとう",
+        "あけおめ",
+        "happy new year"
+      ]
+    },
+    {
+      "label": "morning",
+      "mode": "phrase",
+      "positions": ["start"],
+      "aliases": [
+        "おはようございます",
+        "おはよう",
+        "おはよー",
+        "おはよ",
+        "おはー",
+        "おは",
+        "good morning",
+        "morning"
+      ]
+    },
+    {
+      "label": "morning",
+      "mode": "short-slang",
+      "positions": ["start"],
+      "aliases": ["gm"]
+    },
+    {
+      "label": "night",
+      "mode": "phrase",
+      "positions": ["start", "end"],
+      "aliases": [
+        "おやすみなさい",
+        "おやすみ",
+        "おやすー",
+        "good night"
+      ]
+    },
+    {
+      "label": "night",
+      "mode": "short-slang",
+      "positions": ["start"],
+      "aliases": ["gn"]
+    },
+    {
+      "label": "gj",
+      "mode": "phrase",
+      "positions": ["start"],
+      "aliases": [
+        "お疲れさま",
+        "お疲れ様",
+        "お疲れ",
+        "おつかれさま",
+        "おつかれ",
+        "おつ",
+        "しごおわ",
+        "good job"
+      ]
+    }
+  ]
+}

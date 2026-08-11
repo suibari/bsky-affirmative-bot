@@ -11,6 +11,9 @@ import {
 } from "@bsky-affirmative-bot/bot-brain/predefined-affirmation";
 import { ollamaChat } from "@bsky-affirmative-bot/bot-brain/ollama-chat";
 import { fetchSentiment } from "../util/negaposi.js";
+import specialRulesJson from "./predefinedReplySpecialRules.json" with {
+  type: "json",
+};
 
 export const PREDEFINED_REPLY_CLASSIFIER_METHODS = [
   "legacy-dictionary",
@@ -124,41 +127,111 @@ const removeQuotedText = (text: string): string =>
     .replace(/「[^」]*」|『[^』]*』/gu, " ")
     .replace(/"[^"]*"|'[^']*'/gu, " ");
 
-const DIRECT_SPECIAL_PATTERNS: ReadonlyArray<{
-  label: Extract<SentimentLabel, "morning" | "night" | "gj" | "hny">;
-  pattern: RegExp;
-}> = [
-  {
-    label: "hny",
-    pattern:
-      /^(?:あけましておめでとう|明けましておめでとう|あけおめ|happy new year)(?=$|[\s!！?？。、,.])/iu,
-  },
-  {
-    label: "morning",
-    pattern:
-      /^(?:おはよう(?:ございます)?|おはよ|おはー+|おは|good morning)(?=$|[\s!！?？。、,.])/iu,
-  },
-  {
-    label: "night",
-    pattern:
-      /(?:^|[\s!！?？。、,.])(?:おやすみ(?:なさい)?|おやすー*|good night)(?=$|[\s!！?？。、,.])/iu,
-  },
-  {
-    label: "gj",
-    pattern:
-      /^(?:お疲れ(?:さま|様)?|おつかれ(?:さま)?|おつ|しごおわ|good job)(?=$|[\s!！?？。、,.])/iu,
-  },
+type SpecialLabel = Extract<
+  SentimentLabel,
+  "morning" | "night" | "gj" | "hny"
+>;
+type SpecialRule = {
+  label: SpecialLabel;
+  mode: "phrase" | "short-slang";
+  positions: Array<"start" | "end">;
+  aliases: string[];
+};
+
+const isSpecialRule = (value: unknown): value is SpecialRule => {
+  if (!value || typeof value !== "object") return false;
+  const candidate = value as Partial<SpecialRule>;
+  return (
+    ["morning", "night", "gj", "hny"].includes(candidate.label ?? "") &&
+    (candidate.mode === "phrase" || candidate.mode === "short-slang") &&
+    Array.isArray(candidate.positions) &&
+    candidate.positions.length > 0 &&
+    candidate.positions.every(
+      (position) => position === "start" || position === "end",
+    ) &&
+    Array.isArray(candidate.aliases) &&
+    candidate.aliases.length > 0 &&
+    candidate.aliases.every(
+      (alias) => typeof alias === "string" && alias.trim().length > 0,
+    )
+  );
+};
+
+const parsedSpecialRules = specialRulesJson as {
+  version?: unknown;
+  rules?: unknown;
+};
+if (
+  parsedSpecialRules.version !== 1 ||
+  !Array.isArray(parsedSpecialRules.rules) ||
+  !parsedSpecialRules.rules.every(isSpecialRule)
+) {
+  throw new Error("predefined reply special rules are invalid");
+}
+const DIRECT_SPECIAL_RULES: readonly SpecialRule[] =
+  parsedSpecialRules.rules;
+
+const escapeRegExp = (value: string): string =>
+  value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+
+const INDIRECT_OR_METALINGUISTIC = [
+  /(?:と|って).{0,24}(?:言われ|言った|言って|言う|いう|聞いた|聞いて|呼ばれ|書いた)/iu,
+  /という.{0,16}(?:曲|歌|映画|本|作品|タイトル|言葉|表現|意味)/iu,
+  /\b(?:said|told|called|heard|quoted|wrote)\b/iu,
+  /\b(?:is|was|means?|refers? to)\s+(?:the\s+)?(?:title|name|word|phrase|expression)\b/iu,
 ];
+
+const hasIndirectOrMetalinguisticContext = (text: string): boolean =>
+  INDIRECT_OR_METALINGUISTIC.some((pattern) => pattern.test(text));
+
+const SHORT_SLANG_ADDRESSEES = [
+  "everyone",
+  "everybody",
+  "all",
+  "folks",
+  "friends",
+  "guys",
+  "world",
+  "bsky",
+  "bluesky",
+];
+
+const matchesSpecialRule = (text: string, rule: SpecialRule): boolean => {
+  if (rule.mode === "short-slang") {
+    return rule.aliases.some((alias) => {
+      const escaped = escapeRegExp(alias);
+      const addressees = SHORT_SLANG_ADDRESSEES.join("|");
+      return new RegExp(
+        `^${escaped}(?:[\\p{P}\\p{S}\\s]*(?:${addressees})?[\\p{P}\\p{S}\\s]*)$`,
+        "u",
+      ).test(text);
+    });
+  }
+
+  return rule.aliases.some((alias) => {
+    const escaped = escapeRegExp(alias);
+    return rule.positions.some((position) => {
+      const source =
+        position === "start"
+          ? `^${escaped}(?=$|[^\\p{L}\\p{N}_])`
+          : `(?:^|[^\\p{L}\\p{N}_])${escaped}[\\p{P}\\p{S}\\s]*$`;
+      return new RegExp(source, "iu").test(text);
+    });
+  });
+};
 
 /** 引用を除外し、直接的かつ単一の挨拶だけを確定する。 */
 export function detectDirectSpecialLabel(
   text: string,
 ): Extract<SentimentLabel, "morning" | "night" | "gj" | "hny"> | null {
   const normalized = removeQuotedText(text.normalize("NFKC")).trim();
-  const matches = DIRECT_SPECIAL_PATTERNS.filter(({ pattern }) =>
-    pattern.test(normalized),
-  ).map(({ label }) => label);
-  return matches.length === 1 ? matches[0] : null;
+  if (!normalized || hasIndirectOrMetalinguisticContext(normalized)) return null;
+  const matches = new Set(
+    DIRECT_SPECIAL_RULES.filter((rule) =>
+      matchesSpecialRule(normalized, rule),
+    ).map(({ label }) => label),
+  );
+  return matches.size === 1 ? [...matches][0] : null;
 }
 
 /** 2026-06以前の部分一致と後勝ち優先順位をそのまま再現する。 */

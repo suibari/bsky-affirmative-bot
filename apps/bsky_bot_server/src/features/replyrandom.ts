@@ -1,10 +1,10 @@
 import { CommitCreateEvent } from "@skyware/jetstream";
 import { AppBskyActorDefs } from "@atproto/api";
 import { AppBskyFeedPost } from "@atproto/api";
-import { predefinedAffirmation } from "@bsky-affirmative-bot/bot-brain";
 import { getLangStr, uniteDidNsidRkey } from "../bsky/util.js";
 import { postContinuous } from "../bsky/postContinuous.js";
 import { loadPreferredName } from "@bsky-affirmative-bot/clients";
+import { createBskyPredefinedReply } from "./bskyPredefinedReply.js";
 
 type ProfileView = AppBskyActorDefs.ProfileView;
 type Record = AppBskyFeedPost.Record;
@@ -29,7 +29,7 @@ export async function replyRandom(
   }
 
   const preferredName = await loadPreferredName(follower.did);
-  const reply = await predefinedAffirmation({
+  const reply = await createBskyPredefinedReply({
     text: postText,
     languageName,
     displayName: preferredName || follower.displayName || follower.handle,

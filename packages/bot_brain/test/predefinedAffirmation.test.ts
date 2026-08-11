@@ -60,6 +60,36 @@ test("日英以外はローカル翻訳結果を使い表示名を置換する",
   assert.equal(result, "Todo bien, Nagi.");
 });
 
+test("日英以外の翻訳LLMが利用不能なら英語定型文へ戻る", async () => {
+  const originalBaseUrl = process.env.OLLAMA_BASE_URL;
+  const originalModel = process.env.OLLAMA_MODEL;
+  delete process.env.OLLAMA_BASE_URL;
+  delete process.env.OLLAMA_MODEL;
+  try {
+    let englishTemplate = "";
+    const result = await predefinedAffirmation(
+      {
+        text: "hola",
+        languageName: "Spanish",
+        displayName: "Nagi",
+      },
+      {
+        classify: async () => "neutral",
+        select: async (templates) => {
+          englishTemplate = templates[0];
+          return 0;
+        },
+      },
+    );
+    assert.equal(result, englishTemplate.replaceAll("${name}", "Nagi"));
+  } finally {
+    if (originalBaseUrl === undefined) delete process.env.OLLAMA_BASE_URL;
+    else process.env.OLLAMA_BASE_URL = originalBaseUrl;
+    if (originalModel === undefined) delete process.env.OLLAMA_MODEL;
+    else process.env.OLLAMA_MODEL = originalModel;
+  }
+});
+
 test("Ollama未設定時の分類はneutralへfail-safeする", async () => {
   const originalBaseUrl = process.env.OLLAMA_BASE_URL;
   const originalModel = process.env.OLLAMA_MODEL;

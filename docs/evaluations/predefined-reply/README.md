@@ -1,6 +1,6 @@
 # 定型文リプライ分類方式の評価
 
-`bsky_bot_server` の定型文リプライについて、感情・挨拶カテゴリの分類方式を比較するための評価手順です。評価が確定するまで、本番の `replyRandom()` と共有関数を利用するNagi側の動作は変更しません。
+`bsky_bot_server` の定型文リプライについて、感情・挨拶カテゴリの分類方式を比較するための評価手順です。評価後、Bluesky側だけを `rules-ollama-three-way` へ切り替えました。共有関数を利用するNagi側の分類・選択動作は変更していません。
 
 ## コーパス
 
@@ -25,6 +25,8 @@
 | `rules-dictionary-ollama-consensus` | 直接挨拶ルール後、辞書とLLMが一致した場合のみ採用し、不一致はneutral |
 
 分類器だけを比較するため、最終返信はすべて現行の定型文選択器で生成します。同一ケース・同一予測カテゴリの選択結果は方式間で再利用します。旧方式のランダム選択は正式比較から分離し、参考値としてJSONにだけ記録します。
+
+採用後のBluesky本番経路はカテゴリ内ランダム選択を既定に変更しました。`BSKY_PREDEFINED_SELECTOR=llm` を指定すると、評価時と同じLLM選択へ戻せます。挨拶表記は `apps/bsky_bot_server/src/features/predefinedReplySpecialRules.json` で版管理し、追加時は直接発話と伝聞・別義の両方をテストします。
 
 ## 実行方法
 
@@ -99,11 +101,11 @@ pnpm predefined-reply:evaluate -- --review-only=docs/evaluations/predefined-repl
 - 2: 許容可能な定型文
 - 3: 投稿によく適合
 
-方式選択は自動化しません。重大逆転数、返信0点率、平均返信点、macro F1、安定性、障害率、処理時間・呼び出し数の順で確認し、別承認後に `bsky_bot_server` だけを切り替えます。
+方式選択は自動化しません。重大逆転数、返信0点率、平均返信点、macro F1、安定性、障害率、処理時間・呼び出し数の順で確認します。2026-08-11の承認後、`bsky_bot_server` だけを切り替えました。
 
 ## 影響範囲
 
 - `apps/bsky_bot_server/src/util/negaposi.ts` はタイムアウトと応答検証を追加していますが、`RecapYearFeatures.ts` の利用方法は互換です。
-- `apps/bsky_bot_server/src/features/replyrandom.ts` は評価段階では変更しません。
+- `apps/bsky_bot_server/src/features/replyrandom.ts` は承認後、Bluesky専用の分類・選択経路へ接続しました。
 - `apps/nagi_bot_server` の定型文分類方式も変更しません。
-- 本番切替、デプロイ、実投稿での確認は、この評価とは別の証跡として扱います。
+- デプロイと実投稿での確認は、この実装・静的検証とは別の証跡として扱います。

@@ -41,7 +41,32 @@ test("直接挨拶ルールは境界を見て引用を除外する", () => {
   );
   assert.equal(
     detectDirectSpecialLabel("おつかれ、と友達に言われて、振り返った。"),
-    "gj",
+    null,
+  );
+});
+
+test("gmとgnは短い直接発話だけをスラング挨拶として扱う", () => {
+  assert.equal(detectDirectSpecialLabel("gm"), "morning");
+  assert.equal(detectDirectSpecialLabel("gm!"), "morning");
+  assert.equal(detectDirectSpecialLabel("gm everyone"), "morning");
+  assert.equal(detectDirectSpecialLabel("gn 🌙"), "night");
+  assert.equal(detectDirectSpecialLabel("My friend said gm to me."), null);
+  assert.equal(detectDirectSpecialLabel("They said gn and left."), null);
+  assert.equal(detectDirectSpecialLabel("GM announced a new vehicle."), null);
+});
+
+test("曲名や言葉の説明は挨拶ルールで確定しない", () => {
+  assert.equal(
+    detectDirectSpecialLabel("Good Night is the title of the song."),
+    null,
+  );
+  assert.equal(
+    detectDirectSpecialLabel("Happy New Yearという曲を聴いた。"),
+    null,
+  );
+  assert.equal(
+    detectDirectSpecialLabel("朝におはよう、夜におやすみと言う。"),
+    null,
   );
 });
 

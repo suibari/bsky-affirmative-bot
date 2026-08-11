@@ -13,7 +13,7 @@ import wordGj from "@bsky-affirmative-bot/shared-configs/json/affirmativeword_gj
 export type SentimentLabel =
   "negative" | "neutral" | "positive" | "morning" | "night" | "gj" | "hny";
 
-type Dependencies = {
+export type PredefinedAffirmationDependencies = {
   classify?: (text: string) => Promise<SentimentLabel>;
   select?: (templates: string[], text: string) => Promise<number>;
   translate?: (text: string, targetLang: string) => Promise<string>;
@@ -167,7 +167,7 @@ export async function predefinedAffirmation(
     languageName: string;
     displayName: string;
   },
-  dependencies: Dependencies = {},
+  dependencies: PredefinedAffirmationDependencies = {},
 ): Promise<string> {
   const classify = dependencies.classify ?? classifyPredefinedAffirmation;
   const select = dependencies.select ?? selectPredefinedAffirmationIndex;
