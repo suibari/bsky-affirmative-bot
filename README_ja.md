@@ -21,31 +21,32 @@
   <tr>
     <td width="50%" valign="top">
       <a href="https://bsky.app/profile/bot-tan.com"><img src="./img/outputs/bluesky-bot-tan.webp" alt="Bluesky botたん" width="100%"></a>
-      <h3>Bluesky botたん</h3>
+      <h3>Bluesky botたん（<a href="https://github.com/suibari/bsky-affirmative-bot">repo</a>）</h3>
       <p><strong>すべてのはじまり！</strong> Ollama上のGemma 3 4Bを既定のローカル分類器として使い、投稿に合った全肯定の定型文を選びます。トリガーワードで占いや性格分析などの主要機能も楽しめます。</p>
     </td>
     <td width="50%" valign="top">
-      <a href="https://nagi.suibari.com/profile/did:plc:qcwhrvzx6wmi5hz775uyi6fh"><img src="./img/outputs/nagi-bot-tan.webp" alt="Nagi botたん" width="100%"></a>
-      <h3>Nagi botたん</h3>
-      <p><strong>フラッグシップ。</strong> Bluesky版とこのモノレポおよび定期ポストを共有しています。Gemini 2.5 Flash-LiteによるAIリプライやポスト分析に加え、AppViewではローカルの埋め込み・翻訳モデルも併用します。</p>
+      <a href="https://nagi.suibari.com/profile/did:plc:qcwhrvzx6wmi5hz775uyi6fh"><img src="./img/outputs/nagi-bot-tan.webp" alt="NagiとNagi botたん" width="100%"></a>
+      <h3>Nagi</h3>
+      <p>Nagi Client（<a href="https://github.com/suibari/nagi_client">repo</a>）&amp;<br>Nagi AppView／botたん（<a href="https://github.com/suibari/bsky-affirmative-bot">repo</a>）</p>
+      <p><strong>フラッグシップ。</strong> Nagiは、AT Protocolベースの独自AppViewによる絵文字リアクション、Markdown、自動翻訳機能を備えた全肯定SNSです。Nagi botたんはBluesky版と記憶を共有しています。</p>
     </td>
   </tr>
   <tr>
     <td width="50%" valign="top">
       <a href="https://www.youtube.com/@%E3%81%99%E3%81%84%E3%81%B0%E3%82%8A"><img src="./img/outputs/youtube-bot-tan.webp" alt="YouTuber botたん" width="100%"></a>
-      <h3>YouTuber botたん</h3>
+      <h3>YouTuber botたん（<a href="https://github.com/suibari/bot-tan-youtuber">repo</a>）</h3>
       <p><strong>宣伝とプレイグラウンド用。</strong> Gemini 2.5 Flashが台本を作り、Unityでの撮影から動画投稿までを自動化しています。LLM生成モーションによる動きの多様化もPoC中です。</p>
     </td>
     <td width="50%" valign="top">
       <a href="https://room.bot-tan.com/"><img src="./img/outputs/bot-tan-room.webp" alt="botたんのお部屋" width="100%"></a>
-      <h3>botたんのお部屋</h3>
+      <h3>botたんのお部屋（<a href="https://github.com/suibari/ChatVRM_bot-tan">repo</a>）</h3>
       <p>BlueskyやNagiでのインタラクションをさらに深めるゲームです。会話にはGemini 2.5 Flash-Lite、音声には自宅で稼働するVOICEVOXを使っています。</p>
     </td>
   </tr>
   <tr>
     <td colspan="2" valign="top">
       <a href="https://bot-tan.com/"><img src="./img/outputs/bot-tan-portal.webp" alt="botたんポータル" width="100%"></a>
-      <h3>botたんポータル</h3>
+      <h3>botたんポータル（<a href="https://github.com/suibari/bot-tan-com">repo</a>）</h3>
       <p>botたんとなかまたちの紹介、各アプリへのリンク、botたんを動かすサービスのリアルタイムダッシュボードをまとめた、プロジェクトの玄関口です。</p>
     </td>
   </tr>
