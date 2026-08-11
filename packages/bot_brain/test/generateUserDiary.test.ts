@@ -36,6 +36,20 @@ const userinfo = {
   langStr: "日本語" as const,
 };
 
+const mediaReference = {
+  id: "movie-star-wars",
+  source: "catalog" as const,
+  kind: "movie" as const,
+  era: "1970s",
+  genres: ["sf"],
+  titleJa: "スター・ウォーズ",
+  titleEn: "Star Wars",
+  hookJa: "ルークがフォースを信じてプロトン魚雷を放つ。",
+  hookEn: "Luke trusts the Force and fires proton torpedoes.",
+  requiredTermsJa: ["フォース", "プロトン魚雷"],
+  requiredTermsEn: ["Force", "proton torpedo"],
+};
+
 test("new prompt removes the fixed triad and pins attribution/context IDs", () => {
   const prompt = buildUserDiaryPrompt(userinfo, {
     dayContext: {
@@ -43,16 +57,16 @@ test("new prompt removes the fixed triad and pins attribution/context IDs", () =
       preferredKind: "bot_activity",
       candidates: [{ id: "bot_activity:1", kind: "bot_activity", textJa: "10:00 散歩した", textEn: "10:00 Took a walk" }],
     },
+    mediaReference,
   });
   assert.doesNotMatch(prompt, /日記本文には以下の要素を含め/);
   assert.match(prompt, /毎回揃える必要はありません/);
   assert.match(prompt, /「私」「ぼく」「わたし」はユーザー本人/);
   assert.match(prompt, /usedContextId/);
   assert.match(prompt, /\[bot_activity:1\]/);
-  assert.match(prompt, /実はわたしも今日/);
-  assert.match(prompt, /botたん自身の気持ち・感想/);
-  assert.match(prompt, /共通する感情・勢い・テーマ/);
-  assert.match(prompt, /単に二つの出来事を隣に置くだけでは不十分/);
+  assert.match(prompt, /優等生のように説明してまとめない/);
+  assert.match(prompt, /急な連想、脱線、話の飛躍/);
+  assert.match(prompt, /無難な共通項できれいな一篇へまとめる必要はありません/);
   assert.match(prompt, /逆転満塁ホームラン/);
   assert.match(prompt, /大きな前進を表す🚀/);
   assert.match(prompt, /候補があるのに "none" は禁止/);
@@ -61,6 +75,24 @@ test("new prompt removes the fixed triad and pins attribution/context IDs", () =
   assert.match(prompt, /時刻を決めつける挨拶は使わない/);
   assert.match(prompt, /段落の間に改行を二つ/);
   assert.match(prompt, /勢いのある造語、ユーモラスな大げささ/);
+  assert.match(prompt, /日記の対象者以外のNagi・Bluesky利用者/);
+  assert.match(prompt, /私人か公人か判断できない場合も私人として匿名化/);
+  assert.match(prompt, /作品・架空キャラクターは匿名化対象ではありません/);
+  assert.match(prompt, /出力直前の匿名性チェック（最優先）/);
+  assert.match(prompt, /尊敬している相手/);
+  assert.match(prompt, /別の開発者/);
+  assert.match(prompt, /作品ネタを使わなくても/);
+  assert.match(prompt, /500文字を多少超えても構いません/);
+  assert.match(prompt, /<media_reference id="movie-star-wars".*usage="optional"/);
+  assert.match(prompt, /プロトン魚雷/);
+  assert.match(prompt, /使用は任意/);
+  assert.match(prompt, /一度も使わなくて構いません/);
+  assert.match(prompt, /一度に制限せず/);
+  assert.match(prompt, /作品の許可リストではありません/);
+  assert.match(prompt, /複数作品が混ざっても構いません/);
+  assert.match(prompt, /カオス感は回数や固定パターンで作らない/);
+  assert.match(prompt, /何も使わない日も許可/);
+  assert.doesNotMatch(prompt, /usedMediaReferenceId/);
 });
 
 test("a day with enough posts targets a substantial 350–500 character diary", () => {
@@ -73,12 +105,15 @@ test("a day with enough posts targets a substantial 350–500 character diary", 
   assert.match(prompt, /具体的な細部への驚き/);
 });
 
-test("English prompt keeps the same attribution and grounding rules", () => {
-  const prompt = buildUserDiaryPrompt({ ...userinfo, langStr: "English" as const });
+test("English prompt keeps the same attribution, privacy, and chaos rules", () => {
+  const prompt = buildUserDiaryPrompt(
+    { ...userinfo, langStr: "English" as const },
+    { mediaReference },
+  );
   assert.match(prompt, /first-person statement.*belongs to the user/i);
   assert.match(prompt, /Do not invent the user's events, feelings/i);
   assert.match(prompt, /invent Bot-tan's own feeling/i);
-  assert.match(prompt, /shared emotion, momentum, or theme/i);
+  assert.match(prompt, /do not force the day into one tidy shared theme/i);
   assert.match(prompt, /use it as an analogy/i);
   assert.match(prompt, /Concrete metaphorical symbols are allowed/i);
   assert.match(prompt, /usedContextId="none"/);
@@ -86,6 +121,18 @@ test("English prompt keeps the same attribution and grounding rules", () => {
   assert.match(prompt, /Do not use time-specific greetings/i);
   assert.match(prompt, /two to four meaningful paragraphs/i);
   assert.match(prompt, /energetic coined phrases/i);
+  assert.match(prompt, /private person other than the diary subject/i);
+  assert.match(prompt, /fictional names supplied by <media_reference>/i);
+  assert.match(prompt, /optional inspiration/i);
+  assert.match(prompt, /there is no one-use limit/i);
+  assert.match(prompt, /is not a whitelist/i);
+  assert.match(prompt, /Do not create chaos through quotas/i);
+  assert.match(prompt, /A day with none of these is allowed/i);
+  assert.match(prompt, /Terms available for association.*Force.*proton torpedo/i);
+  assert.match(prompt, /Final privacy check \(highest priority\)/i);
+  assert.match(prompt, /people they respect/i);
+  assert.match(prompt, /Supporting context remains required/i);
+  assert.match(prompt, /exceeding 1,000 characters somewhat is acceptable/i);
 });
 
 test("diary uses the saved preferred name exactly", () => {

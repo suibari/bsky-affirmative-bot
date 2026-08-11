@@ -13,6 +13,7 @@ import {
   type RecentDiaryEmoji,
   type UserDiaryDayContext,
 } from "./generateUserDiary.js";
+import type { UserDiaryMediaReference } from "@bsky-affirmative-bot/shared-configs";
 import type { GeminiUsage } from "./util.js";
 
 /**
@@ -57,6 +58,7 @@ export async function generateUserDiaryResilient(
   options: {
     recentEmojis?: RecentDiaryEmoji[];
     dayContext?: UserDiaryDayContext;
+    mediaReference?: UserDiaryMediaReference;
     /** ログ用の識別子。例: "[NAGI][did:plc:xxx][DIARY]" */
     label: string;
     /** テスト注入用。 */
@@ -94,6 +96,7 @@ export async function generateUserDiaryResilient(
         const result = await generateDraft(userinfo, {
           ...(options.recentEmojis ? { recentEmojis: options.recentEmojis } : {}),
           ...(options.dayContext ? { dayContext: options.dayContext } : {}),
+          ...(options.mediaReference ? { mediaReference: options.mediaReference } : {}),
           aiRoute,
           onUsage: (value) => {
             usage = value;

@@ -11,6 +11,8 @@ export * from './LeafletStandardSite.js';
 export * from './RepoWritePointService.js';
 export * from './userDiaryContext.js';
 export * from './preferredName.js';
+export * from './seasonalWorksState.js';
+export * from './userDiaryMediaReference.js';
 export {
   getTimezoneFromLang,
   getLangStr,

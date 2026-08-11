@@ -17,6 +17,7 @@ import {
   trackedDeleteRecord,
   trackedPutRecord,
   withPreferredName,
+  selectUserDiaryMediaReference,
 } from "@bsky-affirmative-bot/clients";
 import {
   DIARY_MAX_ATTEMPTS,
@@ -172,6 +173,7 @@ export async function processNagiDiary(
       timezone,
       langStr === "日本語",
     );
+    const mediaReference = await selectUserDiaryMediaReference(userDid, date);
 
     const displayName = await getDisplayName(userDid);
     // generateUserDiary が見るのは displayName だけだが、型は Bluesky の ProfileView。
@@ -193,7 +195,12 @@ export async function processNagiDiary(
       });
       diaryResult = await generateUserDiaryResilient(
         userinfo,
-        { recentEmojis, dayContext, label: `[NAGI][${userDid}][DIARY]` },
+        {
+          recentEmojis,
+          dayContext,
+          mediaReference,
+          label: `[NAGI][${userDid}][DIARY]`,
+        },
       );
     } catch (error: any) {
       console.error(

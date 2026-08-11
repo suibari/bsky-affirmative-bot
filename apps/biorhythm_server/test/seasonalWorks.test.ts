@@ -23,6 +23,28 @@ test("種別とタイトルの行をパースする", () => {
   ]);
 });
 
+test("日英タイトルと検索確認済みネタフックをパースする", () => {
+  const works = parseSeasonalWorks(
+    "anime\t機動戦士テスト\tMobile Test\t主人公が試作機を動かす。\tThe hero pilots a prototype.",
+  );
+  assert.deepEqual(works, [{
+    kind: "anime",
+    title: "機動戦士テスト",
+    titleEn: "Mobile Test",
+    hookJa: "主人公が試作機を動かす。",
+    hookEn: "The hero pilots a prototype.",
+  }]);
+});
+
+test("一部だけ欠けたネタフックと長すぎるネタフックは捨てる", () => {
+  const works = parseSeasonalWorks([
+    "anime\t欠損作品\tMissing Work\t日本語だけ。",
+    `movie\t長文作品\tLong Work\t${"長".repeat(181)}\tA verified hook.`,
+    "anime\t旧形式作品",
+  ].join("\n"));
+  assert.deepEqual(works, [{ kind: "anime", title: "旧形式作品" }]);
+});
+
 test("箇条書き記号・連番・検索引用マーカーを落とす", () => {
   const works = parseSeasonalWorks(
     ["- anime\t蒼穹のカノン[1]", "2. manga\t「銀鱗のリフレイン」"].join("\n"),
@@ -134,6 +156,19 @@ test("作品が無ければセクションごと出さない（無い日を語�
     buildSeasonalWorksSection([{ kind: "anime", title: "蒼穹のカノン" }]),
     /候補にない名前を書いてはいけません/,
   );
+});
+
+test("日次予定表へは日記用ネタフックを渡さない", () => {
+  const section = buildSeasonalWorksSection([{
+    kind: "anime",
+    title: "蒼穹のカノン",
+    titleEn: "Canon of the Blue Sky",
+    hookJa: "この文字列は予定表へ渡さない。",
+    hookEn: "Do not pass this hook to the daily plan.",
+  }]);
+  assert.match(section, /蒼穹のカノン/);
+  assert.doesNotMatch(section, /この文字列は予定表へ渡さない/);
+  assert.doesNotMatch(section, /Canon of the Blue Sky/);
 });
 
 test("夢にこそ作品名を出させ、禁止するのは勉強中だけ", () => {

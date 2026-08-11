@@ -6,7 +6,7 @@ import { DIARY_REGISTER_TRIGGER, DIARY_RELEASE_TRIGGER } from "@bsky-affirmative
 import { AppBskyFeedPost } from "@atproto/api"; type Record = AppBskyFeedPost.Record;
 import { handleMode } from "./utils.js";
 import { getLangStr, getTimezoneFromLang } from "../bsky/util.js";
-import { MemoryService, applyDiaryTitle, buildUserDiaryContext, calculateDelayUntilLocal22, isPastLocal22, localDateStr, withPreferredName } from "@bsky-affirmative-bot/clients";
+import { MemoryService, applyDiaryTitle, buildUserDiaryContext, calculateDelayUntilLocal22, isPastLocal22, localDateStr, selectUserDiaryMediaReference, withPreferredName } from "@bsky-affirmative-bot/clients";
 import { LanguageName } from "@bsky-affirmative-bot/shared-configs";
 import { getConcatProfiles } from "../bsky/getConcatProfiles.js";
 import { getDaysAuthorFeed } from "../bsky/getDaysAuthorFeed.js";
@@ -135,6 +135,7 @@ async function processUserDiary(userDid: string, timezone: string) {
             timezone,
             japanese: langStr === "日本語",
         });
+        const mediaReference = await selectUserDiaryMediaReference(userDid, diaryDate);
 
         console.log(`[INFO][${userDid}] generating diary...`);
 
@@ -149,7 +150,7 @@ async function processUserDiary(userDid: string, timezone: string) {
             });
             diaryResult = await generateUserDiaryResilient(
                 userinfo,
-                { dayContext, label: `[${userDid}][DIARY]` },
+                { dayContext, mediaReference, label: `[${userDid}][DIARY]` },
             );
         } catch (e: any) {
             console.error(`[ERROR][${userDid}][DIARY] Failed to generate diary after up to ${DIARY_MAX_ATTEMPTS} attempts:`, e.message);

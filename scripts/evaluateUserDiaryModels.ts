@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import "dotenv/config";
 import postgres from "postgres";
 import { buildUserDiaryContext } from "../packages/clients/src/userDiaryContext.js";
+import { selectUserDiaryMediaReference } from "../packages/clients/src/userDiaryMediaReference.js";
 import { withPreferredName } from "../packages/clients/src/preferredName.js";
 import {
   generateUserDiaryDraft,
@@ -227,6 +228,10 @@ async function main(): Promise<void> {
         timezone: subjectDid ? "Asia/Tokyo" : "UTC",
         japanese: !english,
       });
+      const mediaReference = await selectUserDiaryMediaReference(
+        diaryCase.did,
+        diaryCase.date,
+      );
       for (const model of SELECTED_MODELS) {
         for (let repetition = 1; repetition <= REPETITIONS; repetition++) {
           const nextRequestEstimate =
@@ -248,11 +253,29 @@ async function main(): Promise<void> {
               userinfo,
               {
                 dayContext,
+                mediaReference,
                 aiRoute: { model: model.model, serviceTier: "flex" },
                 onUsage: (value) => { usages.push(value); },
               },
             );
-            output = { ...draft, emoji: selectDiaryEmojis(draft.emojiCandidates) };
+            output = {
+              ...draft,
+              emoji: selectDiaryEmojis(draft.emojiCandidates),
+              mediaReference: {
+                id: mediaReference.id,
+                source: mediaReference.source,
+                titleJa: mediaReference.titleJa,
+                titleEn: mediaReference.titleEn,
+                selectedReferenceUsed: (english
+                  ? mediaReference.requiredTermsEn
+                  : mediaReference.requiredTermsJa
+                ).some((term) =>
+                  english
+                    ? draft.diary.toLocaleLowerCase("en").includes(term.toLocaleLowerCase("en"))
+                    : draft.diary.includes(term),
+                ),
+              },
+            };
           } catch (caught) {
             error = caught instanceof Error ? caught.message : String(caught);
           }
@@ -274,8 +297,7 @@ async function main(): Promise<void> {
               supplementalUnused: Boolean(dayContext.candidates.length && output?.usedContextId === "none"),
               lengthViolation: Boolean(
                 output &&
-                  ([...output.diary].length > (english ? 1_000 : 500) ||
-                    [...output.title_ja].length > 20 ||
+                  ([...output.title_ja].length > 20 ||
                     [...output.title_en].length > 30),
               ),
               subjectMisattribution: null,
