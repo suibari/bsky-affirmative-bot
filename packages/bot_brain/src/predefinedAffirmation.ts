@@ -39,21 +39,7 @@ export async function classifyPredefinedAffirmation(
   text: string,
 ): Promise<SentimentLabel> {
   try {
-    const raw = await ollamaChat(
-      [
-        { role: "system", content: CLASSIFY_SYSTEM_PROMPT },
-        { role: "user", content: text },
-      ],
-      10,
-    );
-    const lower = raw.toLowerCase().trim();
-    if (lower.includes("morning")) return "morning";
-    if (lower.includes("night")) return "night";
-    if (lower.includes("gj")) return "gj";
-    if (lower.includes("hny")) return "hny";
-    if (lower.includes("negative")) return "negative";
-    if (lower.includes("positive")) return "positive";
-    return "neutral";
+    return await classifyPredefinedAffirmationStrict(text);
   } catch (error) {
     console.warn(
       "[WARN][predefinedAffirmation] classify failed, defaulting to neutral:",
@@ -63,32 +49,33 @@ export async function classifyPredefinedAffirmation(
   }
 }
 
+/** 評価時に通信失敗を neutral に隠さず記録するための strict 版。 */
+export async function classifyPredefinedAffirmationStrict(
+  text: string,
+): Promise<SentimentLabel> {
+  const raw = await ollamaChat(
+    [
+      { role: "system", content: CLASSIFY_SYSTEM_PROMPT },
+      { role: "user", content: text },
+    ],
+    10,
+  );
+  const lower = raw.toLowerCase().trim();
+  if (lower.includes("morning")) return "morning";
+  if (lower.includes("night")) return "night";
+  if (lower.includes("gj")) return "gj";
+  if (lower.includes("hny")) return "hny";
+  if (lower.includes("negative")) return "negative";
+  if (lower.includes("positive")) return "positive";
+  return "neutral";
+}
+
 export async function selectPredefinedAffirmationIndex(
   templates: string[],
   postText: string,
 ): Promise<number> {
-  const list = templates
-    .map((template, index) => `${index}: ${template}`)
-    .join("\n");
   try {
-    const raw = await ollamaChat(
-      [
-        {
-          role: "system",
-          content:
-            "以下の定型文リストから、ユーザーの投稿に最もふさわしい1件を選び、その番号（0始まり）のみを返してください。他の文字は不要です。",
-        },
-        {
-          role: "user",
-          content: `ユーザーの投稿:\n${postText}\n\n定型文:\n${list}`,
-        },
-      ],
-      5,
-    );
-    const index = Number.parseInt(raw.match(/\d+/)?.[0] ?? "", 10);
-    if (Number.isInteger(index) && index >= 0 && index < templates.length) {
-      return index;
-    }
+    return await selectPredefinedAffirmationIndexStrict(templates, postText);
   } catch (error) {
     console.warn(
       "[WARN][predefinedAffirmation] select failed, using random:",
@@ -96,6 +83,35 @@ export async function selectPredefinedAffirmationIndex(
     );
   }
   return Math.floor(Math.random() * templates.length);
+}
+
+/** 評価時に不正応答や通信失敗をランダム選択に隠さないstrict版。 */
+export async function selectPredefinedAffirmationIndexStrict(
+  templates: string[],
+  postText: string,
+): Promise<number> {
+  const list = templates
+    .map((template, index) => `${index}: ${template}`)
+    .join("\n");
+  const raw = await ollamaChat(
+    [
+      {
+        role: "system",
+        content:
+          "以下の定型文リストから、ユーザーの投稿に最もふさわしい1件を選び、その番号（0始まり）のみを返してください。他の文字は不要です。",
+      },
+      {
+        role: "user",
+        content: `ユーザーの投稿:\n${postText}\n\n定型文:\n${list}`,
+      },
+    ],
+    5,
+  );
+  const index = Number.parseInt(raw.match(/\d+/)?.[0] ?? "", 10);
+  if (Number.isInteger(index) && index >= 0 && index < templates.length) {
+    return index;
+  }
+  throw new Error("Ollama returned an invalid template index");
 }
 
 export async function translatePredefinedAffirmation(

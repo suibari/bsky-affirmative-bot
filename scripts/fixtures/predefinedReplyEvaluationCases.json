@@ -1,0 +1,1023 @@
+[
+  {
+    "id": "ja-negative-01",
+    "languageName": "日本語",
+    "text": "今日は本当につらい。",
+    "expectedLabel": "negative",
+    "difficulty": "simple",
+    "concern": "明示的な落ち込み",
+    "rationale": "話者自身の強い苦痛が中心。"
+  },
+  {
+    "id": "ja-negative-02",
+    "languageName": "日本語",
+    "text": "楽しみにしていた予定が全部なくなって悲しい。",
+    "expectedLabel": "negative",
+    "difficulty": "simple",
+    "concern": "失望",
+    "rationale": "予定消失への悲しみ。"
+  },
+  {
+    "id": "ja-negative-03",
+    "languageName": "日本語",
+    "text": "最高だね、締切直前にデータが全部消えるなんて。",
+    "expectedLabel": "negative",
+    "difficulty": "sarcasm",
+    "concern": "肯定語を使う皮肉",
+    "rationale": "最高は皮肉で、実質は事故への落胆。"
+  },
+  {
+    "id": "ja-negative-04",
+    "languageName": "日本語",
+    "text": "別に困ってないわけじゃない。かなり困ってる。",
+    "expectedLabel": "negative",
+    "difficulty": "double-negation",
+    "concern": "二重否定",
+    "rationale": "後段で困窮を明示。"
+  },
+  {
+    "id": "ja-negative-05",
+    "languageName": "日本語",
+    "text": "また失敗した…。もう嫌だ😞",
+    "expectedLabel": "negative",
+    "difficulty": "emoji",
+    "concern": "省略と絵文字",
+    "rationale": "失敗と拒絶感が中心。"
+  },
+  {
+    "id": "ja-negative-06",
+    "languageName": "日本語",
+    "text": "『大成功ですね』って、何も動いてないのに言われた。",
+    "expectedLabel": "negative",
+    "difficulty": "quotation",
+    "concern": "引用内の肯定語",
+    "rationale": "引用への不満が話者の感情。"
+  },
+  {
+    "id": "ja-negative-07",
+    "languageName": "日本語",
+    "text": "笑うしかない、財布を家に忘れてきた。",
+    "expectedLabel": "negative",
+    "difficulty": "idiom",
+    "concern": "表面上の笑い",
+    "rationale": "困った出来事への自嘲。"
+  },
+  {
+    "id": "ja-negative-08",
+    "languageName": "日本語",
+    "text": "良かったこと？ひとつもないよ。",
+    "expectedLabel": "negative",
+    "difficulty": "negation",
+    "concern": "肯定語の否定",
+    "rationale": "良い出来事の不在を明示。"
+  },
+  {
+    "id": "ja-negative-09",
+    "languageName": "日本語",
+    "text": "体調が悪くて何も手につかない。",
+    "expectedLabel": "negative",
+    "difficulty": "simple",
+    "concern": "不調",
+    "rationale": "本人の不調と支障。"
+  },
+  {
+    "id": "ja-negative-10",
+    "languageName": "日本語",
+    "text": "はいはい、わたしだけ残業。うれしいなあ。",
+    "expectedLabel": "negative",
+    "difficulty": "sarcasm",
+    "concern": "喜びを装う皮肉",
+    "rationale": "残業への不満を皮肉で表現。"
+  },
+
+  {
+    "id": "ja-neutral-01",
+    "languageName": "日本語",
+    "text": "今日は火曜日です。",
+    "expectedLabel": "neutral",
+    "difficulty": "simple",
+    "concern": "事実のみ",
+    "rationale": "感情を含まない日付情報。"
+  },
+  {
+    "id": "ja-neutral-02",
+    "languageName": "日本語",
+    "text": "駅に着いた。次の電車は10分後。",
+    "expectedLabel": "neutral",
+    "difficulty": "simple",
+    "concern": "移動情報",
+    "rationale": "客観的な状況説明。"
+  },
+  {
+    "id": "ja-neutral-03",
+    "languageName": "日本語",
+    "text": "うれしいことも悲しいこともあった一日。",
+    "expectedLabel": "neutral",
+    "difficulty": "mixed",
+    "concern": "正負混合",
+    "rationale": "全体の極性を一方に定められない。"
+  },
+  {
+    "id": "ja-neutral-04",
+    "languageName": "日本語",
+    "text": "友達が『つらい』と言っていた。",
+    "expectedLabel": "neutral",
+    "difficulty": "quotation",
+    "concern": "他人の感情",
+    "rationale": "悲しみの主体は投稿者ではない。"
+  },
+  {
+    "id": "ja-neutral-05",
+    "languageName": "日本語",
+    "text": "『おはよう』という言葉の由来を調べた。",
+    "expectedLabel": "neutral",
+    "difficulty": "quotation",
+    "concern": "挨拶語の言及",
+    "rationale": "直接の挨拶ではなく語についての説明。"
+  },
+  {
+    "id": "ja-neutral-06",
+    "languageName": "日本語",
+    "text": "おはなしの続きを書く。",
+    "expectedLabel": "neutral",
+    "difficulty": "boundary",
+    "concern": "おはの部分一致",
+    "rationale": "朝の挨拶ではない。"
+  },
+  {
+    "id": "ja-neutral-07",
+    "languageName": "日本語",
+    "text": "悪くも良くもない、いつも通り。",
+    "expectedLabel": "neutral",
+    "difficulty": "negation",
+    "concern": "両極の否定",
+    "rationale": "本人が中立と明示。"
+  },
+  {
+    "id": "ja-neutral-08",
+    "languageName": "日本語",
+    "text": "結果はまだ分からない。",
+    "expectedLabel": "neutral",
+    "difficulty": "uncertain",
+    "concern": "未確定",
+    "rationale": "評価できる結果や感情がない。"
+  },
+  {
+    "id": "ja-neutral-09",
+    "languageName": "日本語",
+    "text": "🙂",
+    "expectedLabel": "neutral",
+    "difficulty": "emoji",
+    "concern": "曖昧な絵文字のみ",
+    "rationale": "弱い表情だけでは極性を確定しない。"
+  },
+  {
+    "id": "ja-neutral-10",
+    "languageName": "日本語",
+    "text": "『最高』と『最悪』を含む例文を作った。",
+    "expectedLabel": "neutral",
+    "difficulty": "metalinguistic",
+    "concern": "感情語の言及",
+    "rationale": "語を例示しただけ。"
+  },
+
+  {
+    "id": "ja-positive-01",
+    "languageName": "日本語",
+    "text": "今日はとても楽しかった！",
+    "expectedLabel": "positive",
+    "difficulty": "simple",
+    "concern": "明示的な喜び",
+    "rationale": "本人の楽しい体験。"
+  },
+  {
+    "id": "ja-positive-02",
+    "languageName": "日本語",
+    "text": "ずっと練習していたことができた。うれしい！",
+    "expectedLabel": "positive",
+    "difficulty": "simple",
+    "concern": "達成感",
+    "rationale": "努力の成果と喜び。"
+  },
+  {
+    "id": "ja-positive-03",
+    "languageName": "日本語",
+    "text": "思ったより悪くなかった。",
+    "expectedLabel": "positive",
+    "difficulty": "negation",
+    "concern": "否定形の肯定",
+    "rationale": "予想より良い評価。"
+  },
+  {
+    "id": "ja-positive-04",
+    "languageName": "日本語",
+    "text": "失敗しなかっただけでも十分うれしい。",
+    "expectedLabel": "positive",
+    "difficulty": "negation",
+    "concern": "失敗語を含む肯定",
+    "rationale": "無事だったことへの喜び。"
+  },
+  {
+    "id": "ja-positive-05",
+    "languageName": "日本語",
+    "text": "友達に会えて元気が出た😊",
+    "expectedLabel": "positive",
+    "difficulty": "emoji",
+    "concern": "回復と絵文字",
+    "rationale": "本人の気分が改善。"
+  },
+  {
+    "id": "ja-positive-06",
+    "languageName": "日本語",
+    "text": "忙しかったけど、やりきれて満足。",
+    "expectedLabel": "positive",
+    "difficulty": "mixed",
+    "concern": "負荷と達成",
+    "rationale": "逆接後の満足が全体を決める。"
+  },
+  {
+    "id": "ja-positive-07",
+    "languageName": "日本語",
+    "text": "『無理かも』と思ったのに完成した！",
+    "expectedLabel": "positive",
+    "difficulty": "quotation",
+    "concern": "引用内の弱気",
+    "rationale": "最終的な完成が中心。"
+  },
+  {
+    "id": "ja-positive-08",
+    "languageName": "日本語",
+    "text": "嫌いじゃない。むしろ好き。",
+    "expectedLabel": "positive",
+    "difficulty": "double-negation",
+    "concern": "弱い否定から肯定",
+    "rationale": "好意を明示。"
+  },
+  {
+    "id": "ja-positive-09",
+    "languageName": "日本語",
+    "text": "抽選に当たった、まじ神。",
+    "expectedLabel": "positive",
+    "difficulty": "slang",
+    "concern": "俗語",
+    "rationale": "当選への強い喜び。"
+  },
+  {
+    "id": "ja-positive-10",
+    "languageName": "日本語",
+    "text": "雨だったから家でゆっくりできてよかった。",
+    "expectedLabel": "positive",
+    "difficulty": "context",
+    "concern": "一般に負の語の再評価",
+    "rationale": "雨を休息の好機として肯定。"
+  },
+
+  {
+    "id": "ja-morning-01",
+    "languageName": "日本語",
+    "text": "おはよう！",
+    "expectedLabel": "morning",
+    "difficulty": "simple",
+    "concern": "基本挨拶",
+    "rationale": "直接の朝の挨拶。"
+  },
+  {
+    "id": "ja-morning-02",
+    "languageName": "日本語",
+    "text": "おはようございます。今日もよろしく。",
+    "expectedLabel": "morning",
+    "difficulty": "polite",
+    "concern": "丁寧形",
+    "rationale": "朝の挨拶が主目的。"
+  },
+  {
+    "id": "ja-morning-03",
+    "languageName": "日本語",
+    "text": "おはー",
+    "expectedLabel": "morning",
+    "difficulty": "slang",
+    "concern": "略語",
+    "rationale": "口語的な朝の挨拶。"
+  },
+  {
+    "id": "ja-morning-04",
+    "languageName": "日本語",
+    "text": "おは！眠い！",
+    "expectedLabel": "morning",
+    "difficulty": "mixed",
+    "concern": "挨拶と不調",
+    "rationale": "冒頭の直接挨拶を優先。"
+  },
+  {
+    "id": "ja-morning-05",
+    "languageName": "日本語",
+    "text": "Good morning! 朝ごはん食べる。",
+    "expectedLabel": "morning",
+    "difficulty": "code-switch",
+    "concern": "英日混在",
+    "rationale": "直接の英語朝挨拶。"
+  },
+  {
+    "id": "ja-morning-06",
+    "languageName": "日本語",
+    "text": "おはよう☀️いい天気。",
+    "expectedLabel": "morning",
+    "difficulty": "emoji",
+    "concern": "句読点なし絵文字",
+    "rationale": "文頭の朝挨拶。"
+  },
+  {
+    "id": "ja-morning-07",
+    "languageName": "日本語",
+    "text": "おはよう、今日は早起きできた。",
+    "expectedLabel": "morning",
+    "difficulty": "positive-context",
+    "concern": "挨拶と喜び",
+    "rationale": "直接挨拶カテゴリを優先。"
+  },
+  {
+    "id": "ja-morning-08",
+    "languageName": "日本語",
+    "text": "おはよう…寝不足だ。",
+    "expectedLabel": "morning",
+    "difficulty": "negative-context",
+    "concern": "挨拶と不調",
+    "rationale": "直接挨拶カテゴリを優先。"
+  },
+  {
+    "id": "ja-morning-09",
+    "languageName": "日本語",
+    "text": "おはよー！",
+    "expectedLabel": "morning",
+    "difficulty": "elongation",
+    "concern": "長音表現",
+    "rationale": "くだけた朝挨拶。"
+  },
+  {
+    "id": "ja-morning-10",
+    "languageName": "日本語",
+    "text": "おはようみんな。",
+    "expectedLabel": "morning",
+    "difficulty": "boundary",
+    "concern": "助詞なし接続",
+    "rationale": "呼びかけを伴う朝挨拶。"
+  },
+
+  {
+    "id": "ja-night-01",
+    "languageName": "日本語",
+    "text": "おやすみ。",
+    "expectedLabel": "night",
+    "difficulty": "simple",
+    "concern": "基本挨拶",
+    "rationale": "直接の就寝挨拶。"
+  },
+  {
+    "id": "ja-night-02",
+    "languageName": "日本語",
+    "text": "おやすみなさい！",
+    "expectedLabel": "night",
+    "difficulty": "polite",
+    "concern": "丁寧形",
+    "rationale": "直接の就寝挨拶。"
+  },
+  {
+    "id": "ja-night-03",
+    "languageName": "日本語",
+    "text": "そろそろ寝るね、おやすみ",
+    "expectedLabel": "night",
+    "difficulty": "suffix",
+    "concern": "文末挨拶",
+    "rationale": "就寝宣言と直接挨拶。"
+  },
+  {
+    "id": "ja-night-04",
+    "languageName": "日本語",
+    "text": "おやすー",
+    "expectedLabel": "night",
+    "difficulty": "slang",
+    "concern": "略語",
+    "rationale": "くだけた就寝挨拶。"
+  },
+  {
+    "id": "ja-night-05",
+    "languageName": "日本語",
+    "text": "Good night 🌙",
+    "expectedLabel": "night",
+    "difficulty": "code-switch",
+    "concern": "英語挨拶",
+    "rationale": "直接の英語就寝挨拶。"
+  },
+  {
+    "id": "ja-night-06",
+    "languageName": "日本語",
+    "text": "疲れたので寝ます。おやすみ！",
+    "expectedLabel": "night",
+    "difficulty": "negative-context",
+    "concern": "疲労と挨拶",
+    "rationale": "最後の直接挨拶を優先。"
+  },
+  {
+    "id": "ja-night-07",
+    "languageName": "日本語",
+    "text": "おやすみ、今日は楽しかった。",
+    "expectedLabel": "night",
+    "difficulty": "positive-context",
+    "concern": "喜びと挨拶",
+    "rationale": "直接挨拶カテゴリを優先。"
+  },
+  {
+    "id": "ja-night-08",
+    "languageName": "日本語",
+    "text": "みんな、おやすみなさい。",
+    "expectedLabel": "night",
+    "difficulty": "vocative",
+    "concern": "呼びかけ後の挨拶",
+    "rationale": "直接の就寝挨拶。"
+  },
+  {
+    "id": "ja-night-09",
+    "languageName": "日本語",
+    "text": "おやすみ〜また明日",
+    "expectedLabel": "night",
+    "difficulty": "elongation",
+    "concern": "波線接続",
+    "rationale": "就寝挨拶が主目的。"
+  },
+  {
+    "id": "ja-night-10",
+    "languageName": "日本語",
+    "text": "もう限界。good night.",
+    "expectedLabel": "night",
+    "difficulty": "mixed",
+    "concern": "不調と英語挨拶",
+    "rationale": "直接の就寝挨拶を優先。"
+  },
+
+  {
+    "id": "ja-gj-01",
+    "languageName": "日本語",
+    "text": "お疲れさま！",
+    "expectedLabel": "gj",
+    "difficulty": "simple",
+    "concern": "基本労い",
+    "rationale": "直接の労い。"
+  },
+  {
+    "id": "ja-gj-02",
+    "languageName": "日本語",
+    "text": "おつかれ〜",
+    "expectedLabel": "gj",
+    "difficulty": "slang",
+    "concern": "ひらがな略式",
+    "rationale": "くだけた労い。"
+  },
+  {
+    "id": "ja-gj-03",
+    "languageName": "日本語",
+    "text": "しごおわ！",
+    "expectedLabel": "gj",
+    "difficulty": "slang",
+    "concern": "仕事終了略語",
+    "rationale": "仕事を終えた報告。"
+  },
+  {
+    "id": "ja-gj-04",
+    "languageName": "日本語",
+    "text": "今日の作業、全部終わった。",
+    "expectedLabel": "gj",
+    "difficulty": "implicit",
+    "concern": "暗黙の達成・疲労",
+    "rationale": "作業完了への労いが適する。"
+  },
+  {
+    "id": "ja-gj-05",
+    "languageName": "日本語",
+    "text": "疲れたー、でもやりきった。",
+    "expectedLabel": "gj",
+    "difficulty": "mixed",
+    "concern": "疲労と達成",
+    "rationale": "努力後の疲労が中心。"
+  },
+  {
+    "id": "ja-gj-06",
+    "languageName": "日本語",
+    "text": "お疲れ様でした。帰ります。",
+    "expectedLabel": "gj",
+    "difficulty": "polite",
+    "concern": "職場定型句",
+    "rationale": "仕事終わりの労い。"
+  },
+  {
+    "id": "ja-gj-07",
+    "languageName": "日本語",
+    "text": "Good job, everyone!",
+    "expectedLabel": "gj",
+    "difficulty": "code-switch",
+    "concern": "英語労い",
+    "rationale": "直接の称賛・労い。"
+  },
+  {
+    "id": "ja-gj-08",
+    "languageName": "日本語",
+    "text": "長い会議がようやく終わった😮‍💨",
+    "expectedLabel": "gj",
+    "difficulty": "emoji",
+    "concern": "安堵と疲労",
+    "rationale": "長時間の負荷終了への労い。"
+  },
+  {
+    "id": "ja-gj-09",
+    "languageName": "日本語",
+    "text": "おつ！今日は大変だったね。",
+    "expectedLabel": "gj",
+    "difficulty": "context",
+    "concern": "労いと負の文脈",
+    "rationale": "冒頭の直接労い。"
+  },
+  {
+    "id": "ja-gj-10",
+    "languageName": "日本語",
+    "text": "三時間かけて提出完了。",
+    "expectedLabel": "gj",
+    "difficulty": "implicit",
+    "concern": "努力量のある完了",
+    "rationale": "努力と完了への労いが適する。"
+  },
+
+  {
+    "id": "ja-hny-01",
+    "languageName": "日本語",
+    "text": "あけましておめでとう！",
+    "expectedLabel": "hny",
+    "difficulty": "simple",
+    "concern": "基本新年挨拶",
+    "rationale": "直接の新年挨拶。"
+  },
+  {
+    "id": "ja-hny-02",
+    "languageName": "日本語",
+    "text": "明けましておめでとうございます。",
+    "expectedLabel": "hny",
+    "difficulty": "polite",
+    "concern": "漢字丁寧形",
+    "rationale": "直接の新年挨拶。"
+  },
+  {
+    "id": "ja-hny-03",
+    "languageName": "日本語",
+    "text": "あけおめ！",
+    "expectedLabel": "hny",
+    "difficulty": "slang",
+    "concern": "略語",
+    "rationale": "新年挨拶の略語。"
+  },
+  {
+    "id": "ja-hny-04",
+    "languageName": "日本語",
+    "text": "Happy New Year!",
+    "expectedLabel": "hny",
+    "difficulty": "code-switch",
+    "concern": "英語新年挨拶",
+    "rationale": "直接の英語新年挨拶。"
+  },
+  {
+    "id": "ja-hny-05",
+    "languageName": "日本語",
+    "text": "あけましておめでとう。今年もよろしく。",
+    "expectedLabel": "hny",
+    "difficulty": "context",
+    "concern": "定番後続句",
+    "rationale": "新年挨拶が主目的。"
+  },
+  {
+    "id": "ja-hny-06",
+    "languageName": "日本語",
+    "text": "あけおめ🎍今年はいい年にしたい。",
+    "expectedLabel": "hny",
+    "difficulty": "emoji",
+    "concern": "絵文字接続",
+    "rationale": "直接の新年挨拶。"
+  },
+  {
+    "id": "ja-hny-07",
+    "languageName": "日本語",
+    "text": "明けましておめでとう！でも寝不足。",
+    "expectedLabel": "hny",
+    "difficulty": "negative-context",
+    "concern": "不調と新年挨拶",
+    "rationale": "直接の新年挨拶を優先。"
+  },
+  {
+    "id": "ja-hny-08",
+    "languageName": "日本語",
+    "text": "Happy New Year, みんな！",
+    "expectedLabel": "hny",
+    "difficulty": "mixed-language",
+    "concern": "日英混在",
+    "rationale": "直接の新年挨拶。"
+  },
+  {
+    "id": "ja-hny-09",
+    "languageName": "日本語",
+    "text": "あけましておめでとうー！",
+    "expectedLabel": "hny",
+    "difficulty": "elongation",
+    "concern": "長音接続",
+    "rationale": "新年挨拶の口語表現。"
+  },
+  {
+    "id": "ja-hny-10",
+    "languageName": "日本語",
+    "text": "あけおめことよろ",
+    "expectedLabel": "hny",
+    "difficulty": "boundary",
+    "concern": "略語連結",
+    "rationale": "新年の定型挨拶。"
+  },
+
+  {
+    "id": "en-negative-01",
+    "languageName": "English",
+    "text": "I feel awful today.",
+    "expectedLabel": "negative",
+    "difficulty": "simple",
+    "concern": "explicit distress",
+    "rationale": "The speaker directly reports distress."
+  },
+  {
+    "id": "en-negative-02",
+    "languageName": "English",
+    "text": "Great, my laptop died right before the deadline.",
+    "expectedLabel": "negative",
+    "difficulty": "sarcasm",
+    "concern": "positive word used sarcastically",
+    "rationale": "Great is sarcastic; the event is clearly harmful."
+  },
+  {
+    "id": "en-negative-03",
+    "languageName": "English",
+    "text": "It's not like I'm not upset. I am.",
+    "expectedLabel": "negative",
+    "difficulty": "double-negation",
+    "concern": "double negation",
+    "rationale": "The final clause confirms upset."
+  },
+  {
+    "id": "en-negative-04",
+    "languageName": "English",
+    "text": "Nothing went wrong—except literally everything.",
+    "expectedLabel": "negative",
+    "difficulty": "sarcasm",
+    "concern": "ironic reversal",
+    "rationale": "The second clause reverses the surface claim."
+  },
+  {
+    "id": "en-negative-05",
+    "languageName": "English",
+    "text": "They called it a 'wonderful result,' but it solved nothing.",
+    "expectedLabel": "negative",
+    "difficulty": "quotation",
+    "concern": "quoted praise",
+    "rationale": "The speaker rejects the quoted positive judgment."
+  },
+  {
+    "id": "en-negative-06",
+    "languageName": "English",
+    "text": "Missed the train again 😞",
+    "expectedLabel": "negative",
+    "difficulty": "emoji",
+    "concern": "brief failure report",
+    "rationale": "The missed train and emoji indicate disappointment."
+  },
+
+  {
+    "id": "en-neutral-01",
+    "languageName": "English",
+    "text": "The meeting starts at three.",
+    "expectedLabel": "neutral",
+    "difficulty": "simple",
+    "concern": "fact only",
+    "rationale": "No speaker sentiment is expressed."
+  },
+  {
+    "id": "en-neutral-02",
+    "languageName": "English",
+    "text": "Some parts were good and some were bad.",
+    "expectedLabel": "neutral",
+    "difficulty": "mixed",
+    "concern": "balanced polarity",
+    "rationale": "Positive and negative evaluations are balanced."
+  },
+  {
+    "id": "en-neutral-03",
+    "languageName": "English",
+    "text": "My friend said, 'I am miserable.'",
+    "expectedLabel": "neutral",
+    "difficulty": "quotation",
+    "concern": "someone else's emotion",
+    "rationale": "The emotion belongs to the friend, not the speaker."
+  },
+  {
+    "id": "en-neutral-04",
+    "languageName": "English",
+    "text": "I wrote an example containing the words 'great' and 'terrible.'",
+    "expectedLabel": "neutral",
+    "difficulty": "metalinguistic",
+    "concern": "sentiment words as examples",
+    "rationale": "The words are discussed, not felt."
+  },
+  {
+    "id": "en-neutral-05",
+    "languageName": "English",
+    "text": "They said \"good morning\" in the movie.",
+    "expectedLabel": "neutral",
+    "difficulty": "quotation",
+    "concern": "quoted greeting",
+    "rationale": "This is a report, not a direct greeting."
+  },
+  {
+    "id": "en-neutral-06",
+    "languageName": "English",
+    "text": "The result is not known yet.",
+    "expectedLabel": "neutral",
+    "difficulty": "uncertain",
+    "concern": "unresolved outcome",
+    "rationale": "There is no established evaluation."
+  },
+
+  {
+    "id": "en-positive-01",
+    "languageName": "English",
+    "text": "I had a wonderful day!",
+    "expectedLabel": "positive",
+    "difficulty": "simple",
+    "concern": "explicit joy",
+    "rationale": "The speaker positively evaluates the day."
+  },
+  {
+    "id": "en-positive-02",
+    "languageName": "English",
+    "text": "It wasn't bad at all.",
+    "expectedLabel": "positive",
+    "difficulty": "negation",
+    "concern": "negated negative",
+    "rationale": "The phrase conveys a positive evaluation."
+  },
+  {
+    "id": "en-positive-03",
+    "languageName": "English",
+    "text": "I thought I couldn't do it, but I finished!",
+    "expectedLabel": "positive",
+    "difficulty": "mixed",
+    "concern": "doubt followed by success",
+    "rationale": "The completed achievement is the conclusion."
+  },
+  {
+    "id": "en-positive-04",
+    "languageName": "English",
+    "text": "Busy day, but I'm proud of what I got done.",
+    "expectedLabel": "positive",
+    "difficulty": "mixed",
+    "concern": "strain and satisfaction",
+    "rationale": "Pride is the overall final sentiment."
+  },
+  {
+    "id": "en-positive-05",
+    "languageName": "English",
+    "text": "I don't dislike it—I actually love it.",
+    "expectedLabel": "positive",
+    "difficulty": "double-negation",
+    "concern": "negative words in positive statement",
+    "rationale": "The speaker explicitly states love."
+  },
+  {
+    "id": "en-positive-06",
+    "languageName": "English",
+    "text": "Got the ticket! Let's gooo 🎉",
+    "expectedLabel": "positive",
+    "difficulty": "slang",
+    "concern": "celebratory slang",
+    "rationale": "Success and celebration are clear."
+  },
+
+  {
+    "id": "en-morning-01",
+    "languageName": "English",
+    "text": "Good morning!",
+    "expectedLabel": "morning",
+    "difficulty": "simple",
+    "concern": "basic greeting",
+    "rationale": "A direct morning greeting."
+  },
+  {
+    "id": "en-morning-02",
+    "languageName": "English",
+    "text": "Good morning, everyone.",
+    "expectedLabel": "morning",
+    "difficulty": "vocative",
+    "concern": "greeting with addressee",
+    "rationale": "A direct morning greeting."
+  },
+  {
+    "id": "en-morning-03",
+    "languageName": "English",
+    "text": "Morning! Coffee time.",
+    "expectedLabel": "morning",
+    "difficulty": "slang",
+    "concern": "short greeting",
+    "rationale": "Morning is used as a direct greeting."
+  },
+  {
+    "id": "en-morning-04",
+    "languageName": "English",
+    "text": "Good morning ☀️ I slept well.",
+    "expectedLabel": "morning",
+    "difficulty": "emoji",
+    "concern": "greeting and positive context",
+    "rationale": "The direct greeting takes priority."
+  },
+  {
+    "id": "en-morning-05",
+    "languageName": "English",
+    "text": "Good morning... I barely slept.",
+    "expectedLabel": "morning",
+    "difficulty": "negative-context",
+    "concern": "greeting and distress",
+    "rationale": "The direct greeting takes priority."
+  },
+  {
+    "id": "en-morning-06",
+    "languageName": "English",
+    "text": "GOOD MORNING! Ready to start.",
+    "expectedLabel": "morning",
+    "difficulty": "case",
+    "concern": "uppercase greeting",
+    "rationale": "A direct morning greeting regardless of case."
+  },
+
+  {
+    "id": "en-night-01",
+    "languageName": "English",
+    "text": "Good night.",
+    "expectedLabel": "night",
+    "difficulty": "simple",
+    "concern": "basic greeting",
+    "rationale": "A direct sleep greeting."
+  },
+  {
+    "id": "en-night-02",
+    "languageName": "English",
+    "text": "Good night, everyone!",
+    "expectedLabel": "night",
+    "difficulty": "vocative",
+    "concern": "greeting with addressee",
+    "rationale": "A direct sleep greeting."
+  },
+  {
+    "id": "en-night-03",
+    "languageName": "English",
+    "text": "I'm going to bed. Good night.",
+    "expectedLabel": "night",
+    "difficulty": "suffix",
+    "concern": "sentence-final greeting",
+    "rationale": "A direct sleep greeting follows the statement."
+  },
+  {
+    "id": "en-night-04",
+    "languageName": "English",
+    "text": "Good night 🌙",
+    "expectedLabel": "night",
+    "difficulty": "emoji",
+    "concern": "emoji boundary",
+    "rationale": "A direct sleep greeting."
+  },
+  {
+    "id": "en-night-05",
+    "languageName": "English",
+    "text": "Exhausted. Good night.",
+    "expectedLabel": "night",
+    "difficulty": "negative-context",
+    "concern": "fatigue and greeting",
+    "rationale": "The direct sleep greeting takes priority."
+  },
+  {
+    "id": "en-night-06",
+    "languageName": "English",
+    "text": "Good night—today was fun.",
+    "expectedLabel": "night",
+    "difficulty": "positive-context",
+    "concern": "greeting and joy",
+    "rationale": "The direct sleep greeting takes priority."
+  },
+
+  {
+    "id": "en-gj-01",
+    "languageName": "English",
+    "text": "Good job!",
+    "expectedLabel": "gj",
+    "difficulty": "simple",
+    "concern": "basic praise",
+    "rationale": "A direct expression of praise."
+  },
+  {
+    "id": "en-gj-02",
+    "languageName": "English",
+    "text": "Good job, team.",
+    "expectedLabel": "gj",
+    "difficulty": "vocative",
+    "concern": "group praise",
+    "rationale": "A direct expression of praise."
+  },
+  {
+    "id": "en-gj-03",
+    "languageName": "English",
+    "text": "Finally finished all my work.",
+    "expectedLabel": "gj",
+    "difficulty": "implicit",
+    "concern": "work completion",
+    "rationale": "Completion after effort calls for acknowledgment."
+  },
+  {
+    "id": "en-gj-04",
+    "languageName": "English",
+    "text": "I'm exhausted, but I got it done.",
+    "expectedLabel": "gj",
+    "difficulty": "mixed",
+    "concern": "fatigue and completion",
+    "rationale": "Effort and completion are central."
+  },
+  {
+    "id": "en-gj-05",
+    "languageName": "English",
+    "text": "Three hours later: submitted.",
+    "expectedLabel": "gj",
+    "difficulty": "implicit",
+    "concern": "effort duration",
+    "rationale": "The post reports completion after sustained effort."
+  },
+  {
+    "id": "en-gj-06",
+    "languageName": "English",
+    "text": "Work is over 😮‍💨",
+    "expectedLabel": "gj",
+    "difficulty": "emoji",
+    "concern": "relief after work",
+    "rationale": "The speaker reports finishing work with fatigue."
+  },
+
+  {
+    "id": "en-hny-01",
+    "languageName": "English",
+    "text": "Happy New Year!",
+    "expectedLabel": "hny",
+    "difficulty": "simple",
+    "concern": "basic new-year greeting",
+    "rationale": "A direct New Year greeting."
+  },
+  {
+    "id": "en-hny-02",
+    "languageName": "English",
+    "text": "Happy New Year, everyone.",
+    "expectedLabel": "hny",
+    "difficulty": "vocative",
+    "concern": "greeting with addressee",
+    "rationale": "A direct New Year greeting."
+  },
+  {
+    "id": "en-hny-03",
+    "languageName": "English",
+    "text": "HAPPY NEW YEAR! 🎉",
+    "expectedLabel": "hny",
+    "difficulty": "case",
+    "concern": "uppercase and emoji",
+    "rationale": "A direct New Year greeting."
+  },
+  {
+    "id": "en-hny-04",
+    "languageName": "English",
+    "text": "Happy New Year! Here's to a better one.",
+    "expectedLabel": "hny",
+    "difficulty": "context",
+    "concern": "greeting and hope",
+    "rationale": "The direct New Year greeting takes priority."
+  },
+  {
+    "id": "en-hny-05",
+    "languageName": "English",
+    "text": "Happy New Year... even though I'm sleepy.",
+    "expectedLabel": "hny",
+    "difficulty": "negative-context",
+    "concern": "greeting and discomfort",
+    "rationale": "The direct New Year greeting takes priority."
+  },
+  {
+    "id": "en-hny-06",
+    "languageName": "English",
+    "text": "Happy New Year to you and your family!",
+    "expectedLabel": "hny",
+    "difficulty": "extended",
+    "concern": "long greeting",
+    "rationale": "A direct New Year greeting."
+  }
+]

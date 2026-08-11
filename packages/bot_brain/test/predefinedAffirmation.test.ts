@@ -40,8 +40,7 @@ test("英語では英語のneutral定型文セットを使う", async () => {
     },
   );
 
-  assert.equal(result, firstCandidate);
-  assert.equal(result, "So true.");
+  assert.equal(result, firstCandidate.replaceAll("${name}", "Nagi"));
 });
 
 test("日英以外はローカル翻訳結果を使い表示名を置換する", async () => {
@@ -74,4 +73,33 @@ test("Ollama未設定時の分類はneutralへfail-safeする", async () => {
     if (originalModel === undefined) delete process.env.OLLAMA_MODEL;
     else process.env.OLLAMA_MODEL = originalModel;
   }
+});
+
+test("外部分類器を注入しても選択・名前置換を共通処理する", async () => {
+  let classifiedText = "";
+  let candidates: string[] = [];
+  let selected = "";
+  const result = await predefinedAffirmation(
+    {
+      text: "今日はしんどい",
+      languageName: "日本語",
+      displayName: "なぎ",
+    },
+    {
+      classify: async (text) => {
+        classifiedText = text;
+        return "negative";
+      },
+      select: async (templates) => {
+        candidates = templates;
+        selected = templates[0];
+        return 0;
+      },
+    },
+  );
+
+  assert.equal(classifiedText, "今日はしんどい");
+  assert.ok(candidates.length > 0);
+  assert.equal(result, selected.replaceAll("${name}", "なぎ"));
+  assert.doesNotMatch(result, /\$\{name\}/);
 });

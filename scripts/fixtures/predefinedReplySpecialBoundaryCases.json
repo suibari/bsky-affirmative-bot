@@ -1,0 +1,92 @@
+[
+  {
+    "id": "boundary-ja-reported-otsukare-no-punctuation",
+    "languageName": "日本語",
+    "text": "おつかれと友達に言われて、今日の出来事を振り返った。朝から移動が多くて大変だったけれど、無事に用事は済んだ。",
+    "expectedLabel": "neutral",
+    "difficulty": "reported-speech",
+    "concern": "文頭の伝聞を直接のねぎらいと誤認しないか",
+    "rationale": "おつかれは友達の発話内容であり、投稿者からの直接の挨拶ではない。全体の感情も明確に一方向ではない。"
+  },
+  {
+    "id": "boundary-ja-reported-otsukare-punctuation",
+    "languageName": "日本語",
+    "text": "おつかれ、と友達に言われて少しうれしかった。",
+    "expectedLabel": "positive",
+    "difficulty": "reported-speech",
+    "concern": "句読点境界が機械ルールを通過する伝聞",
+    "rationale": "挨拶は友達の発話で、投稿者自身の感情はうれしいというpositive。"
+  },
+  {
+    "id": "boundary-ja-reported-otsukaresama",
+    "languageName": "日本語",
+    "text": "友達にお疲れさまと言われた。",
+    "expectedLabel": "neutral",
+    "difficulty": "reported-speech",
+    "concern": "文中の非引用伝聞",
+    "rationale": "他者の発話を事実として報告しており、直接のねぎらいでも明確な感情表現でもない。"
+  },
+  {
+    "id": "boundary-ja-quoted-otsukare-positive",
+    "languageName": "日本語",
+    "text": "「お疲れ」と言われて、肩の力が抜けてほっとした。",
+    "expectedLabel": "positive",
+    "difficulty": "quotation",
+    "concern": "引用を除外しつつ引用後の感情を読むか",
+    "rationale": "引用内の挨拶ではなく、投稿者が安心したというpositiveが主題。"
+  },
+  {
+    "id": "boundary-ja-direct-otsukare",
+    "languageName": "日本語",
+    "text": "お疲れさま！今日もよく頑張った。",
+    "expectedLabel": "gj",
+    "difficulty": "direct",
+    "concern": "直接のねぎらい",
+    "rationale": "投稿者が直接ねぎらいを述べている。"
+  },
+  {
+    "id": "boundary-ja-own-work-completion",
+    "languageName": "日本語",
+    "text": "仕事がようやく終わった。くたくただ。",
+    "expectedLabel": "gj",
+    "difficulty": "implicit",
+    "concern": "キーワードのない本人の作業完了",
+    "rationale": "投稿者自身の仕事完了と疲労で、ねぎらいの定型文が適合する。"
+  },
+  {
+    "id": "boundary-en-song-title-night",
+    "languageName": "English",
+    "text": "Good Night is the title of the song I heard today.",
+    "expectedLabel": "neutral",
+    "difficulty": "metalinguistic",
+    "concern": "曲名を夜の挨拶と誤認しないか",
+    "rationale": "Good Nightは曲名への言及で、投稿者が夜の挨拶をしているわけではない。"
+  },
+  {
+    "id": "boundary-ja-song-title-hny",
+    "languageName": "日本語",
+    "text": "Happy New Yearという曲を初めて聴いた。",
+    "expectedLabel": "neutral",
+    "difficulty": "metalinguistic",
+    "concern": "曲名を新年の挨拶と誤認しないか",
+    "rationale": "新年の挨拶ではなく曲名についての事実記述。"
+  },
+  {
+    "id": "boundary-en-direct-morning-negative-context",
+    "languageName": "English",
+    "text": "Good morning! I barely slept, but here we go.",
+    "expectedLabel": "morning",
+    "difficulty": "negative-context",
+    "concern": "後続の否定的文脈がある直接挨拶",
+    "rationale": "投稿冒頭で直接朝の挨拶をしているためmorningを優先する。"
+  },
+  {
+    "id": "boundary-ja-explaining-greetings",
+    "languageName": "日本語",
+    "text": "朝におはよう、夜におやすみと言う習慣について説明した。",
+    "expectedLabel": "neutral",
+    "difficulty": "metalinguistic",
+    "concern": "複数の挨拶語を含む説明文",
+    "rationale": "挨拶を実行しているのではなく、言葉の使用習慣を説明している。"
+  }
+]

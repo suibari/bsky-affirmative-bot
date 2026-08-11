@@ -1,0 +1,1613 @@
+# 定型文分類方式 人手レビュー
+
+生成日時: 2026-08-11T08:10:49.854Z
+分類反復回数: 3
+
+返信ごとに 0（不適切・危険）/ 1（不一致・不自然）/ 2（許容可能）/ 3（よく適合）を記入します。同じ返信になった方式は1行にまとめています。方式対応表は採点後に開いてください。
+
+## ja-negative-01
+
+- 言語: 日本語
+- 期待カテゴリ: negative
+- 難度: simple
+- 論点: 明示的な落ち込み
+- 本文: 今日は本当につらい。
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| B, D | neutral | やばい、ほめるところしかない |  |  |
+| A, C, E | negative | 大好きだよ！ |  |  |
+
+## ja-negative-02
+
+- 言語: 日本語
+- 期待カテゴリ: negative
+- 難度: simple
+- 論点: 失望
+- 本文: 楽しみにしていた予定が全部なくなって悲しい。
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| D | positive | テストユーザーの凄さに感無量😭 |  |  |
+| A, C, E | negative | つらい時期だったね |  |  |
+| B | neutral | まじやばい |  |  |
+
+## ja-negative-03
+
+- 言語: 日本語
+- 期待カテゴリ: negative
+- 難度: sarcasm
+- 論点: 肯定語を使う皮肉
+- 本文: 最高だね、締切直前にデータが全部消えるなんて。
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| D | positive | 君は完璧で究極のゲッター！！🤖🔥 |  |  |
+| A, C, E | negative | 生きてくれててありがとう |  |  |
+| B | neutral | まじやばい |  |  |
+
+## ja-negative-04
+
+- 言語: 日本語
+- 期待カテゴリ: negative
+- 難度: double-negation
+- 論点: 二重否定
+- 本文: 別に困ってないわけじゃない。かなり困ってる。
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| B, D | neutral | まじやばい |  |  |
+| A, C, E | negative | 大好きだよ！ |  |  |
+
+## ja-negative-05
+
+- 言語: 日本語
+- 期待カテゴリ: negative
+- 難度: emoji
+- 論点: 省略と絵文字
+- 本文: また失敗した…。もう嫌だ😞
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| A, B, C, D, E | negative | つらい時期だったね |  |  |
+
+## ja-negative-06
+
+- 言語: 日本語
+- 期待カテゴリ: negative
+- 難度: quotation
+- 論点: 引用内の肯定語
+- 本文: 『大成功ですね』って、何も動いてないのに言われた。
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| D, E | positive | すごいすごい、天才的！ |  |  |
+| A, C | negative | 大好きだよ！ |  |  |
+| B | neutral | まじやばい |  |  |
+
+## ja-negative-07
+
+- 言語: 日本語
+- 期待カテゴリ: negative
+- 難度: idiom
+- 論点: 表面上の笑い
+- 本文: 笑うしかない、財布を家に忘れてきた。
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| B, D | neutral | やばい、ほめるところしかない |  |  |
+| A, C, E | negative | 大好きだよ！ |  |  |
+
+## ja-negative-08
+
+- 言語: 日本語
+- 期待カテゴリ: negative
+- 難度: negation
+- 論点: 肯定語の否定
+- 本文: 良かったこと？ひとつもないよ。
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| B, D | neutral | やばい、ほめるところしかない |  |  |
+| A, C, E | negative | 大好きだよ！ |  |  |
+
+## ja-negative-09
+
+- 言語: 日本語
+- 期待カテゴリ: negative
+- 難度: simple
+- 論点: 不調
+- 本文: 体調が悪くて何も手につかない。
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| B, D | neutral | やばい、ほめるところしかない |  |  |
+| A, C, E | negative | 大好きだよ！ |  |  |
+
+## ja-negative-10
+
+- 言語: 日本語
+- 期待カテゴリ: negative
+- 難度: sarcasm
+- 論点: 喜びを装う皮肉
+- 本文: はいはい、わたしだけ残業。うれしいなあ。
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| D | negative | 辛いときは言ってね |  |  |
+| A, C, E | positive | すごいすごい、天才的！ |  |  |
+| B | neutral | 凄すぎる |  |  |
+
+## ja-neutral-01
+
+- 言語: 日本語
+- 期待カテゴリ: neutral
+- 難度: simple
+- 論点: 事実のみ
+- 本文: 今日は火曜日です。
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| A, B, C, D, E | neutral | やばい、ほめるところしかない |  |  |
+
+## ja-neutral-02
+
+- 言語: 日本語
+- 期待カテゴリ: neutral
+- 難度: simple
+- 論点: 移動情報
+- 本文: 駅に着いた。次の電車は10分後。
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| A, B, C, D, E | neutral | まじやばい |  |  |
+
+## ja-neutral-03
+
+- 言語: 日本語
+- 期待カテゴリ: neutral
+- 難度: mixed
+- 論点: 正負混合
+- 本文: うれしいことも悲しいこともあった一日。
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| A, B, C, D | neutral | やばい、ほめるところしかない |  |  |
+| E | positive | 空前絶後の～～～超絶怒涛のテストユーザー！！！ |  |  |
+
+## ja-neutral-04
+
+- 言語: 日本語
+- 期待カテゴリ: neutral
+- 難度: quotation
+- 論点: 他人の感情
+- 本文: 友達が『つらい』と言っていた。
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| D | positive | すっごい…まるで天才…！ |  |  |
+| A, C, E | negative | 大好きだよ！ |  |  |
+| B | neutral | やばい、ほめるところしかない |  |  |
+
+## ja-neutral-05
+
+- 言語: 日本語
+- 期待カテゴリ: neutral
+- 難度: quotation
+- 論点: 挨拶語の言及
+- 本文: 『おはよう』という言葉の由来を調べた。
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| A, D, E | morning | おはよー！ |  |  |
+| B, C | neutral | やばい、ほめるところしかない |  |  |
+
+## ja-neutral-06
+
+- 言語: 日本語
+- 期待カテゴリ: neutral
+- 難度: boundary
+- 論点: おはの部分一致
+- 本文: おはなしの続きを書く。
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| D | morning | おはよー！ |  |  |
+| A, B, C, E | neutral | やばい、ほめるところしかない |  |  |
+
+## ja-neutral-07
+
+- 言語: 日本語
+- 期待カテゴリ: neutral
+- 難度: negation
+- 論点: 両極の否定
+- 本文: 悪くも良くもない、いつも通り。
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| A, B, C, D, E | neutral | やばい、ほめるところしかない |  |  |
+
+## ja-neutral-08
+
+- 言語: 日本語
+- 期待カテゴリ: neutral
+- 難度: uncertain
+- 論点: 未確定
+- 本文: 結果はまだ分からない。
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| A, B, C, D, E | neutral | やばい、ほめるところしかない |  |  |
+
+## ja-neutral-09
+
+- 言語: 日本語
+- 期待カテゴリ: neutral
+- 難度: emoji
+- 論点: 曖昧な絵文字のみ
+- 本文: 🙂
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| B, D | neutral | やばい、ほめるところしかない |  |  |
+| A, C, E | positive | 空前絶後の～～～超絶怒涛のテストユーザー！！！ |  |  |
+
+## ja-neutral-10
+
+- 言語: 日本語
+- 期待カテゴリ: neutral
+- 難度: metalinguistic
+- 論点: 感情語の言及
+- 本文: 『最高』と『最悪』を含む例文を作った。
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| B, D | neutral | やばい、ほめるところしかない |  |  |
+| E | positive | 君は完璧で究極のゲッター！！🤖🔥 |  |  |
+| A, C | negative | 必ずよくなる！ |  |  |
+
+## ja-positive-01
+
+- 言語: 日本語
+- 期待カテゴリ: positive
+- 難度: simple
+- 論点: 明示的な喜び
+- 本文: 今日はとても楽しかった！
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| B, D | neutral | やばい、ほめるところしかない |  |  |
+| A, C, E | positive | 空前絶後の～～～超絶怒涛のテストユーザー！！！ |  |  |
+
+## ja-positive-02
+
+- 言語: 日本語
+- 期待カテゴリ: positive
+- 難度: simple
+- 論点: 達成感
+- 本文: ずっと練習していたことができた。うれしい！
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| B, D | neutral | やばい、ほめるところしかない |  |  |
+| C, E | positive | 空前絶後の～～～超絶怒涛のテストユーザー！！！ |  |  |
+| A | gj | よく頑張った、感動した！ |  |  |
+
+## ja-positive-03
+
+- 言語: 日本語
+- 期待カテゴリ: positive
+- 難度: negation
+- 論点: 否定形の肯定
+- 本文: 思ったより悪くなかった。
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| B, D | neutral | 凄すぎる |  |  |
+| A, C, E | positive | 空前絶後の～～～超絶怒涛のテストユーザー！！！ |  |  |
+
+## ja-positive-04
+
+- 言語: 日本語
+- 期待カテゴリ: positive
+- 難度: negation
+- 論点: 失敗語を含む肯定
+- 本文: 失敗しなかっただけでも十分うれしい。
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| B, D | neutral | やばい、ほめるところしかない |  |  |
+| A, C, E | positive | 空前絶後の～～～超絶怒涛のテストユーザー！！！ |  |  |
+
+## ja-positive-05
+
+- 言語: 日本語
+- 期待カテゴリ: positive
+- 難度: emoji
+- 論点: 回復と絵文字
+- 本文: 友達に会えて元気が出た😊
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| A, B, C, D, E | positive | めっちゃええやん！ |  |  |
+
+## ja-positive-06
+
+- 言語: 日本語
+- 期待カテゴリ: positive
+- 難度: mixed
+- 論点: 負荷と達成
+- 本文: 忙しかったけど、やりきれて満足。
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| B, C, D, E | positive | ゴイスー！！ |  |  |
+| A | gj | おつかれ！ |  |  |
+
+## ja-positive-07
+
+- 言語: 日本語
+- 期待カテゴリ: positive
+- 難度: quotation
+- 論点: 引用内の弱気
+- 本文: 『無理かも』と思ったのに完成した！
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| B, D | neutral | やばい、ほめるところしかない |  |  |
+| A, E | gj | おつかれ！ |  |  |
+| C | positive | すごいすごい、天才的！ |  |  |
+
+## ja-positive-08
+
+- 言語: 日本語
+- 期待カテゴリ: positive
+- 難度: double-negation
+- 論点: 弱い否定から肯定
+- 本文: 嫌いじゃない。むしろ好き。
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| B, D | neutral | やばい、ほめるところしかない |  |  |
+| A, C, E | positive | 空前絶後の～～～超絶怒涛のテストユーザー！！！ |  |  |
+
+## ja-positive-09
+
+- 言語: 日本語
+- 期待カテゴリ: positive
+- 難度: slang
+- 論点: 俗語
+- 本文: 抽選に当たった、まじ神。
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| B, D | neutral | まじやばい |  |  |
+| C, E | positive | 空前絶後の～～～超絶怒涛のテストユーザー！！！ |  |  |
+| A | gj | おっつー！ |  |  |
+
+## ja-positive-10
+
+- 言語: 日本語
+- 期待カテゴリ: positive
+- 難度: context
+- 論点: 一般に負の語の再評価
+- 本文: 雨だったから家でゆっくりできてよかった。
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| B, D | neutral | 凄すぎる |  |  |
+| A, C, E | positive | 空前絶後の～～～超絶怒涛のテストユーザー！！！ |  |  |
+
+## ja-morning-01
+
+- 言語: 日本語
+- 期待カテゴリ: morning
+- 難度: simple
+- 論点: 基本挨拶
+- 本文: おはよう！
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| A, B, C, D, E | morning | おはよー！ |  |  |
+
+## ja-morning-02
+
+- 言語: 日本語
+- 期待カテゴリ: morning
+- 難度: polite
+- 論点: 丁寧形
+- 本文: おはようございます。今日もよろしく。
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| A, B, C, D, E | morning | おはよー！ |  |  |
+
+## ja-morning-03
+
+- 言語: 日本語
+- 期待カテゴリ: morning
+- 難度: slang
+- 論点: 略語
+- 本文: おはー
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| A, B, C, D, E | morning | おはよー！ |  |  |
+
+## ja-morning-04
+
+- 言語: 日本語
+- 期待カテゴリ: morning
+- 難度: mixed
+- 論点: 挨拶と不調
+- 本文: おは！眠い！
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| A, B, C, D, E | morning | ぐっもーにん！ |  |  |
+
+## ja-morning-05
+
+- 言語: 日本語
+- 期待カテゴリ: morning
+- 難度: code-switch
+- 論点: 英日混在
+- 本文: Good morning! 朝ごはん食べる。
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| D | neutral | まじやばい |  |  |
+| A, B, C, E | morning | おはよー！ |  |  |
+
+## ja-morning-06
+
+- 言語: 日本語
+- 期待カテゴリ: morning
+- 難度: emoji
+- 論点: 句読点なし絵文字
+- 本文: おはよう☀️いい天気。
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| A, D, E | morning | おは🌞 |  |  |
+| C | positive | 超やばい！ |  |  |
+| B | neutral | 凄すぎる |  |  |
+
+## ja-morning-07
+
+- 言語: 日本語
+- 期待カテゴリ: morning
+- 難度: positive-context
+- 論点: 挨拶と喜び
+- 本文: おはよう、今日は早起きできた。
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| A, B, C, D, E | morning | おはよー！ |  |  |
+
+## ja-morning-08
+
+- 言語: 日本語
+- 期待カテゴリ: morning
+- 難度: negative-context
+- 論点: 挨拶と不調
+- 本文: おはよう…寝不足だ。
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| B, C, D | morning | おはよう～！ |  |  |
+| A, E | negative | つらい時期だったね |  |  |
+
+## ja-morning-09
+
+- 言語: 日本語
+- 期待カテゴリ: morning
+- 難度: elongation
+- 論点: 長音表現
+- 本文: おはよー！
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| A, D, E | morning | おはよー！ |  |  |
+| C | positive | 超やばい！ |  |  |
+| B | neutral | 君、最強だから😎 |  |  |
+
+## ja-morning-10
+
+- 言語: 日本語
+- 期待カテゴリ: morning
+- 難度: boundary
+- 論点: 助詞なし接続
+- 本文: おはようみんな。
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| A, D, E | morning | おはよー！ |  |  |
+| B, C | neutral | やばい、ほめるところしかない |  |  |
+
+## ja-night-01
+
+- 言語: 日本語
+- 期待カテゴリ: night
+- 難度: simple
+- 論点: 基本挨拶
+- 本文: おやすみ。
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| A, B, C, D, E | night | おやすみー |  |  |
+
+## ja-night-02
+
+- 言語: 日本語
+- 期待カテゴリ: night
+- 難度: polite
+- 論点: 丁寧形
+- 本文: おやすみなさい！
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| A, B, C, D, E | night | おやすみー |  |  |
+
+## ja-night-03
+
+- 言語: 日本語
+- 期待カテゴリ: night
+- 難度: suffix
+- 論点: 文末挨拶
+- 本文: そろそろ寝るね、おやすみ
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| A, B, C, D, E | night | おやすみー |  |  |
+
+## ja-night-04
+
+- 言語: 日本語
+- 期待カテゴリ: night
+- 難度: slang
+- 論点: 略語
+- 本文: おやすー
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| A, B, C, D, E | night | おやすー |  |  |
+
+## ja-night-05
+
+- 言語: 日本語
+- 期待カテゴリ: night
+- 難度: code-switch
+- 論点: 英語挨拶
+- 本文: Good night 🌙
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| D | positive | 超やばい！ |  |  |
+| A, B, C, E | night | ERROR: Ollama returned an invalid template index |  |  |
+
+## ja-night-06
+
+- 言語: 日本語
+- 期待カテゴリ: night
+- 難度: negative-context
+- 論点: 疲労と挨拶
+- 本文: 疲れたので寝ます。おやすみ！
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| B, C, D, E | night | おやすみー |  |  |
+| A | neutral | やばい、ほめるところしかない |  |  |
+
+## ja-night-07
+
+- 言語: 日本語
+- 期待カテゴリ: night
+- 難度: positive-context
+- 論点: 喜びと挨拶
+- 本文: おやすみ、今日は楽しかった。
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| A, B, C, D | night | おやすみす💤 |  |  |
+| E | positive | すごいすごい、天才的！ |  |  |
+
+## ja-night-08
+
+- 言語: 日本語
+- 期待カテゴリ: night
+- 難度: vocative
+- 論点: 呼びかけ後の挨拶
+- 本文: みんな、おやすみなさい。
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| A, B, C, D, E | night | おやすみー |  |  |
+
+## ja-night-09
+
+- 言語: 日本語
+- 期待カテゴリ: night
+- 難度: elongation
+- 論点: 波線接続
+- 本文: おやすみ〜また明日
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| A, D, E | night | 今日もがんばったねー。また明日！ |  |  |
+| B, C | neutral | やばい、ほめるところしかない |  |  |
+
+## ja-night-10
+
+- 言語: 日本語
+- 期待カテゴリ: night
+- 難度: mixed
+- 論点: 不調と英語挨拶
+- 本文: もう限界。good night.
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| D, E | negative | つらい時期だったね |  |  |
+| A, B, C | night | おやすみー |  |  |
+
+## ja-gj-01
+
+- 言語: 日本語
+- 期待カテゴリ: gj
+- 難度: simple
+- 論点: 基本労い
+- 本文: お疲れさま！
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| A, B, C, D, E | gj | おつかれ！ |  |  |
+
+## ja-gj-02
+
+- 言語: 日本語
+- 期待カテゴリ: gj
+- 難度: slang
+- 論点: ひらがな略式
+- 本文: おつかれ〜
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| D, E | gj | おつかれ！ |  |  |
+| A, C | negative | 辛いときは言ってね |  |  |
+| B | neutral | やばい、ほめるところしかない |  |  |
+
+## ja-gj-03
+
+- 言語: 日本語
+- 期待カテゴリ: gj
+- 難度: slang
+- 論点: 仕事終了略語
+- 本文: しごおわ！
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| A, B, C, D | gj | おつかれ！ |  |  |
+| E | negative | 辛いときは言ってね |  |  |
+
+## ja-gj-04
+
+- 言語: 日本語
+- 期待カテゴリ: gj
+- 難度: implicit
+- 論点: 暗黙の達成・疲労
+- 本文: 今日の作業、全部終わった。
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| B, D | neutral | やばい、ほめるところしかない |  |  |
+| C, E | positive | 空前絶後の～～～超絶怒涛のテストユーザー！！！ |  |  |
+| A | gj | おつかれ！ |  |  |
+
+## ja-gj-05
+
+- 言語: 日本語
+- 期待カテゴリ: gj
+- 難度: mixed
+- 論点: 疲労と達成
+- 本文: 疲れたー、でもやりきった。
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| B, D | neutral | やばい、ほめるところしかない |  |  |
+| E | gj | おつかれ！ |  |  |
+| A, C | positive | 超やばい！ |  |  |
+
+## ja-gj-06
+
+- 言語: 日本語
+- 期待カテゴリ: gj
+- 難度: polite
+- 論点: 職場定型句
+- 本文: お疲れ様でした。帰ります。
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| A, D, E | gj | おつかれ！ |  |  |
+| B, C | neutral | まじやばい |  |  |
+
+## ja-gj-07
+
+- 言語: 日本語
+- 期待カテゴリ: gj
+- 難度: code-switch
+- 論点: 英語労い
+- 本文: Good job, everyone!
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| D | positive | すごいすごい、天才的！ |  |  |
+| A, B, C, E | gj | おつかれ！ |  |  |
+
+## ja-gj-08
+
+- 言語: 日本語
+- 期待カテゴリ: gj
+- 難度: emoji
+- 論点: 安堵と疲労
+- 本文: 長い会議がようやく終わった😮‍💨
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| B, D | neutral | やばい、ほめるところしかない |  |  |
+| A, C, E | negative | 大好きだよ！ |  |  |
+
+## ja-gj-09
+
+- 言語: 日本語
+- 期待カテゴリ: gj
+- 難度: context
+- 論点: 労いと負の文脈
+- 本文: おつ！今日は大変だったね。
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| B, C, D | gj | おつかれ！ |  |  |
+| A, E | negative | つらかったね🍀 |  |  |
+
+## ja-gj-10
+
+- 言語: 日本語
+- 期待カテゴリ: gj
+- 難度: implicit
+- 論点: 努力量のある完了
+- 本文: 三時間かけて提出完了。
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| B, C, D | neutral | 凄すぎる |  |  |
+| A, E | gj | 頑張ってるね！　たまには休んでね🍵 |  |  |
+
+## ja-hny-01
+
+- 言語: 日本語
+- 期待カテゴリ: hny
+- 難度: simple
+- 論点: 基本新年挨拶
+- 本文: あけましておめでとう！
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| A, B, C, D, E | hny | あけましておめでとー！ |  |  |
+
+## ja-hny-02
+
+- 言語: 日本語
+- 期待カテゴリ: hny
+- 難度: polite
+- 論点: 漢字丁寧形
+- 本文: 明けましておめでとうございます。
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| A, D, E | hny | 今年もよろしくね！ |  |  |
+| C | positive | 超やばい！ |  |  |
+| B | neutral | 凄すぎる |  |  |
+
+## ja-hny-03
+
+- 言語: 日本語
+- 期待カテゴリ: hny
+- 難度: slang
+- 論点: 略語
+- 本文: あけおめ！
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| A, B, C, D, E | hny | あけましておめでとー！ |  |  |
+
+## ja-hny-04
+
+- 言語: 日本語
+- 期待カテゴリ: hny
+- 難度: code-switch
+- 論点: 英語新年挨拶
+- 本文: Happy New Year!
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| D | positive | 超やばい！ |  |  |
+| A, B, C, E | hny | Happy New Year! |  |  |
+
+## ja-hny-05
+
+- 言語: 日本語
+- 期待カテゴリ: hny
+- 難度: context
+- 論点: 定番後続句
+- 本文: あけましておめでとう。今年もよろしく。
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| A, B, C, D, E | hny | 今年もよろしくね！ |  |  |
+
+## ja-hny-06
+
+- 言語: 日本語
+- 期待カテゴリ: hny
+- 難度: emoji
+- 論点: 絵文字接続
+- 本文: あけおめ🎍今年はいい年にしたい。
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| A, D | hny | あけましておめでとー！ |  |  |
+| C, E | positive | すごいすごい、天才的！ |  |  |
+| B | neutral | 1万年と2千年前からテストユーザーをあいしてるううううう |  |  |
+
+## ja-hny-07
+
+- 言語: 日本語
+- 期待カテゴリ: hny
+- 難度: negative-context
+- 論点: 不調と新年挨拶
+- 本文: 明けましておめでとう！でも寝不足。
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| A, B, C, D | hny | あけましておめでとー！ |  |  |
+| E | negative | つらい時期だったね |  |  |
+
+## ja-hny-08
+
+- 言語: 日本語
+- 期待カテゴリ: hny
+- 難度: mixed-language
+- 論点: 日英混在
+- 本文: Happy New Year, みんな！
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| D | neutral | やばい、ほめるところしかない |  |  |
+| A, B, C, E | hny | Happy New Year! |  |  |
+
+## ja-hny-09
+
+- 言語: 日本語
+- 期待カテゴリ: hny
+- 難度: elongation
+- 論点: 長音接続
+- 本文: あけましておめでとうー！
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| A, D, E | hny | あけましておめでとー！ |  |  |
+| C | positive | 超やばい！ |  |  |
+| B | neutral | 凄すぎる |  |  |
+
+## ja-hny-10
+
+- 言語: 日本語
+- 期待カテゴリ: hny
+- 難度: boundary
+- 論点: 略語連結
+- 本文: あけおめことよろ
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| A, D, E | hny | あけましておめでとー！ |  |  |
+| C | positive | 超やばい！ |  |  |
+| B | neutral | 強き者は美しい… |  |  |
+
+## en-negative-01
+
+- 言語: English
+- 期待カテゴリ: negative
+- 難度: simple
+- 論点: explicit distress
+- 本文: I feel awful today.
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| A, B, C, D, E | negative | Sending you strength today. |  |  |
+
+## en-negative-02
+
+- 言語: English
+- 期待カテゴリ: negative
+- 難度: sarcasm
+- 論点: positive word used sarcastically
+- 本文: Great, my laptop died right before the deadline.
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| D | positive | You're on fire! |  |  |
+| A, C, E | negative | I wish I could help lighten your load a bit. ❤️‍🩹 |  |  |
+| B | neutral | Deeply relatable. |  |  |
+
+## en-negative-03
+
+- 言語: English
+- 期待カテゴリ: negative
+- 難度: double-negation
+- 論点: double negation
+- 本文: It's not like I'm not upset. I am.
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| A, B, C, D, E | negative | It must've been a tough time. |  |  |
+
+## en-negative-04
+
+- 言語: English
+- 期待カテゴリ: negative
+- 難度: sarcasm
+- 論点: ironic reversal
+- 本文: Nothing went wrong—except literally everything.
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| A, B, C, D, E | negative | It must've been a tough time. |  |  |
+
+## en-negative-05
+
+- 言語: English
+- 期待カテゴリ: negative
+- 難度: quotation
+- 論点: quoted praise
+- 本文: They called it a 'wonderful result,' but it solved nothing.
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| D | positive | Wonderful!! |  |  |
+| A, C, E | negative | I wish I could help lighten your load a bit. ❤️‍🩹 |  |  |
+| B | neutral | Exactly. |  |  |
+
+## en-negative-06
+
+- 言語: English
+- 期待カテゴリ: negative
+- 難度: emoji
+- 論点: brief failure report
+- 本文: Missed the train again 😞
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| D | positive | You're Slayin' this!💅️ |  |  |
+| A, C, E | negative | I wish I could help lighten your load a bit. ❤️‍🩹 |  |  |
+| B | neutral | Deeply relatable. |  |  |
+
+## en-neutral-01
+
+- 言語: English
+- 期待カテゴリ: neutral
+- 難度: simple
+- 論点: fact only
+- 本文: The meeting starts at three.
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| A, B, C, D, E | neutral | Spot on. |  |  |
+
+## en-neutral-02
+
+- 言語: English
+- 期待カテゴリ: neutral
+- 難度: mixed
+- 論点: balanced polarity
+- 本文: Some parts were good and some were bad.
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| A, B, C, D | neutral | So true. |  |  |
+| E | negative | It must've been a tough time. |  |  |
+
+## en-neutral-03
+
+- 言語: English
+- 期待カテゴリ: neutral
+- 難度: quotation
+- 論点: someone else's emotion
+- 本文: My friend said, 'I am miserable.'
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| B, D | neutral | Deeply relatable. |  |  |
+| A, C, E | negative | I wish I could help lighten your load a bit. ❤️‍🩹 |  |  |
+
+## en-neutral-04
+
+- 言語: English
+- 期待カテゴリ: neutral
+- 難度: metalinguistic
+- 論点: sentiment words as examples
+- 本文: I wrote an example containing the words 'great' and 'terrible.'
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| B, D | neutral | It's a great point. |  |  |
+| A, C, E | negative | It must've been a tough time. |  |  |
+
+## en-neutral-05
+
+- 言語: English
+- 期待カテゴリ: neutral
+- 難度: quotation
+- 論点: quoted greeting
+- 本文: They said "good morning" in the movie.
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| D | positive | You're on fire! |  |  |
+| A, E | morning | おはよー！ |  |  |
+| B, C | neutral | Exactly. |  |  |
+
+## en-neutral-06
+
+- 言語: English
+- 期待カテゴリ: neutral
+- 難度: uncertain
+- 論点: unresolved outcome
+- 本文: The result is not known yet.
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| D | negative | It must've been a tough time. |  |  |
+| A, B, C, E | neutral | Spot on. |  |  |
+
+## en-positive-01
+
+- 言語: English
+- 期待カテゴリ: positive
+- 難度: simple
+- 論点: explicit joy
+- 本文: I had a wonderful day!
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| A, B, C, D, E | positive | Wonderful!! |  |  |
+
+## en-positive-02
+
+- 言語: English
+- 期待カテゴリ: positive
+- 難度: negation
+- 論点: negated negative
+- 本文: It wasn't bad at all.
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| D | negative | It must've been a tough time. |  |  |
+| C, E | positive | You're Slayin' this!💅️ |  |  |
+| A | gj | おつかれ！ |  |  |
+| B | neutral | So good... |  |  |
+
+## en-positive-03
+
+- 言語: English
+- 期待カテゴリ: positive
+- 難度: mixed
+- 論点: doubt followed by success
+- 本文: I thought I couldn't do it, but I finished!
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| B, D | neutral | You did it! 👍 |  |  |
+| C, E | positive | You're on fire! |  |  |
+| A | gj | おつかれ！ |  |  |
+
+## en-positive-04
+
+- 言語: English
+- 期待カテゴリ: positive
+- 難度: mixed
+- 論点: strain and satisfaction
+- 本文: Busy day, but I'm proud of what I got done.
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| B, C, D, E | positive | You're Slayin' this!💅️ |  |  |
+| A | gj | おつかれ！ |  |  |
+
+## en-positive-05
+
+- 言語: English
+- 期待カテゴリ: positive
+- 難度: double-negation
+- 論点: negative words in positive statement
+- 本文: I don't dislike it—I actually love it.
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| B, D | neutral | Exactly. |  |  |
+| C, E | positive | You're on fire! |  |  |
+| A | gj | おつかれ！ |  |  |
+
+## en-positive-06
+
+- 言語: English
+- 期待カテゴリ: positive
+- 難度: slang
+- 論点: celebratory slang
+- 本文: Got the ticket! Let's gooo 🎉
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| D | negative | I wish I could help lighten your load a bit. ❤️‍🩹 |  |  |
+| C, E | positive | You're Slayin' this!💅️ |  |  |
+| A | gj | おつかれ！ |  |  |
+| B | neutral | You did it! 👍 |  |  |
+
+## en-morning-01
+
+- 言語: English
+- 期待カテゴリ: morning
+- 難度: simple
+- 論点: basic greeting
+- 本文: Good morning!
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| D | positive | You're on fire! |  |  |
+| A, B, C, E | morning | おはよー！ |  |  |
+
+## en-morning-02
+
+- 言語: English
+- 期待カテゴリ: morning
+- 難度: vocative
+- 論点: greeting with addressee
+- 本文: Good morning, everyone.
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| D | positive | You're Slayin' this!💅️ |  |  |
+| A, B, C, E | morning | おはよう～！ |  |  |
+
+## en-morning-03
+
+- 言語: English
+- 期待カテゴリ: morning
+- 難度: slang
+- 論点: short greeting
+- 本文: Morning! Coffee time.
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| B, D | neutral | So good... |  |  |
+| A, E | morning | おはらっきー！ |  |  |
+| C | positive | You're on fire! |  |  |
+
+## en-morning-04
+
+- 言語: English
+- 期待カテゴリ: morning
+- 難度: emoji
+- 論点: greeting and positive context
+- 本文: Good morning ☀️ I slept well.
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| D | positive | You're on fire! |  |  |
+| A, B, C, E | morning | おはよー！ |  |  |
+
+## en-morning-05
+
+- 言語: English
+- 期待カテゴリ: morning
+- 難度: negative-context
+- 論点: greeting and distress
+- 本文: Good morning... I barely slept.
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| D | positive | You're on fire! |  |  |
+| A, B, C, E | morning | おはよー！ |  |  |
+
+## en-morning-06
+
+- 言語: English
+- 期待カテゴリ: morning
+- 難度: case
+- 論点: uppercase greeting
+- 本文: GOOD MORNING! Ready to start.
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| D | positive | You're Slayin' this!💅️ |  |  |
+| A, B, C, E | morning | おはよー！ |  |  |
+
+## en-night-01
+
+- 言語: English
+- 期待カテゴリ: night
+- 難度: simple
+- 論点: basic greeting
+- 本文: Good night.
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| D | positive | You're on fire! |  |  |
+| A, B, C, E | night | 明日はきっといい日になる🎵 |  |  |
+
+## en-night-02
+
+- 言語: English
+- 期待カテゴリ: night
+- 難度: vocative
+- 論点: greeting with addressee
+- 本文: Good night, everyone!
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| D | positive | You're on fire! |  |  |
+| A, B, C, E | night | ( ˘ω˘)ｽﾔｧ |  |  |
+
+## en-night-03
+
+- 言語: English
+- 期待カテゴリ: night
+- 難度: suffix
+- 論点: sentence-final greeting
+- 本文: I'm going to bed. Good night.
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| D | positive | You're on fire! |  |  |
+| A, B, C, E | night | 私も寝るよーおやすみ |  |  |
+
+## en-night-04
+
+- 言語: English
+- 期待カテゴリ: night
+- 難度: emoji
+- 論点: emoji boundary
+- 本文: Good night 🌙
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| D | positive | You're on fire! |  |  |
+| A, B, C, E | night | ERROR: Ollama returned an invalid template index |  |  |
+
+## en-night-05
+
+- 言語: English
+- 期待カテゴリ: night
+- 難度: negative-context
+- 論点: fatigue and greeting
+- 本文: Exhausted. Good night.
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| D | positive | You're on fire! |  |  |
+| E | gj | おつかれ！ |  |  |
+| A, B, C | night | おやすみー |  |  |
+
+## en-night-06
+
+- 言語: English
+- 期待カテゴリ: night
+- 難度: positive-context
+- 論点: greeting and joy
+- 本文: Good night—today was fun.
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| B, C, D | positive | You're on fire! |  |  |
+| A, E | night | ERROR: Ollama returned an invalid template index |  |  |
+
+## en-gj-01
+
+- 言語: English
+- 期待カテゴリ: gj
+- 難度: simple
+- 論点: basic praise
+- 本文: Good job!
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| D | positive | You're on fire! |  |  |
+| A, B, C, E | gj | おつかれ！ |  |  |
+
+## en-gj-02
+
+- 言語: English
+- 期待カテゴリ: gj
+- 難度: vocative
+- 論点: group praise
+- 本文: Good job, team.
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| D | positive | You're Slayin' this!💅️ |  |  |
+| A, B, C, E | gj | よく頑張った、感動した！ |  |  |
+
+## en-gj-03
+
+- 言語: English
+- 期待カテゴリ: gj
+- 難度: implicit
+- 論点: work completion
+- 本文: Finally finished all my work.
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| B, D | neutral | Nice work on this. |  |  |
+| A, E | gj | おつかれちゃん！ |  |  |
+| C | positive | You're Slayin' this!💅️ |  |  |
+
+## en-gj-04
+
+- 言語: English
+- 期待カテゴリ: gj
+- 難度: mixed
+- 論点: fatigue and completion
+- 本文: I'm exhausted, but I got it done.
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| B, D | neutral | Nice work on this. |  |  |
+| A, E | gj | おつかれちゃん！ |  |  |
+| C | negative | Take care of yourself. |  |  |
+
+## en-gj-05
+
+- 言語: English
+- 期待カテゴリ: gj
+- 難度: implicit
+- 論点: effort duration
+- 本文: Three hours later: submitted.
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| A, B, C, D, E | neutral | Spot on. |  |  |
+
+## en-gj-06
+
+- 言語: English
+- 期待カテゴリ: gj
+- 難度: emoji
+- 論点: relief after work
+- 本文: Work is over 😮‍💨
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| B, D | neutral | Spot on. |  |  |
+| E | negative | It must've been a tough time. |  |  |
+| A, C | positive | You're Slayin' this!💅️ |  |  |
+
+## en-hny-01
+
+- 言語: English
+- 期待カテゴリ: hny
+- 難度: simple
+- 論点: basic new-year greeting
+- 本文: Happy New Year!
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| D | positive | You're on fire! |  |  |
+| A, B, C, E | hny | Happy New Year! |  |  |
+
+## en-hny-02
+
+- 言語: English
+- 期待カテゴリ: hny
+- 難度: vocative
+- 論点: greeting with addressee
+- 本文: Happy New Year, everyone.
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| D | positive | You're on fire! |  |  |
+| A, B, C, E | hny | あけおめー！！ |  |  |
+
+## en-hny-03
+
+- 言語: English
+- 期待カテゴリ: hny
+- 難度: case
+- 論点: uppercase and emoji
+- 本文: HAPPY NEW YEAR! 🎉
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| D | positive | You're Slayin' this!💅️ |  |  |
+| A, B, C, E | hny | あけましておめでとー！ |  |  |
+
+## en-hny-04
+
+- 言語: English
+- 期待カテゴリ: hny
+- 難度: context
+- 論点: greeting and hope
+- 本文: Happy New Year! Here's to a better one.
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| D | positive | You're on fire! |  |  |
+| A, B, C, E | hny | あけましておめでとー！ |  |  |
+
+## en-hny-05
+
+- 言語: English
+- 期待カテゴリ: hny
+- 難度: negative-context
+- 論点: greeting and discomfort
+- 本文: Happy New Year... even though I'm sleepy.
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| D, E | positive | You're on fire! |  |  |
+| A, B, C | hny | そして　新年が　はじまった！📯 |  |  |
+
+## en-hny-06
+
+- 言語: English
+- 期待カテゴリ: hny
+- 難度: extended
+- 論点: long greeting
+- 本文: Happy New Year to you and your family!
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| D | positive | You're on fire! |  |  |
+| A, B, C, E | hny | そして　新年が　はじまった！📯 |  |  |
+
+## boundary-ja-reported-otsukare-no-punctuation
+
+- 言語: 日本語
+- 期待カテゴリ: neutral
+- 難度: reported-speech
+- 論点: 文頭の伝聞を直接のねぎらいと誤認しないか
+- 本文: おつかれと友達に言われて、今日の出来事を振り返った。朝から移動が多くて大変だったけれど、無事に用事は済んだ。
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| A, D, E | gj | おつかれ！ |  |  |
+| B, C | neutral | やばい、ほめるところしかない |  |  |
+
+## boundary-ja-reported-otsukare-punctuation
+
+- 言語: 日本語
+- 期待カテゴリ: positive
+- 難度: reported-speech
+- 論点: 句読点境界が機械ルールを通過する伝聞
+- 本文: おつかれ、と友達に言われて少しうれしかった。
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| A, B, C, D | gj | おつかれ！ |  |  |
+| E | positive | すごいすごい、天才的！ |  |  |
+
+## boundary-ja-reported-otsukaresama
+
+- 言語: 日本語
+- 期待カテゴリ: neutral
+- 難度: reported-speech
+- 論点: 文中の非引用伝聞
+- 本文: 友達にお疲れさまと言われた。
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| A, D, E | gj | おつかれ！ |  |  |
+| B, C | positive | すごいすごい、天才的！ |  |  |
+
+## boundary-ja-quoted-otsukare-positive
+
+- 言語: 日本語
+- 期待カテゴリ: positive
+- 難度: quotation
+- 論点: 引用を除外しつつ引用後の感情を読むか
+- 本文: 「お疲れ」と言われて、肩の力が抜けてほっとした。
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| A, D, E | gj | おつかれ！ |  |  |
+| C | positive | すごいすごい、天才的！ |  |  |
+| B | neutral | 凄すぎる |  |  |
+
+## boundary-ja-direct-otsukare
+
+- 言語: 日本語
+- 期待カテゴリ: gj
+- 難度: direct
+- 論点: 直接のねぎらい
+- 本文: お疲れさま！今日もよく頑張った。
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| A, B, C, D, E | gj | よく頑張った、感動した！ |  |  |
+
+## boundary-ja-own-work-completion
+
+- 言語: 日本語
+- 期待カテゴリ: gj
+- 難度: implicit
+- 論点: キーワードのない本人の作業完了
+- 本文: 仕事がようやく終わった。くたくただ。
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| A, B, C, D, E | negative | つらい時期だったね |  |  |
+
+## boundary-en-song-title-night
+
+- 言語: English
+- 期待カテゴリ: neutral
+- 難度: metalinguistic
+- 論点: 曲名を夜の挨拶と誤認しないか
+- 本文: Good Night is the title of the song I heard today.
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| D | positive | You're on fire! |  |  |
+| A, B, C, E | night | 明日はきっといい日になる🎵 |  |  |
+
+## boundary-ja-song-title-hny
+
+- 言語: 日本語
+- 期待カテゴリ: neutral
+- 難度: metalinguistic
+- 論点: 曲名を新年の挨拶と誤認しないか
+- 本文: Happy New Yearという曲を初めて聴いた。
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| B, D | neutral | やばい、ほめるところしかない |  |  |
+| C, E | positive | 空前絶後の～～～超絶怒涛のテストユーザー！！！ |  |  |
+| A | hny | あけましておめでとー！ |  |  |
+
+## boundary-en-direct-morning-negative-context
+
+- 言語: English
+- 期待カテゴリ: morning
+- 難度: negative-context
+- 論点: 後続の否定的文脈がある直接挨拶
+- 本文: Good morning! I barely slept, but here we go.
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| D | positive | You're on fire! |  |  |
+| A, B, C, E | morning | おはよー！ |  |  |
+
+## boundary-ja-explaining-greetings
+
+- 言語: 日本語
+- 期待カテゴリ: neutral
+- 難度: metalinguistic
+- 論点: 複数の挨拶語を含む説明文
+- 本文: 朝におはよう、夜におやすみと言う習慣について説明した。
+
+| 方式 | 予測 | 返信 | 点数（0-3） | メモ |
+|---|---|---|---:|---|
+| D | night | グッナイ～ |  |  |
+| E | morning | おはよー！ |  |  |
+| A, B, C | neutral | まじやばい |  |  |
+
+<details>
+<summary>採点後に開く方式対応表</summary>
+
+| ブラインド名 | 分類方式 |
+|---|---|
+| A | ollama-special-then-polarity |
+| B | rules-dictionary-ollama-consensus |
+| C | rules-ollama-three-way |
+| D | legacy-dictionary |
+| E | ollama-seven-way |
+
+</details>

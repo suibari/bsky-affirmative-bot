@@ -9,6 +9,16 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
+    },
+    "./ollama-chat": {
+      "types": "./dist/ollamaChat.d.ts",
+      "import": "./dist/ollamaChat.js",
+      "default": "./dist/ollamaChat.js"
+    },
+    "./predefined-affirmation": {
+      "types": "./dist/predefinedAffirmation.d.ts",
+      "import": "./dist/predefinedAffirmation.js",
+      "default": "./dist/predefinedAffirmation.js"
     }
   },
   "scripts": {
