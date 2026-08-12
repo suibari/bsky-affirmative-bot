@@ -60,7 +60,7 @@
 
 - Node.js 22
 - pnpm 10以上
-- PostgreSQL
+- PostgreSQL、または下記の独立ローカルDB用Docker＋Compose
 - ローカル分類・埋め込み・翻訳を使う場合はOllama
 - 実行するサービスに応じたAT Protocolアカウント、Gemini、Discord、Spotify、YouTube、NewsData.ioなどの資格情報
 
@@ -75,6 +75,21 @@ pnpm build
 ```
 
 DBコマンドは現在のDrizzleスキーマを適用します。既存DBや本番DBを `DATABASE_URL` に指定する場合は、実行前に変更内容を確認してください。対応する機能を使う場合は、既定のローカルモデルも取得します。
+
+### AppView用の独立ローカルDB
+
+本番DBへ接続できない場所でAppViewを開発するときは、同梱のpgvector対応PostgreSQLを起動します。既定ではループバックの `5433` 番ポートだけで待ち受け、独立した `nagi_dev` DBを作成します。
+
+```sh
+# 既存の .env へ .env.example の DATABASE_URL を反映し、最低限 NAGI_BOT_DID を設定します。
+# 認証が必要な画面も確認する場合は DEVELOPER_DID にログイン中のDIDを設定します。
+docker compose -f compose.dev.yml up -d postgres
+pnpm --filter @bsky-affirmative-bot/database drizzle:push
+pnpm --filter nagi-appview seed:dev
+pnpm --filter nagi-appview dev
+```
+
+fixture投入は冪等で、開発専用のユーザー、投稿、会話、チャンネル、ポジティブニュース、リアクション、日記、閲覧者用の非公開データを少量作成・更新します。誤投入防止のため、`NODE_ENV=development`、ループバックのDBホスト、DB名が正確に `nagi_dev` の三条件を満たす場合だけ実行できます。再実行してもfixture以外のローカル行は削除しません。ホスト側ポートは `NAGI_DEV_DB_PORT` で変更でき、その場合は `DATABASE_URL` も合わせて変更します。
 
 ```sh
 ollama pull gemma3:4b

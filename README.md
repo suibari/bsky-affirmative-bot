@@ -60,7 +60,7 @@ This repository contains the shared backend monorepo. The Nagi web client, porta
 
 - Node.js 22
 - pnpm 10 or later
-- PostgreSQL
+- PostgreSQL, or Docker with Compose for the isolated local database below
 - Ollama for local classification, embeddings, and translation
 - Credentials for only the services you intend to run, such as AT Protocol accounts, Gemini, Discord, Spotify, YouTube, or NewsData.io
 
@@ -75,6 +75,21 @@ pnpm build
 ```
 
 The database command applies the current Drizzle schema. Review it before pointing `DATABASE_URL` at an existing or production database. Pull the default local models when you need the corresponding features:
+
+### Isolated local AppView database
+
+For AppView development away from the production database, start the bundled pgvector-enabled PostgreSQL service. It listens only on loopback port `5433` by default and creates a separate `nagi_dev` database.
+
+```sh
+# In the existing .env, use the DATABASE_URL from .env.example and set at least
+# NAGI_BOT_DID. Set DEVELOPER_DID to your login DID for authenticated views.
+docker compose -f compose.dev.yml up -d postgres
+pnpm --filter @bsky-affirmative-bot/database drizzle:push
+pnpm --filter nagi-appview seed:dev
+pnpm --filter nagi-appview dev
+```
+
+The seed is idempotent and refreshes a small set of development-only actors, posts, a conversation, a channel, positive news, a reaction, a diary, and private viewer data. As a safety boundary it runs only with `NODE_ENV=development`, a loopback database host, and the exact database name `nagi_dev`. Re-running it does not clear unrelated local rows. Change the host port with `NAGI_DEV_DB_PORT` and update `DATABASE_URL` to match.
 
 ```sh
 ollama pull gemma3:4b

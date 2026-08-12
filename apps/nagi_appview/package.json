@@ -9,6 +9,7 @@
     "test": "tsx --test test/*.test.ts",
     "start": "node --env-file=../../.env dist/index.js",
     "dev": "tsx watch --env-file=../../.env src/index.ts",
+    "seed:dev": "tsx --env-file=../../.env scripts/seedDev.ts",
     "backfill": "tsx --env-file=../../.env scripts/backfill-from-repos.ts",
     "test:push": "tsx --env-file=../../.env scripts/testPush.ts"
   },
