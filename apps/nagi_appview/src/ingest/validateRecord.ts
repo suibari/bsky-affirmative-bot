@@ -338,7 +338,7 @@ export function validateRecord(
         (typeof value.titleEn === "string" && graphemes(value.titleEn) <= 64)) &&
       (value.emoji === undefined ||
         (typeof value.emoji === "string" &&
-          // 既存の1絵文字レコードは読み込み互換のため残し、新規形式は3絵文字。
+          // 廃止前の1絵文字・3絵文字レコードを読み込むためだけに互換維持する。
           [1, 3].includes(graphemes(value.emoji)) &&
           Buffer.byteLength(value.emoji) <= 192)) &&
       (value.postCount === undefined ||

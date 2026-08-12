@@ -128,7 +128,6 @@ export const AI_FEATURES = {
   COMMON_DIARY_ATTEMPT_EARLY: "35-lite-flex", // 日記 1〜2回目
   COMMON_DIARY_ATTEMPT_MID: "35-lite-standard", // 日記 3〜4回目
   COMMON_DIARY_ATTEMPT_LATE: "35-lite-standard", // 日記 5回目以降
-  COMMON_USER_DIARY_EMOJI: "35-lite-standard", // 日記の絵文字だけ選び直し
 
   // ══════ Bluesky 全肯定botたん（bsky_bot_server のみ） ══════════════
   //

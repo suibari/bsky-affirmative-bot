@@ -59,7 +59,6 @@ const EXPECTED: Record<AiFeatureKey, [model: string, tier: "flex" | "standard" |
   COMMON_DIARY_ATTEMPT_EARLY: [FLASH_35_LITE, "flex"],
   COMMON_DIARY_ATTEMPT_MID: [FLASH_35_LITE, "standard"],
   COMMON_DIARY_ATTEMPT_LATE: [FLASH_35_LITE, "standard"],
-  COMMON_USER_DIARY_EMOJI: [FLASH_35_LITE, "standard"],
   // bsky_bot_server（肯定返信/会話は Nagi が requestOptions で上書きするので実質 bsky 専用）
   BSKY_AFFIRMATIVE_REPLY: [LITE, "flex"],
   BSKY_CONVERSATION: [LITE, "flex"],

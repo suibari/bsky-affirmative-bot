@@ -58,9 +58,8 @@ MODEL_GEMINI_FLASH=gemini-3.0-flash
 | `COMMON_DIARY_ATTEMPT_EARLY` | `lite-flex` | 日記 1〜2回目 |
 | `COMMON_DIARY_ATTEMPT_MID` | `lite-standard` | 日記 3〜4回目 |
 | `COMMON_DIARY_ATTEMPT_LATE` | `flash-standard` | 日記 5回目以降 |
-| `COMMON_USER_DIARY_EMOJI` | `lite-standard` | 日記の絵文字だけ選び直し（backfillスクリプト専用） |
 
-日記は本文と一緒に称号・絵文字候補も1回の構造化レスポンスで返す。
+日記は本文と称号を1回の構造化レスポンスで返す。
 
 ユーザ日記も**失敗するたびに段を上げる再試行ラダー**になっている
 （`packages/bot_brain/src/gemini/generateUserDiaryResilient.ts`）。1ユーザ1日1回しか機会が無く、
@@ -71,8 +70,6 @@ MODEL_GEMINI_FLASH=gemini-3.0-flash
 待ち時間は 30s → 2m → 10m → 30m → 60m（±20%ジッタ）で、開始から3時間で打ち切る。
 打ち切っても、ローカル22時を過ぎているユーザーは毎時の再スキャンが拾い直す
 （Nagi は `nagi.diaries` の (subject, date)、Bluesky は `followers.last_diary_date` で二重生成を防ぐ）。
-
-`COMMON_USER_DIARY_EMOJI` は既存日記を後から直す `scripts/backfillDiaryEmojis.ts` 専用で、通常の日記生成では呼ばれない。
 
 ### Bluesky 全肯定botたん（bsky_bot_server のみ）
 
