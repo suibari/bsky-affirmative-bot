@@ -824,6 +824,10 @@ xrpc.get(
           cursor: String(req.query.cursor ?? "") || undefined,
           limit: Math.min(30, limit(req.query.limit)),
           lang,
+          q:
+            String(req.query.q ?? "")
+              .trim()
+              .slice(0, 200) || undefined,
         }),
       );
     } catch (e) {

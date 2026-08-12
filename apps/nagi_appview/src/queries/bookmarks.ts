@@ -3,6 +3,8 @@ import {
   nagiBookmarkFolders,
   nagiBookmarks,
   nagiDiaries,
+  nagiNews,
+  nagiNewsApprovals,
   nagiPosts,
 } from "@bsky-affirmative-bot/database";
 import {
@@ -420,6 +422,7 @@ export async function getBookmarks(opts: {
   cursor?: string;
   limit: number;
   lang: "ja" | "en";
+  q?: string;
 }): Promise<BookmarksPage> {
   if (opts.folderId) validateUuid(opts.folderId, "folderId");
   const point = decodeBookmarkCursor(opts.cursor);
@@ -437,6 +440,38 @@ export async function getBookmarks(opts: {
         ),
       )!,
     );
+  const q = opts.q?.trim().slice(0, 200);
+  if (q) {
+    filters.push(sql`(
+      (${nagiBookmarks.subjectType} = 'post' and exists (
+        select 1 from ${nagiPosts}
+        where ${nagiPosts.uri} = ${nagiBookmarks.subjectUri}
+          and ${nagiPosts.deletedAt} is null
+          and position(lower(${q}) in lower(${nagiPosts.text})) > 0
+      )) or
+      (${nagiBookmarks.subjectType} = 'news' and exists (
+        select 1 from ${nagiNews}
+        inner join ${nagiNewsApprovals}
+          on ${nagiNewsApprovals.newsUri} = ${nagiNews.uri}
+          and ${nagiNewsApprovals.newsCid} = ${nagiNews.cid}
+        where ${nagiNews.uri} = ${nagiBookmarks.subjectUri}
+          and ${nagiNews.deletedAt} is null
+          and ${nagiNewsApprovals.status} = 'approved'
+          and ${nagiNewsApprovals.hiddenAt} is null
+          and position(lower(${q}) in lower(concat_ws(' ',
+            ${nagiNews.titleJa}, ${nagiNewsApprovals.titleEn}, ${nagiNews.sourceName},
+            ${nagiNewsApprovals.botCommentJa}, ${nagiNewsApprovals.botCommentEn}
+          ))) > 0
+      )) or
+      (${nagiBookmarks.subjectType} = 'diary' and exists (
+        select 1 from ${nagiDiaries}
+        where ${nagiDiaries.uri} = ${nagiBookmarks.subjectUri}
+          and position(lower(${q}) in lower(concat_ws(' ',
+            ${nagiDiaries.text}, ${nagiDiaries.titleJa}, ${nagiDiaries.titleEn}, ${nagiDiaries.diaryDate}
+          ))) > 0
+      ))
+    )`);
+  }
   const rows = await db
     .select()
     .from(nagiBookmarks)
