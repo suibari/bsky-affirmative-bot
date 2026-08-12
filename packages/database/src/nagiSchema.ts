@@ -4,6 +4,7 @@ import {
   boolean,
   check,
   customType,
+  foreignKey,
   index,
   integer,
   jsonb,
@@ -32,11 +33,7 @@ const vector = customType<{
     return `[${value.join(",")}]`;
   },
   fromDriver(value: string): number[] {
-    return value
-      .replace(/^\[/, "")
-      .replace(/\]$/, "")
-      .split(",")
-      .map(Number);
+    return value.replace(/^\[/, "").replace(/\]$/, "").split(",").map(Number);
   },
 });
 export const notificationType = nagiSchema.enum("notification_type", [
@@ -177,7 +174,10 @@ export const nagiChannels = nagiSchema.table(
       "hnsw",
       t.embedding.op("vector_cosine_ops"),
     ),
-    index("nagi_channels_name_trgm_idx").using("gin", t.name.op("gin_trgm_ops")),
+    index("nagi_channels_name_trgm_idx").using(
+      "gin",
+      t.name.op("gin_trgm_ops"),
+    ),
   ],
 );
 /** PDSから取り込んだニュース本体。承認はCID単位で別表に保持する。 */
@@ -199,8 +199,12 @@ export const nagiNews = nagiSchema.table(
     // NL検索(意味検索)用。ソースは titleJa[+sourceName]。EmbeddingWorker が生成し、titleJa が
     // 変わったら NULL に戻して再生成する。
     embedding: vector("embedding", { dimensions: 1024 }),
-    recordCreatedAt: timestamp("record_created_at", { withTimezone: true }).notNull(),
-    indexedAt: timestamp("indexed_at", { withTimezone: true }).defaultNow().notNull(),
+    recordCreatedAt: timestamp("record_created_at", {
+      withTimezone: true,
+    }).notNull(),
+    indexedAt: timestamp("indexed_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
   },
   (t) => [
@@ -211,7 +215,10 @@ export const nagiNews = nagiSchema.table(
       "hnsw",
       t.embedding.op("vector_cosine_ops"),
     ),
-    index("nagi_news_title_trgm_idx").using("gin", t.titleJa.op("gin_trgm_ops")),
+    index("nagi_news_title_trgm_idx").using(
+      "gin",
+      t.titleJa.op("gin_trgm_ops"),
+    ),
   ],
 );
 /** AI・管理者による審査結果。ニュース編集でCIDが変わると古い承認は適用されない。 */
@@ -230,11 +237,15 @@ export const nagiNewsApprovals = nagiSchema.table(
     snapshotTitleJa: text("snapshot_title_ja"),
     snapshotSourceName: text("snapshot_source_name"),
     snapshotSourceUrl: text("snapshot_source_url"),
-    snapshotPublishedAt: timestamp("snapshot_published_at", { withTimezone: true }),
+    snapshotPublishedAt: timestamp("snapshot_published_at", {
+      withTimezone: true,
+    }),
     snapshotCreatedAt: timestamp("snapshot_created_at", { withTimezone: true }),
     model: text("model"),
     promptVersion: text("prompt_version"),
-    reviewedAt: timestamp("reviewed_at", { withTimezone: true }).defaultNow().notNull(),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
     hiddenAt: timestamp("hidden_at", { withTimezone: true }),
   },
   (t) => [primaryKey({ columns: [t.newsUri, t.newsCid] })],
@@ -250,7 +261,9 @@ export const nagiNewsReviewJobs = nagiSchema.table(
     status: newsReviewState("status").default("pending").notNull(),
     reasonCode: text("reason_code"),
     attemptCount: integer("attempt_count").default(0).notNull(),
-    requestedAt: timestamp("requested_at", { withTimezone: true }).defaultNow().notNull(),
+    requestedAt: timestamp("requested_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
     startedAt: timestamp("started_at", { withTimezone: true }),
     finishedAt: timestamp("finished_at", { withTimezone: true }),
   },
@@ -267,7 +280,9 @@ export const nagiNewsScreening = nagiSchema.table("news_screening", {
   decision: text("decision").notNull(),
   reasonCode: text("reason_code").notNull(),
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
 });
 /** 6時間枠の排他と日次上限集計に使う更新実行記録。 */
 export const nagiNewsUpdateRuns = nagiSchema.table("news_update_runs", {
@@ -277,7 +292,9 @@ export const nagiNewsUpdateRuns = nagiSchema.table("news_update_runs", {
   newsDataCredits: integer("newsdata_credits").default(0).notNull(),
   retryCount: integer("retry_count").default(0).notNull(),
   lastError: text("last_error"),
-  startedAt: timestamp("started_at", { withTimezone: true }).defaultNow().notNull(),
+  startedAt: timestamp("started_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
   finishedAt: timestamp("finished_at", { withTimezone: true }),
 });
 export const nagiPostScores = nagiSchema.table("post_scores", {
@@ -672,6 +689,65 @@ export const nagiPrivateListMembers = nagiSchema.table(
 );
 
 /**
+ * 本人だけが見られるブックマークフォルダ。PDS へ置くと保存対象が公開されるため、
+ * private_list_members と同じく AppView だけが保持する。
+ */
+export const nagiBookmarkFolders = nagiSchema.table(
+  "bookmark_folders",
+  {
+    id: uuid("id").defaultRandom().notNull(),
+    ownerDid: text("owner_did").notNull(),
+    name: text("name").notNull(),
+    isDefault: boolean("is_default").default(false).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.ownerDid, t.id] }),
+    uniqueIndex("nagi_bookmark_folders_default_idx")
+      .on(t.ownerDid)
+      .where(sql`${t.isDefault} = true`),
+    index("nagi_bookmark_folders_owner_idx").on(t.ownerDid, t.createdAt),
+  ],
+);
+
+/** URI だけを保持し、本文/CID のスナップショットは保存しない。 */
+export const nagiBookmarks = nagiSchema.table(
+  "bookmarks",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    ownerDid: text("owner_did").notNull(),
+    folderId: uuid("folder_id").notNull(),
+    subjectUri: text("subject_uri").notNull(),
+    subjectType: text("subject_type").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [
+    foreignKey({
+      columns: [t.ownerDid, t.folderId],
+      foreignColumns: [nagiBookmarkFolders.ownerDid, nagiBookmarkFolders.id],
+      name: "nagi_bookmarks_folder_fk",
+    }).onDelete("cascade"),
+    uniqueIndex("nagi_bookmarks_owner_subject_idx").on(
+      t.ownerDid,
+      t.subjectUri,
+    ),
+    index("nagi_bookmarks_owner_created_idx").on(t.ownerDid, t.createdAt, t.id),
+    index("nagi_bookmarks_subject_idx").on(t.subjectUri),
+    check(
+      "nagi_bookmarks_subject_type_check",
+      sql`${t.subjectType} IN ('post', 'news', 'diary')`,
+    ),
+  ],
+);
+
+/**
  * 購読（参加）中のチャンネル。private_list_members と同じ設計で、
  * PDS レコードにはせず AppView だけが持ち、認証した本人にしか返さない
  * （どのチャンネルを見ているかは他人に見せてよい情報ではない）。
@@ -788,7 +864,9 @@ export const nagiCardCommentJobs = nagiSchema.table(
       .defaultNow()
       .notNull(),
   },
-  (t) => [index("nagi_card_comment_jobs_ready_idx").on(t.state, t.nextAttemptAt)],
+  (t) => [
+    index("nagi_card_comment_jobs_ready_idx").on(t.state, t.nextAttemptAt),
+  ],
 );
 
 /**

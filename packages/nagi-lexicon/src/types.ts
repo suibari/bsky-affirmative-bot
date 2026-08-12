@@ -144,12 +144,7 @@ export type NewsSubmissionPreview = {
   image?: string;
 };
 export type NewsSubmissionState =
-  | "pending"
-  | "processing"
-  | "approved"
-  | "rejected"
-  | "failed"
-  | "cancelled";
+  "pending" | "processing" | "approved" | "rejected" | "failed" | "cancelled";
 export type NewsSubmissionItem = {
   uri: string;
   cid: string;
@@ -477,6 +472,48 @@ export type SetPrivateListMemberInput = {
 export type SetPrivateListMemberResult = {
   memberDid: string;
   included: boolean;
+};
+
+export type BookmarkSubjectType = "post" | "news" | "diary";
+export type BookmarkFolderView = {
+  id: string;
+  name: string;
+  isDefault: boolean;
+  count: number;
+  createdAt: string;
+  updatedAt: string;
+};
+export type BookmarkStateView = {
+  subjectUri: string;
+  folderId?: string;
+  createdAt?: string;
+};
+export type BookmarkUnavailableView = {
+  kind: "unavailable";
+  subjectType: BookmarkSubjectType;
+  subjectUri: string;
+};
+export type BookmarkItemView = {
+  id: string;
+  folderId: string;
+  subjectUri: string;
+  createdAt: string;
+  content:
+    | { kind: "post"; post: PostView }
+    | { kind: "news"; news: NewsView }
+    | { kind: "diary"; diary: DiaryView }
+    | BookmarkUnavailableView;
+};
+export type BookmarkFoldersView = {
+  folders: BookmarkFolderView[];
+  folderLimit: number;
+  bookmarkLimit: number;
+};
+export type BookmarksPage = {
+  items: BookmarkItemView[];
+  cursor?: string;
+  hasMore: boolean;
+  botActor?: ActorView;
 };
 
 // ---------------------------------------------------------------------------

@@ -49,6 +49,15 @@ import {
   setPrivateListMember,
 } from "../queries/privateList.js";
 import { getPreferences, putPreferences } from "../queries/preferences.js";
+import {
+  deleteBookmark,
+  deleteBookmarkFolder,
+  getBookmarkFolders,
+  getBookmarks,
+  getBookmarkStates,
+  putBookmark,
+  putBookmarkFolder,
+} from "../queries/bookmarks.js";
 import { setChannelSubscription } from "../queries/channelSubscriptions.js";
 import { getMyNagi } from "../queries/myNagi.js";
 import { drawCard, getCards } from "../queries/cards.js";
@@ -569,8 +578,16 @@ xrpc.post(
   async (req, res, next) => {
     try {
       const subject = req.body?.subject;
-      if (!subject || typeof subject.uri !== "string" || typeof subject.cid !== "string")
-        throw new ApiError(400, "invalid_request", "subject StrongRef is required");
+      if (
+        !subject ||
+        typeof subject.uri !== "string" ||
+        typeof subject.cid !== "string"
+      )
+        throw new ApiError(
+          400,
+          "invalid_request",
+          "subject StrongRef is required",
+        );
       res
         .set("Cache-Control", "private, no-store")
         .json(await requestNewsReview(req.viewerDid!, subject));
@@ -586,7 +603,12 @@ xrpc.get(
     try {
       res
         .set("Cache-Control", "private, no-store")
-        .json(await getMyNewsSubmissions(req.viewerDid!, Math.min(20, limit(req.query.limit))));
+        .json(
+          await getMyNewsSubmissions(
+            req.viewerDid!,
+            Math.min(20, limit(req.query.limit)),
+          ),
+        );
     } catch (error) {
       next(error);
     }
@@ -723,6 +745,135 @@ xrpc.post(
     }
   },
 );
+
+// ブックマークは保存対象そのものが閲覧履歴なので、全経路を本人限定・no-store に固定する。
+xrpc.get(
+  `/${NAGI.getBookmarkFolders}`,
+  requiredServiceAuth(NAGI.getBookmarkFolders),
+  async (req, res, next) => {
+    try {
+      const lang = String(req.query.lang ?? "ja");
+      if (lang !== "ja" && lang !== "en")
+        throw new ApiError(400, "invalid_request", "lang must be ja or en");
+      res
+        .set("Cache-Control", "private, no-store")
+        .json(await getBookmarkFolders(req.viewerDid!, lang));
+    } catch (e) {
+      next(e);
+    }
+  },
+);
+xrpc.post(
+  `/${NAGI.putBookmarkFolder}`,
+  requiredServiceAuth(NAGI.putBookmarkFolder),
+  async (req, res, next) => {
+    try {
+      const lang = req.body?.lang === "en" ? "en" : "ja";
+      res.set("Cache-Control", "private, no-store").json(
+        await putBookmarkFolder(req.viewerDid!, {
+          id: typeof req.body?.id === "string" ? req.body.id : undefined,
+          name: req.body?.name,
+          lang,
+        }),
+      );
+    } catch (e) {
+      next(e);
+    }
+  },
+);
+xrpc.post(
+  `/${NAGI.deleteBookmarkFolder}`,
+  requiredServiceAuth(NAGI.deleteBookmarkFolder),
+  async (req, res, next) => {
+    try {
+      if (typeof req.body?.id !== "string")
+        throw new ApiError(400, "invalid_request", "id is required");
+      res
+        .set("Cache-Control", "private, no-store")
+        .json(await deleteBookmarkFolder(req.viewerDid!, req.body.id));
+    } catch (e) {
+      next(e);
+    }
+  },
+);
+xrpc.post(
+  `/${NAGI.getBookmarkStates}`,
+  requiredServiceAuth(NAGI.getBookmarkStates),
+  async (req, res, next) => {
+    try {
+      res
+        .set("Cache-Control", "private, no-store")
+        .json(await getBookmarkStates(req.viewerDid!, req.body?.uris));
+    } catch (e) {
+      next(e);
+    }
+  },
+);
+xrpc.get(
+  `/${NAGI.getBookmarks}`,
+  requiredServiceAuth(NAGI.getBookmarks),
+  async (req, res, next) => {
+    try {
+      const lang = String(req.query.lang ?? "ja");
+      if (lang !== "ja" && lang !== "en")
+        throw new ApiError(400, "invalid_request", "lang must be ja or en");
+      res.set("Cache-Control", "private, no-store").json(
+        await getBookmarks({
+          ownerDid: req.viewerDid!,
+          folderId: String(req.query.folderId ?? "") || undefined,
+          cursor: String(req.query.cursor ?? "") || undefined,
+          limit: Math.min(30, limit(req.query.limit)),
+          lang,
+        }),
+      );
+    } catch (e) {
+      next(e);
+    }
+  },
+);
+xrpc.post(
+  `/${NAGI.putBookmark}`,
+  requiredServiceAuth(NAGI.putBookmark),
+  async (req, res, next) => {
+    try {
+      if (
+        typeof req.body?.folderId !== "string" ||
+        typeof req.body?.subjectUri !== "string"
+      )
+        throw new ApiError(
+          400,
+          "invalid_request",
+          "folderId and subjectUri are required",
+        );
+      res
+        .set("Cache-Control", "private, no-store")
+        .json(
+          await putBookmark(
+            req.viewerDid!,
+            req.body.folderId,
+            req.body.subjectUri,
+          ),
+        );
+    } catch (e) {
+      next(e);
+    }
+  },
+);
+xrpc.post(
+  `/${NAGI.deleteBookmark}`,
+  requiredServiceAuth(NAGI.deleteBookmark),
+  async (req, res, next) => {
+    try {
+      if (typeof req.body?.subjectUri !== "string")
+        throw new ApiError(400, "invalid_request", "subjectUri is required");
+      res
+        .set("Cache-Control", "private, no-store")
+        .json(await deleteBookmark(req.viewerDid!, req.body.subjectUri));
+    } catch (e) {
+      next(e);
+    }
+  },
+);
 // 端末間で同期する設定。既読位置は「いつ何を読んだか」そのものなので、ミュートと同じく
 // 本人以外へは一切出さない。DID は入力で受け取らず viewerDid だけを使う。
 xrpc.get(
@@ -838,9 +989,10 @@ xrpc.post(
       // 鍵が未設定なら発行できないことを明示する。クライアントはこれを見て
       // ?did= ヒント経路へフォールバックする。
       if (!ssoTicketEnabled()) {
-        return res
-          .status(501)
-          .json({ error: "NotConfigured", message: "SSO ticket issuing is not configured" });
+        return res.status(501).json({
+          error: "NotConfigured",
+          message: "SSO ticket issuing is not configured",
+        });
       }
       const audience = req.body?.audience;
       if (typeof audience !== "string" || !audience) {
@@ -850,9 +1002,10 @@ xrpc.post(
       }
       // 許可リスト外は 400。ここを緩めるとオープンリダイレクタになる。
       if (!isAllowedAudience(audience)) {
-        return res
-          .status(400)
-          .json({ error: "InvalidRequest", message: "audience is not allowed" });
+        return res.status(400).json({
+          error: "InvalidRequest",
+          message: "audience is not allowed",
+        });
       }
       res
         .set("Cache-Control", "private, no-store")

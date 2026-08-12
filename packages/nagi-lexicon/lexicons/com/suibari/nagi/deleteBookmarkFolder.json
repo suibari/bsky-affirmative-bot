@@ -1,0 +1,25 @@
+{
+  "lexicon": 1,
+  "id": "com.suibari.nagi.deleteBookmarkFolder",
+  "defs": {
+    "main": {
+      "type": "procedure",
+      "input": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "required": ["id"],
+          "properties": { "id": { "type": "string" } }
+        }
+      },
+      "output": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "required": ["deleted"],
+          "properties": { "deleted": { "type": "boolean" } }
+        }
+      }
+    }
+  }
+}

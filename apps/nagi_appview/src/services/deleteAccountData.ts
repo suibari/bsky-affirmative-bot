@@ -7,6 +7,8 @@ import {
   botReplies,
   followers,
   nagiActors,
+  nagiBookmarkFolders,
+  nagiBookmarks,
   nagiActorAnalyses,
   nagiAnalysisJobs,
   nagiCardCommentJobs,
@@ -115,6 +117,12 @@ export async function deleteAccountData(did: string) {
         .from(nagiPosts)
         .where(like(nagiPosts.quoteUri, postUri))
     ).map((row) => row.uri);
+    const diaryUris = (
+      await tx
+        .select({ uri: nagiDiaries.uri })
+        .from(nagiDiaries)
+        .where(eq(nagiDiaries.subjectDid, did))
+    ).map((row) => row.uri);
 
     // ミュートは2方向消す。自分がしたミュートだけでなく、他人が自分/自分の CH に対して
     // 設定したミュート行も残さない（退会後に他人の DB 行として残り続けないようにする）。
@@ -136,6 +144,18 @@ export async function deleteAccountData(did: string) {
           eq(nagiPrivateListMembers.memberDid, did),
         ),
       );
+    // 所有分はフォルダ削除の cascade で消す。対象URI側にも退会者のDIDを残さない。
+    // 日記URIはbotたん所有なので、subjectDidから先に特定したURIも明示的に消す。
+    await tx
+      .delete(nagiBookmarks)
+      .where(like(nagiBookmarks.subjectUri, `at://${did}/%`));
+    if (diaryUris.length)
+      await tx
+        .delete(nagiBookmarks)
+        .where(inArray(nagiBookmarks.subjectUri, diaryUris));
+    await tx
+      .delete(nagiBookmarkFolders)
+      .where(eq(nagiBookmarkFolders.ownerDid, did));
 
     await tx
       .delete(nagiTranslations)

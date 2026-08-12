@@ -64,6 +64,13 @@ export const NAGI = {
   getPrivateList: "com.suibari.nagi.getPrivateList",
   /** 非公開ホームリストの追加・解除。 */
   setPrivateListMember: "com.suibari.nagi.setPrivateListMember",
+  getBookmarkFolders: "com.suibari.nagi.getBookmarkFolders",
+  putBookmarkFolder: "com.suibari.nagi.putBookmarkFolder",
+  deleteBookmarkFolder: "com.suibari.nagi.deleteBookmarkFolder",
+  getBookmarkStates: "com.suibari.nagi.getBookmarkStates",
+  getBookmarks: "com.suibari.nagi.getBookmarks",
+  putBookmark: "com.suibari.nagi.putBookmark",
+  deleteBookmark: "com.suibari.nagi.deleteBookmark",
   /**
    * my Nagi（サインイン後の起点画面）専用の集約。非公開リストの各メンバーと購読中チャンネルの
    * 「最新1件」だけを返す。ページングしないので cursor は持たない。

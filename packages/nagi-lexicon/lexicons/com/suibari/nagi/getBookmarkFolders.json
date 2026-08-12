@@ -1,0 +1,27 @@
+{
+  "lexicon": 1,
+  "id": "com.suibari.nagi.getBookmarkFolders",
+  "defs": {
+    "main": {
+      "type": "query",
+      "parameters": {
+        "type": "params",
+        "properties": {
+          "lang": { "type": "string", "knownValues": ["ja", "en"] }
+        }
+      },
+      "output": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "required": ["folders", "folderLimit", "bookmarkLimit"],
+          "properties": {
+            "folders": { "type": "array", "items": { "type": "unknown" } },
+            "folderLimit": { "type": "integer" },
+            "bookmarkLimit": { "type": "integer" }
+          }
+        }
+      }
+    }
+  }
+}
