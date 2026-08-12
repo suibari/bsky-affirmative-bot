@@ -27,7 +27,7 @@
             "totalCount": { "type": "integer" },
             "drawStatus": {
               "type": "unknown",
-              "description": "actor がビューア本人のときのみ。canDraw / nextDrawAt / todayCardId。"
+              "description": "actor がビューア本人のときのみ。myNagi / reaction の各取得枠と nextDrawAt。旧クライアント互換の canDraw / todayCardId は通常枠を表す。"
             }
           }
         }

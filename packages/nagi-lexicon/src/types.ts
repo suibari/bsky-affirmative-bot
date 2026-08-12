@@ -654,14 +654,24 @@ export type CardView = {
   /** 最初にこの1枚を引いた人の DID。交換で流通しても出所が追える。 */
   firstOwnerDid?: string;
 };
-/** 本日引けるか。自分のコレクションを見ているときだけ返す。 */
+export type CardDrawSource = "my_nagi" | "reaction";
+export type CardDrawSlotStatus = {
+  canDraw: boolean;
+  /** その枠で本日すでに引いている場合、そのカードの段と番号。 */
+  cardVolume?: number;
+  cardId?: number;
+};
+/** 本日の2つの取得枠。自分のコレクションを見ているときだけ返す。 */
 export type CardDrawStatus = {
+  /** 旧クライアント互換。myNagi.canDraw と同じ値。 */
   canDraw: boolean;
   /** 次に引ける時刻（ISO8601）。JST 4:00 が境界。 */
   nextDrawAt: string;
-  /** 本日すでに引いている場合、そのカードの段と番号。 */
+  /** 旧クライアント互換。通常枠で本日引いたカード。 */
   todayCardVolume?: number;
   todayCardId?: number;
+  myNagi: CardDrawSlotStatus;
+  reaction: CardDrawSlotStatus;
 };
 export type CardCollectionView = {
   cards: CardView[];
@@ -671,7 +681,8 @@ export type CardCollectionView = {
 };
 export type DrawCardResult = {
   card: CardView;
-  /** true なら本日は引き済みで、返っているのはその日のカード（冪等応答）。 */
+  source: CardDrawSource;
+  /** true ならその取得枠は引き済みで、返っているのはその枠のカード（冪等応答）。 */
   alreadyDrawn: boolean;
   /** コレクション初登場か。 */
   isNew: boolean;

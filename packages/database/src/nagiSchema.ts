@@ -67,6 +67,10 @@ export const nagiAiReplyMode = nagiSchema.enum("ai_reply_mode", [
   "ai",
   "template",
 ]);
+export const cardDrawSource = nagiSchema.enum("card_draw_source", [
+  "my_nagi",
+  "reaction",
+]);
 /** ミュート対象の種別。actor は相手の DID、channel はチャンネルの AT-URI を指す。 */
 export const muteSubjectType = nagiSchema.enum("mute_subject_type", [
   "actor",
@@ -695,7 +699,8 @@ export const nagiPrivateListMembers = nagiSchema.table(
 export const nagiBookmarkFolders = nagiSchema.table(
   "bookmark_folders",
   {
-    id: uuid("id").defaultRandom().notNull(),
+    // UUID はフォルダ全体で一意。所有権は全操作で ownerDid と合わせて検証する。
+    id: uuid("id").defaultRandom().primaryKey(),
     ownerDid: text("owner_did").notNull(),
     name: text("name").notNull(),
     isDefault: boolean("is_default").default(false).notNull(),
@@ -707,7 +712,6 @@ export const nagiBookmarkFolders = nagiSchema.table(
       .notNull(),
   },
   (t) => [
-    primaryKey({ columns: [t.ownerDid, t.id] }),
     uniqueIndex("nagi_bookmark_folders_default_idx")
       .on(t.ownerDid)
       .where(sql`${t.isDefault} = true`),
@@ -730,10 +734,12 @@ export const nagiBookmarks = nagiSchema.table(
   },
   (t) => [
     foreignKey({
-      columns: [t.ownerDid, t.folderId],
-      foreignColumns: [nagiBookmarkFolders.ownerDid, nagiBookmarkFolders.id],
+      columns: [t.folderId],
+      foreignColumns: [nagiBookmarkFolders.id],
       name: "nagi_bookmarks_folder_fk",
-    }).onDelete("cascade"),
+    })
+      .onDelete("cascade")
+      .onUpdate("no action"),
     uniqueIndex("nagi_bookmarks_owner_subject_idx").on(
       t.ownerDid,
       t.subjectUri,
@@ -817,8 +823,8 @@ export const nagiCardInstances = nagiSchema.table(
 );
 
 /**
- * 日次ドローの記録。(did, draw_date) の主キーそのものが「1日1回」の強制になっている
- * （アプリ側のチェックではなく DB 制約で担保するので、同時押しでも二重ドローにならない）。
+ * 日次ドローの記録。(did, draw_date, draw_source) の一意索引が通常枠とリアクション枠を
+ * それぞれ1日1回に強制する（同時押しでも各枠1枚に収束する）。
  * draw_date は JST 4:00 始まりの "YYYY-MM-DD"（shared-configs の cardDrawDate が算出）。
  */
 export const nagiCardDraws = nagiSchema.table(
@@ -826,6 +832,9 @@ export const nagiCardDraws = nagiSchema.table(
   {
     did: text("did").notNull(),
     drawDate: text("draw_date").notNull(),
+    drawSource: cardDrawSource("draw_source").default("my_nagi").notNull(),
+    /** リアクション枠を解放した本人所有の reaction AT-URI。通常枠では null。 */
+    triggerUri: text("trigger_uri"),
     cardVolume: integer("card_volume").notNull(),
     cardNumber: integer("card_number").notNull(),
     /**
@@ -837,8 +846,19 @@ export const nagiCardDraws = nagiSchema.table(
       .defaultNow()
       .notNull(),
   },
-  // 主キー (did, draw_date) が「今日引いたか」の検索索引そのものなので、追加の索引は要らない。
-  (t) => [primaryKey({ columns: [t.did, t.drawDate] })],
+  // 新規列を含む複合PKは drizzle-kit push が列追加前に適用して失敗するため、
+  // 同等の排他保証を列追加後に作られる一意索引で持つ。
+  (t) => [
+    uniqueIndex("nagi_card_draw_did_date_source_idx").on(
+      t.did,
+      t.drawDate,
+      t.drawSource,
+    ),
+    check(
+      "card_draws_reaction_trigger_check",
+      sql`(${t.drawSource} = 'my_nagi' AND ${t.triggerUri} IS NULL) OR (${t.drawSource} = 'reaction' AND ${t.triggerUri} IS NOT NULL)`,
+    ),
+  ],
 );
 
 /**

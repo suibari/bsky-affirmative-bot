@@ -15,12 +15,14 @@ import {
 } from "@bsky-affirmative-bot/shared-configs";
 import type {
   CardCollectionView,
+  CardDrawSource,
   CardDrawStatus,
   CardView,
   DrawCardResult,
 } from "@bsky-affirmative-bot/nagi-lexicon";
 import { and, eq, sql } from "drizzle-orm";
 import { ApiError } from "../middleware/errors.js";
+import { verifyReactionCardTrigger } from "../services/reactionCardEligibility.js";
 
 /**
  * 全肯定カード。カード定義そのもの（名前/フレーバー/ATK）は shared-configs の JSON が真実源で、
@@ -79,10 +81,17 @@ async function loadInstances(did: string): Promise<Map<string, InstanceRow>> {
   );
 }
 
-/** 本日ぶんのドロー行。無ければ未ドロー。 */
-async function loadTodayDraw(did: string, now: Date) {
-  const [row] = await db
+type TodayDraw = {
+  source: CardDrawSource;
+  cardVolume: number;
+  cardNumber: number;
+};
+
+/** 本日ぶんの通常枠・リアクション枠。 */
+async function loadTodayDraws(did: string, now: Date): Promise<TodayDraw[]> {
+  return db
     .select({
+      source: nagiCardDraws.drawSource,
       cardVolume: nagiCardDraws.cardVolume,
       cardNumber: nagiCardDraws.cardNumber,
     })
@@ -92,19 +101,34 @@ async function loadTodayDraw(did: string, now: Date) {
         eq(nagiCardDraws.did, did),
         eq(nagiCardDraws.drawDate, cardDrawDate(now)),
       ),
-    )
-    .limit(1);
-  return row;
+    );
 }
 
-function drawStatusOf(
-  today: { volume: number; id: number } | undefined,
-  now: Date,
-): CardDrawStatus {
+export function drawStatusOf(today: TodayDraw[], now: Date): CardDrawStatus {
+  const myNagi = today.find((draw) => draw.source === "my_nagi");
+  const reaction = today.find((draw) => draw.source === "reaction");
   return {
-    canDraw: !today,
+    // 旧クライアントが2枚目を通常ボタンから引こうとしないよう、canDrawは通常枠のまま。
+    canDraw: !myNagi,
     nextDrawAt: nextCardDrawAt(now).toISOString(),
-    ...(today ? { todayCardVolume: today.volume, todayCardId: today.id } : {}),
+    ...(myNagi
+      ? {
+          todayCardVolume: myNagi.cardVolume,
+          todayCardId: myNagi.cardNumber,
+        }
+      : {}),
+    myNagi: {
+      canDraw: !myNagi,
+      ...(myNagi
+        ? { cardVolume: myNagi.cardVolume, cardId: myNagi.cardNumber }
+        : {}),
+    },
+    reaction: {
+      canDraw: !reaction,
+      ...(reaction
+        ? { cardVolume: reaction.cardVolume, cardId: reaction.cardNumber }
+        : {}),
+    },
   };
 }
 
@@ -121,41 +145,57 @@ export async function getCards(
 
   const now = new Date();
   const isSelf = !!viewerDid && viewerDid === actor;
-  const [instances, todayDraw] = await Promise.all([
+  const [instances, todayDraws] = await Promise.all([
     loadInstances(actor),
-    isSelf ? loadTodayDraw(actor, now) : Promise.resolve(undefined),
+    isSelf ? loadTodayDraws(actor, now) : Promise.resolve([]),
   ]);
 
   // 並びは CARD_DEFS の順（= 図鑑の順）。所持状況で並べ替えないこと。
-  const cards = CARD_DEFS.map((def) => cardView(def, instances.get(cardKey(def))));
+  const cards = CARD_DEFS.map((def) =>
+    cardView(def, instances.get(cardKey(def))),
+  );
   return {
     cards,
     ownedCount: instances.size,
     totalCount: CARD_DEFS.length,
     ...(isSelf
       ? {
-          drawStatus: drawStatusOf(
-            todayDraw
-              ? { volume: todayDraw.cardVolume, id: todayDraw.cardNumber }
-              : undefined,
-            now,
-          ),
+          drawStatus: drawStatusOf(todayDraws, now),
         }
       : {}),
   };
 }
 
 /**
- * 1日1回のドロー。
+ * 通常枠・リアクション枠を1日各1回引く。
  *
  * 「今日引いたか」の判定はアプリ側の事前チェックではなく、card_draws の主キー
- * (did, draw_date) への衝突で行う。同時押しや二重送信でも DB 側で1回に収束するため。
+ * (did, draw_date, draw_source) の一意索引への衝突で行う。同時押しや二重送信でも各枠1回に収束するため。
  * 既に引いていた場合はエラーにせず、その日のカードをそのまま返す（updateSeen / setMute と
  * 同じ冪等方針。リロードしても「今日のカード」が見えるほうが UI が素直になる）。
  */
-export async function drawCard(viewerDid: string): Promise<DrawCardResult> {
+export async function drawCard(
+  viewerDid: string,
+  source: CardDrawSource = "my_nagi",
+  reactionUri?: string,
+): Promise<DrawCardResult> {
   const now = new Date();
   const drawDate = cardDrawDate(now);
+  if (source === "reaction") {
+    if (!reactionUri)
+      throw new ApiError(
+        400,
+        "invalid_request",
+        "reactionUri is required for reaction draws",
+      );
+    await verifyReactionCardTrigger(viewerDid, reactionUri, now);
+  } else if (reactionUri) {
+    throw new ApiError(
+      400,
+      "invalid_request",
+      "reactionUri is only valid for reaction draws",
+    );
+  }
 
   const result = await db.transaction(async (tx) => {
     const rolled = rollCard();
@@ -168,6 +208,8 @@ export async function drawCard(viewerDid: string): Promise<DrawCardResult> {
       .values({
         did: viewerDid,
         drawDate,
+        drawSource: source,
+        triggerUri: source === "reaction" ? reactionUri : null,
         cardVolume: rolled.volume,
         cardNumber: rolled.id,
       })
@@ -185,6 +227,7 @@ export async function drawCard(viewerDid: string): Promise<DrawCardResult> {
           and(
             eq(nagiCardDraws.did, viewerDid),
             eq(nagiCardDraws.drawDate, drawDate),
+            eq(nagiCardDraws.drawSource, source),
           ),
         )
         .limit(1);
@@ -192,6 +235,7 @@ export async function drawCard(viewerDid: string): Promise<DrawCardResult> {
         throw new ApiError(409, "conflict", "Draw is being processed");
       return {
         card: { volume: existing.cardVolume, id: existing.cardNumber },
+        source,
         alreadyDrawn: true,
         isNew: false,
       };
@@ -236,6 +280,7 @@ export async function drawCard(viewerDid: string): Promise<DrawCardResult> {
         and(
           eq(nagiCardDraws.did, viewerDid),
           eq(nagiCardDraws.drawDate, drawDate),
+          eq(nagiCardDraws.drawSource, source),
         ),
       );
 
@@ -258,12 +303,16 @@ export async function drawCard(viewerDid: string): Promise<DrawCardResult> {
 
     return {
       card: { volume: rolled.volume, id: rolled.id },
+      source,
       alreadyDrawn: false,
       isNew: instance.duplicateCount === 1,
     };
   });
 
-  const instances = await loadInstances(viewerDid);
+  const [instances, todayDraws] = await Promise.all([
+    loadInstances(viewerDid),
+    loadTodayDraws(viewerDid, now),
+  ]);
   const def = getCardDef(result.card.volume, result.card.id);
   if (!def)
     // 定義から消えた番号が draws に残っているケース。番号は変更禁止なので通常起きない。
@@ -276,9 +325,10 @@ export async function drawCard(viewerDid: string): Promise<DrawCardResult> {
 
   return {
     card: cardView(def, row),
+    source: result.source,
     alreadyDrawn: result.alreadyDrawn,
     isNew: result.isNew,
     commentPending: !row?.commentJa,
-    drawStatus: drawStatusOf(result.card, now),
+    drawStatus: drawStatusOf(todayDraws, now),
   };
 }

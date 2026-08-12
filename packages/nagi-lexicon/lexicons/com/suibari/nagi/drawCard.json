@@ -4,16 +4,38 @@
   "defs": {
     "main": {
       "type": "procedure",
-      "description": "全肯定カードを1枚引く。1日1回（JST 4:00 が日付境界）。本日ぶんを既に引いている場合はエラーにせず、その日引いたカードをそのまま返す（冪等）。抽選はサーバ側で行い、結果は AppView にのみ保存される。",
+      "description": "全肯定カードを1枚引く。my Nagiの通常枠と他ユーザーへのリアクション枠を1日各1回利用できる（JST 4:00 が日付境界）。同じ枠を既に引いている場合は、そのカードをそのまま返す（冪等）。抽選はサーバ側で行う。",
+      "input": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "source": {
+              "type": "string",
+              "knownValues": ["my_nagi", "reaction"],
+              "description": "省略時は後方互換のためmy_nagi。"
+            },
+            "reactionUri": {
+              "type": "string",
+              "format": "at-uri",
+              "description": "source=reaction のとき必須。本人が当日作成した他ユーザー宛てリアクション。"
+            }
+          }
+        }
+      },
       "output": {
         "encoding": "application/json",
         "schema": {
           "type": "object",
-          "required": ["card", "alreadyDrawn", "drawStatus"],
+          "required": ["card", "source", "alreadyDrawn", "drawStatus"],
           "properties": {
             "card": {
               "type": "unknown",
               "description": "引いたカード（定義 + 所持情報）。botたんコメントは非同期生成なので初回は空。"
+            },
+            "source": {
+              "type": "string",
+              "knownValues": ["my_nagi", "reaction"]
             },
             "alreadyDrawn": {
               "type": "boolean",

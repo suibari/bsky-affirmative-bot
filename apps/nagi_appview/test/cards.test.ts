@@ -6,7 +6,8 @@ import type { InstanceRow } from "../src/queries/cards.js";
 process.env.DATABASE_URL ??= "postgres://user:pass@localhost:5432/test";
 
 const { CARD_DEFS } = await import("@bsky-affirmative-bot/shared-configs");
-const { cardView, getCards } = await import("../src/queries/cards.js");
+const { cardView, drawStatusOf, getCards } =
+  await import("../src/queries/cards.js");
 
 const def = CARD_DEFS[0];
 const row = (over: Partial<InstanceRow> = {}): InstanceRow => ({
@@ -68,4 +69,25 @@ test("actor が DID でなければ 400 で弾く（DB へは行かない）", a
       `actor="${actor}" should be rejected`,
     );
   }
+});
+
+test("通常枠とリアクション枠を独立して返し、旧canDrawは通常枠を表す", () => {
+  const now = new Date("2026-08-12T03:00:00.000Z");
+  const onlyMyNagi = drawStatusOf(
+    [{ source: "my_nagi", cardVolume: 1, cardNumber: 2 }],
+    now,
+  );
+  assert.equal(onlyMyNagi.canDraw, false);
+  assert.equal(onlyMyNagi.myNagi.canDraw, false);
+  assert.equal(onlyMyNagi.reaction.canDraw, true);
+  assert.equal(onlyMyNagi.todayCardId, 2);
+
+  const onlyReaction = drawStatusOf(
+    [{ source: "reaction", cardVolume: 1, cardNumber: 3 }],
+    now,
+  );
+  assert.equal(onlyReaction.canDraw, true);
+  assert.equal(onlyReaction.myNagi.canDraw, true);
+  assert.equal(onlyReaction.reaction.canDraw, false);
+  assert.equal(onlyReaction.todayCardId, undefined);
 });

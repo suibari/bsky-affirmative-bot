@@ -969,16 +969,26 @@ xrpc.get(
     }
   },
 );
-// 抽選はサーバ側でしか行わない。入力を一切取らないのは、引くカードをクライアントが
-// 指定できる余地を作らないため。
+// 抽選結果は入力に取らずサーバ側で決める。リアクション枠だけ、本人のPDSにある
+// 当日リアクションURIを検証してから別枠を解放する。
 xrpc.post(
   `/${NAGI.drawCard}`,
   requiredServiceAuth(NAGI.drawCard),
   async (req, res, next) => {
     try {
+      const source = req.body?.source ?? "my_nagi";
+      const reactionUri = req.body?.reactionUri;
+      if (source !== "my_nagi" && source !== "reaction")
+        throw new ApiError(400, "invalid_request", "Invalid draw source");
+      if (reactionUri !== undefined && typeof reactionUri !== "string")
+        throw new ApiError(
+          400,
+          "invalid_request",
+          "reactionUri must be a string",
+        );
       res
         .set("Cache-Control", "private, no-store")
-        .json(await drawCard(req.viewerDid!));
+        .json(await drawCard(req.viewerDid!, source, reactionUri));
     } catch (e) {
       next(e);
     }
