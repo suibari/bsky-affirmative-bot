@@ -484,6 +484,8 @@ xrpc.get(`/${NAGI.getDiaries}`, async (req, res, next) => {
       await getDiaries({
         actor: String(req.query.actor ?? ""),
         month: String(req.query.month ?? "") || undefined,
+        from: String(req.query.from ?? "") || undefined,
+        to: String(req.query.to ?? "") || undefined,
         limit: limit(req.query.limit),
         cursor: String(req.query.cursor ?? "") || undefined,
       }),

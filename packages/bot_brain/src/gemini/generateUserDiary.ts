@@ -17,20 +17,13 @@ export interface DiaryResult {
   diary: string;
   title_ja: string;
   title_en: string;
-  emoji: string;
 }
 
-export interface DiaryDraft extends Omit<DiaryResult, "emoji"> {
+export interface DiaryDraft extends DiaryResult {
   usedContextId: string;
   /** 本文に実在する、予定調和を壊した箇所の逐語抜粋。保存用の日記結果には含めない。 */
   chaosExcerpt: string;
-  emojiCandidates: unknown;
 }
-
-export type RecentDiaryEmoji = {
-  date: string;
-  emoji: string;
-};
 
 export type UserDiaryContextKind = "bot_activity" | "observance" | "news";
 
@@ -47,18 +40,12 @@ export type UserDiaryDayContext = {
   candidates: UserDiaryContextCandidate[];
 };
 
-export function formatUserDiaryDayContext(
-  context: UserDiaryDayContext | undefined,
-  japanese: boolean,
-): string {
+export function formatUserDiaryDayContext(context: UserDiaryDayContext | undefined, japanese: boolean): string {
   if (!context) return "";
   const section = (kind: UserDiaryContextKind, tag: string) => {
     const lines = context.candidates
       .filter((candidate) => candidate.kind === kind)
-      .map(
-        (candidate) =>
-          `[${candidate.id}] ${japanese ? candidate.textJa : candidate.textEn}`,
-      );
+      .map((candidate) => `[${candidate.id}] ${japanese ? candidate.textJa : candidate.textEn}`);
     return `<${tag}>\n${lines.join("\n") || (japanese ? "候補なし" : "No candidates")}\n</${tag}>`;
   };
   return `
@@ -69,202 +56,7 @@ ${section("news", "news")}
 </diary_context>`;
 }
 
-const ABSTRACT_DIARY_EMOJIS = new Set([
-  "✨",
-  "💬",
-  "⭐",
-  "🌟",
-  "💫",
-  "🔥",
-  "💥",
-  "🎉",
-  "🎊",
-  "💡",
-  "🌱",
-  "❤️",
-  "🩷",
-  "🧡",
-  "💛",
-  "💚",
-  "💙",
-  "💜",
-  "🤍",
-  "🖤",
-  "🤎",
-  "💕",
-  "💖",
-  "💗",
-  "💓",
-  "💞",
-  "💝",
-  "💘",
-  "💟",
-  "❣️",
-  "✅",
-  "☑️",
-  "✔️",
-  "⭕",
-  "❌",
-  "❗",
-  "❓",
-  "‼️",
-  "⁉️",
-  "🗨️",
-  "🗯️",
-  "👍",
-  "👎",
-  "👏",
-  "🙏",
-  "💪",
-  "👌",
-  "✌️",
-  "🎌",
-]);
-
-/** 見た目や意味が近く、日をまたいで並ぶと識別力が落ちる絵文字群。 */
-const DIARY_EMOJI_SIMILAR_GROUPS = [
-  ["💻", "🖥️", "⌨️", "🖱️", "📱", "📲", "📟", "💾", "🖨️", "🧑‍💻", "👨‍💻", "👩‍💻"],
-  ["🐈", "🐈‍⬛", "🐱"],
-  ["🐕", "🐕‍🦺", "🦮", "🐶"],
-  ["🎵", "🎶", "🎼"],
-  ["📸", "📷", "🎥"],
-  ["✍️", "📝", "✏️", "🖊️", "🖋️", "🖍️"],
-  ["🚃", "🚆", "🚄", "🚅", "🚇", "🚈", "🚉"],
-  ["🚗", "🚙", "🏎️", "🚕"],
-  ["🚲", "🚴", "🚴‍♀️", "🚴‍♂️"],
-  ["📚", "📖", "📕", "📗", "📘", "📙"],
-] as const;
-
-const diaryEmojiSimilarityKeys = new Map<string, number>(
-  DIARY_EMOJI_SIMILAR_GROUPS.flatMap((group, index) =>
-    group.map((emoji) => [emoji, index] as const),
-  ),
-);
-
-function diaryEmojiSimilarityKey(emoji: string): string {
-  const group = diaryEmojiSimilarityKeys.get(emoji);
-  return group === undefined ? `emoji:${emoji}` : `group:${group}`;
-}
-
-const diaryEmojiPromptRules = `
-絵文字は、本文に実際に登場する出来事を見分けられる、異なる具体的なUnicode絵文字の候補を関連度順に10個選んでください。候補から検証済みの上位3つを最終表示に使います。
-- 食べ物、乗り物、場所、動物、道具、スポーツ、創作物など、「何が起きたか」を指す具体物・具体的活動を優先する
-- 候補はすべて本文またはポストに根拠があるものにし、書かれていない出来事を推測で足さない。同じ出来事の異なる具体物を候補にしてよい
-- 本文の出来事や達成を直感的に象徴する比喩的な具体物も使ってよい（例: 大きな前進を表す🚀、記録達成を表す🏆）。その物が実際に登場した出来事だったとは書かない
-- 同じ日の候補内でも、同じ絵文字の別表現ばかりにしない（例: 🐈と🐈‍⬛、💻と🖥️、🎵と🎶を同時に選ばない）
-- 顔、ハート、吹き出し、光、記号など、単なる装飾、気分、会話、称賛、勢い、達成感を表す抽象的な絵文字は禁止する
-- 禁止例: ✨ 💬 😊 ❤️ 🎉 ⭐ 🌟 💫 🔥 🌱 ✅
-- 良い例: ラーメンを食べ、電車で移動し、ギターを弾いた日 → ["🍜", "🚃", "🎸", "🥢", "🚉", "🎵", "🍥", "🚆", "🎼", "🎹"]
-- 体調を崩して休んだ日 → ["🌡️", "💊", "🛏️", "🏥", "🩹", "🫖", "🩺", "🥣", "🏠", "🧦"]
-- ソフトウェア開発をした日 → ["💻", "⚙️", "🛠️", "🔧", "🌐", "🏷️", "🚀", "🧩", "🐛", "📦"]`;
-
-function recentDiaryEmojiPrompt(
-  recentEmojis: RecentDiaryEmoji[] = [],
-  lang: "ja" | "en" = "ja",
-): string {
-  if (!recentEmojis.length) return "";
-  const history = recentEmojis
-    .map((entry) => `- ${entry.date}: ${entry.emoji}`)
-    .join("\n");
-  if (lang === "en") {
-    return `
-The following emoji were used in diary entries from the previous three days:
-${history}
-Do not reuse any of these exact emoji today. When the text supports other concrete events, also avoid visually or semantically similar alternatives, such as 🐱 for 🐈 or 🖥️ for 💻. Never invent an event merely to avoid repetition.`;
-  }
-  return `
-過去3日の日記では次の絵文字を使いました。
-${history}
-今日の候補には、これらと同じ絵文字を使わないでください。また、🐈に対する🐱、💻に対する🖥️のように、見た目や意味がよく似た絵文字も、本文に別の具体的な出来事がある限り避けてください。重複回避のために本文にない出来事を作ってはいけません。`;
-}
-
-function diaryEmojiGraphemes(value: string): string[] {
-  return [
-    ...new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(
-      value,
-    ),
-  ].map(({ segment }) => segment);
-}
-
-function isUnicodeEmoji(value: string): boolean {
-  return (
-    /\p{Extended_Pictographic}/u.test(value) ||
-    /^\p{Regional_Indicator}{2}$/u.test(value)
-  );
-}
-
-function isAbstractDiaryEmoji(value: string): boolean {
-  const codePoint = value.codePointAt(0);
-  return (
-    ABSTRACT_DIARY_EMOJIS.has(value) ||
-    (codePoint !== undefined &&
-      ((codePoint >= 0x1f600 && codePoint <= 0x1f64f) ||
-        (codePoint >= 0x1f910 && codePoint <= 0x1f92f) ||
-        (codePoint >= 0x1f970 && codePoint <= 0x1f97f) ||
-        (codePoint >= 0x1fae0 && codePoint <= 0x1faef)))
-  );
-}
-
-/** Gemini の出力を、カレンダーにそのまま置ける具体的な3絵文字へ絞る。 */
-export function normalizeDiaryEmoji(value: unknown): string {
-  if (typeof value !== "string") {
-    throw new Error("Diary emoji must be a string");
-  }
-  const emoji = value.trim();
-  const graphemes = diaryEmojiGraphemes(emoji);
-  if (
-    graphemes.length !== 3 ||
-    new Set(graphemes).size !== 3 ||
-    Buffer.byteLength(emoji) > 192 ||
-    graphemes.some(
-      (item) => !isUnicodeEmoji(item) || isAbstractDiaryEmoji(item),
-    )
-  ) {
-    throw new Error(
-      `Diary emoji must contain exactly 3 concrete Unicode emoji: ${JSON.stringify(value)}`,
-    );
-  }
-  return emoji;
-}
-
-/** モデルの複数候補から、禁止対象を除いた具体的な上位3絵文字を選ぶ。 */
-export function selectDiaryEmojis(
-  value: unknown,
-  recentEmojis: RecentDiaryEmoji[] = [],
-): string {
-  if (!Array.isArray(value)) {
-    throw new Error("Diary emoji candidates must be an array");
-  }
-  const excluded = new Set(
-    recentEmojis.flatMap((entry) =>
-      diaryEmojiGraphemes(entry.emoji).map(diaryEmojiSimilarityKey),
-    ),
-  );
-  const selected: string[] = [];
-  const selectedSimilarityKeys = new Set<string>();
-  for (const candidate of value) {
-    if (typeof candidate !== "string") continue;
-    const emoji = candidate.trim();
-    const graphemes = diaryEmojiGraphemes(emoji);
-    if (
-      graphemes.length !== 1 ||
-      !isUnicodeEmoji(emoji) ||
-      isAbstractDiaryEmoji(emoji) ||
-      excluded.has(diaryEmojiSimilarityKey(emoji)) ||
-      selectedSimilarityKeys.has(diaryEmojiSimilarityKey(emoji)) ||
-      selected.includes(emoji)
-    ) {
-      continue;
-    }
-    selected.push(emoji);
-    selectedSimilarityKeys.add(diaryEmojiSimilarityKey(emoji));
-    if (selected.length === 3) break;
-  }
-  return normalizeDiaryEmoji(selected.join(""));
-}
-
 export type GenerateUserDiaryOptions = {
-  recentEmojis?: RecentDiaryEmoji[];
   dayContext?: UserDiaryDayContext;
   mediaReference?: UserDiaryMediaReference;
   aiRoute?: AiRouteDetails;
@@ -340,10 +132,7 @@ function selectDiaryChaosDirective(
   return `<chaos_directive id="${directive.id}" usage="required">\n${japanese ? directive.ja : directive.en}\n</chaos_directive>`;
 }
 
-export function buildUserDiaryPrompt(
-  userinfo: UserInfoGemini,
-  options: GenerateUserDiaryOptions = {},
-): string {
+export function buildUserDiaryPrompt(userinfo: UserInfoGemini, options: GenerateUserDiaryOptions = {}): string {
   const japanese = userinfo.langStr === "日本語";
   const name = addressName(userinfo);
   const hasContext = Boolean(options.dayContext?.candidates.length);
@@ -431,8 +220,6 @@ ${NAME_RULES_JA(name)}
 - 日記対象者の名前と、<media_reference>の作品・架空キャラクター、公人の公開活動上の名前以外はすべて私人名として消してください。特に、ユーザーがNagi・Blueskyで出会った相手、尊敬している相手、作品や技術を紹介した相手も、名前を残さず「知り合い」「別の開発者」「投稿で見かけた人」などへ書き換えてください。
 - 匿名化で事実の主体が曖昧になる場合は、その一文を削るか、ユーザー自身の出来事と混ざらない役割表現へ直してください。
 - 補助材料候補は従来どおり本文へ使う必須材料ですが、<media_reference> は任意の連想候補です。作品ネタを使わなくても、補助材料候補がある日に usedContextId="none" を返してはいけません。
-${diaryEmojiPromptRules}${recentDiaryEmojiPrompt(options.recentEmojis)}
-
 <user name="${name || ""}">
 <user_posts>
 ${userinfo.posts || "（投稿なし）"}
@@ -496,12 +283,6 @@ Award a fitting title in Japanese (20 characters max) and English (30 characters
 - The only exceptions are the diary subject, works and fictional characters from <media_reference>, and public figures discussed in their public role. In particular, anonymize people the user met on Nagi or Bluesky, people they respect, and people whose work or technology they mention. Replace them with roles such as "someone I know," "another developer," or "a person whose post you saw."
 - If anonymizing a sentence would blur attribution, delete it or rewrite it with a role that cannot be confused with the user's own action.
 - Supporting context remains required when candidates exist, while <media_reference> is optional inspiration. Whether or not a media reference is used, never return usedContextId="none" when supporting candidates exist.
-Also provide exactly ten different, concrete Unicode emoji candidates ordered by relevance.
-- Prefer foods, vehicles, places, animals, tools, sports, or creative activities explicitly supported by the posts.
-- Concrete metaphorical symbols are allowed when they clearly represent a grounded event or achievement, such as 🚀 for major progress or 🏆 for a record. Do not imply the object literally appeared.
-- Do not invent an event, use abstract decoration, or fill the list with near-identical alternatives.
-${recentDiaryEmojiPrompt(options.recentEmojis, "en")}
-
 <user name="${name || ""}">
 <user_posts>
 ${userinfo.posts || "(No posts)"}
@@ -513,10 +294,7 @@ ${mediaReferenceBlock}
 Supporting candidates: ${hasContext ? "available" : "none"}`;
 }
 
-export function validateUsedContextId(
-  value: unknown,
-  context: UserDiaryDayContext | undefined,
-): string {
+export function validateUsedContextId(value: unknown, context: UserDiaryDayContext | undefined): string {
   if (typeof value !== "string") {
     throw new Error("Diary usedContextId must be a string");
   }
@@ -578,15 +356,17 @@ export async function generateUserDiaryDraft(
         responseSchema: {
           type: Type.OBJECT,
           properties: {
-            diary: { type: Type.STRING, description: "根拠のある材料だけから構成した日記本文" },
-            title_ja: { type: Type.STRING, description: "日本語の称号。20字以内" },
-            title_en: { type: Type.STRING, description: "英語の称号。30字以内" },
-            emojiCandidates: {
-              type: Type.ARRAY,
-              items: { type: Type.STRING },
-              minItems: "10",
-              maxItems: "10",
-              description: "具体的なUnicode絵文字候補10個",
+            diary: {
+              type: Type.STRING,
+              description: "根拠のある材料だけから構成した日記本文",
+            },
+            title_ja: {
+              type: Type.STRING,
+              description: "日本語の称号。20字以内",
+            },
+            title_en: {
+              type: Type.STRING,
+              description: "英語の称号。30字以内",
             },
             usedContextId: {
               type: Type.STRING,
@@ -600,14 +380,7 @@ export async function generateUserDiaryDraft(
                 "本文中で予定調和をはっきり壊している箇所の、連続した12文字以上の逐語抜粋。きれいな比喩や単なる称賛は不可",
             },
           },
-          required: [
-            "diary",
-            "title_ja",
-            "title_en",
-            "emojiCandidates",
-            "usedContextId",
-            "chaosExcerpt",
-          ],
+          required: ["diary", "title_ja", "title_en", "usedContextId", "chaosExcerpt"],
         },
       },
     },
@@ -623,7 +396,9 @@ export async function generateUserDiaryDraft(
   try {
     json = JSON.parse(response.text || "{}") as Partial<DiaryDraft>;
   } catch (error) {
-    throw new Error("generateUserDiaryDraft returned invalid JSON", { cause: error });
+    throw new Error("generateUserDiaryDraft returned invalid JSON", {
+      cause: error,
+    });
   }
   const diary = json.diary || "";
   return {
@@ -632,7 +407,6 @@ export async function generateUserDiaryDraft(
     title_en: json.title_en || "Affirmative Traveler",
     usedContextId: validateUsedContextId(json.usedContextId, options.dayContext),
     chaosExcerpt: validateChaosExcerpt(json.chaosExcerpt, diary),
-    emojiCandidates: json.emojiCandidates,
   };
 }
 
@@ -645,65 +419,5 @@ export async function generateUserDiary(
     diary: draft.diary,
     title_ja: draft.title_ja,
     title_en: draft.title_en,
-    emoji: selectDiaryEmojis(draft.emojiCandidates, options.recentEmojis),
   };
-}
-
-/** 既存の日記本文・称号を変えず、その日の具体的な3絵文字だけを再選定する。 */
-export async function generateDiaryEmojis(
-  input: {
-    date: string;
-    text: string;
-    titleJa?: string;
-    titleEn?: string;
-    recentEmojis?: RecentDiaryEmoji[];
-  },
-  options: Pick<GenerateUserDiaryOptions, "aiRoute" | "thinkingLevel" | "onUsage"> = {},
-): Promise<string> {
-  const response = await generateContentWithRetry({
-    feature: "COMMON_USER_DIARY_EMOJI",
-    contents: `次の既存日記を読み、その日の絵文字だけを選び直してください。
-本文や称号の書き換え・要約は不要です。
-${diaryEmojiPromptRules}${recentDiaryEmojiPrompt(input.recentEmojis)}
-
-日付: ${input.date}
-日本語の称号: ${input.titleJa || "(なし)"}
-英語の称号: ${input.titleEn || "(なし)"}
-日記本文:
-${input.text}`,
-    config: {
-      systemInstruction: SYSTEM_INSTRUCTION,
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.OBJECT,
-        properties: {
-          emojiCandidates: {
-            type: Type.ARRAY,
-            items: { type: Type.STRING },
-            minItems: "10",
-            maxItems: "10",
-            description:
-              "日記中の具体的な出来事を表す、異なるUnicode絵文字候補10個。関連度順",
-          },
-        },
-        required: ["emojiCandidates"],
-      },
-    },
-  }, 3, undefined, {
-    ...(options.aiRoute ?? {}),
-    ...(options.thinkingLevel ? { thinkingLevel: options.thinkingLevel } : {}),
-    ...(options.onUsage ? { onUsage: options.onUsage } : {}),
-  });
-
-  let json: { emojiCandidates?: unknown };
-  try {
-    json = JSON.parse(response.text || "{}") as {
-      emojiCandidates?: unknown;
-    };
-  } catch (error) {
-    throw new Error("generateDiaryEmojis returned invalid JSON", {
-      cause: error,
-    });
-  }
-  return selectDiaryEmojis(json.emojiCandidates, input.recentEmojis);
 }

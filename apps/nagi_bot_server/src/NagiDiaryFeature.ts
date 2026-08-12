@@ -1,4 +1,4 @@
-import { and, asc, eq, gte, lt } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import {
   db,
   MemoryService,
@@ -36,13 +36,6 @@ const RESCAN_INTERVAL_MS = 60 * 60 * 1000;
 
 // 多重スケジュール抑止用。値が null なのは「タイマー待ちではなく今まさに実行中」。
 const scheduledTimers = new Map<string, NodeJS.Timeout | null>();
-
-/** "YYYY-MM-DD" からUTC基準で指定日数を引く。日付文字列同士のDB比較に使う。 */
-function daysBefore(date: string, days: number): string {
-  const value = new Date(`${date}T00:00:00.000Z`);
-  value.setUTCDate(value.getUTCDate() - days);
-  return value.toISOString().slice(0, 10);
-}
 
 /**
  * 日記レコードの rkey。
@@ -151,20 +144,6 @@ export async function processNagiDiary(
       return;
     }
 
-    const recentEmojiRows = await db
-      .select({ date: nagiDiaries.diaryDate, emoji: nagiDiaries.emoji })
-      .from(nagiDiaries)
-      .where(
-        and(
-          eq(nagiDiaries.subjectDid, userDid),
-          gte(nagiDiaries.diaryDate, daysBefore(date, 3)),
-          lt(nagiDiaries.diaryDate, date),
-        ),
-      )
-      .orderBy(asc(nagiDiaries.diaryDate));
-    const recentEmojis = recentEmojiRows.flatMap((row) =>
-      row.emoji ? [{ date: row.date, emoji: row.emoji }] : [],
-    );
     const dayContext = await loadDiaryDayContext(
       userDid,
       date,
@@ -196,7 +175,6 @@ export async function processNagiDiary(
       diaryResult = await generateUserDiaryResilient(
         userinfo,
         {
-          recentEmojis,
           dayContext,
           mediaReference,
           label: `[NAGI][${userDid}][DIARY]`,
@@ -217,7 +195,6 @@ export async function processNagiDiary(
       text: clipNagiPostText(diaryResult.diary, "DIARY"),
       titleJa: diaryResult.title_ja,
       titleEn: diaryResult.title_en,
-      emoji: diaryResult.emoji,
       postCount: recentPosts.length,
       ...(latestLangs?.length ? { langs: latestLangs } : {}),
       createdAt: new Date().toISOString(),

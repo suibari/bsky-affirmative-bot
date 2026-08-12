@@ -2,7 +2,12 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { NAGI } from "@bsky-affirmative-bot/nagi-lexicon";
 import { validateRecord } from "../src/ingest/validateRecord.js";
-import { diaryView } from "../src/queries/diaries.js";
+import {
+  diaryInteractionWindow,
+  diaryView,
+  rankDiaryInteractionActors,
+  validateDiaryRange,
+} from "../src/queries/diaries.js";
 
 const diaryRecord = (extra: Record<string, unknown> = {}) => ({
   $type: NAGI.diary,
@@ -15,39 +20,24 @@ const diaryRecord = (extra: Record<string, unknown> = {}) => ({
 
 test("validates legacy and activity diary records", () => {
   assert.equal(validateRecord(NAGI.diary, diaryRecord()), true);
-  assert.equal(
-    validateRecord(NAGI.diary, diaryRecord({ emoji: "🌱", postCount: 3 })),
-    true,
-  );
-  assert.equal(
-    validateRecord(NAGI.diary, diaryRecord({ emoji: "👩‍💻", postCount: 1 })),
-    true,
-  );
-  assert.equal(
-    validateRecord(NAGI.diary, diaryRecord({ emoji: "🍜🚃🎸", postCount: 2 })),
-    true,
-  );
+  assert.equal(validateRecord(NAGI.diary, diaryRecord({ emoji: "🌱", postCount: 3 })), true);
+  assert.equal(validateRecord(NAGI.diary, diaryRecord({ emoji: "👩‍💻", postCount: 1 })), true);
+  assert.equal(validateRecord(NAGI.diary, diaryRecord({ emoji: "🍜🚃🎸", postCount: 2 })), true);
 });
 
-test("rejects diary emoji counts other than the legacy 1 or current 3", () => {
+test("keeps read compatibility for legacy 1-or-3 emoji records", () => {
   for (const emoji of ["🌱✨", "🍜🚃🎸📚"]) {
-    assert.equal(
-      validateRecord(NAGI.diary, diaryRecord({ emoji, postCount: 2 })),
-      false,
-    );
+    assert.equal(validateRecord(NAGI.diary, diaryRecord({ emoji, postCount: 2 })), false);
   }
 });
 
 test("rejects invalid post counts", () => {
   for (const postCount of [0, -1, 1.5, "2"]) {
-    assert.equal(
-      validateRecord(NAGI.diary, diaryRecord({ emoji: "🌱", postCount })),
-      false,
-    );
+    assert.equal(validateRecord(NAGI.diary, diaryRecord({ emoji: "🌱", postCount })), false);
   }
 });
 
-test("diary view exposes activity fields and omits null legacy values", () => {
+test("diary view exposes activity and involved actors without legacy emoji", () => {
   const base = {
     uri: "at://did:plc:bot/com.suibari.nagi.diary/alice-2026-08-02",
     cid: "bafyreidiary",
@@ -70,14 +60,86 @@ test("diary view exposes activity fields and omits null legacy values", () => {
     text: base.text,
     titleJa: undefined,
     titleEn: undefined,
-    emoji: undefined,
     postCount: undefined,
+    involvedActors: undefined,
+    involvedActorsHasMore: undefined,
     langs: undefined,
     createdAt: base.recordCreatedAt.toISOString(),
     indexedAt: base.indexedAt.toISOString(),
   });
 
-  const view = diaryView({ ...base, emoji: "🍜🚃🎸", postCount: 4 });
-  assert.equal(view.emoji, "🍜🚃🎸");
+  const involved = [{ did: "did:plc:bob", handle: "bob.test" }];
+  const view = diaryView({ ...base, emoji: "🍜🚃🎸", postCount: 4 }, involved);
   assert.equal(view.postCount, 4);
+  assert.deepEqual(view.involvedActors, involved);
+  assert.equal(view.involvedActorsHasMore, undefined);
+  assert.equal(diaryView({ ...base, emoji: null, postCount: 4 }, involved, true).involvedActorsHasMore, true);
+  assert.equal("emoji" in view, false);
+});
+
+test("accepts at most 371 inclusive days for the annual diary graph", () => {
+  assert.doesNotThrow(() => validateDiaryRange("2025-08-10", "2026-08-15"));
+  assert.throws(() => validateDiaryRange("2025-08-09", "2026-08-15"), /too large/);
+  assert.throws(() => validateDiaryRange("2026-08-16", "2026-08-15"), /Invalid diary date range/);
+});
+
+test("uses the same local 22:00 cutoff as Japanese diary generation", () => {
+  const row = {
+    uri: "at://did:plc:bot/com.suibari.nagi.diary/alice-2026-08-02",
+    cid: "bafyreidiary",
+    did: "did:plc:bot",
+    subjectDid: "did:plc:alice",
+    diaryDate: "2026-08-02",
+    text: "今日の日記",
+    titleJa: null,
+    titleEn: null,
+    emoji: null,
+    postCount: 1,
+    langs: ["ja"],
+    recordCreatedAt: new Date("2026-08-02T13:00:00.000Z"),
+    indexedAt: new Date("2026-08-02T13:00:01.000Z"),
+  };
+  const window = diaryInteractionWindow(row);
+  assert.equal(window.start.toISOString(), "2026-08-01T13:00:00.000Z");
+  assert.equal(window.end.toISOString(), "2026-08-02T13:00:00.000Z");
+});
+
+test("ranks interaction targets by count, recency, then DID", () => {
+  const at = (minute: number) => new Date(`2026-08-02T12:${String(minute).padStart(2, "0")}:00Z`);
+  const events = [
+    { targetDid: "did:plc:bob", eventAt: at(1) },
+    { targetDid: "did:plc:bob", eventAt: at(2) },
+    { targetDid: "did:plc:carol", eventAt: at(3) },
+    { targetDid: "did:plc:carol", eventAt: at(4) },
+    { targetDid: "did:plc:dave", eventAt: at(5) },
+    { targetDid: "did:plc:erin", eventAt: at(5) },
+    { targetDid: "did:plc:alice", eventAt: at(9) },
+    { targetDid: "did:plc:outside", eventAt: new Date("2026-08-01T00:00:00Z") },
+  ];
+  assert.deepEqual(
+    rankDiaryInteractionActors(
+      events,
+      {
+        start: new Date("2026-08-02T12:00:00Z"),
+        end: new Date("2026-08-02T13:00:00Z"),
+      },
+      "did:plc:alice",
+    ),
+    ["did:plc:carol", "did:plc:bob", "did:plc:dave", "did:plc:erin"],
+  );
+  const manyActors = Array.from({ length: 12 }, (_, index) => ({
+    targetDid: `did:plc:actor-${String(index).padStart(2, "0")}`,
+    eventAt: at(index),
+  }));
+  assert.equal(
+    rankDiaryInteractionActors(
+      manyActors,
+      {
+        start: new Date("2026-08-02T12:00:00Z"),
+        end: new Date("2026-08-02T13:00:00Z"),
+      },
+      "did:plc:alice",
+    ).length,
+    10,
+  );
 });

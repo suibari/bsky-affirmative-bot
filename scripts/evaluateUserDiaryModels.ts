@@ -5,10 +5,7 @@ import postgres from "postgres";
 import { buildUserDiaryContext } from "../packages/clients/src/userDiaryContext.js";
 import { selectUserDiaryMediaReference } from "../packages/clients/src/userDiaryMediaReference.js";
 import { withPreferredName } from "../packages/clients/src/preferredName.js";
-import {
-  generateUserDiaryDraft,
-  selectDiaryEmojis,
-} from "../packages/bot_brain/src/gemini/generateUserDiary.js";
+import { generateUserDiaryDraft } from "../packages/bot_brain/src/gemini/generateUserDiary.js";
 import type { GeminiUsage } from "../packages/bot_brain/src/gemini/util.js";
 
 const COST_LIMIT_USD = 5;
@@ -38,7 +35,6 @@ type DiaryCase = {
   displayName: string;
   posts: string[];
   baselineDiary: string;
-  baselineEmoji: string | null;
   kind: CaseKind;
   generatedAt: Date;
 };
@@ -111,7 +107,6 @@ async function loadLatestSubjectCase(
     displayName: row.display_name || row.did,
     posts: row.texts,
     baselineDiary: "",
-    baselineEmoji: null,
     kind: classify(row.texts, row.langs)[0] ?? "dense",
     generatedAt: new Date(),
   };
@@ -128,14 +123,13 @@ async function loadCases(sql: postgres.Sql): Promise<DiaryCase[]> {
     texts: string[];
     langs: unknown;
     baseline_diary: string;
-    baseline_emoji: string | null;
     generated_at: Date;
   }[]>`
     select d.subject_did as did, d.diary_date,
            coalesce(pf.display_name, a.handle, d.subject_did) as display_name,
            array_agg(p.text order by p.record_created_at) as texts,
            jsonb_agg(p.langs) as langs,
-           d.text as baseline_diary, d.emoji as baseline_emoji,
+           d.text as baseline_diary,
            d.record_created_at as generated_at
       from nagi.diaries d
       join nagi.posts p
@@ -146,7 +140,7 @@ async function loadCases(sql: postgres.Sql): Promise<DiaryCase[]> {
       left join nagi.profiles pf on pf.did = d.subject_did
       left join nagi.actors a on a.did = d.subject_did
      group by d.subject_did, d.diary_date, pf.display_name, a.handle,
-              d.text, d.emoji, d.record_created_at
+              d.text, d.record_created_at
      order by d.record_created_at desc
      limit 240
   `;
@@ -161,7 +155,6 @@ async function loadCases(sql: postgres.Sql): Promise<DiaryCase[]> {
         displayName: row.display_name || row.did,
         posts: row.texts,
         baselineDiary: row.baseline_diary,
-        baselineEmoji: row.baseline_emoji,
         kind,
         generatedAt: row.generated_at,
       });
@@ -260,7 +253,6 @@ async function main(): Promise<void> {
             );
             output = {
               ...draft,
-              emoji: selectDiaryEmojis(draft.emojiCandidates),
               mediaReference: {
                 id: mediaReference.id,
                 source: mediaReference.source,
