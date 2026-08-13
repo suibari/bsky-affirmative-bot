@@ -1,4 +1,5 @@
 import { aiModel } from "@bsky-affirmative-bot/shared-configs";
+import { parseClientOrigins } from "./clientOrigins.js";
 const required = (name: string, fallback?: string) => {
   const value = process.env[name] ?? fallback;
   if (!value) throw new Error(`Missing required environment variable: ${name}`);
@@ -28,21 +29,6 @@ const did = (name: string, fallback?: string) => {
     throw new Error(`${name} must be an AT Protocol DID`);
   }
   return value;
-};
-
-const clientOrigins = (name: string, fallback: string) => {
-  const configured = url(name, fallback);
-  const parsed = new URL(configured);
-  const origins = new Set([parsed.origin]);
-
-  if (["localhost", "127.0.0.1", "[::1]"].includes(parsed.hostname)) {
-    const port = parsed.port ? `:${parsed.port}` : "";
-    origins.add(`${parsed.protocol}//localhost${port}`);
-    origins.add(`${parsed.protocol}//127.0.0.1${port}`);
-    origins.add(`${parsed.protocol}//[::1]${port}`);
-  }
-
-  return [...origins];
 };
 
 /**
@@ -124,7 +110,9 @@ export const config = {
   // 内部エンドポイント(/internal)専用のループバックポート。nagi_bot_server と同じく
   // 127.0.0.1 に束縛して OS にアクセス制御させるので、共有シークレットは持たない。
   internalPort: integer("NAGI_APPVIEW_INTERNAL_PORT", 3004, 1, 65_535),
-  clientOrigins: clientOrigins("NAGI_CLIENT_ORIGIN", "http://localhost:5173"),
+  clientOrigins: parseClientOrigins(
+    required("NAGI_CLIENT_ORIGIN", "http://localhost:5173"),
+  ),
   // カスタム絵文字一覧は60件単位で画像を取得し、スクロールで続けて読み込む。
   // API全体の小さいIPバケットを流用せず、公開画像配信として独立して調整可能にする。
   emojiAssetRateLimit: integer("NAGI_EMOJI_ASSET_RATE_LIMIT", 1_200, 1, 100_000),
