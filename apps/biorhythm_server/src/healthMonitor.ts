@@ -8,6 +8,7 @@ import {
   type HealthState,
   type HeartbeatRecord,
 } from "@bsky-affirmative-bot/database";
+import { safeFetch } from "@bsky-affirmative-bot/shared-configs";
 
 /**
  * bot-tan.com のダッシュボードに出す死活監視。
@@ -45,6 +46,7 @@ const PROBE_TIMEOUT_MS = 3_000;
  */
 const JETSTREAM_FRESH_MS = 120_000;
 const JETSTREAM_DOWN_MS = 300_000;
+const RELAY_URL = "https://bsky.network";
 
 /**
  * Gemini は呼ばれたときにしか記録されない。botたんが寝ている間は何時間も
@@ -61,6 +63,112 @@ interface ProbeResult {
 }
 
 let localLlmProbe: ProbeResult = { state: "unknown" };
+let repoRelayProbe: ProbeResult = { state: "unknown" };
+
+interface LatestCommit {
+  cid: string;
+  rev: string;
+}
+
+interface DidDocument {
+  service?: Array<{
+    id?: string;
+    type?: string;
+    serviceEndpoint?: string;
+  }>;
+}
+
+interface RelayHostStatus {
+  status?: string;
+}
+
+async function fetchJson<T>(url: URL): Promise<T> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), PROBE_TIMEOUT_MS);
+  try {
+    const response = await safeFetch(url.toString(), { signal: controller.signal });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return (await response.json()) as T;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+const xrpcUrl = (base: string, method: string, params: Record<string, string>): URL => {
+  const url = new URL(`/xrpc/${method}`, base);
+  for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value);
+  return url;
+};
+
+export function classifyRepoRelay(
+  pds: LatestCommit,
+  relay: LatestCommit,
+  hostStatus: string | undefined,
+): HealthState {
+  if (hostStatus !== "active") return "down";
+  return pds.cid === relay.cid && pds.rev === relay.rev ? "ok" : "down";
+}
+
+/** botたんの実リポジトリを使い、PDSからRelayまでcommitが届いているか確認する。 */
+async function probeRepoRelay(): Promise<ProbeResult> {
+  const did = process.env.BSKY_DID ?? process.env.NAGI_BOT_DID;
+  if (!did) return { state: "unconfigured" };
+
+  try {
+    if (!did.startsWith("did:plc:")) throw new Error("unsupported monitored DID method");
+    const document = await fetchJson<DidDocument>(
+      new URL(`https://plc.directory/${encodeURIComponent(did)}`),
+    );
+    const pds = document.service?.find(
+      (entry) => entry.id === "#atproto_pds" || entry.type === "AtprotoPersonalDataServer",
+    )?.serviceEndpoint;
+    if (!pds) throw new Error("monitored DID has no PDS endpoint");
+
+    const hostname = new URL(pds).hostname;
+    const commitParams = { did };
+    const [pdsCommit, relayCommit, relayHost] = await Promise.all([
+      fetchJson<LatestCommit>(xrpcUrl(pds, "com.atproto.sync.getLatestCommit", commitParams)),
+      fetchJson<LatestCommit>(
+        xrpcUrl(RELAY_URL, "com.atproto.sync.getLatestCommit", commitParams),
+      ),
+      fetchJson<RelayHostStatus>(
+        xrpcUrl(RELAY_URL, "com.atproto.sync.getHostStatus", { hostname }),
+      ),
+    ]);
+
+    let state = classifyRepoRelay(pdsCommit, relayCommit, relayHost.status);
+    if (state === "down" && relayHost.status === "active") {
+      // 並行取得した瞬間に新commitが入る競合だけは、PDS→Relayの順で再取得して除外する。
+      const latestPds = await fetchJson<LatestCommit>(
+        xrpcUrl(pds, "com.atproto.sync.getLatestCommit", commitParams),
+      );
+      const latestRelay = await fetchJson<LatestCommit>(
+        xrpcUrl(RELAY_URL, "com.atproto.sync.getLatestCommit", commitParams),
+      );
+      state = classifyRepoRelay(latestPds, latestRelay, relayHost.status);
+    }
+
+    if (state !== "ok") {
+      return {
+        state,
+        lastOkAt: repoRelayProbe.lastOkAt,
+        lastError:
+          relayHost.status !== "active"
+            ? `Relay reports PDS host as ${relayHost.status ?? "unknown"}`
+            : "Relay latest commit is behind the PDS",
+      };
+    }
+
+    return { state: "ok", lastOkAt: new Date().toISOString() };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return {
+      state: "stale",
+      lastOkAt: repoRelayProbe.lastOkAt,
+      lastError: `PDS/Relay probe failed: ${message.slice(0, 240)}`,
+    };
+  }
+}
 
 /**
  * ローカル LLM（Ollama の OpenAI 互換エンドポイント）への疎通確認。
@@ -112,6 +220,28 @@ function partFromProbe(name: string, probe: ProbeResult): HealthPart {
     state: probe.state,
     ...(probe.lastOkAt ? { lastOkAt: probe.lastOkAt } : {}),
     ...(probe.lastError ? { lastError: probe.lastError } : {}),
+  };
+}
+
+/** 高トラフィックのBluesky購読で、openだけでなくcommitも継続受信しているかを見る。 */
+export function jetstreamActivityPart(
+  record: HeartbeatRecord | undefined,
+  now = Date.now(),
+): HealthPart {
+  const raw = record?.detail?.lastEventAt;
+  const eventAt = typeof raw === "string" ? Date.parse(raw) : Number.NaN;
+  if (!Number.isFinite(eventAt)) {
+    return { name: "Jetstream events", state: "unknown" };
+  }
+
+  const age = now - eventAt;
+  const state: HealthState =
+    age <= JETSTREAM_FRESH_MS ? "ok" : age <= JETSTREAM_DOWN_MS ? "stale" : "down";
+  return {
+    name: "Jetstream events",
+    state,
+    lastOkAt: new Date(eventAt).toISOString(),
+    ...(state !== "ok" ? { lastError: "No recent commit events received" } : {}),
   };
 }
 
@@ -203,7 +333,11 @@ export async function buildHealthSnapshot(): Promise<HealthSnapshot> {
 
   const snapshot: HealthSnapshot = {
     checkedAt: new Date().toISOString(),
-    jetstream: tile([upstreamPart([bskyStream, nagiStream, appviewStream])]),
+    jetstream: tile([
+      upstreamPart([bskyStream, nagiStream, appviewStream]),
+      jetstreamActivityPart(get("jetstream-bsky")),
+      partFromProbe("PDS → Relay", repoRelayProbe),
+    ]),
     botServer: tile([
       servicePart("Bluesky botたん", get("bsky-bot"), get("jetstream-bsky")),
       servicePart("Nagi botたん", get("nagi-bot"), get("jetstream-nagi")),
@@ -224,7 +358,10 @@ export function getCachedHealthSnapshot(): HealthSnapshot | null {
 
 export function startHealthMonitor(): () => void {
   const runProbes = async () => {
-    localLlmProbe = await probeLocalLlm();
+    [localLlmProbe, repoRelayProbe] = await Promise.all([
+      probeLocalLlm(),
+      probeRepoRelay(),
+    ]);
     await buildHealthSnapshot();
   };
 

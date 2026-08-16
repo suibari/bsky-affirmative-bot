@@ -38,6 +38,7 @@ export function startBotJetstream({
   let reconnectTimer: NodeJS.Timeout | null = null;
   let stopped = false;
   let connected = false;
+  let lastEventAt: string | undefined;
 
   /**
    * 購読しているコレクションが静かでも「生きている」と言えるよう、受信イベント数
@@ -45,7 +46,15 @@ export function startBotJetstream({
    * な Nagi のコレクションでは正常なのに応答なしに見えてしまう。
    */
   const reportAlive = () => {
-    if (connected) onHealth?.({ ok: true, detail: { endpoint: endpoint ?? "(default)" } });
+    if (connected) {
+      onHealth?.({
+        ok: true,
+        detail: {
+          endpoint: endpoint ?? "(default)",
+          ...(lastEventAt ? { lastEventAt } : {}),
+        },
+      });
+    }
   };
 
   const connect = () => {
@@ -62,6 +71,12 @@ export function startBotJetstream({
     for (const [collection, callback] of Object.entries(onDelete)) {
       jetstream.onDelete(collection as any, callback as any);
     }
+
+    // WebSocket の open だけでは、Relay から commit が実際に流れている保証にはならない。
+    // 購読対象のいずれかを受信した時刻も記録し、外側の監視でデータ経路を判定できるようにする。
+    jetstream.on("commit", () => {
+      lastEventAt = new Date().toISOString();
+    });
 
     jetstream.on("open", () => {
       connected = true;

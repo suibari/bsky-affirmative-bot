@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { servicePart, upstreamPart, type HealthPart } from "../src/healthMonitor.js";
+import {
+  classifyRepoRelay,
+  jetstreamActivityPart,
+  servicePart,
+  upstreamPart,
+  type HealthPart,
+} from "../src/healthMonitor.js";
 
 const now = () => new Date().toISOString();
 
@@ -34,4 +40,32 @@ test("上流は1接続でも生きていればok、全接続断でdown", () => {
   const part = (state: HealthPart["state"]): HealthPart => ({ name: state, state });
   assert.equal(upstreamPart([part("down"), part("ok"), part("down")]).state, "ok");
   assert.equal(upstreamPart([part("down"), part("down"), part("down")]).state, "down");
+});
+
+test("WebSocketが開いていてもcommit受信が止まればJetstreamをdownにする", () => {
+  const current = Date.parse("2026-08-17T00:10:00.000Z");
+  assert.equal(
+    jetstreamActivityPart(
+      { detail: { lastEventAt: "2026-08-17T00:09:00.000Z" } },
+      current,
+    ).state,
+    "ok",
+  );
+  assert.equal(
+    jetstreamActivityPart(
+      { detail: { lastEventAt: "2026-08-17T00:04:00.000Z" } },
+      current,
+    ).state,
+    "down",
+  );
+});
+
+test("PDSとRelayの最新commitが一致しない場合はdown", () => {
+  const pds = { cid: "pds-cid", rev: "3m-pds" };
+  assert.equal(classifyRepoRelay(pds, pds, "active"), "ok");
+  assert.equal(
+    classifyRepoRelay(pds, { cid: "relay-cid", rev: "3m-relay" }, "active"),
+    "down",
+  );
+  assert.equal(classifyRepoRelay(pds, pds, "offline"), "down");
 });
