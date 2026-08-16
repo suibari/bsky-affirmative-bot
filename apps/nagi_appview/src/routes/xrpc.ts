@@ -269,16 +269,31 @@ xrpc.get(
   optionalServiceAuth(NAGI.getChannels),
   async (req, res, next) => {
     try {
+      const rawView = String(req.query.view ?? "trend");
+      const view = (["trend", "list", "mine"] as const).find(
+        (candidate) => candidate === rawView,
+      );
+      if (!view)
+        throw new ApiError(400, "invalid_request", "view is invalid");
+      if ((view === "list" || view === "mine") && !req.viewerDid)
+        throw new ApiError(
+          401,
+          "authentication_required",
+          "Authentication required",
+        );
       res
         .set(
           "Cache-Control",
-          req.viewerDid ? "private, no-store" : "public, max-age=15",
+          view === "list" || view === "mine" || req.viewerDid
+            ? "private, no-store"
+            : "public, max-age=15",
         )
         .json(
           await getChannels({
             limit: limit(req.query.limit),
             cursor: String(req.query.cursor ?? "") || undefined,
             viewerDid: req.viewerDid,
+            view,
           }),
         );
     } catch (e) {

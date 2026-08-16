@@ -7,6 +7,12 @@
       "parameters": {
         "type": "params",
         "properties": {
+          "view": {
+            "type": "string",
+            "knownValues": ["trend", "list", "mine"],
+            "default": "trend",
+            "description": "trend=過去5日以内に主・bot以外の投稿がある公開一覧 / list=認証ユーザーが参加中 / mine=認証ユーザーが作成"
+          },
           "limit": { "type": "integer", "minimum": 1, "maximum": 100, "default": 50 },
           "cursor": { "type": "string" }
         }

@@ -1,6 +1,12 @@
-import { db, nagiChannels, nagiPosts } from "@bsky-affirmative-bot/database";
+import {
+  db,
+  nagiChannels,
+  nagiChannelSubscriptions,
+  nagiPosts,
+} from "@bsky-affirmative-bot/database";
 import type { ChannelView } from "@bsky-affirmative-bot/nagi-lexicon";
-import { and, eq, isNull, notInArray, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, notInArray, sql } from "drizzle-orm";
+import { config } from "../config.js";
 import {
   fetchPostRows,
   getTimeline,
@@ -45,6 +51,47 @@ const lastPostSub = db
 /** ソートキー: COALESCE(最新投稿, epoch)。投稿のある CH ほど上位、無い CH は epoch で末尾。 */
 const sortAt = sql<Date>`coalesce(${lastPostSub.lastPostAt}, ${EPOCH}::timestamptz)`;
 
+export type ChannelDirectoryView = "trend" | "list" | "mine";
+
+/**
+ * 過去5日以内に、CH主でもbotたんでもない人の有効な投稿があればトレンド。
+ * 状態を保存せず投稿を真実源にするため、初投稿で即昇格し、最終投稿から5日後に自動で戻る。
+ * reply も取り込み時に channel_uri が非正規化されるため、CH内の会話として判定に含まれる。
+ */
+export const channelIsTrending = sql<boolean>`exists (
+  select 1
+  from nagi.posts as trend_post
+  where trend_post.channel_uri = "nagi"."channels"."uri"
+    and trend_post.deleted_at is null
+    and trend_post.did <> "nagi"."channels"."did"
+    and trend_post.did <> ${config.botDid}
+    and trend_post.record_created_at >= now() - interval '5 days'
+)`;
+
+export function channelDirectoryConditions(
+  view: ChannelDirectoryView,
+  viewerDid?: string,
+) {
+  if (view === "trend") return [channelIsTrending];
+  if (!viewerDid) return [sql`false`];
+  if (view === "mine") return [eq(nagiChannels.did, viewerDid)];
+  return [
+    inArray(
+      nagiChannels.uri,
+      db
+        .select({ uri: nagiChannelSubscriptions.channelUri })
+        .from(nagiChannelSubscriptions)
+        .where(eq(nagiChannelSubscriptions.ownerDid, viewerDid)),
+    ),
+  ];
+}
+
+export function prioritizeTrending<T extends { trending: boolean }>(
+  rows: T[],
+): T[] {
+  return [...rows].sort((a, b) => Number(b.trending) - Number(a.trending));
+}
+
 const encodeCursor = (sort: string, uri: string) =>
   Buffer.from(JSON.stringify([sort, uri])).toString("base64url");
 const decodeCursor = (cursor?: string): [string, string] | undefined => {
@@ -60,10 +107,19 @@ export async function getChannels(opts: {
   limit: number;
   cursor?: string;
   viewerDid?: string;
+  view?: ChannelDirectoryView;
 }) {
+  const view = opts.view ?? "trend";
+  // 本人向け一覧を認証なしで全件へフォールバックさせない。ルートでも400にするが、
+  // クエリ単体の呼び出しでも fail closed にしておく。
+  if ((view === "list" || view === "mine") && !opts.viewerDid)
+    return { channels: [], hasMore: false };
   const point = decodeCursor(opts.cursor);
   const mutes = await loadMutes(opts.viewerDid);
-  const filters: any[] = [isNull(nagiChannels.deletedAt)];
+  const filters: any[] = [
+    isNull(nagiChannels.deletedAt),
+    ...channelDirectoryConditions(view, opts.viewerDid),
+  ];
   // ミュートした CH は一覧に出さない（URL 直打ちの getChannel だけは通す）。
   if (mutes.channels.length)
     filters.push(notInArray(nagiChannels.uri, mutes.channels));
@@ -176,6 +232,7 @@ export async function searchChannels(opts: {
       recordCreatedAt: nagiChannels.recordCreatedAt,
       indexedAt: nagiChannels.indexedAt,
       lastPostAt: lastPostSub.lastPostAt,
+      trending: channelIsTrending,
       semDistance: conditions.distance,
     })
     .from(nagiChannels)
@@ -189,12 +246,18 @@ export async function searchChannels(opts: {
         conditions.match,
       ),
     )
-    .orderBy(conditions.orderBy, sql`${nagiChannels.uri} desc`)
+    .orderBy(
+      // semantic は relativeCut が距離順を前提にするため、足切り後にJS側でトレンドを上げる。
+      ...(semantic ? [] : [sql`${channelIsTrending} desc`]),
+      conditions.orderBy,
+      sql`${nagiChannels.uri} desc`,
+    )
     .limit(semantic ? SEMANTIC_LIMIT : opts.limit + 1)
     .offset(semantic ? 0 : offset);
-  const page = semantic
+  const relevant = semantic
     ? relativeCut(rows, (row) => Number(row.semDistance))
     : rows.slice(0, opts.limit);
+  const page = semantic ? prioritizeTrending(relevant) : relevant;
   const hasMore = !semantic && rows.length > opts.limit;
   return {
     channels: page.map(channelView),
@@ -238,6 +301,7 @@ export async function searchChannelsTypeahead(opts: {
       recordCreatedAt: nagiChannels.recordCreatedAt,
       indexedAt: nagiChannels.indexedAt,
       lastPostAt,
+      trending: channelIsTrending,
     })
     .from(nagiChannels)
     .where(
@@ -252,6 +316,7 @@ export async function searchChannelsTypeahead(opts: {
     .orderBy(
       sql`case when ${loweredName} = ${q} then 0 when position(${q} in ${loweredName}) = 1 then 1 else 2 end`,
       sql`position(${q} in ${loweredName})`,
+      sql`${channelIsTrending} desc`,
       // 出力列名で参照して相関サブクエリの二重評価を避ける。投稿ゼロの CH は末尾（一覧の
       // coalesce(..., EPOCH) と同じ並び）。
       sql`last_post_at desc nulls last`,
