@@ -245,6 +245,36 @@ export function jetstreamActivityPart(
   };
 }
 
+/**
+ * AppView が今どの Jetstream インスタンスを見ているか。
+ *
+ * 接続先は候補リストの中で自動的に切り替わるので、切り替わったこと自体に気づけないと
+ * 「繋がってはいるが本命が死んでいる」状態を見逃す。ホスト名と切替回数だけを出す。
+ */
+export function jetstreamEndpointPart(
+  record: HeartbeatRecord | undefined,
+): HealthPart {
+  const endpoint = record?.detail?.endpoint;
+  if (typeof endpoint !== "string") {
+    return { name: "AppView 接続先", state: "unknown" };
+  }
+  let host = endpoint;
+  try {
+    host = new URL(endpoint).host;
+  } catch {
+    // 解釈できない値はそのまま見せる。
+  }
+  const rotations = Number(record?.detail?.rotations ?? 0);
+  const rotated = Number.isFinite(rotations) && rotations > 0;
+  return {
+    name: `AppView 接続先: ${host}`,
+    // 切り替わった実績があるだけで異常とは限らないため、down にはしない。
+    state: rotated ? "stale" : "ok",
+    ...(record?.lastOkAt ? { lastOkAt: record.lastOkAt } : {}),
+    ...(rotated ? { lastError: `接続先を${rotations}回切り替えました` } : {}),
+  };
+}
+
 const tile = (parts: HealthPart[]): HealthTileStatus => ({
   state: worstState(parts.map((part) => part.state)),
   parts,
@@ -336,6 +366,7 @@ export async function buildHealthSnapshot(): Promise<HealthSnapshot> {
     jetstream: tile([
       upstreamPart([bskyStream, nagiStream, appviewStream]),
       jetstreamActivityPart(get("jetstream-bsky")),
+      jetstreamEndpointPart(get("jetstream-appview")),
       partFromProbe("PDS → Relay", repoRelayProbe),
     ]),
     botServer: tile([

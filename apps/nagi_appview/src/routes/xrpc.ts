@@ -149,17 +149,22 @@ xrpc.post(
           "Collection is not supported",
         );
 
-      const current = await ensurePdsRecord(did, collection, rkey);
-      if (current.uri !== uri)
+      const ensured = await ensurePdsRecord(did, collection, rkey);
+      if (ensured.status === "present" && ensured.record.uri !== uri)
         throw new ApiError(
           409,
           "invalid_record",
           "PDS returned a different record URI",
         );
       prioritizeReconcile(did);
-      res
-        .set("Cache-Control", "private, no-store")
-        .json({ uri: current.uri, cid: current.cid, indexed: true });
+      // 削除直後の呼び出しでは PDS にレコードが無い。AppView 側は削除を適用済みなので
+      // 「PDS と一致した」意味で indexed を返し、cid は入力値をそのまま返す
+      // （lexicon が cid 必須のため。スキーマを変えず削除も同じ経路で扱えるようにする）。
+      res.set("Cache-Control", "private, no-store").json({
+        uri,
+        cid: ensured.status === "present" ? ensured.record.cid : expectedCid,
+        indexed: true,
+      });
     } catch (e) {
       next(e);
     }

@@ -17,6 +17,44 @@ let nextSweepAt = Number.POSITIVE_INFINITY;
 let timer: NodeJS.Timeout | undefined;
 let stopped = true;
 let activeTick: Promise<void> | undefined;
+let degraded = false;
+
+const sweepIntervalMs = () =>
+  (degraded
+    ? config.reconcileDegradedIntervalMinutes
+    : config.reconcileIntervalMinutes) * 60_000;
+
+const concurrency = () =>
+  degraded
+    ? Math.min(8, config.reconcileConcurrency * 2)
+    : config.reconcileConcurrency;
+
+/**
+ * Jetstream が繋がらない間だけ、PDS 直読みの巡回を主経路に切り替える。
+ *
+ * 通常時の 6 時間巡回は「取りこぼしの最終保険」なので、firehose が死んでいる間は
+ * それだと遅すぎる。degraded 中は間隔を詰め、並列度を上げ、直近アクティブな
+ * リポジトリから先に見る。
+ */
+export function setIngestDegraded(next: boolean): void {
+  if (degraded === next) return;
+  degraded = next;
+  console.warn("[WARN][reconcile] Ingest degraded state changed", {
+    degraded,
+    intervalMinutes: degraded
+      ? config.reconcileDegradedIntervalMinutes
+      : config.reconcileIntervalMinutes,
+  });
+  if (stopped) return;
+  if (degraded) {
+    // 切り替わった瞬間に一周させ、firehose が落ちている間の穴を最短で埋める。
+    fullQueue = [];
+    nextSweepAt = Date.now();
+    scheduleTick();
+  } else {
+    nextSweepAt = Date.now() + sweepIntervalMs();
+  }
+}
 
 const shuffle = <T>(values: T[]): T[] => {
   for (let i = values.length - 1; i > 0; i--) {
@@ -48,6 +86,30 @@ export async function listReconcileDids(): Promise<string[]> {
   return [...new Set(rows.map((row) => row.did))];
 }
 
+/**
+ * 直近に書き込みのあったリポジトリから順に並べる。degraded 中は一周が遅れるほど
+ * 取りこぼしが表に出るので、動いている人を先に拾う。活動履歴の無い DID も末尾に残す。
+ */
+async function listActiveFirstDids(): Promise<string[]> {
+  const rows = (await db.execute(sql`
+    select did, max(at) as last_at from (
+      select did, max(indexed_at) as at from nagi.posts group by did
+      union all select did, max(indexed_at) as at from nagi.reactions group by did
+      union all select did, max(indexed_at) as at from nagi.channels group by did
+    ) activity
+    where did is not null and did <> ''
+    group by did
+    order by last_at desc
+  `)) as unknown as Array<{ did: string }>;
+  const ordered = rows.map((row) => row.did);
+  const seen = new Set(ordered);
+  // 活動テーブルに出てこない DID（プロフィールだけの人・bot など）も必ず巡回対象に含める。
+  for (const did of await listReconcileDids()) {
+    if (!seen.has(did)) ordered.push(did);
+  }
+  return ordered;
+}
+
 async function runDid(did: string): Promise<void> {
   try {
     await reconcileRepo(did);
@@ -77,10 +139,13 @@ async function tick(): Promise<void> {
   const now = Date.now();
   if (now >= nextSweepAt && fullQueue.length === 0) {
     try {
-      fullQueue = shuffle(await listReconcileDids());
-      nextSweepAt = now + config.reconcileIntervalMinutes * 60_000;
+      fullQueue = degraded
+        ? await listActiveFirstDids()
+        : shuffle(await listReconcileDids());
+      nextSweepAt = now + sweepIntervalMs();
       console.log("[INFO][reconcile] Full sweep queued", {
         repositories: fullQueue.length,
+        degraded,
       });
     } catch (error) {
       console.error(
@@ -99,7 +164,7 @@ async function tick(): Promise<void> {
     (did) => now - (lastSuccess.get(did) ?? 0) >= PRIORITY_THROTTLE_MS,
   );
 
-  while (inFlight.size < config.reconcileConcurrency) {
+  while (inFlight.size < concurrency()) {
     const did =
       retryReady.shift() ?? priorityReady.shift() ?? fullQueue.shift();
     if (!did) break;

@@ -58,12 +58,16 @@ export async function requestNewsReview(
 ) {
   const parsed = validateNewsReviewSubject(viewerDid, subject);
 
-  let current: Awaited<ReturnType<typeof ensurePdsRecord>>;
+  let ensured: Awaited<ReturnType<typeof ensurePdsRecord>>;
   try {
-    current = await ensurePdsRecord(parsed.did, parsed.collection, parsed.rkey);
+    ensured = await ensurePdsRecord(parsed.did, parsed.collection, parsed.rkey);
   } catch {
     throw new ApiError(409, "invalid_record", "News record could not be verified on the PDS");
   }
+  // 審査依頼はレコードが実在することが前提なので、PDS に無ければ従来どおり弾く。
+  if (ensured.status !== "present")
+    throw new ApiError(409, "invalid_record", "News record could not be verified on the PDS");
+  const current = ensured.record;
   if (current.uri !== subject.uri || current.cid !== subject.cid)
     throw new ApiError(409, "invalid_record", "News record CID does not match");
 

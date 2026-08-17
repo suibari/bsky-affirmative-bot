@@ -293,24 +293,48 @@ async function applyCurrentRecord(
   });
 }
 
+/**
+ * PDS の現在状態に AppView を合わせる。書き込み直後にクライアントから叩かれる経路で、
+ * firehose を待たずに反映するために使う。
+ *
+ * 作成・更新だけでなく削除も扱えるよう、PDS にレコードが無い場合は例外にせず
+ * `absent` を返して削除を適用する。firehose が死んでいる間、Nagi クライアント発の
+ * 操作がこの経路だけで完結できるようにするため。
+ */
+export type EnsureResult =
+  | { status: "present"; record: RepoRecord }
+  | { status: "absent" };
+
 export async function ensurePdsRecord(
   did: string,
   collection: string,
   rkey: string,
-): Promise<RepoRecord> {
+): Promise<EnsureResult> {
   if (!isReconcilableCollection(did, collection)) {
     throw new Error("Unsupported collection");
   }
   const pds = await resolvePdsUrl(did);
   return withDidLock(did, async () => {
-    const current = await getRecord(pds, did, collection, rkey);
+    let current: RepoRecord;
+    try {
+      current = await getRecord(pds, did, collection, rkey);
+    } catch (error) {
+      if (!(error instanceof RecordNotFound)) throw error;
+      await applyMutation(
+        eventFor(did, collection, "delete", {
+          uri: `at://${did}/${collection}/${rkey}`,
+        }),
+        { emitPush: true },
+      );
+      return { status: "absent" };
+    }
     if (!validateRecord(collection, current.value)) {
       throw new Error("Record failed validation");
     }
     await applyMutation(eventFor(did, collection, "update", current), {
       emitPush: true,
     });
-    return current;
+    return { status: "present", record: current };
   });
 }
 

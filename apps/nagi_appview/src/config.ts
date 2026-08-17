@@ -1,5 +1,6 @@
 import { aiModel } from "@bsky-affirmative-bot/shared-configs";
 import { parseClientOrigins } from "./clientOrigins.js";
+import { parseJetstreamUrls } from "./jetstreamUrls.js";
 const required = (name: string, fallback?: string) => {
   const value = process.env[name] ?? fallback;
   if (!value) throw new Error(`Missing required environment variable: ${name}`);
@@ -80,7 +81,25 @@ export const config = {
   // 解決され 127.0.0.1(IPv4) が拒否されるときは NAGI_HOST=127.0.0.1 等で明示する（dev 用）。
   host: process.env.NAGI_HOST,
   databaseUrl: required("DATABASE_URL", "postgres://postgres@localhost:5432/postgres"),
-  jetstreamUrl: required("URL_JETSTREAM", "wss://jetstream2.us-east.bsky.network/subscribe"),
+  // 接続先はカンマ区切りで複数指定でき、失敗が続いたら次の候補へローテートする。
+  //
+  // bot とは別の変数で持つ。全プロセスが同じ .env を読むため URL_JETSTREAM を共有すると
+  // AppView も自作 proxy を向いてしまうが、proxy はクライアントの cursor を上流へ渡さない
+  // （自身の最終転送位置からしか巻き戻せない）ので、AppView が長く落ちたときの取りこぼしを
+  // カーソルで埋め戻せなくなる。カーソル再開が生命線の AppView は公式 Jetstream を直接見る。
+  // 購読は Nagi の数コレクションだけなので、直接繋いでも帯域は小さい。
+  jetstreamUrls: parseJetstreamUrls(
+    required(
+      "URL_JETSTREAM_APPVIEW",
+      [
+        "wss://jetstream1.us-east.bsky.network/subscribe",
+        "wss://jetstream2.us-east.bsky.network/subscribe",
+        "wss://jetstream1.us-west.bsky.network/subscribe",
+        "wss://jetstream2.us-west.bsky.network/subscribe",
+      ].join(","),
+    ),
+    "URL_JETSTREAM_APPVIEW",
+  ),
   jetstreamReplaySeconds: integer(
     "NAGI_JETSTREAM_REPLAY_SECONDS",
     60,
@@ -92,6 +111,14 @@ export const config = {
     360,
     15,
     10_080,
+  ),
+  // Jetstream が繋がらない間だけ使う短い巡回間隔。firehose の代わりに PDS を直接舐めて
+  // 追従するため、復旧までの取りこぼしが reconcile 一周分で収まるようにする。
+  reconcileDegradedIntervalMinutes: integer(
+    "NAGI_RECONCILE_DEGRADED_INTERVAL_MINUTES",
+    10,
+    1,
+    360,
   ),
   reconcileConcurrency: integer("NAGI_RECONCILE_CONCURRENCY", 2, 1, 8),
   appviewDid: did("NAGI_APPVIEW_DID", "did:web:nagi-api.suibari.com"),
