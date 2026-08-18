@@ -50,6 +50,10 @@ import {
 } from "../queries/privateList.js";
 import { getPreferences, putPreferences } from "../queries/preferences.js";
 import {
+  createKossoriPost,
+  deleteKossoriPost,
+} from "../queries/kossoriPosts.js";
+import {
   deleteBookmark,
   deleteBookmarkFolder,
   getBookmarkFolders,
@@ -121,6 +125,38 @@ xrpc.get(
         group: true,
       });
       res.set("Cache-Control", "private, no-store").json(data);
+    } catch (e) {
+      next(e);
+    }
+  },
+);
+
+// こっそり投稿は PDS レコードにせず AppView だけが持つので、com.atproto.repo.createRecord
+// ではなくここを通す。ミュートや非公開リストと同じ「他人に見せてはならないデータ」の扱い。
+xrpc.post(
+  `/${NAGI.createKossoriPost}`,
+  requiredServiceAuth(NAGI.createKossoriPost),
+  async (req, res, next) => {
+    try {
+      const created = await createKossoriPost(req.viewerDid!, req.body ?? {});
+      res.set("Cache-Control", "private, no-store").json(created);
+    } catch (e) {
+      next(e);
+    }
+  },
+);
+
+xrpc.post(
+  `/${NAGI.deleteKossoriPost}`,
+  requiredServiceAuth(NAGI.deleteKossoriPost),
+  async (req, res, next) => {
+    try {
+      const uri = req.body?.uri;
+      if (typeof uri !== "string")
+        throw new ApiError(400, "invalid_request", "uri is required");
+      res
+        .set("Cache-Control", "private, no-store")
+        .json(await deleteKossoriPost(req.viewerDid!, uri));
     } catch (e) {
       next(e);
     }
@@ -505,24 +541,37 @@ xrpc.get(
     }
   },
 );
-// 日記は公開コンテンツ（Bluesky 側が公開リプライなのと同じ）なので認証不要。
-// ここを認証必須にすると OAuth スコープの追加＝既存ユーザーの再同意が必要になる。
-xrpc.get(`/${NAGI.getDiaries}`, async (req, res, next) => {
-  try {
-    res.set("Cache-Control", "public, max-age=60").json(
-      await getDiaries({
-        actor: String(req.query.actor ?? ""),
-        month: String(req.query.month ?? "") || undefined,
-        from: String(req.query.from ?? "") || undefined,
-        to: String(req.query.to ?? "") || undefined,
-        limit: limit(req.query.limit),
-        cursor: String(req.query.cursor ?? "") || undefined,
-      }),
-    );
-  } catch (e) {
-    next(e);
-  }
-});
+// 日記は基本的に公開コンテンツ（Bluesky 側が公開リプライなのと同じ）なので認証は任意。
+// ただしこっそり投稿を含む日の日記は本人にしか本文を返さないので、居るなら viewerDid を
+// 使う。必須にはしない: 未認証でも日付と件数（＝コミットグラフ）は従来どおり見せたいのと、
+// permission set の反映には最大24hかかるため、その間も 401 にせず伏せる側へ倒す。
+xrpc.get(
+  `/${NAGI.getDiaries}`,
+  optionalServiceAuth(NAGI.getDiaries),
+  async (req, res, next) => {
+    try {
+      res
+        .set(
+          "Cache-Control",
+          // viewer 依存の出し分けが入るので、認証付きの応答は共有キャッシュに載せない。
+          req.viewerDid ? "private, no-store" : "public, max-age=60",
+        )
+        .json(
+          await getDiaries({
+            actor: String(req.query.actor ?? ""),
+            month: String(req.query.month ?? "") || undefined,
+            from: String(req.query.from ?? "") || undefined,
+            to: String(req.query.to ?? "") || undefined,
+            limit: limit(req.query.limit),
+            cursor: String(req.query.cursor ?? "") || undefined,
+            viewerDid: req.viewerDid,
+          }),
+        );
+    } catch (e) {
+      next(e);
+    }
+  },
+);
 xrpc.get(
   `/${NAGI.getPositiveNews}`,
   optionalServiceAuth(NAGI.getPositiveNews),

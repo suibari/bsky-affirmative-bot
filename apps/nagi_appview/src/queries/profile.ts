@@ -194,13 +194,34 @@ export async function getReactedFeed(opts: {
           and(inArray(nagiPosts.uri, subjectUris), isNull(nagiPosts.deletedAt)),
         )
     : [];
+  // こっそり投稿へのリアクション。「みんなで全肯定」の匿名要約から押せるので、他人の
+  // こっそり投稿がここに並ぶことがある。本文も作者も辿らせないが、黙って落とすと
+  // 「押したはずのものが無い」になるため、時系列の位置は保ったままプレースホルダにする。
+  // 判定を kossori 列で行うので、URI が不透明化される前に押された既存のリアクションも
+  // まとめて伏せられる（バックフィル不要）。
+  const hiddenKossoriUris = new Set(
+    postRows
+      .filter(({ post }) => post.kossori && post.did !== opts.viewerDid)
+      .map(({ post }) => post.uri),
+  );
   const [postItems, newsByUri, botActor] = await Promise.all([
-    buildFeedItems(postRows, opts.viewerDid),
+    buildFeedItems(
+      postRows.filter(({ post }) => !hiddenKossoriUris.has(post.uri)),
+      opts.viewerDid,
+    ),
     getApprovedNewsViews(subjectUris, opts.lang, opts.viewerDid),
     getBotActor(),
   ]);
   const postByUri = new Map(postItems.map((item) => [item.uri, item]));
   const items = page.flatMap<ProfileFeedItem>((row) => {
+    if (hiddenKossoriUris.has(row.subjectUri))
+      return [
+        {
+          kind: "kossori" as const,
+          reactionUri: row.reactionUri,
+          reactedAt: row.reactionIndexedAt.toISOString(),
+        },
+      ];
     const post = postByUri.get(row.subjectUri);
     if (post) return [post];
     const news = newsByUri.get(row.subjectUri);

@@ -68,7 +68,10 @@
             "com.suibari.nagi.drawCard",
             "com.suibari.nagi.createSsoTicket",
             "com.suibari.nagi.getPreferences",
-            "com.suibari.nagi.putPreferences"
+            "com.suibari.nagi.putPreferences",
+            "com.suibari.nagi.getDiaries",
+            "com.suibari.nagi.createKossoriPost",
+            "com.suibari.nagi.deleteKossoriPost"
           ]
         }
       ]

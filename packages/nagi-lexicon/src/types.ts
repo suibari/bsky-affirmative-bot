@@ -248,6 +248,11 @@ export type DiaryView = {
   titleJa?: string;
   titleEn?: string;
   postCount?: number;
+  /**
+   * その日の材料にこっそり投稿が含まれる日記。本人以外には text / titleJa / titleEn /
+   * involvedActors を伏せて返す（date と postCount は返すのでコミットグラフには出る）。
+   */
+  isPrivate?: boolean;
   /** その日のリアクション・返信・引用で、本人から多く関わった相手（最大10人）。 */
   involvedActors?: ActorView[];
   /** 11人目以降の関わった相手がいる。 */
@@ -407,7 +412,21 @@ export type ProfileDetail = ActorView & {
   cardUpdatedAt?: string;
 };
 export type ProfileNewsReactionItem = { kind: "news"; news: NewsView };
-export type ProfileFeedItem = FeedItem | ProfileNewsReactionItem;
+/**
+ * こっそり投稿に対するリアクション。作者も本文も辿れないので、リアクションタブでは
+ * 中身の代わりにこれを返す。黙って落とすと「押したはずのものが無い」になるため、
+ * 件数と時系列の位置は保ったままプレースホルダとして描画する。
+ */
+export type ProfileKossoriReactionItem = {
+  kind: "kossori";
+  /** リアクションの識別用。ページングとキー付けにだけ使う。 */
+  reactionUri: string;
+  reactedAt: string;
+};
+export type ProfileFeedItem =
+  | FeedItem
+  | ProfileNewsReactionItem
+  | ProfileKossoriReactionItem;
 export type ProfilePage = {
   profile: ProfileDetail;
   feed: Page<ProfileFeedItem>;

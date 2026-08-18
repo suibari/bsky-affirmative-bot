@@ -48,11 +48,12 @@ test("diary view exposes activity and involved actors without legacy emoji", () 
     titleJa: null,
     titleEn: null,
     langs: null,
+    isPrivate: false,
     recordCreatedAt: new Date("2026-08-02T13:00:00.000Z"),
     indexedAt: new Date("2026-08-02T13:00:01.000Z"),
   };
 
-  assert.deepEqual(diaryView({ ...base, emoji: null, postCount: null }), {
+  assert.deepEqual(diaryView({ ...base, emoji: null, postCount: null }, undefined), {
     uri: base.uri,
     cid: base.cid,
     subject: base.subjectDid,
@@ -61,6 +62,7 @@ test("diary view exposes activity and involved actors without legacy emoji", () 
     titleJa: undefined,
     titleEn: undefined,
     postCount: undefined,
+    isPrivate: undefined,
     involvedActors: undefined,
     involvedActorsHasMore: undefined,
     langs: undefined,
@@ -69,12 +71,55 @@ test("diary view exposes activity and involved actors without legacy emoji", () 
   });
 
   const involved = [{ did: "did:plc:bob", handle: "bob.test" }];
-  const view = diaryView({ ...base, emoji: "🍜🚃🎸", postCount: 4 }, involved);
+  const view = diaryView({ ...base, emoji: "🍜🚃🎸", postCount: 4 }, undefined, involved);
   assert.equal(view.postCount, 4);
   assert.deepEqual(view.involvedActors, involved);
   assert.equal(view.involvedActorsHasMore, undefined);
-  assert.equal(diaryView({ ...base, emoji: null, postCount: 4 }, involved, true).involvedActorsHasMore, true);
+  assert.equal(
+    diaryView({ ...base, emoji: null, postCount: 4 }, undefined, involved, true).involvedActorsHasMore,
+    true,
+  );
   assert.equal("emoji" in view, false);
+});
+
+test("private diaries keep the graph cell but hide the body from everyone else", () => {
+  const row = {
+    uri: "at://did:web:nagi-api.suibari.com/com.suibari.nagi.diary/alice-2026-08-02",
+    cid: "bafyreidiary",
+    did: "did:plc:bot",
+    subjectDid: "did:plc:alice",
+    diaryDate: "2026-08-02",
+    text: "こっそりを含む日の日記",
+    titleJa: "今日の称号",
+    titleEn: "title",
+    emoji: null,
+    postCount: 4,
+    isPrivate: true,
+    langs: ["ja"],
+    recordCreatedAt: new Date("2026-08-02T13:00:00.000Z"),
+    indexedAt: new Date("2026-08-02T13:00:01.000Z"),
+  };
+  const involved = [{ did: "did:plc:bob", handle: "bob.test" }];
+
+  // 本人。中身は普通に読める。
+  const mine = diaryView(row, "did:plc:alice", involved);
+  assert.equal(mine.text, row.text);
+  assert.equal(mine.titleJa, "今日の称号");
+  assert.deepEqual(mine.involvedActors, involved);
+  assert.equal(mine.isPrivate, true);
+
+  // 他人と未認証。日付と件数だけ（コミットグラフの濃淡は出したいので postCount は残す）。
+  for (const viewer of ["did:plc:bob", undefined]) {
+    const hidden = diaryView(row, viewer, involved, true);
+    assert.equal(hidden.isPrivate, true);
+    assert.equal(hidden.date, row.diaryDate);
+    assert.equal(hidden.postCount, 4);
+    assert.equal(hidden.text, "");
+    assert.equal(hidden.titleJa, undefined);
+    assert.equal(hidden.titleEn, undefined);
+    assert.equal(hidden.involvedActors, undefined);
+    assert.equal(hidden.involvedActorsHasMore, undefined);
+  }
 });
 
 test("accepts at most 371 inclusive days for the annual diary graph", () => {
@@ -95,6 +140,7 @@ test("uses the same local 22:00 cutoff as Japanese diary generation", () => {
     titleEn: null,
     emoji: null,
     postCount: 1,
+    isPrivate: false,
     langs: ["ja"],
     recordCreatedAt: new Date("2026-08-02T13:00:00.000Z"),
     indexedAt: new Date("2026-08-02T13:00:01.000Z"),

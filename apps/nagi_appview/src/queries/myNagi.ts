@@ -4,7 +4,7 @@ import {
   nagiPosts,
 } from "@bsky-affirmative-bot/database";
 import type { MyNagiView } from "@bsky-affirmative-bot/nagi-lexicon";
-import { and, inArray, isNull, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import {
   buildConversationItems,
   fetchPostRows,
@@ -91,8 +91,10 @@ async function latestPerChannel(
   mutes: Awaited<ReturnType<typeof loadMutes>>,
 ): Promise<MyNagiView["channels"]> {
   if (!channelUris.length) return [];
-  // CH の中では kossori も CH 限定も見える（getChannelTimeline と同じ扱い）。
-  // ただし返信は代表に向かないので、トップレベルだけを拾う。
+  // CH の中では CH 限定も見える（getChannelTimeline と同じ扱い）。こっそりだけは
+  // 本人以外に一切見せないので CH の中でも落とす。新方式のこっそりは CH に所属できないが、
+  // 旧データには CH 付きのこっそりが残りうる。
+  // 返信は代表に向かないので、トップレベルだけを拾う。
   const rows = await db
     .selectDistinctOn([nagiPosts.channelUri], {
       uri: nagiPosts.uri,
@@ -104,6 +106,7 @@ async function latestPerChannel(
         isNull(nagiPosts.deletedAt),
         isNull(nagiPosts.replyParentUri),
         inArray(nagiPosts.channelUri, channelUris),
+        or(eq(nagiPosts.did, viewerDid), eq(nagiPosts.kossori, false))!,
         ...muteVisibility(mutes, { actors: true, channels: false }),
       ),
     )

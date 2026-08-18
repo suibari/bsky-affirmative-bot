@@ -343,6 +343,8 @@ export function validateRecord(
           Buffer.byteLength(value.emoji) <= 192)) &&
       (value.postCount === undefined ||
         (Number.isInteger(value.postCount) && value.postCount > 0)) &&
+      (value.isPrivate === undefined ||
+        typeof value.isPrivate === "boolean") &&
       (value.langs === undefined ||
         (Array.isArray(value.langs) &&
           value.langs.length <= 4 &&

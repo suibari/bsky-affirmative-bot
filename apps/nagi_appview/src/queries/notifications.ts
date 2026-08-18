@@ -90,7 +90,10 @@ export async function getNotifications(did: string, limit: number) {
       ),
     ),
   ]);
-  const diaryByUri = new Map(diaryRows.map((row) => [row.uri, diaryView(row)]));
+  // 日記の通知先は日記の subject 本人なので実質いつも読めるが、経路を分けずに同じ判定を通す。
+  const diaryByUri = new Map(
+    diaryRows.map((row) => [row.uri, diaryView(row, did)]),
+  );
   const posts = await hydratePostViews(postRows, did);
   const postByUri = new Map(posts.map((post) => [post.uri, post]));
   // リアクション通知の reasonUri はリアクションレコードの URI。押された絵文字は

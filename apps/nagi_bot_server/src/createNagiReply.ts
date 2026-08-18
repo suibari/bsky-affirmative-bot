@@ -15,12 +15,17 @@ import {
   configureBotContext,
   getBotContext,
 } from "@bsky-affirmative-bot/bot-runtime";
-import { NAGI, NAGI_LANGUAGES } from "@bsky-affirmative-bot/nagi-lexicon";
+import {
+  NAGI,
+  NAGI_LANGUAGES,
+  isAppviewOwnedUri,
+} from "@bsky-affirmative-bot/nagi-lexicon";
 import {
   buildNagiConversationHistory,
   type ConversationTurn,
 } from "./nagiConversationHistory.js";
-import { isReplyToBot } from "./NagiReplyFeature.js";
+import { createKossoriReply } from "./appviewInternal.js";
+import { isKossoriReplyToBot, isReplyToBot } from "./NagiReplyFeature.js";
 import {
   buildNagiReplyContext,
   loadNagiReplyAuthor,
@@ -166,7 +171,10 @@ export async function createNagiReply(
 ) {
   const record: any = job.recordJson;
   const language = replyLanguage(record.langs);
-  const conversationMode = isReplyToBot(record, process.env.NAGI_BOT_DID!);
+  // こっそりは URI から書き手を辿れないので、親の did を DB で引く版を使う。
+  const conversationMode = isAppviewOwnedUri(job.sourceUri)
+    ? await isKossoriReplyToBot(record, process.env.NAGI_BOT_DID!)
+    : isReplyToBot(record, process.env.NAGI_BOT_DID!);
   let generated: { comment: string; score?: number };
 
   if (options.mode === "template") {
@@ -228,6 +236,34 @@ export async function createNagiReply(
     cid: job.sourceCid,
   };
 
+  const replyRef = {
+    root,
+    parent: {
+      uri: job.sourceUri,
+      cid: job.sourceCid,
+    },
+  };
+
+  // こっそりスレッドの返信だけは PDS へ書かない。書くと返信本文が botたんの公開
+  // リポジトリから誰でも読めてしまい、親のこっそり投稿を隠した意味が無くなる。
+  // rkey は PDS 側の putRecord と同じくソース由来で決め打ちし、ジョブのリトライで
+  // 二重投稿にならないようにする（親と同じ authority なので接尾辞で衝突を避ける）。
+  if (isAppviewOwnedUri(job.sourceUri)) {
+    const created = await createKossoriReply({
+      text: generated.comment,
+      langs: [language.code],
+      reply: replyRef,
+      rkey: `${sourceRkey}-bot`,
+    });
+    return {
+      uri: created.uri,
+      score:
+        generated.score === undefined
+          ? undefined
+          : Math.max(0, Math.min(100, Math.round(generated.score))),
+    };
+  }
+
   const response = await publishNagiPost({
     text: generated.comment,
     label: "NAGI_REPLY",
@@ -236,13 +272,7 @@ export async function createNagiReply(
     // 所属チャンネルもこっそりと同じくスレッドルートだけが所有する。返信レコードへは
     // 複製せず、AppView が reply.root から channel_uri を解決して CH TL に並べる
     // （複製すると、返信単位で所属や公開範囲を持てるように見えてしまう）。
-    reply: {
-      root,
-      parent: {
-        uri: job.sourceUri,
-        cid: job.sourceCid,
-      },
-    },
+    reply: replyRef,
   });
 
   return {

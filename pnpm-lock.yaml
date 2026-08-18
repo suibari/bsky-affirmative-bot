@@ -258,6 +258,9 @@ importers:
 
   apps/nagi_appview:
     dependencies:
+      '@atproto/common':
+        specifier: ^0.7.2
+        version: 0.7.2
       '@atproto/identity':
         specifier: ^0.4.8
         version: 0.4.12

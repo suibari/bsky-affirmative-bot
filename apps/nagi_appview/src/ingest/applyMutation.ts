@@ -16,7 +16,11 @@ import {
   nagiReactions,
   nagiTranslations,
 } from "@bsky-affirmative-bot/database";
-import { BLUEMOJI_ITEM, NAGI } from "@bsky-affirmative-bot/nagi-lexicon";
+import {
+  BLUEMOJI_ITEM,
+  NAGI,
+  appviewRecordUri,
+} from "@bsky-affirmative-bot/nagi-lexicon";
 import { and, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { config } from "../config.js";
 import { indexEmoji, resolveEmoji, type EmojiRow } from "../services/emoji.js";
@@ -86,6 +90,17 @@ export type ApplyMutationOptions = {
   trackJetstream?: boolean;
   emitPush?: boolean;
   reconcile?: boolean;
+  /**
+   * PDS に正本を持たない、AppView 発行のレコードとして取り込む。こっそり投稿とその
+   * botたん返信、プライベート日記だけがこれに当たる。
+   *
+   * URI の authority が著者ではなく AppView の DID になる（著者 DID を URI に出さないため。
+   * 「みんなで全肯定」の匿名要約や、それに付いた他人のリアクションレコードから著者を
+   * 辿れなくする）。行の did は従来どおり著者のまま。
+   *
+   * firehose 経路からは絶対に立たない。内部の XRPC 手続きと internal ルーターだけが渡す。
+   */
+  appviewOnly?: boolean;
 };
 
 export async function applyMutation(
@@ -94,6 +109,7 @@ export async function applyMutation(
     trackJetstream = false,
     emitPush = false,
     reconcile = false,
+    appviewOnly = false,
   }: ApplyMutationOptions = {},
 ): Promise<{ cursorAdvanced: boolean }> {
   const commit = evt.commit;
@@ -115,7 +131,11 @@ export async function applyMutation(
   // 日記を書けるのは botたんだけ。他人が他人の日記を捏造できないようにする。
   if (collection === NAGI.diary && did !== config.botDid)
     return { cursorAdvanced: false };
-  const uri = `at://${did}/${collection}/${commit.rkey}`;
+  // AppView 発行のレコードは authority を AppView の DID にして、URI から著者を辿れなくする。
+  // 行の did（＝著者）は分けて持つので、プロフィールや通知の宛先解決はこれまでどおり効く。
+  const uri = appviewOnly
+    ? appviewRecordUri(collection, commit.rkey)
+    : `at://${did}/${collection}/${commit.rkey}`;
   if (
     collection === NAGI.post &&
     commit.operation !== "delete" &&
@@ -373,6 +393,7 @@ export async function applyMutation(
             kossori: value.kossori === true,
             channelUri,
             channelOnly: value.channelOnly === true,
+            appviewOnly,
             repoRev: commit.rev,
             recordCreatedAt: createdAt,
             ...(reconciledPostIndexedAt
@@ -404,6 +425,7 @@ export async function applyMutation(
               kossori: value.kossori === true,
               channelUri,
               channelOnly: value.channelOnly === true,
+              appviewOnly,
               repoRev: commit.rev,
               recordCreatedAt: createdAt,
               // cid 変化を観測した編集で true。cid 不変の再処理ではフラグを戻さない（単調）。
@@ -704,6 +726,9 @@ export async function applyMutation(
               titleEn: value.titleEn ?? null,
               emoji: value.emoji ?? null,
               postCount: value.postCount ?? null,
+              // その日の材料にこっそり投稿が混ざる日記。PDS には書かれないので、この値が
+              // true で届くのは internal ルーター経由（appviewOnly）のときだけ。
+              isPrivate: value.isPrivate === true,
               langs: value.langs ?? null,
               recordCreatedAt: createdAt,
             })

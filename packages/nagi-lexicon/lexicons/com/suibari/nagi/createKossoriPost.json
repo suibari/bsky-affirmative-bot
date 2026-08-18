@@ -1,0 +1,52 @@
+{
+  "lexicon": 1,
+  "id": "com.suibari.nagi.createKossoriPost",
+  "defs": {
+    "main": {
+      "type": "procedure",
+      "description": "こっそり投稿を作成する。本文は PDS レコードにせず AppView にのみ保存し、著者本人と botたん以外には返さない。URI は著者 DID を含まない AppView 発行の不透明なものになる。画像・リンクカード・チャンネル所属は扱わない。",
+      "input": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "required": ["text", "createdAt"],
+          "properties": {
+            "text": { "type": "string", "maxGraphemes": 3000, "maxLength": 30000 },
+            "facets": {
+              "type": "array",
+              "items": { "type": "ref", "ref": "app.bsky.richtext.facet" }
+            },
+            "langs": {
+              "type": "array",
+              "maxLength": 3,
+              "items": { "type": "string", "format": "language" }
+            },
+            "createdAt": { "type": "string", "format": "datetime" },
+            "botSilent": { "type": "boolean" },
+            "reply": {
+              "type": "ref",
+              "ref": "com.suibari.nagi.post#replyRef",
+              "description": "こっそりスレッドへの返信。ルートが自分のこっそり投稿でなければ拒否される。"
+            }
+          }
+        }
+      },
+      "output": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "required": ["uri", "cid"],
+          "properties": {
+            "uri": { "type": "string", "format": "at-uri" },
+            "cid": { "type": "string", "format": "cid" }
+          }
+        }
+      },
+      "errors": [
+        { "name": "AuthRequired" },
+        { "name": "InvalidRequest" },
+        { "name": "ReplyNotAllowed", "description": "他人のこっそりスレッドには返信できない。" }
+      ]
+    }
+  }
+}

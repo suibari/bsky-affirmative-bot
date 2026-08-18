@@ -104,6 +104,13 @@ export const NAGI = {
    */
   getPreferences: "com.suibari.nagi.getPreferences",
   putPreferences: "com.suibari.nagi.putPreferences",
+  /**
+   * こっそり投稿の作成・削除。ミュートや非公開リストと同じく「他人に見せてはならないので
+   * PDS レコードにせず AppView だけが持つ」データなので、com.atproto.repo.createRecord では
+   * なくこの手続きを通す。URI は著者 DID を含まない AppView 発行の不透明なものになる。
+   */
+  createKossoriPost: "com.suibari.nagi.createKossoriPost",
+  deleteKossoriPost: "com.suibari.nagi.deleteKossoriPost",
 } as const;
 
 /** Bluemoji (moji.blue) の絵文字定義レコード。カスタム絵文字はユーザー自身のPDSに置く。 */
@@ -178,6 +185,22 @@ export const NAGI_INGEST_COLLECTIONS = [
 ] as const;
 export const NAGI_APPVIEW_DID =
   process.env.NAGI_APPVIEW_DID ?? "did:web:nagi-api.suibari.com";
+/**
+ * AppView が正本を持つレコードの URI に使う authority。著者の DID を URI に出さないための
+ * もので、「みんなで全肯定」の匿名要約や、それに付いた他人のリアクションレコードから
+ * 著者を辿れないようにする。実体は AppView の Postgres にしかなく、この DID の
+ * リポジトリを引いても何も出てこない。
+ */
+export const NAGI_APPVIEW_URI_AUTHORITY = NAGI_APPVIEW_DID;
+
+/** URI が AppView 発行（＝PDS に正本が無い）かどうか。 */
+export const isAppviewOwnedUri = (uri: string): boolean =>
+  uri.startsWith(`at://${NAGI_APPVIEW_URI_AUTHORITY}/`);
+
+/** AppView 発行レコードの AT-URI。組み立てはここ1箇所に閉じる。 */
+export const appviewRecordUri = (collection: string, rkey: string): string =>
+  `at://${NAGI_APPVIEW_URI_AUTHORITY}/${collection}/${rkey}`;
+
 export const NAGI_APPVIEW_SERVICE_ID = "nagi_appview";
 export const NAGI_APPVIEW_AUD = `${NAGI_APPVIEW_DID}#${NAGI_APPVIEW_SERVICE_ID}`;
 export const NAGI_BOT_DID = process.env.NAGI_BOT_DID ?? "";

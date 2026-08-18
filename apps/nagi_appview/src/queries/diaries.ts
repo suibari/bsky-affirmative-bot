@@ -155,7 +155,35 @@ async function loadActorViews(dids: string[]): Promise<Map<string, ActorView>> {
   );
 }
 
-export function diaryView(row: DiaryRow, involvedActors?: ActorView[], involvedActorsHasMore = false): DiaryView {
+/** その日記の中身を viewer に見せてよいか。こっそりを含む日は本人だけ。 */
+export const canReadDiaryBody = (row: DiaryRow, viewerDid?: string): boolean =>
+  !row.isPrivate || row.subjectDid === viewerDid;
+
+/**
+ * viewerDid は必須引数にしてある。省略できるようにすると、新しい呼び出し元が
+ * うっかり渡し忘れたときにプライベート日記の本文が漏れるため。
+ */
+export function diaryView(
+  row: DiaryRow,
+  viewerDid: string | undefined,
+  involvedActors?: ActorView[],
+  involvedActorsHasMore = false,
+): DiaryView {
+  // 本文・称号・つながりは伏せるが、日付と件数は返す。コミットグラフのセルと濃淡は
+  // 従来どおり出したうえで、選んだときに「読めない」と分かるようにするため。
+  if (!canReadDiaryBody(row, viewerDid))
+    return {
+      uri: row.uri,
+      cid: row.cid,
+      subject: row.subjectDid,
+      date: row.diaryDate,
+      text: "",
+      postCount: row.postCount ?? undefined,
+      isPrivate: true,
+      langs: (row.langs as string[] | null) ?? undefined,
+      createdAt: row.recordCreatedAt.toISOString(),
+      indexedAt: row.indexedAt.toISOString(),
+    };
   return {
     uri: row.uri,
     cid: row.cid,
@@ -165,6 +193,7 @@ export function diaryView(row: DiaryRow, involvedActors?: ActorView[], involvedA
     titleJa: row.titleJa ?? undefined,
     titleEn: row.titleEn ?? undefined,
     postCount: row.postCount ?? undefined,
+    isPrivate: row.isPrivate || undefined,
     involvedActors: involvedActors?.length ? involvedActors : undefined,
     involvedActorsHasMore: involvedActorsHasMore || undefined,
     langs: (row.langs as string[] | null) ?? undefined,
@@ -192,6 +221,8 @@ export async function getDiaries(opts: {
   to?: string;
   limit: number;
   cursor?: string;
+  /** 未認証でも呼べる公開エンドポイントなので undefined になりうる（その場合は伏せる側に倒れる）。 */
+  viewerDid?: string;
 }): Promise<{ items: DiaryView[]; cursor?: string; hasMore: boolean }> {
   if (!opts.actor) throw new ApiError(400, "invalid_request", "actor is required");
   if (opts.month && !/^\d{4}-\d{2}$/.test(opts.month)) throw new ApiError(400, "invalid_request", "Invalid month");
@@ -228,6 +259,7 @@ export async function getDiaries(opts: {
       items: rows.map((row, index) =>
         diaryView(
           row,
+          opts.viewerDid,
           visibleRanked[index].map((did) => actors.get(did) ?? ({ did, handle: did } satisfies ActorView)),
           ranked[index].length > INVOLVED_ACTOR_LIMIT,
         ),
@@ -242,7 +274,7 @@ export async function getDiaries(opts: {
       .from(nagiDiaries)
       .where(and(eq(nagiDiaries.subjectDid, opts.actor), like(nagiDiaries.diaryDate, `${opts.month}-%`)))
       .orderBy(asc(nagiDiaries.diaryDate));
-    return { items: rows.map((row) => diaryView(row)), hasMore: false };
+    return { items: rows.map((row) => diaryView(row, opts.viewerDid)), hasMore: false };
   }
 
   const filters = [eq(nagiDiaries.subjectDid, opts.actor)];
@@ -254,7 +286,7 @@ export async function getDiaries(opts: {
     .where(and(...filters))
     .orderBy(desc(nagiDiaries.diaryDate))
     .limit(opts.limit);
-  const items = rows.map((row) => diaryView(row));
+  const items = rows.map((row) => diaryView(row, opts.viewerDid));
   return {
     items,
     cursor: items.length === opts.limit ? items[items.length - 1].date : undefined,

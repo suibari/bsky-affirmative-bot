@@ -29,6 +29,7 @@ import type { AppBskyActorDefs } from "@atproto/api";
 import { NAGI, type NagiDiary } from "@bsky-affirmative-bot/nagi-lexicon";
 import retry from "async-retry";
 import { agent } from "./agent.js";
+import { createPrivateDiary } from "./appviewInternal.js";
 import { clipNagiPostText } from "./nagiPostText.js";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -120,6 +121,10 @@ export async function processNagiDiary(
       return;
     }
 
+    // こっそりを1つでも含む日は、日記も本人だけのものになる。日記は「その日の投稿」を
+    // まとめたものなので、こっそりの内容が本文に溶けて出てしまうため。
+    const isPrivate = recentPosts.some((post) => post.kossori);
+
     const latestLangs = [...recentPosts]
       .reverse()
       .find((post) => Array.isArray(post.langs) && post.langs.length)?.langs as
@@ -202,6 +207,15 @@ export async function processNagiDiary(
 
     await retry(
       async () => {
+        // こっそり投稿が1つでも混ざる日の日記は、その内容を要約したものになる。PDS へ置くと
+        // botたんの公開リポジトリから誰でも読めてしまうので、AppView にだけ作る。
+        if (isPrivate) {
+          await createPrivateDiary({
+            rkey: diaryRkey(userDid, date),
+            record,
+          });
+          return;
+        }
         await trackedPutRecord(agent, {
           repo: process.env.NAGI_BOT_DID!,
           collection: NAGI.diary,
@@ -317,12 +331,14 @@ export async function scheduleAllNagiDiaries() {
 /** ユーザーのデータ削除時に、bot のリポジトリからその人の日記を消す。 */
 export async function purgeNagiDiaries(userDid: string): Promise<number> {
   const rows = await db
-    .select({ uri: nagiDiaries.uri })
+    .select({ uri: nagiDiaries.uri, isPrivate: nagiDiaries.isPrivate })
     .from(nagiDiaries)
     .where(eq(nagiDiaries.subjectDid, userDid));
 
   let deleted = 0;
-  for (const { uri } of rows) {
+  for (const { uri, isPrivate } of rows) {
+    // プライベート日記は PDS に無いので、下の行削除だけで完全に消える。
+    if (isPrivate) continue;
     const rkey = uri.split("/").pop();
     if (!rkey) continue;
     try {

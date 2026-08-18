@@ -9,7 +9,7 @@ import {
   nagiReactions,
 } from "@bsky-affirmative-bot/database";
 import { BLUEMOJI_ITEM, NAGI } from "@bsky-affirmative-bot/nagi-lexicon";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { config } from "../config.js";
 import { resolvePdsUrl } from "../util/pds.js";
 import { applyMutation } from "./applyMutation.js";
@@ -163,7 +163,9 @@ async function localRecords(
         deletedAt: nagiPosts.deletedAt,
       })
       .from(nagiPosts)
-      .where(eq(nagiPosts.did, did));
+      // こっそり投稿は PDS に正本が無い。ここへ混ぜると listRecords に出てこない行として
+      // 毎回「PDS から消えた」と判定され、reconcile のたびに全部消える。
+      .where(and(eq(nagiPosts.did, did), eq(nagiPosts.appviewOnly, false)));
     return new Map(
       rows.map((row) => [
         row.uri,

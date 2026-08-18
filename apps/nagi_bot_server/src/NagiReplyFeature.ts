@@ -1,5 +1,11 @@
-import { db, nagiBotReplyJobs, MemoryService } from "@bsky-affirmative-bot/database";
+import {
+  db,
+  nagiBotReplyJobs,
+  nagiPosts,
+  MemoryService,
+} from "@bsky-affirmative-bot/database";
 import { NAGI } from "@bsky-affirmative-bot/nagi-lexicon";
+import { eq } from "drizzle-orm";
 
 /** at://<did>/<nsid>/<rkey> から作者 DID を取り出す。 */
 function uriAuthorDid(uri: unknown) {
@@ -26,6 +32,26 @@ export function isReplyToBot(record: any, botDid: string) {
   if (!record?.reply) return false;
   const parentDid = uriAuthorDid(record.reply.parent?.uri);
   return parentDid === botDid || mentionsBot(record, botDid);
+}
+
+/**
+ * こっそりスレッド版の isReplyToBot。
+ *
+ * こっそり投稿の URI は AppView の DID 配下（著者を URI から辿らせないため）なので、
+ * uriAuthorDid では親の書き手が分からない。DB の did 列で引き直す。これを怠ると
+ * 「botたんへの返信」が会話モードに入らず、こっそりスレッドだけ会話が続かなくなる。
+ */
+export async function isKossoriReplyToBot(record: any, botDid: string) {
+  if (!record?.reply) return false;
+  if (mentionsBot(record, botDid)) return true;
+  const parentUri = record.reply.parent?.uri;
+  if (typeof parentUri !== "string") return false;
+  const [parent] = await db
+    .select({ did: nagiPosts.did })
+    .from(nagiPosts)
+    .where(eq(nagiPosts.uri, parentUri))
+    .limit(1);
+  return parent?.did === botDid;
 }
 
 /**

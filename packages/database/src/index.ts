@@ -304,13 +304,18 @@ export class MemoryService {
     ];
   }
 
-  /** 指定ユーザーが since 以降に Nagi へ投稿したポスト（日記の材料）。 */
+  /**
+   * 指定ユーザーが since 以降に Nagi へ投稿したポスト（日記の材料）。
+   * こっそり投稿も材料に含める（本人の1日を書くものなので外さない）。そのぶん、
+   * 1つでも混ざった日の日記は本人だけのものになる — 呼び出し元は kossori を見て判断する。
+   */
   static async getNagiPostsSince(did: string, since: Date) {
     return db
       .select({
         uri: nagiPosts.uri,
         text: nagiPosts.text,
         langs: nagiPosts.langs,
+        kossori: nagiPosts.kossori,
         recordCreatedAt: nagiPosts.recordCreatedAt,
       })
       .from(nagiPosts)

@@ -35,6 +35,53 @@ async function postInternal(
   }
 }
 
+/**
+ * 書き込みそのものを AppView に委ねる呼び出し用。上の postInternal と違い、失敗を
+ * 握りつぶさず投げる。こっそり関連は PDS に控えが無く、ここが落ちると本文が
+ * どこにも残らないため、呼び出し元にリトライさせる必要がある。
+ */
+async function postInternalJson<T>(path: string, body: unknown): Promise<T> {
+  const response = await fetch(`${NAGI_APPVIEW_INTERNAL_URL}${path}`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok)
+    throw new Error(
+      `${path} failed: ${response.status} ${await response.text()}`,
+    );
+  return (await response.json()) as T;
+}
+
+/**
+ * こっそりスレッドへの返信を AppView にだけ作る。
+ * PDS へ書くと返信本文が botたんの公開リポジトリから読めてしまうため、この経路を通す。
+ */
+export function createKossoriReply(input: {
+  text: string;
+  langs?: string[];
+  createdAt?: string;
+  reply: {
+    root: { uri: string; cid: string };
+    parent: { uri: string; cid: string };
+  };
+  /** ソース投稿から決まる決め打ちの rkey。ジョブのリトライで返信を二重に作らないため。 */
+  rkey?: string;
+}): Promise<{ uri: string; cid: string }> {
+  return postInternalJson("/internal/kossori-replies", input);
+}
+
+/**
+ * こっそり投稿を含む日の日記を AppView にだけ作る。
+ * PDS へ書くと、こっそりの内容を要約した本文が botたんの公開リポジトリに出てしまう。
+ */
+export function createPrivateDiary(input: {
+  rkey: string;
+  record: unknown;
+}): Promise<{ uri: string; cid: string }> {
+  return postInternalJson("/internal/diaries", input);
+}
+
 /** 名刺（自動分析）が更新されたことを伝えて通知を作らせる。 */
 export function notifyAnalysisUpdated(
   did: string,

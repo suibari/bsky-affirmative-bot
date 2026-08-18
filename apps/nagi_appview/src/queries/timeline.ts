@@ -97,6 +97,40 @@ export const homeSiblingFilter = (actorDids: string[] | undefined) =>
   actorDids ? sql` and sib.did = any(${homeActorsParam(actorDids)})` : sql``;
 
 /**
+ * プロフィールフィードと CH タイムライン用のこっそり除外。
+ *
+ * こっそりは「共有TLに出さない」だけの設定ではなく、本人以外には一切見せないものなので、
+ * 共有TL・検索だけでなくこれらの経路でも落とす（ホームは homeTimelineVisibility が
+ * 同じ判定を持っているため対象外）。公開範囲はスレッドルートが所有する。
+ *
+ * 共有TL版の `coalesce(..., false)` と違い「ルートが他人のこっそりだと確認できたときだけ
+ * 隠す」形にしてある。fail closed にすると、ルートがまだ取り込まれていない返信まで
+ * プロフィールの返信タブから消えてしまうため。削除済みのルートは tombstone として行が残り
+ * kossori も保たれるので、この形でもこっそりスレッドは隠れ続ける。
+ */
+export function kossoriVisibility(viewerDid?: string): SQL {
+	const viewerMatch = viewerDid
+		? sql`${nagiPosts.did} = ${viewerDid}`
+		: sql`false`;
+	const threadRootViewerMatch = viewerDid
+		? sql`thread_root.did = ${viewerDid}`
+		: sql`false`;
+	return sql`
+    case
+      when ${nagiPosts.replyRootUri} is null
+        then not ${nagiPosts.kossori} or ${viewerMatch}
+      else not exists (
+        select 1
+        from nagi.posts as thread_root
+        where thread_root.uri = ${nagiPosts.replyRootUri}
+          and thread_root.kossori
+          and not (${threadRootViewerMatch})
+      )
+    end
+  `;
+}
+
+/**
  * my Nagi の「リストの動き」用。1人1件の最新ルート投稿を選ぶ経路なので、返信は候補に
  * 入れない（スレッド単位の最新活動順で見せるホームTLとは意味が違う）。
  */
@@ -790,6 +824,8 @@ export async function getTimeline(opts: {
     `);
 		// 将来チャンネル投稿をグローバル/全肯定TLへ流さない方針に変える場合は、
 		// ここに filters.push(isNull(nagiPosts.channelUri)); を1行足すだけでよい。
+	} else if (!opts.homeDid) {
+		filters.push(kossoriVisibility(opts.viewerDid));
 	}
   // 会話グループ化: 同スレッドに自分より後の共有可視投稿(=非削除・非bot返信)が無い投稿=代表
   // だけを残す。これで1スレッド1回・最新活動順になる。cursor/orderBy はそのまま代表に効く。

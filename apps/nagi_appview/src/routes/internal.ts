@@ -1,6 +1,10 @@
 import { Router } from "express";
+import { cidForCbor } from "@atproto/common";
 import { db, nagiNotifications } from "@bsky-affirmative-bot/database";
+import { NAGI, appviewRecordUri } from "@bsky-affirmative-bot/nagi-lexicon";
 import { config } from "../config.js";
+import { applyMutation } from "../ingest/applyMutation.js";
+import { createKossoriPost } from "../queries/kossoriPosts.js";
 import { dispatchPush } from "../services/pushDispatch.js";
 import {
   isNagiPostUri,
@@ -92,6 +96,76 @@ internal.post("/translations", async (req, res, next) => {
       return;
     }
     res.status(200).json({ seeded: await seedAuthoredTranslations(uri, entries) });
+  } catch (e) {
+    next(e);
+  }
+});
+
+/**
+ * こっそりスレッドへの botたんの返信。
+ *
+ * 通常の返信は bot が自分の PDS に書いて firehose 経由で入ってくるが、それだと返信本文が
+ * bot の公開リポジトリから誰でも読めてしまう。こっそりスレッドの返信だけはここを通し、
+ * 親の投稿と同じく AppView にだけ置く。
+ */
+internal.post("/kossori-replies", async (req, res, next) => {
+  try {
+    const reply = req.body?.reply;
+    const text = req.body?.text;
+    if (
+      typeof text !== "string" ||
+      typeof reply?.root?.uri !== "string" ||
+      typeof reply?.parent?.uri !== "string"
+    ) {
+      res.status(400).json({ error: "text and reply are required" });
+      return;
+    }
+    const created = await createKossoriPost(config.botDid, {
+      text,
+      langs: req.body?.langs,
+      createdAt: req.body?.createdAt ?? new Date().toISOString(),
+      reply,
+      // ジョブのリトライで返信が二重にならないよう、rkey は呼び出し元が決める。
+      rkey: typeof req.body?.rkey === "string" ? req.body.rkey : undefined,
+    });
+    res.status(200).json(created);
+  } catch (e) {
+    next(e);
+  }
+});
+
+/**
+ * こっそり投稿を含む日の日記。
+ *
+ * 日記は botたんの PDS に置くレコードなので、そのままだとこっそりの内容を要約した本文が
+ * 公開リポジトリに出てしまう。プライベート日記だけはここを通して AppView にだけ置く。
+ * 取り込み・通知・Web Push は applyMutation の日記分岐がそのまま担う。
+ */
+internal.post("/diaries", async (req, res, next) => {
+  try {
+    const record = req.body?.record;
+    const rkey = req.body?.rkey;
+    if (typeof rkey !== "string" || !record || typeof record !== "object") {
+      res.status(400).json({ error: "rkey and record are required" });
+      return;
+    }
+    const value = { ...record, $type: NAGI.diary, isPrivate: true };
+    const cid = (await cidForCbor(value)).toString();
+    await applyMutation(
+      {
+        did: config.botDid,
+        time_us: Date.now() * 1_000,
+        commit: {
+          operation: "create",
+          collection: NAGI.diary,
+          rkey,
+          cid,
+          record: value,
+        },
+      },
+      { appviewOnly: true, emitPush: true },
+    );
+    res.status(200).json({ uri: appviewRecordUri(NAGI.diary, rkey), cid });
   } catch (e) {
     next(e);
   }

@@ -504,7 +504,10 @@ export async function getBookmarks(opts: {
     getBotActor(),
   ]);
   const posts = new Map(postViews.map((post) => [post.uri, post]));
-  const diaries = new Map(diaryRows.map((row) => [row.uri, diaryView(row)]));
+  // 他人の日記もブックマークできるので、後からプライベートになった日記はここで伏せる。
+  const diaries = new Map(
+    diaryRows.map((row) => [row.uri, diaryView(row, opts.ownerDid)]),
+  );
   const items: BookmarkItemView[] = page.map((row) => {
     const common = {
       id: row.id,

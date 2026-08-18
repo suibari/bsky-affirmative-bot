@@ -115,6 +115,11 @@ export const nagiPosts = nagiSchema.table(
     channelUri: text("channel_uri"),
     // true なら CH 限定＝グローバル/全肯定TL非表示（kossori と同じ除外扱い）。CH TLには出る。
     channelOnly: boolean("channel_only").default(false).notNull(),
+    // 正本が PDS ではなくこのテーブルにしかない行（＝新方式のこっそり投稿と、その返信）。
+    // 可視性の判定は kossori 列が持つので、この列は「保管場所」だけを表す:
+    // reconcile の削除対象から外し、削除は PDS ではなく XRPC 経由にする。
+    // 既存のこっそり投稿は PDS に正本があるので false のまま（バックフィルなし）。
+    appviewOnly: boolean("appview_only").default(false).notNull(),
     repoRev: text("repo_rev"),
     recordCreatedAt: timestamp("record_created_at", {
       withTimezone: true,
@@ -405,6 +410,10 @@ export const nagiDiaries = nagiSchema.table(
     titleEn: text("title_en"),
     emoji: text("emoji"),
     postCount: integer("post_count"),
+    // その日の材料にこっそり投稿が1つ以上含まれる日記。本人以外には本文・タイトル・
+    // つながりを返さず（日付と件数だけ返すのでコミットグラフには出る）、botたんの PDS にも
+    // レコードを作らない。既存行は false のまま（バックフィルなし）。
+    isPrivate: boolean("is_private").default(false).notNull(),
     langs: jsonb("langs"),
     recordCreatedAt: timestamp("record_created_at", {
       withTimezone: true,
