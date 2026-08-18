@@ -28,6 +28,16 @@
             "drawStatus": {
               "type": "unknown",
               "description": "actor がビューア本人のときのみ。myNagi / reaction の各取得枠と nextDrawAt。旧クライアント互換の canDraw / todayCardId は通常枠を表す。"
+            },
+            "anniversaryCards": {
+              "type": "array",
+              "items": { "type": "unknown" },
+              "description": "所持している記念日カード（取得の古い順）。図鑑とは別枠で、ownedCount / totalCount には含めない。"
+            },
+            "pendingAnniversary": {
+              "type": "array",
+              "items": { "type": "unknown" },
+              "description": "actor がビューア本人のときのみ。本日が記念日で、まだ受け取っていないぶん。drawCard の source=anniversary で一括して受け取る。"
             }
           }
         }

@@ -648,7 +648,10 @@ export type CardAttribute =
  * ja/en 双方を積んで返すのは、クライアントのロケール切替が再フェッチ無しで効くようにするため。
  */
 export type CardView = {
-  /** 段内の通し番号。カードの同一性は (volume, id) の組で決まる。表示は v1-001 形式。 */
+  /**
+   * 段内の通し番号。カードの同一性は (volume, id) の組で決まる。表示は v1-001 形式。
+   * 記念日カード（volume = 0）では 西暦*100 + slot が入るので、表示は year を使う。
+   */
   id: number;
   volume: number;
   rarity: CardRarity;
@@ -672,8 +675,26 @@ export type CardView = {
   acquiredAt?: string;
   /** 最初にこの1枚を引いた人の DID。交換で流通しても出所が追える。 */
   firstOwnerDid?: string;
+  /**
+   * カード面に敷く背景画像のベース名。クライアントが `/card-art/{art}.webp` を引く。
+   * 画像を持たないカードでは undefined（＝今までどおり文字だけのカード）。
+   */
+  art?: string;
+  /** 記念日カードなら true。図鑑とは別枠に置き、コンプ率にも数えない。 */
+  anniversary?: boolean;
+  /** 記念日カードのみ。何年ぶんの1枚か。図鑑番号の代わりにこれを出す。 */
+  year?: number;
 };
-export type CardDrawSource = "my_nagi" | "reaction";
+/**
+ * カードの入手経路。my_nagi と reaction はガチャの1日枠、anniversary は
+ * その日が記念日の人に配る特別枠（抽選ではないので確率もコンプ率も関係しない）。
+ */
+export type CardDrawSource = "my_nagi" | "reaction" | "anniversary";
+/**
+ * 1日1回の抽選枠だけ。card_draws.draw_source の enum と対応するので、記念日は入らない
+ * （記念日は抽選ではなく、日次ロックも card_instances 側の一意索引で取る）。
+ */
+export type CardGachaSource = Exclude<CardDrawSource, "anniversary">;
 export type CardDrawSlotStatus = {
   canDraw: boolean;
   /** その枠で本日すでに引いている場合、そのカードの段と番号。 */
@@ -692,11 +713,25 @@ export type CardDrawStatus = {
   myNagi: CardDrawSlotStatus;
   reaction: CardDrawSlotStatus;
 };
+/** その日が記念日で、まだ受け取っていない1枚。 */
+export type PendingAnniversary = {
+  /** ANNIVERSARY_SLOTS の値。受け取りは slot 単位ではなく一括なので、表示用の識別子。 */
+  slot: number;
+  nameJa: string;
+  nameEn: string;
+  /** 背景画像のベース名。モーダルを開く前に先読みするために返す。 */
+  art?: string;
+};
 export type CardCollectionView = {
   cards: CardView[];
+  /** 図鑑の枚数。**記念日カードは含めない**（コンプ率を動かさないため）。 */
   ownedCount: number;
   totalCount: number;
   drawStatus?: CardDrawStatus;
+  /** 所持している記念日カード。図鑑とは別枠で、取得の古い順。 */
+  anniversaryCards?: CardView[];
+  /** 本日ぶんの未受領の記念日。actor がビューア本人のときだけ返す。 */
+  pendingAnniversary?: PendingAnniversary[];
 };
 export type DrawCardResult = {
   card: CardView;
@@ -708,4 +743,9 @@ export type DrawCardResult = {
   /** true の間は botたんコメントを生成中。クライアントは getCards で取り直す。 */
   commentPending: boolean;
   drawStatus: CardDrawStatus;
+  /**
+   * source=anniversary のみ。同じ日に複数の記念日が重なることがあるので、今回受け取った
+   * ぶんを全部返す。card にはこの先頭が入る（1枚しか読まない旧クライアント互換）。
+   */
+  cards?: CardView[];
 };

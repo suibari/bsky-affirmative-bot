@@ -795,6 +795,10 @@ export const nagiChannelSubscriptions = nagiSchema.table(
  * この行に紐づくので、owner_did を差し替えるだけで「交換してもコメントは維持される」が成立する。
  * どのカードかは (card_volume, card_number) で決まり、shared-configs の cards_v{n}.json を指す。
  * **一度リリースした番号は変更禁止**（振り直すとこの列の指す先が変わる）。
+ *
+ * card_volume = 0 は記念日カードの段。ガチャではなくその日ログインした人に配るもので、
+ * card_number = 西暦 * 100 + slot（shared-configs の ANNIVERSARY_SLOTS）。下の一意索引が
+ * そのまま「同じ記念日は1年に1枚」を強制するので、記念日は card_draws を使わない。
  */
 export const nagiCardInstances = nagiSchema.table(
   "card_instances",
@@ -815,6 +819,12 @@ export const nagiCardInstances = nagiSchema.table(
     commentPromptVersion: text("comment_prompt_version"),
     /** 同じカードを引き直した回数（初回=1）。将来の交換素材にも使える。 */
     duplicateCount: integer("duplicate_count").default(1).notNull(),
+    /**
+     * 記念日カード（card_volume = 0）のうち、ユーザーが自分で登録した記念日の名前。
+     * 受け取った時点の名前を焼き付けるので、あとで本人が改名しても過去のカードは変わらない。
+     * プリセット祝日と Nagi 登録記念日は NULL で、名前は card_number の slot から引く。
+     */
+    anniversaryLabel: text("anniversary_label"),
     /** 現所有者がこの1枚を手にした時刻（引き直し・交換で更新される）。 */
     acquiredAt: timestamp("acquired_at", { withTimezone: true })
       .defaultNow()

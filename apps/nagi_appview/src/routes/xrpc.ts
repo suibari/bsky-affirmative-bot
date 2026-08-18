@@ -64,7 +64,11 @@ import {
 } from "../queries/bookmarks.js";
 import { setChannelSubscription } from "../queries/channelSubscriptions.js";
 import { getMyNagi } from "../queries/myNagi.js";
-import { drawCard, getCards } from "../queries/cards.js";
+import {
+  claimAnniversaryCards,
+  drawCard,
+  getCards,
+} from "../queries/cards.js";
 import { getCommunityAffirmations } from "../queries/communityAffirmations.js";
 import { getProfileWebsiteCard } from "../services/profileWebsite.js";
 import { config } from "../config.js";
@@ -1047,7 +1051,11 @@ xrpc.post(
     try {
       const source = req.body?.source ?? "my_nagi";
       const reactionUri = req.body?.reactionUri;
-      if (source !== "my_nagi" && source !== "reaction")
+      if (
+        source !== "my_nagi" &&
+        source !== "reaction" &&
+        source !== "anniversary"
+      )
         throw new ApiError(400, "invalid_request", "Invalid draw source");
       if (reactionUri !== undefined && typeof reactionUri !== "string")
         throw new ApiError(
@@ -1055,9 +1063,12 @@ xrpc.post(
           "invalid_request",
           "reactionUri must be a string",
         );
-      res
-        .set("Cache-Control", "private, no-store")
-        .json(await drawCard(req.viewerDid!, source, reactionUri));
+      // 記念日は抽選ではなく「その日が記念日の人へ配る」ので、1日1回の枠とは別経路。
+      res.set("Cache-Control", "private, no-store").json(
+        source === "anniversary"
+          ? await claimAnniversaryCards(req.viewerDid!)
+          : await drawCard(req.viewerDid!, source, reactionUri),
+      );
     } catch (e) {
       next(e);
     }

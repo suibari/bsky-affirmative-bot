@@ -12,15 +12,21 @@
     "regions": ["global"]
   },
   {
+    "id": "bottan_birthday",
+    "names": { "ja": "botたん誕生日", "en": "Bot-tan's Birthday" },
+    "rule": { "type": "fixed", "month": 2, "day": 19 },
+    "regions": ["global"]
+  },
+  {
     "id": "white_day",
     "names": { "ja": "ホワイトデー", "en": "White Day" },
     "rule": { "type": "fixed", "month": 3, "day": 14 },
     "regions": ["JP"]
   },
   {
-    "id": "st_patricks_day",
-    "names": { "ja": "セントパトリックデー", "en": "St. Patrick's Day" },
-    "rule": { "type": "fixed", "month": 3, "day": 17 },
+    "id": "kotomi_birthday",
+    "names": { "ja": "ことみ誕生日", "en": "Kotomi's Birthday" },
+    "rule": { "type": "fixed", "month": 3, "day": 31 },
     "regions": ["global"]
   },
   {
@@ -36,6 +42,18 @@
     "regions": ["global"]
   },
   {
+    "id": "latte_birthday",
+    "names": { "ja": "ラテちゃん誕生日", "en": "Latte's Birthday" },
+    "rule": { "type": "fixed", "month": 4, "day": 27 },
+    "regions": ["global"]
+  },
+  {
+    "id": "star_wars_day",
+    "names": { "ja": "スターウォーズの日", "en": "Star Wars Day" },
+    "rule": { "type": "fixed", "month": 5, "day": 4 },
+    "regions": ["global"]
+  },
+  {
     "id": "mothers_day",
     "names": { "ja": "母の日", "en": "Mother's Day" },
     "rule": { "type": "nth-weekday", "month": 5, "week": 2, "weekday": 0 },
@@ -46,6 +64,12 @@
     "names": { "ja": "父の日", "en": "Father's Day" },
     "rule": { "type": "nth-weekday", "month": 6, "week": 3, "weekday": 0 },
     "regions": ["global"]
+  },
+  {
+    "id": "tanabata",
+    "names": { "ja": "七夕", "en": "Tanabata" },
+    "rule": { "type": "fixed", "month": 7, "day": 7 },
+    "regions": ["JP"]
   },
   {
     "id": "halloween",

@@ -14,6 +14,21 @@ export interface NagiCardCommentInput {
   displayName: string;
   /** 同じカードを引き直したか（コメントは上書きされるので、前回とは違うことを言わせる）。 */
   isDuplicate: boolean;
+  /**
+   * 記念日カードのとき。ガチャで引いたのではなく botたんが贈った1枚なので、
+   * 「引き当てたこと」を喜ぶ通常の枠組みがそのまま逆になる。
+   */
+  anniversary?: {
+    /** 年を含まない記念日名（カード名は「ハロウィン2026」だが、話題にするのは記念日そのもの）。 */
+    nameJa: string;
+    nameEn: string;
+    /** 何年ぶんの1枚か。 */
+    year: number;
+    /** 本人が登録した記念日か。true のとき中身を推測させない。 */
+    isUserAnniversary: boolean;
+    /** Nagi 登録記念日のみ。今日で何年目か。 */
+    yearsSinceJoined?: number;
+  };
 }
 
 export interface NagiCardCommentResult {
@@ -24,8 +39,9 @@ export interface NagiCardCommentResult {
 /**
  * v2: 「カードに書かれた行いを、引いた人がやったことにして褒めてしまう」問題を修正。
  * カードの内容は引いた人の出来事ではない、と明示していなかったのが原因。
+ * v5: 記念日カード（贈り物であってガチャの当たりではない）の枠組みを追加。
  */
-export const NAGI_CARD_COMMENT_PROMPT_VERSION = "nagi-card-comment-v4";
+export const NAGI_CARD_COMMENT_PROMPT_VERSION = "nagi-card-comment-v5";
 
 const DEEP_COMMENT_RARITIES = new Set(["SR", "UR", "AAR"]);
 
@@ -113,7 +129,72 @@ const RARITY_HINT: Record<string, string> = {
   AAR: "1年以上引き続けてやっと出る幻のカード。全力で驚いて、全力で祝ってあげて。",
 };
 
+/**
+ * 記念日カードのひとこと。通常カードと違い、これは**抽選の当たりではなく botたんからの贈り物**。
+ * 「引き当てたことを喜ぶ」という通常の枠組みをそのまま使うと「レアだね！」になってしまい、
+ * 記念日を祝う言葉にならないので、レアリティの話題ごと外して today の話に寄せる。
+ */
+const buildAnniversaryCommentPrompt = (
+  input: NagiCardCommentInput & {
+    anniversary: NonNullable<NagiCardCommentInput["anniversary"]>;
+  },
+) => {
+  const format = commentFormat(input.card);
+  const { anniversary: anniv } = input;
+
+  const originRule = anniv.isUserAnniversary
+    ? `* この記念日は **${input.displayName} さんが自分で登録したもの** です。何の日なのかは本人しか
+  知りません。名前から中身を推測して決めつけないでください（「${anniv.nameJa}」という名前でも、
+  それが何を指すのかを言い当てようとしないこと）。名前をそのまま使って、その日を一緒に祝ってください。`
+    : anniv.yearsSinceJoined !== undefined
+      ? `* これは ${input.displayName} さんが Nagi に来てくれた日の記念日です。今日でちょうど
+  ${anniv.yearsSinceJoined}年になります。来てくれたことへの気持ちを、あなたの言葉で伝えてください。`
+      : `* この記念日についてあなたが知っていることは、SYSTEM_INSTRUCTION の人物設定と下のカード情報が
+  すべてです。設定にない思い出や出来事を新しく作らないでください。`;
+
+  return `あなたのアプリ「Nagi」では、記念日にログインした人へ、あなた（botたん）から
+その記念日のカードを1枚贈っています。
+今日は「${anniv.nameJa}」です。いま ${input.displayName} さんにこのカードを贈りました。
+それを渡すときのあなたのひとことを考えてください。
+
+# 最重要（ここを間違えないこと）
+* **このカードはガチャで出たものではありません。** あなたが今日という日のために贈ったものです。
+  「出た」「引けた」「当たった」という言い方はしないでください。
+* **レアリティの話をしないでください。** 珍しいから嬉しいのではなく、今日がその日だから贈っています。
+  「レアだね」「なかなか出ないよ」の類は禁止です。
+* カードに書かれている出来事を、この人が実際にしたわけではありません。その行いを褒めないでください。
+
+# 出力するもの
+* commentJa: ${format.ja}。
+* commentEn: 同じ気持ちを伝える自然な${format.en}。直訳ではなく英語として自然に。
+
+# ルール
+${originRule}
+* 記念日そのものに触れてください。「おめでとう」だけで終わらせず、その日が何の日かに
+  ひとこと寄り添ってから祝ってください。
+* カードのフレーバーテキストをそのまま繰り返さないでください。フレーバーは「カードの説明」、
+  あなたのひとことは「贈る相手への言葉」です。役割が違います。
+* 名前を呼ぶときは「${input.displayName}」をそのまま使ってください。プレースホルダを出力しないこと。
+* 改行を入れないでください。
+* commentJa は必ずbotたんの口調にしてください。カードのフレーバーテキストは文語調ですが、
+  その文体には引きずられないこと。
+${TONE_RULES_JA}
+
+# 贈ったカード（この人の行動記録ではなく、贈り物の情報です）
+-----
+カード名: ${input.card.nameJa}
+記念日: ${anniv.nameJa}（${anniv.year}年ぶん）
+属性: ${input.card.attribute}
+フレーバーテキスト: ${input.card.textJa}
+`;
+};
+
 export const buildNagiCardCommentPrompt = (input: NagiCardCommentInput) => {
+  if (input.anniversary)
+    return buildAnniversaryCommentPrompt({
+      ...input,
+      anniversary: input.anniversary,
+    });
   const format = commentFormat(input.card);
   const deepCommentRule = DEEP_COMMENT_RARITIES.has(input.card.rarity)
     ? `# このレアカードで必ず行う掘り下げ

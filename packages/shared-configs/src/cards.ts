@@ -45,7 +45,16 @@ export interface CardDefinition {
   raceEn: string;
   textJa: string;
   textEn: string;
+  /**
+   * カード面に敷く背景画像のベース名。省略すると今までどおり文字だけのカードになる。
+   * 実体は nagi_client の `static/card-art/{art}.webp`（記念日は `anniv-{id}`、通常段は `v{volume}-{id}`）。
+   * 画像は別リポジトリにあるので、名前がズレても背景が出ないだけで壊れない。
+   */
+  art?: string;
 }
+
+/** `art` はそのまま URL に埋まるので、パスになりうる文字を一切入れさせない。 */
+export const CARD_ART_PATTERN = /^[a-z0-9-]+$/;
 
 /** 最新の段（volume）。二段目を出すときはここを上げ、cards_v2.json を足して CARD_DEFS に連結する。 */
 export const CARD_VOLUME_LATEST = 1;
@@ -104,6 +113,8 @@ function assertCardDefs(defs: CardDefinition[]): CardDefinition[] {
       if (!card[field]?.trim())
         throw new Error(`cards: empty ${field} (${card.id})`);
     }
+    if (card.art !== undefined && !CARD_ART_PATTERN.test(card.art))
+      throw new Error(`cards: invalid art "${card.art}" (${card.id})`);
     counts[card.rarity] = (counts[card.rarity] ?? 0) + 1;
   });
 

@@ -7,7 +7,15 @@ import {
   generateNagiCardComment,
   NAGI_CARD_COMMENT_PROMPT_VERSION,
 } from "@bsky-affirmative-bot/bot-brain";
-import { getCardDef, aiModel } from "@bsky-affirmative-bot/shared-configs";
+import {
+  aiModel,
+  anniversaryNames,
+  isAnniversaryCard,
+  parseAnniversaryCardNumber,
+  resolveCardDef,
+  SLOT_NAGI_REGISTERED_DAY,
+  SLOT_USER_ANNIVERSARY,
+} from "@bsky-affirmative-bot/shared-configs";
 import { eq } from "drizzle-orm";
 
 /**
@@ -18,6 +26,29 @@ import { eq } from "drizzle-orm";
  * 引き直したときは AppView 側で comment を NULL に戻してから再エンキューされるので、
  * ここは常に「今の1枚に対する最新のひとこと」を書き込むだけでよい。
  */
+/**
+ * 記念日カードのプロンプト材料。カード名は「ハロウィン2026」だが、話題にさせたいのは
+ * 年を含まない記念日そのものなので、slot から名前を引き直して渡す。
+ */
+function buildAnniversaryInput(
+  cardNumber: number,
+  label: string | null,
+  joinedAt?: Date,
+) {
+  const { year, slot } = parseAnniversaryCardNumber(cardNumber);
+  const names = anniversaryNames(slot, label ?? undefined);
+  if (!names) return undefined;
+  return {
+    nameJa: names.ja,
+    nameEn: names.en,
+    year,
+    isUserAnniversary: slot === SLOT_USER_ANNIVERSARY,
+    ...(slot === SLOT_NAGI_REGISTERED_DAY && joinedAt
+      ? { yearsSinceJoined: year - joinedAt.getUTCFullYear() }
+      : {}),
+  };
+}
+
 export async function runNagiCardComment(instanceId: string): Promise<void> {
   const [instance] = await db
     .select({
@@ -25,6 +56,7 @@ export async function runNagiCardComment(instanceId: string): Promise<void> {
       cardNumber: nagiCardInstances.cardNumber,
       ownerDid: nagiCardInstances.ownerDid,
       duplicateCount: nagiCardInstances.duplicateCount,
+      anniversaryLabel: nagiCardInstances.anniversaryLabel,
     })
     .from(nagiCardInstances)
     .where(eq(nagiCardInstances.id, instanceId))
@@ -38,14 +70,21 @@ export async function runNagiCardComment(instanceId: string): Promise<void> {
     return;
   }
 
-  const card = getCardDef(instance.cardVolume, instance.cardNumber);
+  const card = resolveCardDef(
+    instance.cardVolume,
+    instance.cardNumber,
+    instance.anniversaryLabel ?? undefined,
+  );
   if (!card) {
     // 定義 JSON から番号が消えている（番号は変更禁止なので通常起きない）。
     throw new Error(`Unknown card v${instance.cardVolume}-${instance.cardNumber}`);
   }
 
   const [profile] = await db
-    .select({ displayName: nagiProfiles.displayName })
+    .select({
+      displayName: nagiProfiles.displayName,
+      createdAt: nagiProfiles.createdAt,
+    })
     .from(nagiProfiles)
     .where(eq(nagiProfiles.did, instance.ownerDid))
     .limit(1);
@@ -54,6 +93,16 @@ export async function runNagiCardComment(instanceId: string): Promise<void> {
     card,
     displayName: profile?.displayName || "きみ",
     isDuplicate: instance.duplicateCount > 1,
+    // 記念日カードは「引き当てた1枚」ではなく「贈った1枚」なので、プロンプトの枠組みごと切り替える。
+    ...(isAnniversaryCard(instance.cardVolume)
+      ? {
+          anniversary: buildAnniversaryInput(
+            instance.cardNumber,
+            instance.anniversaryLabel,
+            profile?.createdAt,
+          ),
+        }
+      : {}),
   });
 
   if (!result.commentJa && !result.commentEn) {

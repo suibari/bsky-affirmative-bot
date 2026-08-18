@@ -5,7 +5,12 @@ import type { InstanceRow } from "../src/queries/cards.js";
 // db.ts が接続文字列を要求するので、値の import より先にダミーを入れておく（実際には接続しない）。
 process.env.DATABASE_URL ??= "postgres://user:pass@localhost:5432/test";
 
-const { CARD_DEFS } = await import("@bsky-affirmative-bot/shared-configs");
+const {
+  ANNIVERSARY_SLOTS,
+  CARD_DEFS,
+  anniversaryCardNumber,
+  buildAnniversaryCardDef,
+} = await import("@bsky-affirmative-bot/shared-configs");
 const { cardView, drawStatusOf, getCards } =
   await import("../src/queries/cards.js");
 
@@ -19,6 +24,7 @@ const row = (over: Partial<InstanceRow> = {}): InstanceRow => ({
   duplicateCount: 1,
   acquiredAt: new Date("2026-07-25T00:00:00Z"),
   firstOwnerDid: "did:plc:owner",
+  anniversaryLabel: null,
   ...over,
 });
 
@@ -90,4 +96,51 @@ test("通常枠とリアクション枠を独立して返し、旧canDrawは通�
   assert.equal(onlyReaction.myNagi.canDraw, true);
   assert.equal(onlyReaction.reaction.canDraw, false);
   assert.equal(onlyReaction.todayCardId, undefined);
+});
+
+// --- 記念日カード。図鑑の外にある別枠で、コンプ率にも抽選にも関わらない ---
+
+test("記念日カードも通常カードと同じ CardView に載る", () => {
+  const def = buildAnniversaryCardDef(ANNIVERSARY_SLOTS.halloween, 2026);
+  assert.ok(def);
+  const view = cardView(
+    def,
+    row({
+      cardVolume: 0,
+      cardNumber: anniversaryCardNumber(2026, ANNIVERSARY_SLOTS.halloween),
+    }),
+  );
+  // 演出（UR の箔押し・コンフェッティ）とコメントの深掘りを通常カードの経路で借りている。
+  assert.equal(view.rarity, "UR");
+  assert.equal(view.anniversary, true);
+  assert.equal(view.year, 2026);
+  assert.equal(view.nameJa, "ハロウィン2026");
+  assert.equal(view.art, "anniv-halloween");
+  assert.equal(view.owned, true);
+});
+
+test("ユーザー記念日の名前は受け取った時点のものを使う（あとで改名されても変わらない）", () => {
+  const number = anniversaryCardNumber(2026, ANNIVERSARY_SLOTS.user_anniversary);
+  const def = buildAnniversaryCardDef(
+    ANNIVERSARY_SLOTS.user_anniversary,
+    2026,
+    "結婚記念日",
+  );
+  assert.ok(def);
+  const view = cardView(
+    def,
+    row({ cardVolume: 0, cardNumber: number, anniversaryLabel: "結婚記念日" }),
+  );
+  assert.equal(view.nameJa, "結婚記念日2026");
+});
+
+test("記念日カードは図鑑の番号空間と衝突しない", () => {
+  // 段 0 を予約しているので、通常段の (volume, id) と被ることがない。
+  for (const slot of Object.values(ANNIVERSARY_SLOTS)) {
+    const number = anniversaryCardNumber(2026, slot);
+    assert.ok(
+      !CARD_DEFS.some((c) => c.volume === 0 && c.id === number),
+      `v0-${number} が通常カードと衝突している`,
+    );
+  }
 });

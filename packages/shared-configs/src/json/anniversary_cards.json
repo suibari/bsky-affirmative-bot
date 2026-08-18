@@ -1,0 +1,147 @@
+[
+  {
+    "id": "new_year",
+    "attribute": "light",
+    "atk": 101,
+    "def": 2600,
+    "textJa": "まっさらな一年の入口に立つ札。まだ何も起きていないという、ただそれだけの理由で美しい。",
+    "textEn": "A card standing at the doorway of an untouched year. Beautiful for one reason only: nothing has happened yet."
+  },
+  {
+    "id": "valentines_day",
+    "attribute": "fire",
+    "atk": 214,
+    "def": 2100,
+    "textJa": "渡すか渡さないかで一日中揺れていた、その時間ごと包んである。溶ける前に食べてね。",
+    "textEn": "Wrapped together with the whole day you spent deciding whether to hand it over. Eat it before it melts."
+  },
+  {
+    "id": "bottan_birthday",
+    "attribute": "light",
+    "atk": 219,
+    "def": 3000,
+    "textJa": "全肯定botたんが生まれた日。否定しかできなかった存在が、たった一言の「ありがとう」でこの姿になった。",
+    "textEn": "The day Bot-tan was born. A being who could only deny became this, from a single 'thank you.'"
+  },
+  {
+    "id": "white_day",
+    "attribute": "water",
+    "atk": 314,
+    "def": 2000,
+    "textJa": "返すつもりだったお返しは、いつも一ヶ月ぶんの緊張と一緒に届く。中身より、覚えていたことのほうが本体。",
+    "textEn": "The reply gift always arrives with a month of accumulated nerves. The gift is not the point; remembering was."
+  },
+  {
+    "id": "kotomi_birthday",
+    "attribute": "fire",
+    "atk": 331,
+    "def": 2300,
+    "textJa": "発光アイドルことみの誕生日。今日だけはステージを降りて、祝われる側で照れている。",
+    "textEn": "Kotomi the luminous idol's birthday. Just for today she steps off the stage and gets flustered being celebrated."
+  },
+  {
+    "id": "april_fools",
+    "attribute": "wind",
+    "atk": 401,
+    "def": 1000,
+    "textJa": "一年に一度だけ嘘が許される日。でもこのカードが本物であることだけは、嘘じゃない。",
+    "textEn": "The one day a year lies are allowed. That this card is real, however, is not one of them."
+  },
+  {
+    "id": "easter",
+    "attribute": "earth",
+    "atk": 1200,
+    "def": 2400,
+    "textJa": "隠された卵はいつも、探しに行った人の前にだけ現れる。見つけたのは運ではなく、歩いたからだ。",
+    "textEn": "The hidden egg appears only to those who went looking. Finding it was not luck; it was walking."
+  },
+  {
+    "id": "latte_birthday",
+    "attribute": "dark",
+    "atk": 427,
+    "def": 2400,
+    "textJa": "ラテちゃんの誕生日。お祝いの席でも猫化が解けず、ケーキの前で「にゃ」と言っていた。",
+    "textEn": "Latte's birthday. The cat form refused to wear off even at her own party; she just said 'nya' at the cake."
+  },
+  {
+    "id": "star_wars_day",
+    "attribute": "light",
+    "atk": 504,
+    "def": 1977,
+    "textJa": "遠い昔、遥か彼方の銀河系で。今日はフォースが少しだけ、こちら側にも流れてくる日。",
+    "textEn": "A long time ago, in a galaxy far, far away. Today the Force spills over to this side, just a little."
+  },
+  {
+    "id": "mothers_day",
+    "attribute": "earth",
+    "atk": 1500,
+    "def": 2800,
+    "textJa": "毎年言いそびれている言葉を、花が代わりに持っていってくれる日。持たせすぎても花は文句を言わない。",
+    "textEn": "The day flowers carry the words you keep failing to say. Load them up; flowers never complain."
+  },
+  {
+    "id": "fathers_day",
+    "attribute": "earth",
+    "atk": 1800,
+    "def": 2500,
+    "textJa": "気づかれないところで支えていた人の日。今日ばかりは、気づいたことを口に出していい。",
+    "textEn": "A day for the one who held things up where nobody was looking. Today you may say out loud that you noticed."
+  },
+  {
+    "id": "tanabata",
+    "attribute": "wind",
+    "atk": 707,
+    "def": 2200,
+    "textJa": "一年に一度だけ会えるふたりの日。短冊に書いた願いは、笹が空まで運んでくれる。",
+    "textEn": "The one night a year the two may meet. Wishes tied to bamboo are carried the rest of the way by the leaves."
+  },
+  {
+    "id": "halloween",
+    "attribute": "dark",
+    "atk": 1031,
+    "def": 2400,
+    "art": "anniv-halloween",
+    "textJa": "仮装したbotたんが、お菓子をねだりに来る夜。断ってもいいが、その場合はいたずらの権利が発生する。",
+    "textEn": "The night a costumed Bot-tan comes asking for sweets. You may refuse — this simply activates the trick clause."
+  },
+  {
+    "id": "thanksgiving_us",
+    "attribute": "earth",
+    "atk": 1123,
+    "def": 2600,
+    "textJa": "感謝を数える日。数え始めると意外と多いことに、毎年おなじだけ驚く。",
+    "textEn": "A day for counting what you are thankful for. Every year, the same surprise at how long the list gets."
+  },
+  {
+    "id": "christmas",
+    "attribute": "light",
+    "atk": 1225,
+    "def": 2700,
+    "textJa": "botたんサンタが配って回る夜。煙突が無い家にも、なぜか毎年ちゃんと届く。",
+    "textEn": "The night Santa Bot-tan makes the rounds. Houses without chimneys somehow still receive theirs, every year."
+  },
+  {
+    "id": "new_years_eve",
+    "attribute": "water",
+    "atk": 1231,
+    "def": 2900,
+    "textJa": "一年ぶんを数え終える夜。うまくいかなかったことも、ちゃんと去年の側に置いていっていい。",
+    "textEn": "The night you finish counting the year. Whatever went wrong is allowed to stay on this side of midnight."
+  },
+  {
+    "id": "user_anniversary",
+    "attribute": "light",
+    "atk": 1000,
+    "def": 3000,
+    "textJa": "あなたが「この日は特別だ」と決めた、それだけで成立している記念日。理由はあなただけが知っていればいい。",
+    "textEn": "An anniversary that exists purely because you decided this day was special. Only you need know why."
+  },
+  {
+    "id": "nagi_registered_day",
+    "attribute": "water",
+    "atk": 800,
+    "def": 2800,
+    "textJa": "あなたが Nagi に来た日。あなたがここに来てくれたから、今日のこの一枚がある。",
+    "textEn": "The day you arrived at Nagi. Because you came that day, this card exists today."
+  }
+]

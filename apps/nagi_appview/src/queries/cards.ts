@@ -1,24 +1,35 @@
 import {
   db,
+  followers,
   nagiCardCommentJobs,
   nagiCardDraws,
   nagiCardInstances,
+  nagiProfiles,
 } from "@bsky-affirmative-bot/database";
 import {
+  anniversaryCardNumber,
+  buildAnniversaryCardDef,
   CARD_DEFS,
+  CARD_VOLUME_ANNIVERSARY,
   cardDrawDate,
   cardKey,
-  getCardDef,
+  isAnniversaryCard,
   nextCardDrawAt,
+  parseAnniversaryCardNumber,
+  resolveCardDef,
+  resolveTodayAnniversaries,
   rollCard,
+  SLOT_USER_ANNIVERSARY,
   type CardDefinition,
+  type TodayAnniversary,
 } from "@bsky-affirmative-bot/shared-configs";
 import type {
   CardCollectionView,
-  CardDrawSource,
+  CardGachaSource,
   CardDrawStatus,
   CardView,
   DrawCardResult,
+  PendingAnniversary,
 } from "@bsky-affirmative-bot/nagi-lexicon";
 import { and, eq, sql } from "drizzle-orm";
 import { ApiError } from "../middleware/errors.js";
@@ -40,6 +51,7 @@ export type InstanceRow = {
   duplicateCount: number;
   acquiredAt: Date;
   firstOwnerDid: string;
+  anniversaryLabel: string | null;
 };
 
 /**
@@ -47,7 +59,10 @@ export type InstanceRow = {
  * カード定義はリポジトリに入っている静的データで秘密ではないので、伏せるのは UI の演出だけ。
  * export しているのはテストから直接叩くため。
  */
-export const cardView = (def: CardDefinition, row?: InstanceRow): CardView => ({
+export const cardView = (
+  def: CardDefinition & { anniversary?: boolean; year?: number },
+  row?: InstanceRow,
+): CardView => ({
   ...def,
   owned: !!row,
   ...(row
@@ -62,27 +77,99 @@ export const cardView = (def: CardDefinition, row?: InstanceRow): CardView => ({
     : {}),
 });
 
-async function loadInstances(did: string): Promise<Map<string, InstanceRow>> {
+const INSTANCE_COLUMNS = {
+  id: nagiCardInstances.id,
+  cardVolume: nagiCardInstances.cardVolume,
+  cardNumber: nagiCardInstances.cardNumber,
+  commentJa: nagiCardInstances.commentJa,
+  commentEn: nagiCardInstances.commentEn,
+  duplicateCount: nagiCardInstances.duplicateCount,
+  acquiredAt: nagiCardInstances.acquiredAt,
+  firstOwnerDid: nagiCardInstances.firstOwnerDid,
+  anniversaryLabel: nagiCardInstances.anniversaryLabel,
+} as const;
+
+type OwnedCards = {
+  /** 図鑑（通常段）の所持。コンプ率はこちらだけで数える。 */
+  regular: Map<string, InstanceRow>;
+  /** 記念日カード（volume 0）。取得の古い順。 */
+  anniversary: InstanceRow[];
+};
+
+async function loadInstances(did: string): Promise<OwnedCards> {
   const rows = await db
-    .select({
-      id: nagiCardInstances.id,
-      cardVolume: nagiCardInstances.cardVolume,
-      cardNumber: nagiCardInstances.cardNumber,
-      commentJa: nagiCardInstances.commentJa,
-      commentEn: nagiCardInstances.commentEn,
-      duplicateCount: nagiCardInstances.duplicateCount,
-      acquiredAt: nagiCardInstances.acquiredAt,
-      firstOwnerDid: nagiCardInstances.firstOwnerDid,
-    })
+    .select(INSTANCE_COLUMNS)
     .from(nagiCardInstances)
     .where(eq(nagiCardInstances.ownerDid, did));
-  return new Map(
-    rows.map((r) => [cardKey({ volume: r.cardVolume, id: r.cardNumber }), r]),
-  );
+  // 記念日カードは図鑑の枠を持たない別枠なので、ここで分けておく。混ぜると ownedCount が
+  // 汚れてコンプ率が動いてしまう（記念日はコンプ率に数えない、が仕様）。
+  const regular = new Map<string, InstanceRow>();
+  const anniversary: InstanceRow[] = [];
+  for (const row of rows) {
+    if (isAnniversaryCard(row.cardVolume)) anniversary.push(row);
+    else
+      regular.set(cardKey({ volume: row.cardVolume, id: row.cardNumber }), row);
+  }
+  anniversary.sort((a, b) => a.acquiredAt.getTime() - b.acquiredAt.getTime());
+  return { regular, anniversary };
 }
 
+/** 所持している記念日カードを CardView に起こす。定義が引けない行（将来の削除など）は落とす。 */
+function anniversaryViews(rows: InstanceRow[]): CardView[] {
+  const views: CardView[] = [];
+  for (const row of rows) {
+    const { year, slot } = parseAnniversaryCardNumber(row.cardNumber);
+    const def = buildAnniversaryCardDef(
+      slot,
+      year,
+      row.anniversaryLabel ?? undefined,
+    );
+    if (def) views.push(cardView(def, row));
+  }
+  return views;
+}
+
+/**
+ * 本日その人に配るべき記念日。ユーザー記念日は Bluesky 側と同じ followers の1行を見る
+ * （Nagi とお部屋と Bluesky で同じ記念日を共有する）。
+ */
+async function loadTodayAnniversaries(
+  did: string,
+  now: Date,
+): Promise<TodayAnniversary[]> {
+  const [[follower], [profile]] = await Promise.all([
+    db
+      .select({
+        name: followers.user_anniv_name,
+        date: followers.user_anniv_date,
+        isAnniv: followers.is_anniv,
+      })
+      .from(followers)
+      .where(eq(followers.did, did))
+      .limit(1),
+    db
+      .select({ createdAt: nagiProfiles.createdAt })
+      .from(nagiProfiles)
+      .where(eq(nagiProfiles.did, did))
+      .limit(1),
+  ]);
+  return resolveTodayAnniversaries(cardDrawDate(now), {
+    userAnnivName: follower?.name,
+    userAnnivDate: follower?.date,
+    isAnnivEnabled: follower?.isAnniv !== 0,
+    nagiCreatedAt: profile?.createdAt,
+  });
+}
+
+const pendingView = (a: TodayAnniversary): PendingAnniversary => ({
+  slot: a.slot,
+  nameJa: a.nameJa,
+  nameEn: a.nameEn,
+  ...(a.art ? { art: a.art } : {}),
+});
+
 type TodayDraw = {
-  source: CardDrawSource;
+  source: CardGachaSource;
   cardVolume: number;
   cardNumber: number;
 };
@@ -145,24 +232,118 @@ export async function getCards(
 
   const now = new Date();
   const isSelf = !!viewerDid && viewerDid === actor;
-  const [instances, todayDraws] = await Promise.all([
+  const [owned, todayDraws, today] = await Promise.all([
     loadInstances(actor),
     isSelf ? loadTodayDraws(actor, now) : Promise.resolve([]),
+    isSelf ? loadTodayAnniversaries(actor, now) : Promise.resolve([]),
   ]);
 
   // 並びは CARD_DEFS の順（= 図鑑の順）。所持状況で並べ替えないこと。
   const cards = CARD_DEFS.map((def) =>
-    cardView(def, instances.get(cardKey(def))),
+    cardView(def, owned.regular.get(cardKey(def))),
   );
+  const anniversaryCards = anniversaryViews(owned.anniversary);
+  // 「まだ受け取っていない」の判定は所持カードの差集合で出す。card_draws を使わないので、
+  // これがそのまま自動モーダルを出すかどうかの根拠になる。
+  const held = new Set(owned.anniversary.map((r) => r.cardNumber));
+  const year = Number(cardDrawDate(now).slice(0, 4));
+  const pending = today.filter(
+    (a) => !held.has(anniversaryCardNumber(year, a.slot)),
+  );
+
   return {
     cards,
-    ownedCount: instances.size,
+    // 記念日カードは図鑑の枠外なので ownedCount / totalCount には数えない（コンプ率を動かさない）。
+    ownedCount: owned.regular.size,
     totalCount: CARD_DEFS.length,
     ...(isSelf
       ? {
           drawStatus: drawStatusOf(todayDraws, now),
         }
       : {}),
+    ...(anniversaryCards.length ? { anniversaryCards } : {}),
+    ...(isSelf ? { pendingAnniversary: pending.map(pendingView) } : {}),
+  };
+}
+
+/**
+ * 本日ぶんの記念日カードを受け取る。ガチャではないので抽選もしないし、1日1回の枠も消費しない。
+ *
+ * 「同じ記念日は1年に1枚」は card_instances の一意索引 (owner_did, card_volume, card_number)
+ * だけで担保する。card_number に西暦が入っているので、日次ロック（card_draws）は要らない。
+ * 同時押しでも onConflictDoNothing で片方に収束し、二重に配られることはない。
+ *
+ * 同じ日に複数の記念日が重なる（例: ハロウィン + ユーザー記念日）ことがあるので、
+ * 未受領ぶんはまとめて配って cards に全部返す。
+ */
+export async function claimAnniversaryCards(
+  viewerDid: string,
+): Promise<DrawCardResult> {
+  const now = new Date();
+  const today = await loadTodayAnniversaries(viewerDid, now);
+  if (!today.length)
+    throw new ApiError(400, "invalid_request", "Today is not an anniversary");
+
+  const year = Number(cardDrawDate(now).slice(0, 4));
+  const claimed = await db.transaction(async (tx) => {
+    const rows: InstanceRow[] = [];
+    for (const anniversary of today) {
+      const [instance] = await tx
+        .insert(nagiCardInstances)
+        .values({
+          cardVolume: CARD_VOLUME_ANNIVERSARY,
+          cardNumber: anniversaryCardNumber(year, anniversary.slot),
+          ownerDid: viewerDid,
+          firstOwnerDid: viewerDid,
+          // ユーザー記念日だけ、受け取った時点の名前を焼き付ける（あとで改名されても変わらない）。
+          anniversaryLabel:
+            anniversary.slot === SLOT_USER_ANNIVERSARY
+              ? (anniversary.label ?? null)
+              : null,
+        })
+        // 記念日カードに重複という概念は無いので、既に持っていれば何もしない
+        // （duplicate_count を上げないし、コメントも作り直さない）。
+        .onConflictDoNothing()
+        .returning(INSTANCE_COLUMNS);
+      if (!instance) continue;
+      rows.push(instance);
+      await tx
+        .insert(nagiCardCommentJobs)
+        .values({ instanceId: instance.id })
+        .onConflictDoNothing();
+    }
+    return rows;
+  });
+
+  const [owned, todayDraws] = await Promise.all([
+    loadInstances(viewerDid),
+    loadTodayDraws(viewerDid, now),
+  ]);
+  const drawStatus = drawStatusOf(todayDraws, now);
+
+  // 全部受け取り済みだった場合は、エラーにせず本日ぶんの記念日カードをそのまま返す
+  // （通常枠と同じ冪等方針。リロードしても「今日の1枚」が見えるほうが UI が素直）。
+  const numbers = new Set(
+    (claimed.length ? claimed : []).map((r) => r.cardNumber),
+  );
+  const todayNumbers = new Set(
+    today.map((a) => anniversaryCardNumber(year, a.slot)),
+  );
+  const rows = claimed.length
+    ? owned.anniversary.filter((r) => numbers.has(r.cardNumber))
+    : owned.anniversary.filter((r) => todayNumbers.has(r.cardNumber));
+  const cards = anniversaryViews(rows);
+  if (!cards.length)
+    throw new ApiError(500, "internal_error", "Anniversary card is missing");
+
+  return {
+    card: cards[0],
+    cards,
+    source: "anniversary",
+    alreadyDrawn: !claimed.length,
+    isNew: !!claimed.length,
+    commentPending: cards.some((c) => !c.commentJa),
+    drawStatus,
   };
 }
 
@@ -176,7 +357,7 @@ export async function getCards(
  */
 export async function drawCard(
   viewerDid: string,
-  source: CardDrawSource = "my_nagi",
+  source: CardGachaSource = "my_nagi",
   reactionUri?: string,
 ): Promise<DrawCardResult> {
   const now = new Date();
@@ -309,11 +490,11 @@ export async function drawCard(
     };
   });
 
-  const [instances, todayDraws] = await Promise.all([
+  const [owned, todayDraws] = await Promise.all([
     loadInstances(viewerDid),
     loadTodayDraws(viewerDid, now),
   ]);
-  const def = getCardDef(result.card.volume, result.card.id);
+  const def = resolveCardDef(result.card.volume, result.card.id);
   if (!def)
     // 定義から消えた番号が draws に残っているケース。番号は変更禁止なので通常起きない。
     throw new ApiError(
@@ -321,7 +502,7 @@ export async function drawCard(
       "internal_error",
       `unknown card v${result.card.volume}-${result.card.id}`,
     );
-  const row = instances.get(cardKey(result.card));
+  const row = owned.regular.get(cardKey(result.card));
 
   return {
     card: cardView(def, row),
