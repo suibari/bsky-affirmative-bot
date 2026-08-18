@@ -1,51 +1,86 @@
 import { aiModel } from "@bsky-affirmative-bot/shared-configs";
 
-export async function generateEmbedding(text: string): Promise<number[] | null> {
-  const baseUrl = process.env.OLLAMA_BASE_URL;
-  const model   = aiModel("OLLAMA_EMBED");
-  if (!baseUrl) return null;
+const DEFAULT_TIMEOUT_MS = 5_000;
+const DEFAULT_COOLDOWN_MS = 60_000;
+const EMBEDDING_DIMENSIONS = 1024;
+
+let unavailableUntil = 0;
+
+const positiveEnvNumber = (name: string, fallback: number): number => {
+  const value = Number(process.env[name]);
+  return Number.isFinite(value) && value > 0 ? value : fallback;
+};
+
+const nullEmbeddings = (length: number): null[] =>
+  Array.from({ length }, () => null);
+
+async function requestEmbeddings(
+  input: string | string[],
+): Promise<number[][] | null> {
+  const baseUrl = process.env.OLLAMA_EMBED_BASE_URL ?? process.env.OLLAMA_BASE_URL;
+  if (!baseUrl || Date.now() < unavailableUntil) return null;
+
+  const timeoutMs = positiveEnvNumber(
+    "OLLAMA_EMBED_TIMEOUT_MS",
+    DEFAULT_TIMEOUT_MS,
+  );
+  const cooldownMs = positiveEnvNumber(
+    "OLLAMA_EMBED_COOLDOWN_MS",
+    DEFAULT_COOLDOWN_MS,
+  );
 
   try {
-    const response = await fetch(`${baseUrl}/embeddings`, {
+    const response = await fetch(`${baseUrl.replace(/\/$/, "")}/embeddings`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ model, input: text }),
+      body: JSON.stringify({ model: aiModel("OLLAMA_EMBED"), input }),
+      signal: AbortSignal.timeout(timeoutMs),
     });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
     const data = await response.json() as any;
-    const embedding: number[] = data?.data?.[0]?.embedding;
-    if (!Array.isArray(embedding) || embedding.length !== 1024) {
-      throw new Error(`Unexpected embedding shape: length=${embedding?.length}`);
+    if (!Array.isArray(data?.data)) {
+      throw new Error("Unexpected embedding response: data is not an array");
     }
-    return embedding;
-  } catch (e) {
-    console.error("[ERROR][ollamaEmbed]", e);
+
+    const expectedLength = Array.isArray(input) ? input.length : 1;
+    if (data.data.length !== expectedLength) {
+      throw new Error(
+        `Unexpected embedding count: expected=${expectedLength}, actual=${data.data.length}`,
+      );
+    }
+
+    const embeddings = data.data.map((item: any) => item?.embedding);
+    if (!embeddings.every(
+      (embedding: unknown) =>
+        Array.isArray(embedding) && embedding.length === EMBEDDING_DIMENSIONS,
+    )) {
+      throw new Error("Unexpected embedding shape");
+    }
+
+    unavailableUntil = 0;
+    return embeddings as number[][];
+  } catch (error) {
+    unavailableUntil = Date.now() + cooldownMs;
+    console.error(
+      `[ERROR][ollamaEmbed] request failed; suppressing retries for ${cooldownMs}ms`,
+      error,
+    );
     return null;
   }
 }
 
-export async function generateEmbeddings(texts: string[]): Promise<(number[] | null)[]> {
-  const baseUrl = process.env.OLLAMA_BASE_URL;
-  const model   = aiModel("OLLAMA_EMBED");
-  if (!baseUrl || texts.length === 0) return texts.map(() => null);
+export async function generateEmbedding(text: string): Promise<number[] | null> {
+  const embeddings = await requestEmbeddings(text);
+  return embeddings?.[0] ?? null;
+}
 
-  try {
-    const response = await fetch(`${baseUrl}/embeddings`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ model, input: texts }),
-    });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-    const data = await response.json() as any;
-    return (data?.data as any[]).map((item: any) =>
-      Array.isArray(item?.embedding) ? item.embedding as number[] : null
-    );
-  } catch (e) {
-    console.error("[ERROR][generateEmbeddings]", e);
-    return texts.map(() => null);
-  }
+export async function generateEmbeddings(
+  texts: string[],
+): Promise<(number[] | null)[]> {
+  if (texts.length === 0) return [];
+  const embeddings = await requestEmbeddings(texts);
+  return embeddings ?? nullEmbeddings(texts.length);
 }
 
 function cosineSim(a: number[], b: number[]): number {
@@ -59,6 +94,7 @@ export async function filterRelatedHistory(
   candidates: string[],
   topN: number = 10,
   minSim: number = 0,
+  fallback: "head" | "empty" = "head",
 ): Promise<string[]> {
   if (candidates.length === 0) return [];
 
@@ -66,8 +102,10 @@ export async function filterRelatedHistory(
   const queryEmb = embeddings[0];
 
   if (!queryEmb) {
-    console.warn("[WARN][filterRelatedHistory] embedding failed, falling back to head slice");
-    return candidates.slice(0, topN);
+    console.warn(
+      `[WARN][filterRelatedHistory] embedding unavailable, fallback=${fallback}`,
+    );
+    return fallback === "head" ? candidates.slice(0, topN) : [];
   }
 
   const ranked = candidates

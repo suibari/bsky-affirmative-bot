@@ -167,6 +167,8 @@ export async function buildNagiReplyContext(job: any) {
       candidates.map((row) => row.text),
       1,
       0.6,
+      // 埋め込み障害時に、無関係な最新投稿を「類似した友達」として混入させない。
+      "empty",
     );
     const friendPost = candidates.find((row) => row.text === friendText);
     if (friendPost) {
