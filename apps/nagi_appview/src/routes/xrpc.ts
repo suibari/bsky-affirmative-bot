@@ -67,6 +67,7 @@ import { getMyNagi } from "../queries/myNagi.js";
 import {
   claimAnniversaryCards,
   drawCard,
+  drawGuestCard,
   getCards,
 } from "../queries/cards.js";
 import { getCommunityAffirmations } from "../queries/communityAffirmations.js";
@@ -83,9 +84,60 @@ import {
 } from "../ingest/reconcileRepo.js";
 import { prioritizeReconcile } from "../ingest/reconcileWorker.js";
 import { parseRecordUri } from "../ingest/recordUri.js";
+import {
+  createGuestAffirmation,
+  deleteGuestAffirmation,
+  getGuestAffirmation,
+} from "../queries/guestAffirmations.js";
 export const xrpc = Router();
 const limit = (value: unknown) =>
   Math.min(100, Math.max(1, Number(value ?? 50) || 50));
+
+// DIDを持たない利用者向け。既存のこっそり投稿APIの認証は緩めず、短命な返信ジョブだけを
+// 別の低レート経路で受ける。本文はタイムライン・検索・みんなで全肯定へ取り込まれない。
+const guestAffirmationLimiter = rateLimit({
+  windowMs: 10 * 60_000,
+  limit: 10,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+});
+const guestCardLimiter = rateLimit({
+  windowMs: 10 * 60_000,
+  limit: 30,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+});
+xrpc.post(
+  `/${NAGI.createGuestAffirmation}`,
+  guestAffirmationLimiter,
+  async (req, res, next) => {
+    try {
+      res.set("Cache-Control", "private, no-store").json(
+        await createGuestAffirmation(req.body),
+      );
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+xrpc.post(`/${NAGI.getGuestAffirmation}`, async (req, res, next) => {
+  try {
+    res.set("Cache-Control", "private, no-store").json(
+      await getGuestAffirmation(req.body),
+    );
+  } catch (error) {
+    next(error);
+  }
+});
+xrpc.post(`/${NAGI.deleteGuestAffirmation}`, async (req, res, next) => {
+  try {
+    res.set("Cache-Control", "private, no-store").json(
+      await deleteGuestAffirmation(req.body),
+    );
+  } catch (error) {
+    next(error);
+  }
+});
 /**
  * 検索の 🔍一致 / botたんの気まぐれ の出し分け。未知の値は 400 にせず従来の hybrid に倒す
  * （古いクライアントや手打ちの URL を壊さない）。
@@ -1042,6 +1094,20 @@ xrpc.get(
     }
   },
 );
+// DID をまだ持たない端末の通常枠。同じ端末秘密・同じ日付はDBの一意索引で同じ1枚へ収束する。
+xrpc.post(
+  `/${NAGI.drawGuestCard}`,
+  guestCardLimiter,
+  async (req, res, next) => {
+    try {
+      res
+        .set("Cache-Control", "private, no-store")
+        .json(await drawGuestCard(req.body));
+    } catch (e) {
+      next(e);
+    }
+  },
+);
 // 抽選結果は入力に取らずサーバ側で決める。リアクション枠だけ、本人のPDSにある
 // 当日リアクションURIを検証してから別枠を解放する。
 xrpc.post(
@@ -1051,6 +1117,7 @@ xrpc.post(
     try {
       const source = req.body?.source ?? "my_nagi";
       const reactionUri = req.body?.reactionUri;
+      const guestToken = req.body?.guestToken;
       if (
         source !== "my_nagi" &&
         source !== "reaction" &&
@@ -1063,11 +1130,13 @@ xrpc.post(
           "invalid_request",
           "reactionUri must be a string",
         );
+      if (guestToken !== undefined && typeof guestToken !== "string")
+        throw new ApiError(400, "invalid_request", "guestToken must be a string");
       // 記念日は抽選ではなく「その日が記念日の人へ配る」ので、1日1回の枠とは別経路。
       res.set("Cache-Control", "private, no-store").json(
         source === "anniversary"
           ? await claimAnniversaryCards(req.viewerDid!)
-          : await drawCard(req.viewerDid!, source, reactionUri),
+          : await drawCard(req.viewerDid!, source, reactionUri, guestToken),
       );
     } catch (e) {
       next(e);

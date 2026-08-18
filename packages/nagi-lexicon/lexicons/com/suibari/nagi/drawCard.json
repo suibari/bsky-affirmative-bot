@@ -19,6 +19,10 @@
               "type": "string",
               "format": "at-uri",
               "description": "source=reaction のとき必須。本人が当日作成した他ユーザー宛てリアクション。"
+            },
+            "guestToken": {
+              "type": "string",
+              "description": "未サインイン中に同日引いた通常枠を引き継ぐ端末秘密。source=my_nagi のときだけ利用できる。"
             }
           }
         }

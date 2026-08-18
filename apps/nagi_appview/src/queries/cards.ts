@@ -3,6 +3,7 @@ import {
   followers,
   nagiCardCommentJobs,
   nagiCardDraws,
+  nagiGuestCardDraws,
   nagiCardInstances,
   nagiProfiles,
 } from "@bsky-affirmative-bot/database";
@@ -29,9 +30,11 @@ import type {
   CardDrawStatus,
   CardView,
   DrawCardResult,
+  GuestCardDrawResult,
   PendingAnniversary,
 } from "@bsky-affirmative-bot/nagi-lexicon";
-import { and, eq, sql } from "drizzle-orm";
+import { createHash } from "node:crypto";
+import { and, eq, gt, isNull, lt, sql } from "drizzle-orm";
 import { ApiError } from "../middleware/errors.js";
 import { verifyReactionCardTrigger } from "../services/reactionCardEligibility.js";
 
@@ -219,6 +222,83 @@ export function drawStatusOf(today: TodayDraw[], now: Date): CardDrawStatus {
   };
 }
 
+const guestTokenHash = (token: string) =>
+  createHash("sha256").update(token, "utf8").digest("hex");
+
+function parseGuestToken(value: unknown, field = "deviceToken"): string {
+  if (typeof value !== "string" || value.length < 32 || value.length > 128)
+    throw new ApiError(400, "invalid_request", `Invalid ${field}`);
+  return value;
+}
+
+/**
+ * DID の無い端末にも、通常枠と同じ定義・確率・JST 4:00 境界で1枚返す。
+ * 同じ端末秘密と同じ日付の insert は一意索引へ収束するため、再送や二重押しでも同じカードになる。
+ */
+export async function drawGuestCard(input: unknown): Promise<GuestCardDrawResult> {
+  const deviceToken = parseGuestToken(
+    (input as { deviceToken?: unknown } | undefined)?.deviceToken,
+  );
+  const now = new Date();
+  const drawDate = cardDrawDate(now);
+  const expiresAt = nextCardDrawAt(now);
+  const tokenHash = guestTokenHash(deviceToken);
+
+  await db.delete(nagiGuestCardDraws).where(lt(nagiGuestCardDraws.expiresAt, now));
+  const rolled = rollCard();
+  const [created] = await db
+    .insert(nagiGuestCardDraws)
+    .values({
+      deviceTokenHash: tokenHash,
+      drawDate,
+      cardVolume: rolled.volume,
+      cardNumber: rolled.id,
+      expiresAt,
+    })
+    .onConflictDoNothing()
+    .returning({ id: nagiGuestCardDraws.id });
+  const [row] = await db
+    .select({
+      cardVolume: nagiGuestCardDraws.cardVolume,
+      cardNumber: nagiGuestCardDraws.cardNumber,
+      expiresAt: nagiGuestCardDraws.expiresAt,
+    })
+    .from(nagiGuestCardDraws)
+    .where(
+      and(
+        eq(nagiGuestCardDraws.deviceTokenHash, tokenHash),
+        eq(nagiGuestCardDraws.drawDate, drawDate),
+        gt(nagiGuestCardDraws.expiresAt, now),
+      ),
+    )
+    .limit(1);
+  if (!row) throw new ApiError(409, "conflict", "Guest draw is being processed");
+  const def = resolveCardDef(row.cardVolume, row.cardNumber);
+  if (!def) throw new ApiError(500, "internal_error", "Unknown guest card");
+  return {
+    card: cardView(def),
+    source: "my_nagi",
+    alreadyDrawn: !created,
+    isNew: true,
+    commentPending: false,
+    drawStatus: {
+      ...drawStatusOf(
+        [
+          {
+            source: "my_nagi",
+            cardVolume: row.cardVolume,
+            cardNumber: row.cardNumber,
+          },
+        ],
+        now,
+      ),
+      // リアクション枠はサインインした本人のPDS検証が必要なので、ゲスト表示では案内しない。
+      reaction: { canDraw: false },
+    },
+    expiresAt: row.expiresAt.toISOString(),
+  };
+}
+
 /**
  * 指定ユーザーのコレクション。未所持のカードも定義だけ返す（何が埋まっていないかを見せたい）。
  * 所持状況は公開情報なので誰から見ても同じ内容を返すが、drawStatus は本人にしか付けない。
@@ -359,9 +439,18 @@ export async function drawCard(
   viewerDid: string,
   source: CardGachaSource = "my_nagi",
   reactionUri?: string,
+  guestToken?: string,
 ): Promise<DrawCardResult> {
   const now = new Date();
   const drawDate = cardDrawDate(now);
+  const normalizedGuestToken =
+    guestToken === undefined ? undefined : parseGuestToken(guestToken, "guestToken");
+  if (normalizedGuestToken && source !== "my_nagi")
+    throw new ApiError(
+      400,
+      "invalid_request",
+      "guestToken is only valid for my_nagi draws",
+    );
   if (source === "reaction") {
     if (!reactionUri)
       throw new ApiError(
@@ -379,7 +468,33 @@ export async function drawCard(
   }
 
   const result = await db.transaction(async (tx) => {
-    const rolled = rollCard();
+    let rolled = rollCard();
+    let guestDrawId: string | undefined;
+    if (normalizedGuestToken) {
+      const [guest] = await tx
+        .select({
+          id: nagiGuestCardDraws.id,
+          cardVolume: nagiGuestCardDraws.cardVolume,
+          cardNumber: nagiGuestCardDraws.cardNumber,
+        })
+        .from(nagiGuestCardDraws)
+        .where(
+          and(
+            eq(nagiGuestCardDraws.deviceTokenHash, guestTokenHash(normalizedGuestToken)),
+            eq(nagiGuestCardDraws.drawDate, drawDate),
+            gt(nagiGuestCardDraws.expiresAt, now),
+            isNull(nagiGuestCardDraws.claimedByDid),
+          ),
+        )
+        .limit(1)
+        .for("update");
+      if (!guest)
+        throw new ApiError(404, "not_found", "Guest card has expired or was claimed");
+      const def = resolveCardDef(guest.cardVolume, guest.cardNumber);
+      if (!def) throw new ApiError(500, "internal_error", "Unknown guest card");
+      rolled = def;
+      guestDrawId = guest.id;
+    }
 
     // 1) まず日次ロックを取りに行く。ON CONFLICT DO NOTHING なので同時押しでも例外にならず、
     //    行が返らなかった側が「既に引いていた」経路へ落ちる。事前 SELECT で判定すると
@@ -414,6 +529,14 @@ export async function drawCard(
         .limit(1);
       if (!existing)
         throw new ApiError(409, "conflict", "Draw is being processed");
+      // ゲストカードは通常枠そのもの。アカウント側で同日の通常枠を既に引いていたら、
+      // カードの種類にかかわらずゲスト分は破棄扱いにし、既存カードだけを返す。
+      // ここで2枚目を所持化しないことで、サインアウトを使った追加取得を防ぐ。
+      if (guestDrawId)
+        await tx
+          .update(nagiGuestCardDraws)
+          .set({ claimedByDid: viewerDid, claimedAt: now })
+          .where(eq(nagiGuestCardDraws.id, guestDrawId));
       return {
         card: { volume: existing.cardVolume, id: existing.cardNumber },
         source,
@@ -481,6 +604,12 @@ export async function drawCard(
           updatedAt: new Date(),
         },
       });
+
+    if (guestDrawId)
+      await tx
+        .update(nagiGuestCardDraws)
+        .set({ claimedByDid: viewerDid, claimedAt: now })
+        .where(eq(nagiGuestCardDraws.id, guestDrawId));
 
     return {
       card: { volume: rolled.volume, id: rolled.id },

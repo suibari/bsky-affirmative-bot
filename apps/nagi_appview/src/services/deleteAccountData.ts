@@ -13,6 +13,7 @@ import {
   nagiAnalysisJobs,
   nagiCardCommentJobs,
   nagiCardDraws,
+  nagiGuestCardDraws,
   nagiCardInstances,
   nagiChannels,
   nagiChannelSubscriptions,
@@ -236,6 +237,9 @@ export async function deleteAccountData(did: string) {
         .where(inArray(nagiCardCommentJobs.instanceId, cardInstanceIds));
     }
     await tx.delete(nagiCardDraws).where(eq(nagiCardDraws.did, did));
+    await tx
+      .delete(nagiGuestCardDraws)
+      .where(eq(nagiGuestCardDraws.claimedByDid, did));
     await tx
       .delete(nagiCardInstances)
       .where(eq(nagiCardInstances.ownerDid, did));

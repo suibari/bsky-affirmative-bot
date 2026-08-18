@@ -32,6 +32,7 @@ import { publishNews } from "./NagiNewsFeature.js";
 import { schedulePositiveNewsUpdates } from "./positiveNewsUpdater.js";
 import { scheduleUserNewsReviews } from "./userNewsReviewWorker.js";
 import { logAiRouteTable } from "@bsky-affirmative-bot/shared-configs";
+import { startGuestAffirmationWorker } from "./GuestAffirmationWorker.js";
 
 /**
  * 開発環境かどうか。DEV 系のフラグを増やさないための単一の判定。
@@ -78,6 +79,8 @@ async function start() {
   reportHeartbeat("nagi-bot").catch(() => {});
 
   startNagiReplyWorker();
+  // DIDを持たない初回利用者向け。公開投稿は作らず、期限付きジョブから返信文だけを返す。
+  startGuestAffirmationWorker();
   // 自動分析（プロフィールの「botたんのひとこと」）ワーカー。エンキューは AppView ingest が担う。
   startNagiAnalysisWorker();
   // 全肯定カードを引いたときの吹き出しコメント。エンキューは AppView の drawCard が担う。

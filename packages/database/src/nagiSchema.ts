@@ -582,6 +582,45 @@ export const nagiAiReplyRequests = nagiSchema.table(
   },
   (t) => [index("nagi_ai_reply_requests_time_idx").on(t.requestedAt)],
 );
+
+/**
+ * 未サインイン利用者へ返す、期限付きの全肯定ジョブ。
+ *
+ * 投稿の正本はブラウザの IndexedDB にあり、この表は返信を生成して端末へ渡す間だけの
+ * 作業領域。DID や公開 URI は発行せず、accessToken はハッシュだけを保持する。
+ */
+export const nagiGuestAffirmationJobs = nagiSchema.table(
+  "guest_affirmation_jobs",
+  {
+    id: uuid("id").primaryKey(),
+    accessTokenHash: text("access_token_hash").notNull(),
+    text: text("text").notNull(),
+    language: text("language").notNull(),
+    state: botJobState("state").default("pending").notNull(),
+    reply: text("reply"),
+    attempts: integer("attempts").default(0).notNull(),
+    leaseExpiresAt: timestamp("lease_expires_at", { withTimezone: true }),
+    nextAttemptAt: timestamp("next_attempt_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    lastError: text("last_error"),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [
+    index("nagi_guest_affirmation_jobs_ready_idx").on(
+      t.state,
+      t.nextAttemptAt,
+      t.leaseExpiresAt,
+    ),
+    index("nagi_guest_affirmation_jobs_expiry_idx").on(t.expiresAt),
+  ],
+);
 /**
  * botたんの自動分析（プロフィールの「ひとこと」吹き出し）。did 単位で最新1件を upsert 保存する。
  * source='bluesky'（Nagi初回登録時、Bluesky投稿を分析）/ 'nagi'（Nagi投稿100到達ごと、Nagi投稿+リアクションを分析）。
@@ -877,6 +916,35 @@ export const nagiCardDraws = nagiSchema.table(
       "card_draws_reaction_trigger_check",
       sql`(${t.drawSource} = 'my_nagi' AND ${t.triggerUri} IS NULL) OR (${t.drawSource} = 'reaction' AND ${t.triggerUri} IS NOT NULL)`,
     ),
+  ],
+);
+
+/**
+ * DID をまだ持たない端末が引いた「今日の1枚」。端末の秘密値は生で保存せずハッシュだけを持つ。
+ * expires_at は通常カードと同じ JST 4:00 境界で、期限を越えた行は次の抽選時に削除する。
+ * サインイン後は同日の my_nagi 枠へ同じカードを移し、claimed_by_did を記録して再利用を防ぐ。
+ */
+export const nagiGuestCardDraws = nagiSchema.table(
+  "guest_card_draws",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    deviceTokenHash: text("device_token_hash").notNull(),
+    drawDate: text("draw_date").notNull(),
+    cardVolume: integer("card_volume").notNull(),
+    cardNumber: integer("card_number").notNull(),
+    claimedByDid: text("claimed_by_did"),
+    claimedAt: timestamp("claimed_at", { withTimezone: true }),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [
+    uniqueIndex("nagi_guest_card_draw_device_date_idx").on(
+      t.deviceTokenHash,
+      t.drawDate,
+    ),
+    index("nagi_guest_card_draw_expiry_idx").on(t.expiresAt),
   ],
 );
 

@@ -754,3 +754,8 @@ export type DrawCardResult = {
    */
   cards?: CardView[];
 };
+/** 未サインイン端末の当日カード。所持化前なので card.owned は false。 */
+export type GuestCardDrawResult = DrawCardResult & {
+  /** このローカル結果を破棄する時刻。通常カードと同じ JST 4:00 境界。 */
+  expiresAt: string;
+};

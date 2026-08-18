@@ -86,6 +86,8 @@ export const NAGI = {
    * （getChannelTimeline と同方針）。自分を指定したときだけ drawStatus が付く。
    */
   getCards: "com.suibari.nagi.getCards",
+  /** DID が無い端末向け。同日の1枚を端末秘密に対して冪等に返す公開手続き。 */
+  drawGuestCard: "com.suibari.nagi.drawGuestCard",
   /**
    * カードを1枚引く（1日1回）。抽選結果が改竄されては困るので AppView が権威を持ち、
    * PDS レコードにはしない。要認証。
@@ -111,6 +113,10 @@ export const NAGI = {
    */
   createKossoriPost: "com.suibari.nagi.createKossoriPost",
   deleteKossoriPost: "com.suibari.nagi.deleteKossoriPost",
+  /** DIDを持たない端末ローカル投稿へ、期限付きで全肯定を返す。公開投稿にはしない。 */
+  createGuestAffirmation: "com.suibari.nagi.createGuestAffirmation",
+  getGuestAffirmation: "com.suibari.nagi.getGuestAffirmation",
+  deleteGuestAffirmation: "com.suibari.nagi.deleteGuestAffirmation",
 } as const;
 
 /** Bluemoji (moji.blue) の絵文字定義レコード。カスタム絵文字はユーザー自身のPDSに置く。 */

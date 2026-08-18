@@ -1,0 +1,40 @@
+{
+  "lexicon": 1,
+  "id": "com.suibari.nagi.drawGuestCard",
+  "defs": {
+    "main": {
+      "type": "procedure",
+      "description": "未サインイン端末が今日の全肯定カードを1枚引く。同じ端末秘密・同じ日付では同じカードを返す。JST 4:00 が日付境界。",
+      "input": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "required": ["deviceToken"],
+          "properties": {
+            "deviceToken": {
+              "type": "string",
+              "minLength": 32,
+              "maxLength": 128
+            }
+          }
+        }
+      },
+      "output": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "required": ["card", "source", "alreadyDrawn", "isNew", "commentPending", "drawStatus", "expiresAt"],
+          "properties": {
+            "card": { "type": "unknown" },
+            "source": { "type": "string", "knownValues": ["my_nagi"] },
+            "alreadyDrawn": { "type": "boolean" },
+            "isNew": { "type": "boolean" },
+            "commentPending": { "type": "boolean" },
+            "drawStatus": { "type": "unknown" },
+            "expiresAt": { "type": "string", "format": "datetime" }
+          }
+        }
+      }
+    }
+  }
+}
