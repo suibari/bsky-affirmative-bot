@@ -1,7 +1,25 @@
-import { db, nagiActors, nagiDiaries, nagiPosts, nagiProfiles, nagiReactions } from "@bsky-affirmative-bot/database";
+import {
+  db,
+  nagiActors,
+  nagiDiaries,
+  nagiPosts,
+  nagiProfiles,
+  nagiReactions,
+} from "@bsky-affirmative-bot/database";
 import type { ActorView, DiaryView } from "@bsky-affirmative-bot/nagi-lexicon";
 import { localeToTimezone } from "@bsky-affirmative-bot/shared-configs";
-import { and, asc, desc, eq, gte, inArray, like, lt, lte, ne } from "drizzle-orm";
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  gte,
+  inArray,
+  like,
+  lt,
+  lte,
+  ne,
+} from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { ApiError } from "../middleware/errors.js";
 import { config } from "../config.js";
@@ -17,14 +35,21 @@ const DIARY_DATE = /^\d{4}-\d{2}-\d{2}$/;
 function validDate(value: string): boolean {
   if (!DIARY_DATE.test(value)) return false;
   const parsed = new Date(`${value}T00:00:00.000Z`);
-  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+  return (
+    !Number.isNaN(parsed.getTime()) &&
+    parsed.toISOString().slice(0, 10) === value
+  );
 }
 
 export function validateDiaryRange(from: string, to: string): void {
   if (!validDate(from) || !validDate(to) || from > to)
     throw new ApiError(400, "invalid_request", "Invalid diary date range");
-  const days = (Date.parse(`${to}T00:00:00.000Z`) - Date.parse(`${from}T00:00:00.000Z`)) / DAY_MS + 1;
-  if (days > MAX_RANGE_DAYS) throw new ApiError(400, "invalid_request", "Diary date range is too large");
+  const days =
+    (Date.parse(`${to}T00:00:00.000Z`) - Date.parse(`${from}T00:00:00.000Z`)) /
+      DAY_MS +
+    1;
+  if (days > MAX_RANGE_DAYS)
+    throw new ApiError(400, "invalid_request", "Diary date range is too large");
 }
 
 /** ある瞬間のIANAタイムゾーンにおけるUTCオフセット。DSTも含めて求める。 */
@@ -39,9 +64,17 @@ function timezoneOffsetMs(instant: Date, timezone: string): number {
     minute: "2-digit",
     second: "2-digit",
   }).formatToParts(instant);
-  const at = (type: string) => Number(parts.find((part) => part.type === type)?.value ?? 0);
+  const at = (type: string) =>
+    Number(parts.find((part) => part.type === type)?.value ?? 0);
   return (
-    Date.UTC(at("year"), at("month") - 1, at("day"), at("hour") % 24, at("minute"), at("second")) - instant.getTime()
+    Date.UTC(
+      at("year"),
+      at("month") - 1,
+      at("day"),
+      at("hour") % 24,
+      at("minute"),
+      at("second"),
+    ) - instant.getTime()
   );
 }
 
@@ -54,7 +87,8 @@ export function diaryInteractionWindow(row: DiaryRow): {
   const timezone = (lang && localeToTimezone[lang]) || "UTC";
   const naive = Date.parse(`${row.diaryDate}T22:00:00.000Z`);
   let endMs = naive;
-  for (let index = 0; index < 2; index++) endMs = naive - timezoneOffsetMs(new Date(endMs), timezone);
+  for (let index = 0; index < 2; index++)
+    endMs = naive - timezoneOffsetMs(new Date(endMs), timezone);
   return { start: new Date(endMs - DAY_MS), end: new Date(endMs) };
 }
 
@@ -67,7 +101,12 @@ export function rankDiaryInteractionActors(
   const totals = new Map<string, { count: number; latest: number }>();
   for (const event of events) {
     const at = event.eventAt.getTime();
-    if (event.targetDid === actorDid || at < window.start.getTime() || at > window.end.getTime()) continue;
+    if (
+      event.targetDid === actorDid ||
+      at < window.start.getTime() ||
+      at > window.end.getTime()
+    )
+      continue;
     const current = totals.get(event.targetDid);
     totals.set(event.targetDid, {
       count: (current?.count ?? 0) + 1,
@@ -77,13 +116,19 @@ export function rankDiaryInteractionActors(
   return [...totals]
     .sort(
       ([leftDid, left], [rightDid, right]) =>
-        right.count - left.count || right.latest - left.latest || leftDid.localeCompare(rightDid),
+        right.count - left.count ||
+        right.latest - left.latest ||
+        leftDid.localeCompare(rightDid),
     )
     .slice(0, limit)
     .map(([did]) => did);
 }
 
-async function loadDiaryInteractions(actorDid: string, start: Date, end: Date): Promise<DiaryInteractionEvent[]> {
+async function loadDiaryInteractions(
+  actorDid: string,
+  start: Date,
+  end: Date,
+): Promise<DiaryInteractionEvent[]> {
   const replyTarget = alias(nagiPosts, "diary_reply_target");
   const quoteTarget = alias(nagiPosts, "diary_quote_target");
   const [reactionRows, replyRows, quoteRows] = await Promise.all([
@@ -148,7 +193,9 @@ async function loadActorViews(dids: string[]): Promise<Map<string, ActorView>> {
         did: actor.did,
         handle: actor.handle,
         displayName: profile?.displayName ?? undefined,
-        avatar: profile?.avatarCid ? `/api/blob/${encodeURIComponent(actor.did)}/${profile.avatarCid}` : undefined,
+        avatar: profile?.avatarCid
+          ? `/api/blob/${encodeURIComponent(actor.did)}/${profile.avatarCid}`
+          : undefined,
         isBot: actor.did === config.botDid,
       },
     ]),
@@ -180,6 +227,7 @@ export function diaryView(
       text: "",
       postCount: row.postCount ?? undefined,
       isPrivate: true,
+      bodyHidden: true,
       langs: (row.langs as string[] | null) ?? undefined,
       createdAt: row.recordCreatedAt.toISOString(),
       indexedAt: row.indexedAt.toISOString(),
@@ -224,12 +272,22 @@ export async function getDiaries(opts: {
   /** 未認証でも呼べる公開エンドポイントなので undefined になりうる（その場合は伏せる側に倒れる）。 */
   viewerDid?: string;
 }): Promise<{ items: DiaryView[]; cursor?: string; hasMore: boolean }> {
-  if (!opts.actor) throw new ApiError(400, "invalid_request", "actor is required");
-  if (opts.month && !/^\d{4}-\d{2}$/.test(opts.month)) throw new ApiError(400, "invalid_request", "Invalid month");
+  if (!opts.actor)
+    throw new ApiError(400, "invalid_request", "actor is required");
+  if (opts.month && !/^\d{4}-\d{2}$/.test(opts.month))
+    throw new ApiError(400, "invalid_request", "Invalid month");
   if (opts.month && (opts.from || opts.to))
-    throw new ApiError(400, "invalid_request", "month cannot be combined with a date range");
+    throw new ApiError(
+      400,
+      "invalid_request",
+      "month cannot be combined with a date range",
+    );
   if (Boolean(opts.from) !== Boolean(opts.to))
-    throw new ApiError(400, "invalid_request", "from and to must be provided together");
+    throw new ApiError(
+      400,
+      "invalid_request",
+      "from and to must be provided together",
+    );
 
   if (opts.from && opts.to) {
     validateDiaryRange(opts.from, opts.to);
@@ -247,20 +305,34 @@ export async function getDiaries(opts: {
     if (!rows.length) return { items: [], hasMore: false };
 
     const windows = rows.map((row) => diaryInteractionWindow(row));
-    const start = new Date(Math.min(...windows.map((window) => window.start.getTime())));
-    const end = new Date(Math.max(...windows.map((window) => window.end.getTime())));
+    const start = new Date(
+      Math.min(...windows.map((window) => window.start.getTime())),
+    );
+    const end = new Date(
+      Math.max(...windows.map((window) => window.end.getTime())),
+    );
     const events = await loadDiaryInteractions(opts.actor, start, end);
     const ranked = windows.map((window) =>
-      rankDiaryInteractionActors(events, window, opts.actor, INVOLVED_ACTOR_LIMIT + 1),
+      rankDiaryInteractionActors(
+        events,
+        window,
+        opts.actor,
+        INVOLVED_ACTOR_LIMIT + 1,
+      ),
     );
-    const visibleRanked = ranked.map((dids) => dids.slice(0, INVOLVED_ACTOR_LIMIT));
+    const visibleRanked = ranked.map((dids) =>
+      dids.slice(0, INVOLVED_ACTOR_LIMIT),
+    );
     const actors = await loadActorViews(visibleRanked.flat());
     return {
       items: rows.map((row, index) =>
         diaryView(
           row,
           opts.viewerDid,
-          visibleRanked[index].map((did) => actors.get(did) ?? ({ did, handle: did } satisfies ActorView)),
+          visibleRanked[index].map(
+            (did) =>
+              actors.get(did) ?? ({ did, handle: did } satisfies ActorView),
+          ),
           ranked[index].length > INVOLVED_ACTOR_LIMIT,
         ),
       ),
@@ -272,9 +344,17 @@ export async function getDiaries(opts: {
     const rows = await db
       .select()
       .from(nagiDiaries)
-      .where(and(eq(nagiDiaries.subjectDid, opts.actor), like(nagiDiaries.diaryDate, `${opts.month}-%`)))
+      .where(
+        and(
+          eq(nagiDiaries.subjectDid, opts.actor),
+          like(nagiDiaries.diaryDate, `${opts.month}-%`),
+        ),
+      )
       .orderBy(asc(nagiDiaries.diaryDate));
-    return { items: rows.map((row) => diaryView(row, opts.viewerDid)), hasMore: false };
+    return {
+      items: rows.map((row) => diaryView(row, opts.viewerDid)),
+      hasMore: false,
+    };
   }
 
   const filters = [eq(nagiDiaries.subjectDid, opts.actor)];
@@ -289,7 +369,8 @@ export async function getDiaries(opts: {
   const items = rows.map((row) => diaryView(row, opts.viewerDid));
   return {
     items,
-    cursor: items.length === opts.limit ? items[items.length - 1].date : undefined,
+    cursor:
+      items.length === opts.limit ? items[items.length - 1].date : undefined,
     hasMore: items.length === opts.limit,
   };
 }

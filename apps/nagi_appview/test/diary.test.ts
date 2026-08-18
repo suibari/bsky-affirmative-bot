@@ -20,20 +20,35 @@ const diaryRecord = (extra: Record<string, unknown> = {}) => ({
 
 test("validates legacy and activity diary records", () => {
   assert.equal(validateRecord(NAGI.diary, diaryRecord()), true);
-  assert.equal(validateRecord(NAGI.diary, diaryRecord({ emoji: "🌱", postCount: 3 })), true);
-  assert.equal(validateRecord(NAGI.diary, diaryRecord({ emoji: "👩‍💻", postCount: 1 })), true);
-  assert.equal(validateRecord(NAGI.diary, diaryRecord({ emoji: "🍜🚃🎸", postCount: 2 })), true);
+  assert.equal(
+    validateRecord(NAGI.diary, diaryRecord({ emoji: "🌱", postCount: 3 })),
+    true,
+  );
+  assert.equal(
+    validateRecord(NAGI.diary, diaryRecord({ emoji: "👩‍💻", postCount: 1 })),
+    true,
+  );
+  assert.equal(
+    validateRecord(NAGI.diary, diaryRecord({ emoji: "🍜🚃🎸", postCount: 2 })),
+    true,
+  );
 });
 
 test("keeps read compatibility for legacy 1-or-3 emoji records", () => {
   for (const emoji of ["🌱✨", "🍜🚃🎸📚"]) {
-    assert.equal(validateRecord(NAGI.diary, diaryRecord({ emoji, postCount: 2 })), false);
+    assert.equal(
+      validateRecord(NAGI.diary, diaryRecord({ emoji, postCount: 2 })),
+      false,
+    );
   }
 });
 
 test("rejects invalid post counts", () => {
   for (const postCount of [0, -1, 1.5, "2"]) {
-    assert.equal(validateRecord(NAGI.diary, diaryRecord({ emoji: "🌱", postCount })), false);
+    assert.equal(
+      validateRecord(NAGI.diary, diaryRecord({ emoji: "🌱", postCount })),
+      false,
+    );
   }
 });
 
@@ -53,30 +68,38 @@ test("diary view exposes activity and involved actors without legacy emoji", () 
     indexedAt: new Date("2026-08-02T13:00:01.000Z"),
   };
 
-  assert.deepEqual(diaryView({ ...base, emoji: null, postCount: null }, undefined), {
-    uri: base.uri,
-    cid: base.cid,
-    subject: base.subjectDid,
-    date: base.diaryDate,
-    text: base.text,
-    titleJa: undefined,
-    titleEn: undefined,
-    postCount: undefined,
-    isPrivate: undefined,
-    involvedActors: undefined,
-    involvedActorsHasMore: undefined,
-    langs: undefined,
-    createdAt: base.recordCreatedAt.toISOString(),
-    indexedAt: base.indexedAt.toISOString(),
-  });
+  assert.deepEqual(
+    diaryView({ ...base, emoji: null, postCount: null }, undefined),
+    {
+      uri: base.uri,
+      cid: base.cid,
+      subject: base.subjectDid,
+      date: base.diaryDate,
+      text: base.text,
+      titleJa: undefined,
+      titleEn: undefined,
+      postCount: undefined,
+      isPrivate: undefined,
+      involvedActors: undefined,
+      involvedActorsHasMore: undefined,
+      langs: undefined,
+      createdAt: base.recordCreatedAt.toISOString(),
+      indexedAt: base.indexedAt.toISOString(),
+    },
+  );
 
   const involved = [{ did: "did:plc:bob", handle: "bob.test" }];
-  const view = diaryView({ ...base, emoji: "🍜🚃🎸", postCount: 4 }, undefined, involved);
+  const view = diaryView(
+    { ...base, emoji: "🍜🚃🎸", postCount: 4 },
+    undefined,
+    involved,
+  );
   assert.equal(view.postCount, 4);
   assert.deepEqual(view.involvedActors, involved);
   assert.equal(view.involvedActorsHasMore, undefined);
   assert.equal(
-    diaryView({ ...base, emoji: null, postCount: 4 }, undefined, involved, true).involvedActorsHasMore,
+    diaryView({ ...base, emoji: null, postCount: 4 }, undefined, involved, true)
+      .involvedActorsHasMore,
     true,
   );
   assert.equal("emoji" in view, false);
@@ -107,11 +130,13 @@ test("private diaries keep the graph cell but hide the body from everyone else",
   assert.equal(mine.titleJa, "今日の称号");
   assert.deepEqual(mine.involvedActors, involved);
   assert.equal(mine.isPrivate, true);
+  assert.equal(mine.bodyHidden, undefined);
 
   // 他人と未認証。日付と件数だけ（コミットグラフの濃淡は出したいので postCount は残す）。
   for (const viewer of ["did:plc:bob", undefined]) {
     const hidden = diaryView(row, viewer, involved, true);
     assert.equal(hidden.isPrivate, true);
+    assert.equal(hidden.bodyHidden, true);
     assert.equal(hidden.date, row.diaryDate);
     assert.equal(hidden.postCount, 4);
     assert.equal(hidden.text, "");
@@ -124,8 +149,14 @@ test("private diaries keep the graph cell but hide the body from everyone else",
 
 test("accepts at most 371 inclusive days for the annual diary graph", () => {
   assert.doesNotThrow(() => validateDiaryRange("2025-08-10", "2026-08-15"));
-  assert.throws(() => validateDiaryRange("2025-08-09", "2026-08-15"), /too large/);
-  assert.throws(() => validateDiaryRange("2026-08-16", "2026-08-15"), /Invalid diary date range/);
+  assert.throws(
+    () => validateDiaryRange("2025-08-09", "2026-08-15"),
+    /too large/,
+  );
+  assert.throws(
+    () => validateDiaryRange("2026-08-16", "2026-08-15"),
+    /Invalid diary date range/,
+  );
 });
 
 test("uses the same local 22:00 cutoff as Japanese diary generation", () => {
@@ -151,7 +182,8 @@ test("uses the same local 22:00 cutoff as Japanese diary generation", () => {
 });
 
 test("ranks interaction targets by count, recency, then DID", () => {
-  const at = (minute: number) => new Date(`2026-08-02T12:${String(minute).padStart(2, "0")}:00Z`);
+  const at = (minute: number) =>
+    new Date(`2026-08-02T12:${String(minute).padStart(2, "0")}:00Z`);
   const events = [
     { targetDid: "did:plc:bob", eventAt: at(1) },
     { targetDid: "did:plc:bob", eventAt: at(2) },

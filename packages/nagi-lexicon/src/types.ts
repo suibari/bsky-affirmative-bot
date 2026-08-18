@@ -249,10 +249,14 @@ export type DiaryView = {
   titleEn?: string;
   postCount?: number;
   /**
-   * その日の材料にこっそり投稿が含まれる日記。本人以外には text / titleJa / titleEn /
-   * involvedActors を伏せて返す（date と postCount は返すのでコミットグラフには出る）。
+   * その日の材料にこっそり投稿が含まれる、本人限定の日記であることを示す。
    */
   isPrivate?: boolean;
+  /**
+   * 現在の閲覧者には本文を見せられないことを示す。true のとき text は空文字で、
+   * titleJa / titleEn / involvedActors は返さない。
+   */
+  bodyHidden?: boolean;
   /** その日のリアクション・返信・引用で、本人から多く関わった相手（最大10人）。 */
   involvedActors?: ActorView[];
   /** 11人目以降の関わった相手がいる。 */
@@ -424,9 +428,7 @@ export type ProfileKossoriReactionItem = {
   reactedAt: string;
 };
 export type ProfileFeedItem =
-  | FeedItem
-  | ProfileNewsReactionItem
-  | ProfileKossoriReactionItem;
+  FeedItem | ProfileNewsReactionItem | ProfileKossoriReactionItem;
 export type ProfilePage = {
   profile: ProfileDetail;
   feed: Page<ProfileFeedItem>;
