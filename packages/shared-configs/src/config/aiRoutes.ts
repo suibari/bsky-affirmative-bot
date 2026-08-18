@@ -135,8 +135,8 @@ export const AI_FEATURES = {
   // Nagi は必ず requestOptions で model/serviceTier を明示上書きする（再試行ラダー）。
   // つまり下の2キーが実際に効くのは Bluesky 側だけ。
   // Nagi 側を変えたいときは NAGI_REPLY_ATTEMPT_{EARLY,MID,LATE} を触ること。
-  BSKY_AFFIRMATIVE_REPLY: "lite-flex", // 通常AIリプライ（スコア付き）
-  BSKY_CONVERSATION: "lite-flex", // 会話モード（chats.create）
+  BSKY_AFFIRMATIVE_REPLY: "lite-standard", // 通常AIリプライ（スコア付き）
+  BSKY_CONVERSATION: "lite-standard", // 会話モード（chats.create）
   BSKY_ANALYZE: "lite-flex", // botたん分析
   BSKY_FORTUNE: "lite-flex", // 占い
   BSKY_BOT_DIARY: "lite-flex", // botたん自身の日記（Leaflet/Zenn 投稿）
@@ -168,7 +168,9 @@ export const AI_FEATURES = {
   BIORHYTHM_WHIMSICAL_POST_WRITE: "flash-flex", // 気まぐれ投稿: 執筆フェーズ（構造化JSON）
 
   // ══════ Nagi ═══════════════════════════════════════════════════════
-  NAGI_REPLY_ATTEMPT_EARLY: "lite-flex", // リプライ 1〜2回目
+  // ユーザーが画面上で待つ通常リプライ。Flex の混雑時に約10分滞留し、直列ワーカーの
+  // 後続ジョブまで塞いだ実績があるため、初回から Standard で応答時間を優先する。
+  NAGI_REPLY_ATTEMPT_EARLY: "lite-standard", // リプライ 1〜2回目
   NAGI_REPLY_ATTEMPT_MID: "lite-standard", // リプライ 3〜4回目
   NAGI_REPLY_ATTEMPT_LATE: "flash-standard", // リプライ 5回目以降 + 会話は初回から
   // 自動アクター分析（名刺）。発火は「初回登録 + Nagi投稿10件 + 100件ごと」と頻度が低く、
@@ -179,9 +181,9 @@ export const AI_FEATURES = {
   NAGI_COMMUNITY_AFFIRMATION: "lite-flex", // コミュニティ全肯定
   NAGI_CHANNEL_WELCOME: "lite-flex", // チャンネル作成時の歓迎
   NAGI_CHANNEL_TOPIC: "lite-flex", // チャンネルへの話題ふり
-  // 呼び名の指定/訂正かどうかの判定。返信生成と並列に走り、結果は次回以降に効くので
-  // 待たされても困らない＝flex でよい。grounding を使わないので responseSchema が効く。
-  NAGI_NAME_INTENT: "lite-flex",
+  // 呼び名の指定/訂正かどうかの判定。返信生成と並列だが投稿前に完了を待つため、
+  // 通常返信と同じく Standard で応答時間を優先する。
+  NAGI_NAME_INTENT: "lite-standard",
 
   // ══════ ニュース ═══════════════════════════════════════════════════
   NEWS_POSITIVE_GATE: "lite-flex", // ポジニュース判定（構造化JSON）

@@ -75,8 +75,8 @@ MODEL_GEMINI_FLASH=gemini-3.0-flash
 
 | 機能キー | 既定ルート | 用途 |
 |---|---|---|
-| `BSKY_AFFIRMATIVE_REPLY` | `lite-flex` | 通常AIリプライ（スコア付き） |
-| `BSKY_CONVERSATION` | `lite-flex` | 会話モード（`chats.create`） |
+| `BSKY_AFFIRMATIVE_REPLY` | `lite-standard` | 通常AIリプライ（スコア付き） |
+| `BSKY_CONVERSATION` | `lite-standard` | 会話モード（`chats.create`） |
 | `BSKY_ANALYZE` | `lite-flex` | botたん分析 |
 | `BSKY_FORTUNE` | `lite-flex` | 占い |
 | `BSKY_BOT_DIARY` | `lite-flex` | botたん自身の日記（Leaflet/Zenn 投稿） |
@@ -115,14 +115,15 @@ bsky の全機能は `callbacks.ts` の共通リトライ（初回+2回）に包
 
 | 機能キー | 既定ルート | 用途 |
 |---|---|---|
-| `NAGI_REPLY_ATTEMPT_EARLY` | `lite-flex` | リプライ 1〜2回目 |
+| `NAGI_REPLY_ATTEMPT_EARLY` | `lite-standard` | リプライ 1〜2回目（ユーザーが待つため応答時間優先） |
 | `NAGI_REPLY_ATTEMPT_MID` | `lite-standard` | リプライ 3〜4回目 |
 | `NAGI_REPLY_ATTEMPT_LATE` | `flash-standard` | リプライ 5回目以降 + 会話は初回から |
-| `NAGI_ANALYSIS` | `lite-flex` | 自動アクター分析 |
+| `NAGI_ANALYSIS` | `lite-standard` | 自動アクター分析 |
 | `NAGI_CARD_COMMENT` | `lite-standard` | カードのbotたんコメント |
 | `NAGI_COMMUNITY_AFFIRMATION` | `lite-flex` | コミュニティ全肯定 |
 | `NAGI_CHANNEL_WELCOME` | `lite-flex` | チャンネル作成時の歓迎 |
 | `NAGI_CHANNEL_TOPIC` | `lite-flex` | チャンネルへの話題ふり |
+| `NAGI_NAME_INTENT` | `lite-standard` | 呼称指定・訂正の判定（返信投稿前に完了待ち） |
 
 Nagi のリプライは**失敗するたびに段を上げる再試行ラダー**になっている（`apps/nagi_bot_server/src/nagiReplyRetry.ts`）。
 段の刻み方（1-2 / 3-4 / 5以降）はコード側、各段が何を使うかは上の3キーが決める。

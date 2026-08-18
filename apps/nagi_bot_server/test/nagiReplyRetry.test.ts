@@ -70,11 +70,11 @@ test("エラー保存時はラッパーとroot causeの両方を残す", () => {
   );
 });
 
-test("試行回数に応じてFlex、Lite Standard、Flash Standardへ切り替える", () => {
+test("初回からLite Standardを使い、後半はFlash Standardへ切り替える", () => {
   assert.deepEqual(nagiAiRouteForAttempt(1), {
-    route: "lite-flex",
+    route: "lite-standard",
     model: aiModel("NAGI_REPLY_ATTEMPT_EARLY"),
-    serviceTier: "flex",
+    serviceTier: "standard",
   });
   assert.deepEqual(nagiAiRouteForAttempt(2), nagiAiRouteForAttempt(1));
   assert.deepEqual(nagiAiRouteForAttempt(3), {

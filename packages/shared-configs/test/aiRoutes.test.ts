@@ -60,8 +60,8 @@ const EXPECTED: Record<AiFeatureKey, [model: string, tier: "flex" | "standard" |
   COMMON_DIARY_ATTEMPT_MID: [FLASH_35_LITE, "standard"],
   COMMON_DIARY_ATTEMPT_LATE: [FLASH_35_LITE, "standard"],
   // bsky_bot_server（肯定返信/会話は Nagi が requestOptions で上書きするので実質 bsky 専用）
-  BSKY_AFFIRMATIVE_REPLY: [LITE, "flex"],
-  BSKY_CONVERSATION: [LITE, "flex"],
+  BSKY_AFFIRMATIVE_REPLY: [LITE, "standard"],
+  BSKY_CONVERSATION: [LITE, "standard"],
   BSKY_ANALYZE: [LITE, "flex"],
   BSKY_FORTUNE: [LITE, "flex"],
   BSKY_BOT_DIARY: [LITE, "flex"],
@@ -88,7 +88,7 @@ const EXPECTED: Record<AiFeatureKey, [model: string, tier: "flex" | "standard" |
   BIORHYTHM_WHIMSICAL_POST_PLAN: [FLASH, "flex"],
   BIORHYTHM_WHIMSICAL_POST_WRITE: [FLASH, "flex"],
   // Nagi
-  NAGI_REPLY_ATTEMPT_EARLY: [LITE, "flex"],
+  NAGI_REPLY_ATTEMPT_EARLY: [LITE, "standard"],
   NAGI_REPLY_ATTEMPT_MID: [LITE, "standard"],
   NAGI_REPLY_ATTEMPT_LATE: [FLASH, "standard"],
   NAGI_ANALYSIS: [LITE, "standard"],
@@ -96,7 +96,7 @@ const EXPECTED: Record<AiFeatureKey, [model: string, tier: "flex" | "standard" |
   NAGI_COMMUNITY_AFFIRMATION: [LITE, "flex"],
   NAGI_CHANNEL_WELCOME: [LITE, "flex"],
   NAGI_CHANNEL_TOPIC: [LITE, "flex"],
-  NAGI_NAME_INTENT: [LITE, "flex"],
+  NAGI_NAME_INTENT: [LITE, "standard"],
   // ニュース
   NEWS_POSITIVE_GATE: [LITE, "flex"],
   NEWS_POSITIVE_COMMENT: [LITE, "flex"],
