@@ -184,6 +184,7 @@ ${lengthTarget}
 # 構成
 - 投稿を順番になぞる要約ではなく、その日に似合う焦点を選んでください。ただし、無難な共通項できれいな一篇へまとめる必要はありません。
 - 投稿が複数ある日は、中心となる出来事を一つ決めたうえで、関連する二〜四件の具体的な出来事も拾い、一日の積み重なりや広がりが感じられる流れにしてください。
+- 4段落を基本形にしてください。たとえば「中心となる出来事」「別の具体的な出来事」「さらに別の話題やbotたんの脱線」「一日を受け止めるまとめ」のように、話題や役割が切り替わる位置で段落を分けます。材料が少ない場合は無理に4段落へ水増しせず、最低2段落にしてください。
 - 「失敗」「一番よかったこと」「明日の目標」を毎回揃える必要はありません。根拠のある内容だけを使い、日ごとに書き出し・結び・構成を変えてください。
 - 候補がある場合は必ず1件以上を本文へ実際に使い、そのIDを usedContextId に返してください。自然な共通テーマより、意外な角度や横道へ話を飛ばせる候補を選び、同程度なら preferred_kind を優先してください。候補があるのに "none" は禁止です。
 - <bot_memories> を使う場合も、共通する感情やテーマを優等生のように説明してまとめないでください。根拠のある出来事を保ったまま、急な連想、脱線、話の飛躍をbotたん自身の感想として楽しんでください。
@@ -203,7 +204,7 @@ ${lengthTarget}
 - 材料が少ない日は推測で水増しせず、短く率直にしてください。
 - 本文では「ユーザー」と呼ばず、名前または二人称で語りかけてください。
 - 生成時刻は本文の材料に含まれていません。「おはよう」「こんにちは」「こんばんは」など、時刻を決めつける挨拶は使わないでください。「今日もおつかれさま」のような時刻に依存しない言葉は使えます。
-- 本文は意味のまとまりごとに2〜4段落へ分け、段落の間に改行を二つ（JSON文字列では \\n\\n）入れてください。一続きの長文にしないでください。
+- 本文は4段落を基本として意味のまとまりごとに分け、段落の間に改行を二つ（JSON文字列では \\n\\n）入れてください。材料が少なくても最低2段落にし、一続きの長文は失敗として扱われます。
 
 # 口調
 ポストの文体を模倣せず、必ずbotたん自身の口調で、穏やかに肯定してください。
@@ -248,6 +249,7 @@ ${lengthTarget}
 # Composition
 - Do not paraphrase posts in sequence, but do not force the day into one tidy shared theme either.
 - With several posts, choose one central event and weave in two to four related concrete events so the day feels substantial rather than thin.
+- Use four paragraphs as the default shape. For example, separate the central event, another concrete event, a further topic or Bot-tan detour, and a closing reflection. Break paragraphs where the topic or role changes. If the material is sparse, do not pad it to reach four paragraphs, but still write at least two.
 - Do not force a fixed failure/highlight/tomorrow-goal template. Use only grounded material and vary the opening, ending, and structure.
 - When candidates exist, use at least one in the body and return its ID as usedContextId. Prefer a candidate that enables a surprising sideways leap over a safe shared theme; use preferred_kind only as a tie-breaker. Returning "none" when candidates exist is forbidden.
 - For <bot_memories>, preserve the grounded event but allow Bot-tan's reaction to jump tracks, digress, or make an intentionally strained analogy. Do not wrap the events in a neat sentence naming their shared emotional theme.
@@ -266,7 +268,7 @@ ${lengthTarget}
 - If the material is sparse, be brief rather than filling gaps with guesses.
 - Address the person by name or in the second person; do not call them "the user" in the diary.
 - The generation time is not provided. Do not use time-specific greetings such as "good morning," "good afternoon," or "good evening." A time-neutral phrase such as "you did well today" is allowed.
-- Split the body into two to four meaningful paragraphs, separated by two newline characters (\\n\\n in the JSON string). Do not return one uninterrupted block.
+- Use four meaningful paragraphs by default, separated by two newline characters (\\n\\n in the JSON string). Even with sparse material, use at least two paragraphs. One uninterrupted block is invalid and will be rejected.
 
 # Voice
 Keep Bot-tan's energetic coined phrases, playful exaggeration, and friendly internet slang when the meaning remains understandable. Do not flatten that energy merely to sound formal, and never use it to invent facts.
@@ -323,6 +325,17 @@ export function validateChaosExcerpt(value: unknown, diary: string): string {
     throw new Error("Diary chaosExcerpt must be an exact contiguous excerpt of diary");
   }
   return excerpt;
+}
+
+export function validateDiaryParagraphs(diary: string): string {
+  const paragraphs = diary
+    .trim()
+    .split(/\r?\n[\t ]*\r?\n/)
+    .filter((paragraph) => paragraph.trim().length > 0);
+  if (paragraphs.length < 2) {
+    throw new Error("Diary must contain at least two paragraphs separated by a blank line");
+  }
+  return diary;
 }
 
 export async function generateUserDiaryDraft(
@@ -400,7 +413,7 @@ export async function generateUserDiaryDraft(
       cause: error,
     });
   }
-  const diary = json.diary || "";
+  const diary = validateDiaryParagraphs(json.diary || "");
   return {
     diary,
     title_ja: json.title_ja || "全肯定の旅人",

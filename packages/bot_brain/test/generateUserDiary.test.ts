@@ -4,6 +4,7 @@ import {
   formatUserDiaryDayContext,
   buildUserDiaryPrompt,
   validateChaosExcerpt,
+  validateDiaryParagraphs,
   validateUsedContextId,
 } from "../src/gemini/generateUserDiary.js";
 import { generateUserDiaryResilient } from "../src/gemini/generateUserDiaryResilient.js";
@@ -102,6 +103,8 @@ test("new prompt removes the fixed triad and emoji work while pinning attributio
   assert.match(prompt, /各投稿は別々の発言・出来事/);
   assert.match(prompt, /他者の作品と、ユーザー自身が作ったものを区別/);
   assert.match(prompt, /時刻を決めつける挨拶は使わない/);
+  assert.match(prompt, /4段落を基本形/);
+  assert.match(prompt, /最低2段落/);
   assert.match(prompt, /段落の間に改行を二つ/);
   assert.match(prompt, /勢いのある造語、ユーモラスな大げささ/);
   assert.match(prompt, /日記の対象者以外のNagi・Bluesky利用者/);
@@ -180,7 +183,8 @@ test("English prompt keeps the same attribution, privacy, and chaos rules", () =
   assert.match(prompt, /usedContextId="none"/);
   assert.match(prompt, /Treat each item in <user_posts> as a separate/i);
   assert.match(prompt, /Do not use time-specific greetings/i);
-  assert.match(prompt, /two to four meaningful paragraphs/i);
+  assert.match(prompt, /four paragraphs as the default shape/i);
+  assert.match(prompt, /at least two paragraphs/i);
   assert.match(prompt, /energetic coined phrases/i);
   assert.match(prompt, /private person other than the diary subject/i);
   assert.match(prompt, /fictional names supplied by <media_reference>/i);
@@ -250,6 +254,23 @@ test("chaos excerpt must be a substantial exact passage from the diary", () => {
   assert.throws(() => validateChaosExcerpt("急に冷蔵庫が宇宙船の艦長になった", diary), /exact contiguous excerpt/);
 });
 
+test("diary body must contain a blank line between paragraphs", () => {
+  const paragraphs = "整形外科の話。\n\n虫の話。\n\nUI改善の話。\n\n今日のまとめ。";
+  assert.equal(validateDiaryParagraphs(paragraphs), paragraphs);
+  assert.equal(
+    validateDiaryParagraphs("First topic.\r\n  \r\nSecond topic."),
+    "First topic.\r\n  \r\nSecond topic.",
+  );
+  assert.throws(
+    () => validateDiaryParagraphs("整形外科、虫、UI改善、まとめを一続きに書いた本文。"),
+    /at least two paragraphs separated by a blank line/,
+  );
+  assert.throws(
+    () => validateDiaryParagraphs("一行目。\n二行目だが空行はない。"),
+    /at least two paragraphs separated by a blank line/,
+  );
+});
+
 test("a valid diary draft completes without a separate repair request", async () => {
   let bodyCalls = 0;
   const result = await generateUserDiaryResilient(userinfo, {
@@ -258,7 +279,7 @@ test("a valid diary draft completes without a separate repair request", async ()
     generateDraft: async () => {
       bodyCalls += 1;
       return {
-        diary: "保存すべき本文",
+        diary: "保存すべき本文の前半。\n\n保存すべき本文の後半。",
         title_ja: "整備の達人",
         title_en: "Master of Maintenance",
         usedContextId: "none",
@@ -267,7 +288,7 @@ test("a valid diary draft completes without a separate repair request", async ()
     },
   });
   assert.equal(bodyCalls, 1);
-  assert.equal(result.diary, "保存すべき本文");
+  assert.equal(result.diary, "保存すべき本文の前半。\n\n保存すべき本文の後半。");
 });
 
 test("omits absent diary context without inventing placeholders", () => {
