@@ -2,6 +2,7 @@ import {
   db,
   nagiActorAnalyses,
   nagiActors,
+  nagiEmojis,
   nagiNews,
   nagiNewsApprovals,
   nagiPostScores,
@@ -36,6 +37,7 @@ import {
   type PostRow,
 } from "./timeline.js";
 import { getApprovedNewsViews, type NewsLang } from "./positiveNews.js";
+import { emojiView } from "../services/emoji.js";
 export async function getActorProfile(
   did: string,
   lang: "ja" | "en" = "ja",
@@ -146,6 +148,8 @@ export async function getReactedFeed(opts: {
         subjectUri: nagiReactions.subjectUri,
         reactionUri: nagiReactions.uri,
         reactionIndexedAt: nagiReactions.indexedAt,
+        emoji: nagiReactions.emoji,
+        emojiUri: nagiReactions.emojiUri,
         rank: sql<number>`row_number() over (
           partition by ${nagiReactions.subjectUri}
           order by ${nagiReactions.indexedAt} desc, ${nagiReactions.uri} desc
@@ -176,6 +180,8 @@ export async function getReactedFeed(opts: {
       subjectUri: ranked.subjectUri,
       reactionUri: ranked.reactionUri,
       reactionIndexedAt: ranked.reactionIndexedAt,
+      emoji: ranked.emoji,
+      emojiUri: ranked.emojiUri,
     })
     .from(ranked)
     .where(and(...filters))
@@ -204,6 +210,27 @@ export async function getReactedFeed(opts: {
       .filter(({ post }) => post.kossori && post.did !== opts.viewerDid)
       .map(({ post }) => post.uri),
   );
+  // 元投稿の情報は返さず、履歴カードに必要な「本人が押した絵文字」だけを解決する。
+  // 通常投稿・ニュースの絵文字は既存の各 View が解決するので、ここでは重複取得しない。
+  const hiddenEmojiUris = [
+    ...new Set(
+      page.flatMap((row) =>
+        hiddenKossoriUris.has(row.subjectUri) && row.emojiUri ? [row.emojiUri] : [],
+      ),
+    ),
+  ];
+  const hiddenEmojiRows = hiddenEmojiUris.length
+    ? await db
+        .select()
+        .from(nagiEmojis)
+        .where(inArray(nagiEmojis.uri, hiddenEmojiUris))
+    : [];
+  const emojiByUri = new Map(
+    hiddenEmojiRows.flatMap((row) => {
+      const view = emojiView(row);
+      return view ? [[row.uri, view] as const] : [];
+    }),
+  );
   const [postItems, newsByUri, botActor] = await Promise.all([
     buildFeedItems(
       postRows.filter(({ post }) => !hiddenKossoriUris.has(post.uri)),
@@ -220,6 +247,10 @@ export async function getReactedFeed(opts: {
           kind: "kossori" as const,
           reactionUri: row.reactionUri,
           reactedAt: row.reactionIndexedAt.toISOString(),
+          emoji: row.emoji,
+          ...(row.emojiUri && emojiByUri.has(row.emojiUri)
+            ? { bluemoji: emojiByUri.get(row.emojiUri) }
+            : {}),
         },
       ];
     const post = postByUri.get(row.subjectUri);
