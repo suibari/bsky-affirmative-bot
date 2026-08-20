@@ -44,12 +44,20 @@ test("上流は1接続でも生きていればok、全接続断でdown", () => {
 
 test("WebSocketが開いていてもcommit受信が止まればJetstreamをdownにする", () => {
   const current = Date.parse("2026-08-17T00:10:00.000Z");
+  assert.equal(jetstreamActivityPart(undefined, current).state, "unknown");
   assert.equal(
     jetstreamActivityPart(
       { detail: { lastEventAt: "2026-08-17T00:09:00.000Z" } },
       current,
     ).state,
     "ok",
+  );
+  assert.equal(
+    jetstreamActivityPart(
+      { detail: { lastEventAt: "2026-08-17T00:07:30.000Z" } },
+      current,
+    ).state,
+    "stale",
   );
   assert.equal(
     jetstreamActivityPart(

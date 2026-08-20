@@ -53,14 +53,22 @@ export function startBotJetstream({
   let rotateTimer: NodeJS.Timeout | null = null;
   let stopped = false;
   let connected = false;
+  let lastEventAt: string | undefined;
 
   /**
-   * 購読しているコレクションが静かでも「生きている」と言えるよう、受信イベント数
-   * ではなく接続状態そのものを定期的に報告する。イベント駆動にすると、低トラフィック
-   * な Nagi のコレクションでは正常なのに応答なしに見えてしまう。
+   * 低トラフィックの購読でも接続状態は定期報告し、実イベントの最終受信時刻は
+   * 補足情報として分けて載せる。監視側は用途に応じて両者を別々に判定できる。
    */
   const reportAlive = () => {
-    if (connected) onHealth?.({ ok: true, detail: { endpoint: current() ?? "(default)" } });
+    if (connected) {
+      onHealth?.({
+        ok: true,
+        detail: {
+          endpoint: current() ?? "(default)",
+          ...(lastEventAt ? { lastEventAt } : {}),
+        },
+      });
+    }
   };
 
   const armRotate = () => {
@@ -92,9 +100,18 @@ export function startBotJetstream({
       started.onDelete(collection as any, callback as any);
     }
 
+    // open は接続成立しか証明しない。実際に commit が届いた時刻を別に残し、
+    // ダッシュボード側で Relay → Jetstream のイベント配送も判定できるようにする。
+    started.on("commit", () => {
+      if (started !== jetstream) return;
+      lastEventAt = new Date().toISOString();
+    });
+
     started.on("open", () => {
       if (started !== jetstream) return;
       connected = true;
+      // 接続先を切り替えた後は、新しい接続で commit を受けるまで過去の実績を使わない。
+      lastEventAt = undefined;
       if (rotateTimer) clearTimeout(rotateTimer);
       rotateTimer = null;
       console.log(`[INFO] Jetstream connection established: ${current() ?? "(default)"}`);
