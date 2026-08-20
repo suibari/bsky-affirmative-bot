@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  buildDailyPlanPrompt,
   buildPlannedEventSection,
   isPlanFresh,
   parseDailyPlan,
+  selectDailyCompanion,
   takePlannedEvent,
   type DailyPlan,
 } from "../src/dailyPlan.js";
@@ -126,7 +128,7 @@ test("Gemini フォールバックにも今日の予定を渡す", () => {
   });
 
   assert.match(section, /予定: パトレイバーの日だから/);
-  assert.match(section, /今日いっしょにいる人: ことみちゃん/);
+  assert.match(section, /今日の主な同行者: ことみちゃん/);
   // 作品名が一般名詞に落ちるのはローカル・Gemini 双方で起きたので、両方に同じ拘束を置く。
   assert.match(section, /一般名詞に言い換えず、そのまま status_text に書くこと/);
 });
@@ -134,4 +136,39 @@ test("Gemini フォールバックにも今日の予定を渡す", () => {
 test("予定表が無ければフォールバック側には何も足さない", () => {
   assert.equal(buildPlannedEventSection(undefined, undefined), "");
   assert.equal(buildPlannedEventSection(plan(), undefined), "");
+});
+
+test("同行者は4日間で均等に巡回し、同じ日なら選択が変わらない", () => {
+  const dates = ["2026-08-20", "2026-08-21", "2026-08-22", "2026-08-23"];
+  const companions = dates.map(selectDailyCompanion);
+
+  assert.deepEqual(
+    [...companions].sort(),
+    ["ことみちゃん", "ひとり", "モルフォ", "ラテちゃん"].sort(),
+  );
+  assert.equal(selectDailyCompanion(dates[0]), companions[0]);
+});
+
+test("予定生成と描写の両方で、同行者の固定と学校のモルフォ禁止を指示する", () => {
+  const prompt = buildDailyPlanPrompt({
+    botDate: "2026-08-20",
+    isWeekend: false,
+    companion: "ラテちゃん",
+    whatDay: [],
+    eventSamples: {},
+    worksSection: "",
+  });
+  const section = buildPlannedEventSection(
+    plan({ companion: "モルフォ" }),
+    { status: "Study", activity: "教室で数学を勉強する", durationMinutes: 60 },
+  );
+
+  assert.match(prompt, /必ず「ラテちゃん」と出力/);
+  assert.match(prompt, /自然な3〜5件だけに登場/);
+  assert.match(prompt, /クラスメイトはことみちゃんだけ/);
+  assert.match(prompt, /ラテちゃん.*学校・教室・授業・校庭.*登場させず/);
+  assert.match(prompt, /学校・教室・授業・校庭.*絶対にモルフォを登場させない/);
+  assert.match(section, /予定に名前がない場面へ無理に登場させない/);
+  assert.match(section, /ラテちゃんはクラスメイトではありません/);
+  assert.match(section, /学校・教室・授業・校庭.*絶対に登場させない/);
 });

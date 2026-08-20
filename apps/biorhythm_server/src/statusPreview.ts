@@ -121,6 +121,8 @@ function buildPreviewPrompt(input: {
 - "status_text_en": status_text の英語訳（plain English, max 200 characters）。
 - "duration_minutes": その行動にかかる時間（分）。5分から90分の範囲内で決めてください。
 - 重要: status_textは必ず現在のステータス（${input.status}）に合った行動を描写すること。
+- 重要: クラスメイトはことみちゃんだけ。ラテちゃんは学校・教室・授業・校庭には登場させず、放課後や休日など学校の外だけで交流させること。
+- 重要: モルフォは学校へ連れて行かない。学校・教室・授業・校庭の場面には、モルフォを絶対に登場させないこと。
 - 重要: 「お部屋でのできごと」に gift（プレゼント）がある場合は、必ずその贈り物への言及を status_text に入れること。
 ${buildRoomEventsSection(input.roomEvents)}
 

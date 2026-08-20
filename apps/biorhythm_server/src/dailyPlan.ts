@@ -25,7 +25,7 @@ import {
  * パースが不安定になるが、「botたん自身の意志で行動時間が決まる」という性質は崩したくない。
  * 予定表を立てる時点で botたん（Gemini）が決めておけば、両方を満たせる。
  */
-export const DAILY_PLAN_STATE_KEY = "biorhythm_daily_plan_v1";
+export const DAILY_PLAN_STATE_KEY = "biorhythm_daily_plan_v2";
 
 /** 予定表が扱うステータス。Sleep も夢の描写があるので含める。 */
 const PLANNED_STATUSES: Status[] = ["WakeUp", "Study", "FreeTime", "Relax", "Sleep"];
@@ -33,6 +33,29 @@ const PLANNED_STATUSES: Status[] = ["WakeUp", "Study", "FreeTime", "Relax", "Sle
 const EVENTS_PER_STATUS = 5;
 const MIN_DURATION = 5;
 const MAX_DURATION = 90;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * モデルに自由選択させると、クラスメイト設定のことみちゃんへ偏るため日付で決める。
+ * 連続する4 bot日で全員が1回ずつ登場し、ことみちゃんとラテちゃんは必ず同頻度になる。
+ * 日付だけを使うので、同日の再生成やプロセス再起動でも選択は変わらない。
+ */
+const DAILY_COMPANION_CYCLE = [
+  "ことみちゃん",
+  "モルフォ",
+  "ラテちゃん",
+  "ひとり",
+] as const;
+
+export function selectDailyCompanion(botDate: string): string {
+  const timestamp = Date.parse(`${botDate}T00:00:00Z`);
+  if (!Number.isFinite(timestamp)) throw new Error(`Invalid bot date: ${botDate}`);
+  const dayIndex = Math.floor(timestamp / DAY_MS);
+  const cycleIndex =
+    ((dayIndex % DAILY_COMPANION_CYCLE.length) + DAILY_COMPANION_CYCLE.length) %
+    DAILY_COMPANION_CYCLE.length;
+  return DAILY_COMPANION_CYCLE[cycleIndex];
+}
 
 export interface PlannedEvent {
   status: Status;
@@ -149,8 +172,11 @@ export function buildPlannedEventSection(
 -----今日の予定-----
 * 今日1日ぶんの筋書きです。status_text はこの予定を描写に起こしてください。
   - 予定: ${event.activity}
-  - 今日いっしょにいる人: ${plan.companion || "とくにいない"}
+  - 今日の主な同行者: ${plan.companion || "とくにいない"}
   - 今日の気分: ${plan.moodDirection || "ふつう"}
+  - 主な同行者がすべての予定にいるとは限りません。予定に名前がない場面へ無理に登場させないこと。
+  - **ラテちゃんはクラスメイトではありません。学校・教室・授業・校庭の場面には登場させず、放課後や休日など学校の外だけで交流させること。**
+  - **モルフォは学校へ連れて行きません。学校・教室・授業・校庭の場面には絶対に登場させないこと。**
   - **予定に出てくる作品名・曲名・人の名前は、一般名詞に言い換えず、そのまま status_text に書くこと。**`;
 }
 
@@ -185,6 +211,7 @@ const DAILY_PLAN_SCHEMA = {
 export function buildDailyPlanPrompt(input: {
   botDate: string;
   isWeekend: boolean;
+  companion: string;
   whatDay: string[];
   eventSamples: Record<string, unknown>;
   worksSection: string;
@@ -197,7 +224,7 @@ export function buildDailyPlanPrompt(input: {
 
 # 出力するもの
 - "outfit": 今日の服装を1文で。毎日ちがう服を着るので、ミント色のカーディガン以外も積極的に選ぶこと。
-- "companion": 今日いっしょに過ごす相手を1人だけ選ぶ（ことみちゃん / ラテちゃん / モルフォ / ひとり）。
+- "companion": 日ごとの偏りを防ぐため、今日は必ず「${input.companion}」と出力すること。別の相手を選ばないこと。
 - "moodDirection": 今日の気分の方向を1文で。
 - "events": 今日ありうる行動の候補。**各ステータスにつき${EVENTS_PER_STATUS}件ずつ**、合計${PLANNED_STATUSES.length * EVENTS_PER_STATUS}件。
   - "status" は ${PLANNED_STATUSES.join(" / ")} のいずれか。WakeUpは起床時、Studyは勉強中、FreeTimeは余暇、Relaxは休憩、Sleepは就寝中（夢の中）。
@@ -207,6 +234,10 @@ export function buildDailyPlanPrompt(input: {
 # ルール
 - ステータスに合わない行動を混ぜないこと（Sleep は夢の中の出来事だけ、Study は勉強だけ）。
 - 同じ行動を2回書かないこと。1日ぶんの幅が出るよう、屋内・屋外・ひとり・誰かと、をばらけさせること。
+- companion は今日の「主な同行者」であり、全25件の行動へ登場させる意味ではない。「ひとり」以外なら自然な3〜5件だけに登場させ、残りはひとりの行動にすること。
+- ことみちゃん・ラテちゃん・モルフォのうち、今日の companion ではない相手を行動へ登場させないこと。
+- **クラスメイトはことみちゃんだけ。ラテちゃんは学校・教室・授業・校庭の行動には登場させず、放課後や休日など学校の外だけで交流させること。**
+- **モルフォは学校へ連れて行かない。学校・教室・授業・校庭の行動には、companion がモルフォの日でも絶対にモルフォを登場させないこと。**
 - 記念日が今日にあれば、そのうち1つか2つを行動に反映すること。
 
 # 趣味
@@ -263,6 +294,7 @@ export async function ensureDailyPlan(
   now: Date = new Date(),
 ): Promise<DailyPlan | undefined> {
   const botDate = botDayRange(now).date;
+  const companion = selectDailyCompanion(botDate);
   const existing = await loadPlan();
   if (isPlanFresh(existing, botDate)) return existing;
 
@@ -271,6 +303,7 @@ export async function ensureDailyPlan(
     const basePrompt = buildDailyPlanPrompt({
       botDate,
       isWeekend: input.isWeekend,
+      companion,
       whatDay: getWhatDay(),
       eventSamples: input.eventSamples,
       worksSection: buildSeasonalWorksSection(works),
@@ -291,7 +324,9 @@ export async function ensureDailyPlan(
           responseSchema: DAILY_PLAN_SCHEMA,
         },
       });
-      return parseDailyPlan(JSON.parse(response.text || "{}"), botDate);
+      const parsed = parseDailyPlan(JSON.parse(response.text || "{}"), botDate);
+      // schema とプロンプトに加えてコード側でも固定し、モデルの選択バイアスを残さない。
+      return parsed ? { ...parsed, companion } : undefined;
     };
 
     let plan = await generate(basePrompt);
