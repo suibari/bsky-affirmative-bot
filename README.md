@@ -94,7 +94,6 @@ The seed is idempotent and refreshes a small set of development-only actors, pos
 ```sh
 ollama pull gemma3:4b
 ollama pull snowflake-arctic-embed2
-ollama pull translategemma:4b
 ```
 
 ### Run a service
@@ -118,7 +117,7 @@ The complete home deployment also depends on reverse-proxy, process-manager, DNS
 - **Fortune-telling and analysis:** daily fortunes, personality/post analysis, and related badges or visual results.
 - **Diaries and recaps:** daily reflection, anniversary experiences, and longer-term summaries generated from a user's activity.
 - **A living Bot-tan:** biorhythm, shared scheduled posts, questions, news, and memories help Bot-tan act consistently across services.
-- **Nagi AppView:** AT Protocol indexing, semantic search with `snowflake-arctic-embed2`, and translation with `translategemma:4b` and a persona-aware Gemma route.
+- **Nagi AppView:** AT Protocol indexing, semantic search with `snowflake-arctic-embed2`, and general and persona-aware translation through the shared `gemma3:4b` runner.
 - **Connected experiences:** Bluesky labels, room visits and VOICEVOX speech, plus an automated Gemini-and-Unity YouTube pipeline.
 
 The local model names are defaults. `OLLAMA_MODEL`, the other model variables, and advanced `AI_ROUTE_*` settings in [`.env.example`](./.env.example) can replace them without changing feature code. For the complete Bluesky commands and policies, see the [Bluesky Bot-tan guide](./docs/bluesky-bot.md).

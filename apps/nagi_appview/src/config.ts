@@ -153,8 +153,8 @@ export const config = {
   // モデル名はレジストリ（shared-configs の aiRoutes.ts）が唯一の出どころ。
   // 差し替えは AI_ROUTE_OLLAMA_TRANSLATION / OLLAMA_TRANSLATION_MODEL などで行う。
   translationModel: aiModel("OLLAMA_TRANSLATION"),
-  // botたん本人の投稿だけに使うペルソナ翻訳用モデル。translategemma は純粋なMTで
-  // 口調の指示に従えないので、instruct系（既に配備済みの gemma3 等）を使う。
+  // botたん本人の投稿だけに使うペルソナ翻訳ルート。一般翻訳と同じ
+  // gemma3 runner を共有し、3モデル間の VRAM 入れ替えを発生させない。
   botTranslationModel: aiModel("OLLAMA_BOT_TRANSLATION"),
   translationConcurrency: integer("TRANSLATION_CONCURRENCY", 2, 1, 8),
   translationMissLimitPerMinute: integer(

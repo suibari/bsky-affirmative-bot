@@ -47,7 +47,7 @@ const MODEL_ALIAS_SPECS: Record<ModelAliasName, ModelAliasSpec> = {
   "gemini-embedding": { env: "MODEL_GEMINI_EMBEDDING", fallback: () => "gemini-embedding-001" },
   "ollama-chat": { env: "OLLAMA_MODEL", fallback: () => "gemma3:4b" },
   "ollama-embed": { env: "OLLAMA_EMBED_MODEL", fallback: () => "snowflake-arctic-embed2" },
-  "ollama-translate": { env: "OLLAMA_TRANSLATION_MODEL", fallback: () => "translategemma:4b" },
+  "ollama-translate": { env: "OLLAMA_TRANSLATION_MODEL", fallback: () => "gemma3:4b" },
   // botたん翻訳は「専用env → 汎用OLLAMA_MODEL → 既定」の三段フォールバックを維持する
   "ollama-bot-translate": {
     env: "OLLAMA_BOT_TRANSLATION_MODEL",

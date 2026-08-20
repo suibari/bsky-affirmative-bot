@@ -94,7 +94,6 @@ fixture投入は冪等で、開発専用のユーザー、投稿、会話、チ�
 ```sh
 ollama pull gemma3:4b
 ollama pull snowflake-arctic-embed2
-ollama pull translategemma:4b
 ```
 
 ### サービスごとの起動
@@ -118,7 +117,7 @@ ollama pull translategemma:4b
 - **占いと分析：** 日々の占い、性格・ポスト分析、それらに応じたバッジや結果画像を届けます。
 - **日記と振り返り：** その日の日記、記念日、一年のまとめなど、利用者の活動を振り返る体験を作ります。
 - **生活するbotたん：** バイオリズム、共通定期ポスト、質問、ニュース、共有記憶により、サービスをまたいで一貫して行動します。
-- **Nagi AppView：** AT Protocolのインデックスに加え、`snowflake-arctic-embed2` による意味検索、`translategemma:4b` とbotたん向けGemmaルートによる翻訳を提供します。
+- **Nagi AppView：** AT Protocolのインデックスに加え、`snowflake-arctic-embed2` による意味検索、共通の `gemma3:4b` runner による一般翻訳とbotたん口調の翻訳を提供します。
 - **つながる体験：** Blueskyラベル、お部屋への訪問とVOICEVOX音声、GeminiとUnityによるYouTube動画の自動制作をつなぎます。
 
 ローカルモデル名は既定値です。[`.env.example`](./.env.example) の `OLLAMA_MODEL`、その他のモデル変数、高度な `AI_ROUTE_*` 設定で、機能コードを変更せずに差し替えられます。Bluesky版のすべてのコマンドとポリシーは、[Bluesky botたん詳細ガイド](./docs/bluesky-bot_ja.md)を参照してください。

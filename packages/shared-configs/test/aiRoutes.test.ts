@@ -104,7 +104,7 @@ const EXPECTED: Record<AiFeatureKey, [model: string, tier: "flex" | "standard" |
   OLLAMA_PREDEFINED_AFFIRMATION: ["gemma3:4b", undefined],
   OLLAMA_NEWS_PRESCREEN: ["gemma3:4b", undefined],
   OLLAMA_EMBED: ["snowflake-arctic-embed2", undefined],
-  OLLAMA_TRANSLATION: ["translategemma:4b", undefined],
+  OLLAMA_TRANSLATION: ["gemma3:4b", undefined],
   OLLAMA_BOT_TRANSLATION: ["gemma3:4b", undefined],
 };
 

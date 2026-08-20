@@ -147,7 +147,7 @@ test("single-flight shares one task and removes failed requests for retry", asyn
   );
 });
 
-test("sends the requested model and temperature, defaulting to the MT model at 0", async () => {
+test("sends the requested model and temperature, defaulting to gemma3:4b at 0", async () => {
   const bodies: any[] = [];
   const fetcher = (async (_url: any, init: any) => {
     bodies.push(JSON.parse(init.body));
@@ -159,7 +159,7 @@ test("sends the requested model and temperature, defaulting to the MT model at 0
     model: "gemma3:4b",
     temperature: 0.3,
   });
-  assert.equal(bodies[0].model, "translategemma:4b");
+  assert.equal(bodies[0].model, "gemma3:4b");
   assert.equal(bodies[0].temperature, 0);
   assert.equal(bodies[1].model, "gemma3:4b");
   assert.equal(bodies[1].temperature, 0.3);

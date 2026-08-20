@@ -157,7 +157,7 @@ Nagi のリプライは**失敗するたびに段を上げる再試行ラダー*
 | `gemini-embedding` | `MODEL_GEMINI_EMBEDDING` | `gemini-embedding-001` |
 | `ollama-chat` | `OLLAMA_MODEL` | `gemma3:4b` |
 | `ollama-embed` | `OLLAMA_EMBED_MODEL` | `snowflake-arctic-embed2` |
-| `ollama-translate` | `OLLAMA_TRANSLATION_MODEL` | `translategemma:4b` |
+| `ollama-translate` | `OLLAMA_TRANSLATION_MODEL` | `gemma3:4b` |
 | `ollama-bot-translate` | `OLLAMA_BOT_TRANSLATION_MODEL` | → `OLLAMA_MODEL` → `gemma3:4b` |
 
 `OLLAMA_BASE_URL` はモデルではなくエンドポイントなので、レジストリではなく各所で直接読む。
