@@ -170,6 +170,8 @@ server.listen(Number(PORT), HOST, async () => {
     startHealthMonitor();
     const { scheduleRoomInteractionSync } = await import("./roomInteractionSync.js");
     scheduleRoomInteractionSync(manager);
+    const { scheduleLiveCommentEnergySync } = await import("./liveCommentEnergySync.js");
+    scheduleLiveCommentEnergySync(manager);
     await manager.step();
     console.log("[INFO] Biorhythm loop started.");
   } catch (e) {

@@ -98,6 +98,8 @@ export class BiorhythmManager extends EventEmitter {
   private firstStepDone = false;
   private lastGoodNightPostDate?: string;
   private lastGoodMorningPostDate?: string;
+  /** bottan_live.comments のうち energy へ反映済みの最大 id。null は初回未設定。 */
+  private liveCommentEnergyCursor: number | null = null;
 
   constructor() {
     super();
@@ -127,6 +129,9 @@ export class BiorhythmManager extends EventEmitter {
     }
     this.lastGoodNightPostDate = state.lastGoodNightPostDate;
     this.lastGoodMorningPostDate = state.lastGoodMorningPostDate;
+    if (Number.isSafeInteger(state.liveCommentEnergyCursor) && state.liveCommentEnergyCursor >= 0) {
+      this.liveCommentEnergyCursor = state.liveCommentEnergyCursor;
+    }
 
     const lastFollowers = await MemoryService.getBotState("last_follower_count");
     if (typeof lastFollowers === "number") this.currentFollowers = lastFollowers;
@@ -182,6 +187,43 @@ export class BiorhythmManager extends EventEmitter {
 
   async addRoomInteraction(amount: number) {
     await this.changeEnergy(amount);
+  }
+
+  get getLiveCommentEnergyCursor(): number | null {
+    return this.liveCommentEnergyCursor;
+  }
+
+  /** 初回起動時は既存コメントを加算せず、現在の末尾だけを基準点として保存する。 */
+  async initializeLiveCommentEnergyCursor(commentId: number): Promise<void> {
+    if (this.liveCommentEnergyCursor !== null) return;
+    this.liveCommentEnergyCursor = commentId;
+    await MemoryService.updateBiorhythmState({
+      energy: this.energy,
+      mood: this.moodPrev,
+      mood_en: this.moodPrevEn,
+      status: this.status,
+      liveCommentEnergyCursor: this.liveCommentEnergyCursor,
+    });
+  }
+
+  /** コメント分の加算とカーソル更新を同じ biorhythm 状態保存に含める。 */
+  async addLiveCommentEnergy(amount: number, throughCommentId: number): Promise<void> {
+    if (!Number.isSafeInteger(amount) || amount <= 0) {
+      throw new Error(`Invalid live comment energy amount: ${amount}`);
+    }
+    if (!Number.isSafeInteger(throughCommentId) || throughCommentId < 0) {
+      throw new Error(`Invalid live comment cursor: ${throughCommentId}`);
+    }
+    if (
+      this.liveCommentEnergyCursor !== null
+      && throughCommentId <= this.liveCommentEnergyCursor
+    ) {
+      return;
+    }
+    this.liveCommentEnergyCursor = throughCommentId;
+    await this.changeEnergy(amount, {
+      liveCommentEnergyCursor: this.liveCommentEnergyCursor,
+    });
   }
 
   get getEnergy(): number { return this.energy / 100; }
@@ -645,15 +687,24 @@ ${buildRoomEventsSection(roomEvents)}
     return result;
   }
 
-  private async changeEnergy(amount: number) {
+  private async changeEnergy(amount: number, statePatch: Record<string, unknown> = {}) {
     // 0~100クリップ処理
     const newEnergy = Math.max(Math.min(this.energy + amount, ENERGY_MAXIMUM), 0);
 
-    if (newEnergy !== this.energy) {
+    if (newEnergy !== this.energy || Object.keys(statePatch).length > 0) {
       this.energy = newEnergy;
       // this.emit('statsChange', this.getCurrentState()); // getCurrentState is async
       this.getCurrentState().then(state => this.emit('statsChange', state));
-      await MemoryService.updateBiorhythmState({ energy: this.energy, mood: this.moodPrev, mood_en: this.moodPrevEn, status: this.status });
+      await MemoryService.updateBiorhythmState({
+        energy: this.energy,
+        mood: this.moodPrev,
+        mood_en: this.moodPrevEn,
+        status: this.status,
+        ...(this.liveCommentEnergyCursor === null
+          ? {}
+          : { liveCommentEnergyCursor: this.liveCommentEnergyCursor }),
+        ...statePatch,
+      });
     }
   }
 
@@ -661,7 +712,15 @@ ${buildRoomEventsSection(roomEvents)}
     this.moodPrev = newOutput;
     this.moodPrevEn = newOutputEn;
     this.getCurrentState().then(state => this.emit('statsChange', state));
-    await MemoryService.updateBiorhythmState({ energy: this.energy, mood: this.moodPrev, mood_en: this.moodPrevEn, status: this.status });
+    await MemoryService.updateBiorhythmState({
+      energy: this.energy,
+      mood: this.moodPrev,
+      mood_en: this.moodPrevEn,
+      status: this.status,
+      ...(this.liveCommentEnergyCursor === null
+        ? {}
+        : { liveCommentEnergyCursor: this.liveCommentEnergyCursor }),
+    });
   }
 
   private async handleEnergyByStatus() {
@@ -683,7 +742,15 @@ ${buildRoomEventsSection(roomEvents)}
     const newEnergy = Math.max(0, Math.min(ENERGY_MAXIMUM, this.energy));
     if (newEnergy !== this.energy) {
       this.energy = newEnergy;
-      await MemoryService.updateBiorhythmState({ energy: this.energy, mood: this.moodPrev, mood_en: this.moodPrevEn, status: this.status });
+      await MemoryService.updateBiorhythmState({
+        energy: this.energy,
+        mood: this.moodPrev,
+        mood_en: this.moodPrevEn,
+        status: this.status,
+        ...(this.liveCommentEnergyCursor === null
+          ? {}
+          : { liveCommentEnergyCursor: this.liveCommentEnergyCursor }),
+      });
     }
   }
 

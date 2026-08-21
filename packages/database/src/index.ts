@@ -99,6 +99,12 @@ export interface NagiStats {
   totalChannels: number;
 }
 
+/** bottan_live.comments の本文を持ち出さずに返す、energy 同期用の集計。 */
+export interface LiveCommentBatch {
+  count: number;
+  maxId: number | null;
+}
+
 export type RepoWriteAction = 'create' | 'update' | 'delete';
 
 export interface RepoWritePointUsage {
@@ -143,6 +149,27 @@ export class MemoryService {
   static async getBiorhythmState(): Promise<any> {
     const state = await this.getBotState('biorhythm');
     return state || {};
+  }
+
+  /**
+   * Live 配信DBの新規コメント件数を返す。
+   * コメント本文・投稿者情報は biorhythm 側には不要なので取得しない。
+   */
+  static async getLiveCommentBatchAfter(afterId: number): Promise<LiveCommentBatch> {
+    const rows = await db.execute<{ comment_count: string; max_id: number | null }>(sql`
+      SELECT
+        count(*)::text AS comment_count,
+        max(id)::integer AS max_id
+      FROM bottan_live.comments
+      WHERE id > ${afterId}
+    `);
+    const row = rows[0];
+    return {
+      count: Number(row?.comment_count ?? 0),
+      maxId: row?.max_id === null || row?.max_id === undefined
+        ? null
+        : Number(row.max_id),
+    };
   }
 
   static async updateBiorhythmState(state: any) {
