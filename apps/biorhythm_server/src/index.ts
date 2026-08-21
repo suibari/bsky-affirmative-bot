@@ -12,8 +12,11 @@ import {
   parseAllowedOrigins,
   readPositiveInteger,
 } from "./websocketServer.js";
-import { createBotMemoryRouter } from "./botMemoryRouter.js";
 import { startBotMemoryEmbeddingWorker } from "./botMemoryEmbeddingWorker.js";
+import {
+  readBotMemoryInternalServerConfig,
+  startBotMemoryInternalServer,
+} from "./botMemoryInternalServer.js";
 
 dotenv.config({ path: '../../.env' });
 
@@ -62,8 +65,6 @@ const requireInternalAuth: express.RequestHandler = (req, res, next) => {
   }
   next();
 };
-app.use(createBotMemoryRouter(INTERNAL_SECRET));
-
 // Endpoints
 app.get("/status", requireInternalAuth, async (req, res) => {
   const state = await manager.getCurrentState();
@@ -125,6 +126,12 @@ app.get("/image.png", (req, res) => {
 });
 
 const server = http.createServer(app);
+// 記憶APIは公開HTTP/WSサーバーへ載せない。公開側をloopbackのままCloudflare
+// Tunnelへ接続しつつ、この専用listenerだけをLAN IPへbindできるようにする。
+startBotMemoryInternalServer({
+  config: readBotMemoryInternalServerConfig(),
+  secret: INTERNAL_SECRET,
+});
 const websocketServer = attachBiorhythmWebSocketServer(server, {
   allowedOrigins,
   enforceAllowedOrigins: isProduction,

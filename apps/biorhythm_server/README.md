@@ -43,3 +43,33 @@ When a reverse proxy runs on the same machine, bind this process to loopback:
 ```dotenv
 BIORHYTHM_SERVER_HOST=127.0.0.1
 ```
+
+## Bot memory internal API
+
+The RAG endpoints (`/memory/search` and `/memory/usages`) do not share the
+public HTTP/WebSocket listener. They use a dedicated listener so the public
+server can remain on loopback for Cloudflare Tunnel while only the memory API
+is exposed to the private LAN.
+
+Local development defaults:
+
+```dotenv
+BIORHYTHM_MEMORY_API_HOST=127.0.0.1
+BIORHYTHM_MEMORY_API_PORT=3003
+BIORHYTHM_INTERNAL_SECRET=replace-with-a-long-random-secret
+```
+
+For the production layout where the public listener is port `3200`, keep the
+Cloudflare Tunnel target at `http://localhost:3200` and use a separate LAN-only
+port, for example:
+
+```dotenv
+BIORHYTHM_SERVER_HOST=127.0.0.1
+BIORHYTHM_SERVER_PORT=3200
+BIORHYTHM_MEMORY_API_HOST=192.168.1.200
+BIORHYTHM_MEMORY_API_PORT=3201
+```
+
+Allow TCP port `3201` only from the YouTube machine's fixed LAN address. The
+Bearer secret remains required even on the private network. Do not add port
+`3201` to Cloudflare Tunnel.
