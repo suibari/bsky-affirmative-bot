@@ -1,11 +1,11 @@
 import {
   db,
-  filterRelatedHistory,
-  MemoryService,
   nagiActors,
   nagiPosts,
   nagiProfiles,
   nagiReactions,
+  searchBotMemory,
+  selectReplyMemoryContext,
 } from "@bsky-affirmative-bot/database";
 import {
   blobImagesToImageRefs,
@@ -13,7 +13,7 @@ import {
 } from "@bsky-affirmative-bot/bot-runtime";
 import type { ImageRef } from "@bsky-affirmative-bot/shared-configs";
 import { loadPreferredName } from "@bsky-affirmative-bot/clients";
-import { and, desc, eq, isNull, ne } from "drizzle-orm";
+import { and, desc, eq, isNull } from "drizzle-orm";
 
 type ContextLink = { uri: string; title?: string; description?: string };
 
@@ -82,39 +82,34 @@ export async function buildNagiReplyContext(job: any) {
   const botDid = process.env.NAGI_BOT_DID!;
   const text = typeof record.text === "string" ? record.text : "";
 
-  const [author, preferredName, ownRows, globalRows, reactionRows, quoteRows] =
+  const [author, preferredName, ownMemoryRows, friendMemoryRows, reactionRows, quoteRows] =
     await Promise.all([
       loadNagiReplyAuthor(job.authorDid),
       // 本人が「こう呼んで」と申告していればそれを使う（無ければ displayName）。
       loadPreferredName(job.authorDid),
-      db
-        .select({ uri: nagiPosts.uri, text: nagiPosts.text })
-        .from(nagiPosts)
-        .where(
-          and(
-            eq(nagiPosts.did, job.authorDid),
-            ne(nagiPosts.uri, job.sourceUri),
-            isNull(nagiPosts.deletedAt),
-          ),
-        )
-        .orderBy(desc(nagiPosts.indexedAt))
-        .limit(100),
-      db
-        .select({
-          uri: nagiPosts.uri,
-          did: nagiPosts.did,
-          text: nagiPosts.text,
-        })
-        .from(nagiPosts)
-        .where(
-          and(
-            ne(nagiPosts.did, job.authorDid),
-            ne(nagiPosts.did, botDid),
-            isNull(nagiPosts.deletedAt),
-          ),
-        )
-        .orderBy(desc(nagiPosts.indexedAt))
-        .limit(100),
+      text.trim()
+        ? searchBotMemory({
+            query: text,
+            purpose: "reply_history",
+            authorId: job.authorDid,
+            limit: 10,
+          }).catch((error) => {
+            console.warn(`[WARN][${job.authorDid}] Failed to retrieve own bot memory:`, error);
+            return [];
+          })
+        : Promise.resolve([]),
+      text.trim()
+        ? searchBotMemory({
+            query: text,
+            purpose: "reply_history",
+            sources: ["bsky_affirmed_post", "nagi_affirmed_post"],
+            excludeAuthorId: job.authorDid,
+            limit: 10,
+          }).catch((error) => {
+            console.warn(`[WARN][${job.authorDid}] Failed to retrieve friend bot memory:`, error);
+            return [];
+          })
+        : Promise.resolve([]),
       db
         .select({ emoji: nagiReactions.emoji, text: nagiPosts.text })
         .from(nagiReactions)
@@ -148,46 +143,34 @@ export async function buildNagiReplyContext(job: any) {
         : Promise.resolve([]),
     ]);
 
-  const relatedPosts = text.trim()
-    ? await filterRelatedHistory(
-        text,
-        ownRows.map((row) => row.text).filter(Boolean),
-        10,
-        0.6,
-      )
-    : [];
+  const relatedPosts = ownMemoryRows.map((row) => row.content);
 
   let followersFriend:
     | { profile: ReturnType<typeof profileView>; post: string; uri: string }
     | undefined;
   if (text.trim()) {
-    const candidates = globalRows.filter((row) => row.text.trim());
-    const [friendText] = await filterRelatedHistory(
-      text,
-      candidates.map((row) => row.text),
-      1,
-      0.6,
-      // 埋め込み障害時に、無関係な最新投稿を「類似した友達」として混入させない。
-      "empty",
+    const { friendMemory: friendPost } = selectReplyMemoryContext(
+      ownMemoryRows,
+      friendMemoryRows,
+      [botDid, process.env.BSKY_DID],
     );
-    const friendPost = candidates.find((row) => row.text === friendText);
     if (friendPost) {
       const [actors, profiles] = await Promise.all([
         db
           .select()
           .from(nagiActors)
-          .where(eq(nagiActors.did, friendPost.did))
+          .where(eq(nagiActors.did, friendPost.authorId!))
           .limit(1),
         db
           .select()
           .from(nagiProfiles)
-          .where(eq(nagiProfiles.did, friendPost.did))
+          .where(eq(nagiProfiles.did, friendPost.authorId!))
           .limit(1),
       ]);
       followersFriend = {
-        profile: profileView(friendPost.did, actors[0], profiles[0]),
-        post: friendPost.text,
-        uri: friendPost.uri,
+        profile: profileView(friendPost.authorId!, actors[0], profiles[0]),
+        post: friendPost.content,
+        uri: friendPost.sourceUri!,
       };
     }
   }

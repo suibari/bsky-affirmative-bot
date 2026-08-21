@@ -73,6 +73,26 @@ export interface BotMemorySearchResult {
   lexicalRank?: number;
 }
 
+export function selectReplyMemoryContext(
+  ownRows: BotMemorySearchResult[],
+  friendRows: BotMemorySearchResult[],
+  excludedAuthorIds: Iterable<string | undefined> = [],
+) {
+  const excluded = new Set([...excludedAuthorIds].filter(
+    (value): value is string => Boolean(value),
+  ));
+  return {
+    relatedPosts: ownRows.map((row) => row.content),
+    // embedding障害時はlexicalだけになる。本人履歴には有用だが、友達の誤紹介は避ける。
+    friendMemory: friendRows.find((row) =>
+      row.semanticRank !== undefined &&
+      Boolean(row.authorId) &&
+      Boolean(row.sourceUri) &&
+      !excluded.has(row.authorId!)
+    ),
+  };
+}
+
 export const botMemoryContentHash = (content: string): string =>
   createHash("sha256").update(content, "utf8").digest("hex");
 
@@ -86,6 +106,8 @@ export function shouldRememberAffirmedPost(input: {
   return input.aiReplyPosted && input.isTopLevel && input.isPublic &&
     (input.surface === "nagi" || input.isSubscriber === true);
 }
+
+export const shouldRememberBskyLike = (isSubscriber: boolean) => isSubscriber;
 
 export function formatReactionMemoryContent(
   targetText: string,
@@ -421,4 +443,18 @@ export async function recordBotMemoryUsages(
     purpose,
     output_ref: outputRef ?? null,
   })));
+}
+
+export async function getRecentlyUsedBotMemoryDocumentIds(
+  purpose: BotMemoryPurpose,
+  since: Date,
+) {
+  const rows = await db
+    .select({ documentId: bot_memory_usages.document_id })
+    .from(bot_memory_usages)
+    .where(and(
+      eq(bot_memory_usages.purpose, purpose),
+      gte(bot_memory_usages.used_at, since),
+    ));
+  return [...new Set(rows.map((row) => row.documentId))];
 }

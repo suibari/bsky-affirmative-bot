@@ -18,8 +18,11 @@ import { getConcatProfiles } from "../bsky/getConcatProfiles.js";
 import { parseEmbedPost } from "../bsky/parseEmbedPost.js";
 import { followerMap } from "../bsky/followerManagement.js";
 import { replyRandom } from "./replyrandom.js";
-import { getConcatAuthorFeed } from "../bsky/getConcatAuthorFeed.js";
-import { filterRelatedHistory } from "@bsky-affirmative-bot/database";
+import {
+    searchBotMemory,
+    selectReplyMemoryContext,
+    type BotMemorySearchResult,
+} from "@bsky-affirmative-bot/database";
 
 
 export async function replyAI(
@@ -35,18 +38,10 @@ export async function replyAI(
     let result: GeminiScore | undefined;
     const text_user = record.text;
 
-    // 関連ポスト取得（直近100件から意味的に近い上位10件）
-    let relatedPosts: string[] = [];
-    try {
-        const recentPosts = await getConcatAuthorFeed(follower.did, 100);
-        const candidateTexts = recentPosts
-            .filter(item => item.post.uri !== uri)
-            .map(item => (item.post.record as any).text as string)
-            .filter(Boolean);
-        relatedPosts = await filterRelatedHistory(text_user, candidateTexts, 10, 0.6);
-    } catch (err) {
-        console.warn(`[WARN][${follower.did}] Failed to fetch related posts for AI context:`, err);
-    }
+    const { relatedPosts, friendMemory } = await loadReplyMemories(
+        text_user,
+        follower.did,
+    );
     const image = await getImageUrl(follower.did, record.embed);
 
     // 引用ポスト・リンク解析
@@ -103,9 +98,10 @@ export async function replyAI(
     }
 
     try {
-        // ユーザがいいねしてくれたポストを取得
-        // const likedPost = await dbLikes.selectDb(follower.did, "liked_post") ?? undefined;
-        const likeData = await MemoryService.getLike(follower.did);
+        // いいねへの言及は購読者向けのAI返信だけに限定する。
+        const likeData = isSubscriber
+            ? await MemoryService.getLike(follower.did)
+            : undefined;
         const likedPost = likeData?.liked_post;
 
         if (likedPost) {
@@ -114,7 +110,7 @@ export async function replyAI(
 
         // 共通の趣味を持つフォロワーのポストを取得
         let followersFriend: { profile: ProfileView; post: string; uri: string } | undefined = undefined;
-        followersFriend = await getFollowersFriend(text_user, follower.did);
+        followersFriend = await getFollowersFriend(friendMemory);
 
         // Nagi で本人が申告した呼び名があれば、Bluesky 側の返信でも同じ呼び方をする。
         // 参照だけで、Bluesky から呼び方を変える経路は用意していない（Bsky bot は撤退方針）。
@@ -202,25 +198,44 @@ export async function replyAI(
         }
     }
 }
-async function getFollowersFriend(text_user: string, userDid: string) {
-    // ベクトル類似検索で投稿者本人を除いた類似ポストを取得
-    const similarPosts = await MemoryService.findFollowersByTopic(text_user, userDid);
-    if (similarPosts.length === 0) return undefined;
+export async function loadReplyMemories(text: string, authorDid: string) {
+    if (!text.trim()) return { relatedPosts: [], friendMemory: undefined };
+    const affirmedSources = ["bsky_affirmed_post", "nagi_affirmed_post"] as const;
+    const ownPromise = searchBotMemory({
+        query: text,
+        purpose: "reply_history",
+        authorId: authorDid,
+        limit: 10,
+    }).catch((error) => {
+        console.warn(`[WARN][${authorDid}] Failed to retrieve own bot memory:`, error);
+        return [];
+    });
+    const friendPromise = searchBotMemory({
+        query: text,
+        purpose: "reply_history",
+        sources: [...affirmedSources],
+        excludeAuthorId: authorDid,
+        limit: 10,
+    }).catch((error) => {
+        console.warn(`[WARN][${authorDid}] Failed to retrieve friend bot memory:`, error);
+        return [];
+    });
+    const [own, friends] = await Promise.all([ownPromise, friendPromise]);
+    return selectReplyMemoryContext(own, friends, [
+        process.env.BSKY_DID,
+        process.env.NAGI_BOT_DID,
+    ]);
+}
 
-    console.log(`[DEBUG][getFollowersFriend] ${similarPosts.length}件の類似ポストを検出`);
-    similarPosts.forEach((p, i) =>
-        console.log(`  [${i}] did=${p.did} post="${(p.post ?? "").slice(0, 40)}..."`)
-    );
-
+async function getFollowersFriend(memory: BotMemorySearchResult | undefined) {
+    if (!memory?.authorId || !memory.sourceUri) return undefined;
     const friendsProfiles = await getConcatProfiles({
-        actors: similarPosts.map(p => p.did),
+        actors: [memory.authorId],
     });
     if (!friendsProfiles || friendsProfiles.length === 0) return undefined;
 
     const firstProfile = friendsProfiles[0] as ProfileView;
-    const firstPost = similarPosts.find(p => p.did === firstProfile.did);
-
-    return firstProfile && firstPost && firstPost.post && firstPost.uri
-        ? { profile: firstProfile, post: firstPost.post, uri: firstPost.uri }
+    return firstProfile && memory.content
+        ? { profile: firstProfile, post: memory.content, uri: memory.sourceUri }
         : undefined;
 }

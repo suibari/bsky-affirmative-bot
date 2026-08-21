@@ -2,6 +2,7 @@ import {
   MemoryService,
   ScheduledPostService,
   type ScheduledPostPublishRequest,
+  type ScheduledPostResult,
 } from "@bsky-affirmative-bot/clients";
 import {
   generateGoodNight,
@@ -12,6 +13,7 @@ import {
 } from "@bsky-affirmative-bot/bot-brain";
 import retry from "async-retry";
 import type { BotContext } from "@bsky-affirmative-bot/shared-configs";
+import { recordBotMemoryUsages } from "@bsky-affirmative-bot/database";
 import {
   getDailyTopPostCandidate,
   parseDailyTopPostSource,
@@ -20,6 +22,10 @@ import { fetchDisplayName } from "./displayName.js";
 import { jstDateString as jstDate } from "./jstDate.js";
 import { getRecentNewsArticleIds, recordRecentNewsArticle } from "./whimsicalPostNewsHistory.js";
 import { buildGoodNightPostTexts, buildWhimsicalPostTexts } from "./scheduledPostContent.js";
+import {
+  buildBotMemoryTopicQuery,
+  retrieveBotMemoryTopics,
+} from "./botMemoryTopics.js";
 
 const whimsicalPostGenerator = new WhimsicalPostGenerator();
 const moodSongGenerator = new MyMoodSongGenerator();
@@ -27,6 +33,20 @@ let isJapanesePost = true;
 
 async function publish(request: ScheduledPostPublishRequest) {
   return ScheduledPostService.publish(request);
+}
+
+export async function recordScheduledPostMemoryUsage(
+  results: Partial<Record<"bsky" | "nagi", ScheduledPostResult>>,
+  documentIds: number[],
+  record: typeof recordBotMemoryUsages = recordBotMemoryUsages,
+) {
+  if (Object.keys(results).length === 0 || documentIds.length === 0) return false;
+  await record(
+    documentIds,
+    "scheduled_post",
+    results.bsky?.uri ?? results.nagi?.uri,
+  );
+  return true;
 }
 
 export async function postMorning(botContext?: BotContext) {
@@ -62,6 +82,19 @@ export async function postWhimsical(currentMood: string, botContext?: BotContext
     console.error("Failed to get unread replies", error);
   }
 
+  let memoryCandidates: Awaited<ReturnType<typeof retrieveBotMemoryTopics>> | undefined;
+  try {
+    const query = buildBotMemoryTopicQuery({
+      currentMood,
+      botContext,
+      unreadReplies: userReplies ?? undefined,
+    });
+    memoryCandidates = await retrieveBotMemoryTopics({ query });
+  } catch (error) {
+    // RAGは定期投稿の追加材料。障害時は従来の未読リプライ経路だけで生成する。
+    console.error("[WARN][BOT_MEMORY] Failed to retrieve scheduled-post topics", error);
+  }
+
   let giftContext: { content: string; displayName: string; type: "used" } | undefined;
   let giftIdToUpdate: number | undefined;
   if (Math.random() < 0.2) {
@@ -82,6 +115,7 @@ export async function postWhimsical(currentMood: string, botContext?: BotContext
       langStr,
       currentMood,
       userReplies: userReplies ?? undefined,
+      memoryCandidates,
       giftContext,
       youtubeShortUrl: newShort?.url,
       youtubeShortTitle: newShort?.title ?? undefined,
@@ -132,6 +166,12 @@ export async function postWhimsical(currentMood: string, botContext?: BotContext
     if (generated.selectedNewsArticleId) {
       await recordRecentNewsArticle(generated.selectedNewsArticleId);
     }
+    await recordScheduledPostMemoryUsage(
+      results,
+      generated.selectedMemoryDocumentIds,
+    ).catch((error) =>
+      console.error("[WARN][BOT_MEMORY] Failed to record scheduled-post usage", error),
+    );
   }
 
   // 未読リプライの消費・言語カウント・言語トグルはいずれも Bluesky 投稿に紐づくため、

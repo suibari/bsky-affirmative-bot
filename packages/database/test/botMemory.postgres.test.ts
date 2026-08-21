@@ -71,7 +71,8 @@ test("migration-backed upsert and backfill are idempotent", {
       ('NormalReply', 'did:plc:subscriber', ${{ text: "購読者のAI対象", score: 91 }}, now()),
       ('NormalReply', 'did:plc:nonsubscriber', ${{ text: "非購読者のAI対象", score: 92 }}, now()),
       ('NormalReply', 'did:plc:subscriber', ${{ text: "定型文対象" }}, now()),
-      ('like', 'did:plc:reactor', ${{ text: "botたんの朝", uri: "at://did:plc:botmemorytest/app.bsky.feed.post/morning" }}, now())`;
+      ('like', 'did:plc:subscriber', ${{ text: "購読者がいいねしたbotたんの朝", uri: "at://did:plc:botmemorytest/app.bsky.feed.post/morning" }}, now()),
+      ('like', 'did:plc:nonsubscriber', ${{ text: "非購読者がいいねしたbotたんの夜", uri: "at://did:plc:botmemorytest/app.bsky.feed.post/night" }}, now())`;
     await setup`insert into affirmative_bot.replies (did, reply, uri) values
       ('did:plc:reply-author', 'Blueskyで受けた返信', 'at://did:plc:reply-author/app.bsky.feed.post/reply')`;
     await setup`insert into affirmative_bot.biorhythm_history (status, mood, mood_en, energy) values
@@ -129,6 +130,8 @@ test("migration-backed upsert and backfill are idempotent", {
     const text = contents.map((row) => row.content).join("\n");
     assert.match(text, /購読者のAI対象/);
     assert.doesNotMatch(text, /非購読者のAI対象|定型文対象|こっそりAI対象/);
+    assert.match(text, /購読者がいいねしたbotたんの朝/);
+    assert.doesNotMatch(text, /非購読者がいいねしたbotたんの夜/);
     assert.match(text, /Nagiで受けた返信/);
     assert.match(text, /喜んで跳ねる猫/);
     assert.match(text, /YouTubeのコメント/);

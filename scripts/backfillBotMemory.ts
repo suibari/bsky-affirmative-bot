@@ -84,6 +84,10 @@ export async function loadBotMemoryBackfillCandidates(): Promise<Candidate[]> {
     from affirmative_bot.interaction
     where type = 'like'
       and nullif(btrim(details->>'text'), '') is not null
+      and exists (
+        select 1 from affirmative_bot.subscribers s
+        where s.did = interaction.did and s.status = 'active'
+      )
     order by id
   `);
   for (const row of bskyLikes) {

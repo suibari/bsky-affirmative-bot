@@ -9,7 +9,7 @@ import { follow } from "./follow.js";
 import { replyGreets } from "./replyGreets.js";
 import retry from 'async-retry';
 import { ProfileView } from "@atproto/api/dist/client/types/app/bsky/actor/defs.js";
-import { formatReactionMemoryContent, tombstoneBotMemoriesBySubjectUri, tombstoneBotMemoriesByUri, tombstoneBotMemoryDocument, updateBotMemoriesByUri, updateBotReactionMemorySubjects, upsertBotMemoryDocument } from "@bsky-affirmative-bot/database";
+import { formatReactionMemoryContent, shouldRememberBskyLike, tombstoneBotMemoriesBySubjectUri, tombstoneBotMemoriesByUri, tombstoneBotMemoryDocument, updateBotMemoriesByUri, updateBotReactionMemorySubjects, upsertBotMemoryDocument } from "@bsky-affirmative-bot/database";
 
 import { FeatureContext } from "../features/types.js";
 
@@ -227,6 +227,10 @@ export async function onLike(event: any) {
   const { did: subjectDid, nsid, rkey } = splitUri(record.subject.uri);
 
   if (subjectDid !== process.env.BSKY_DID) return;
+  // AI返信でいいねへ言及するのは購読者だけ。非購読者のいいねは既存のenergy・
+  // 集計には反映するが、横断RAGへ永続保存しても利用されずノイズになるため除外する。
+  const isSubscriber = (await MemoryService.getSubscribersOrDeveloper()).includes(did);
+  const rememberLike = shouldRememberBskyLike(isSubscriber);
 
   try {
     await retry(async () => {
@@ -234,15 +238,17 @@ export async function onLike(event: any) {
       const existingLike = await MemoryService.getLike(did);
       const reactionUri = eventPostUri(event);
       if (existingLike && existingLike.uri === uri) {
-        await upsertBotMemoryDocument({
-          sourceType: "bsky_received_like",
-          sourceId: reactionUri,
-          sourceUri: reactionUri,
-          authorId: did,
-          content: formatReactionMemoryContent(existingLike.liked_post ?? "", "いいね"),
-          occurredAt: new Date(record.createdAt ?? Date.now()),
-          metadata: { subjectUri: uri, reaction: "like", reactionLabel: "いいね" },
-        });
+        if (rememberLike) {
+          await upsertBotMemoryDocument({
+            sourceType: "bsky_received_like",
+            sourceId: reactionUri,
+            sourceUri: reactionUri,
+            authorId: did,
+            content: formatReactionMemoryContent(existingLike.liked_post ?? "", "いいね"),
+            occurredAt: new Date(record.createdAt ?? Date.now()),
+            metadata: { subjectUri: uri, reaction: "like", reactionLabel: "いいね" },
+          });
+        }
         return;
       }
 
@@ -255,21 +261,26 @@ export async function onLike(event: any) {
       });
       const text = (response.data.value as any).text;
 
-      // 再試行時にenergyや既存like集計を二重加算しないよう、記憶を先に確定する。
-      await upsertBotMemoryDocument({
-        sourceType: "bsky_received_like",
-        sourceId: reactionUri,
-        sourceUri: reactionUri,
-        authorId: did,
-        content: formatReactionMemoryContent(text, "いいね"),
-        occurredAt: new Date(record.createdAt ?? Date.now()),
-        metadata: { subjectUri: uri, reaction: "like", reactionLabel: "いいね" },
-      });
+      // 購読者のリアクションだけを返信用・RAG用の記憶として確定する。
+      if (rememberLike) {
+        await upsertBotMemoryDocument({
+          sourceType: "bsky_received_like",
+          sourceId: reactionUri,
+          sourceUri: reactionUri,
+          authorId: did,
+          content: formatReactionMemoryContent(text, "いいね"),
+          occurredAt: new Date(record.createdAt ?? Date.now()),
+          metadata: { subjectUri: uri, reaction: "like", reactionLabel: "いいね" },
+        });
+      }
 
       // Update BioRhythm and DB
       await botBiothythmManager.addLike();
 
-      await MemoryService.upsertLike({ did, liked_post: text, uri });
+      if (rememberLike) {
+        await MemoryService.upsertLike({ did, liked_post: text, uri });
+      }
+      // 全体の反応数とenergyは従来仕様を維持するため、集計イベントは全員分を残す。
       await MemoryService.logUsage('like', did, { uri, text });
     }, {
       retries: 3,

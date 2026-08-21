@@ -6,6 +6,8 @@ import {
   isBotMemorySourceType,
   mergeBotMemoryRanks,
   shouldRememberAffirmedPost,
+  shouldRememberBskyLike,
+  selectReplyMemoryContext,
 } from "../src/botMemory.js";
 
 const row = (id: number, occurredAt = new Date("2026-08-21T00:00:00Z")) => ({
@@ -19,6 +21,11 @@ const row = (id: number, occurredAt = new Date("2026-08-21T00:00:00Z")) => ({
   occurredAt,
   affirmationScore: null,
   metadata: null,
+});
+
+test("Bluesky like memory is subscriber-only", () => {
+  assert.equal(shouldRememberBskyLike(true), true);
+  assert.equal(shouldRememberBskyLike(false), false);
 });
 
 test("memory content hash is deterministic and content-sensitive", () => {
@@ -63,4 +70,23 @@ test("RRF uses recency as a deterministic tie breaker", () => {
     60,
   );
   assert.deepEqual(result.map((item) => item.id), [1, 2]);
+});
+
+test("reply context uses stored rows without re-embedding candidates", () => {
+  const ownLexical = { ...row(10), content: "本人の語彙一致", lexicalRank: 1, relevance: 0.01 };
+  const friendLexical = { ...row(11), lexicalRank: 1, relevance: 0.01 };
+  const friendSemantic = { ...row(12), semanticRank: 1, relevance: 0.02 };
+  const selected = selectReplyMemoryContext(
+    [ownLexical],
+    [friendLexical, friendSemantic],
+  );
+  assert.deepEqual(selected.relatedPosts, ["本人の語彙一致"]);
+  assert.equal(selected.friendMemory?.id, 12);
+});
+
+test("reply friend candidate excludes bot authors and lexical-only fallback", () => {
+  const lexical = { ...row(20), authorId: "did:user", lexicalRank: 1, relevance: 0.01 };
+  const bot = { ...row(21), authorId: "did:bot", semanticRank: 1, relevance: 0.02 };
+  const selected = selectReplyMemoryContext([], [lexical, bot], ["did:bot"]);
+  assert.equal(selected.friendMemory, undefined);
 });
