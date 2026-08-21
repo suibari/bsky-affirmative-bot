@@ -228,8 +228,14 @@ export async function closeBotMemoryBackfillDatabase() {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  void runBotMemoryBackfill(apply).catch((error) => {
-    console.error("[BOT_MEMORY_BACKFILL] failed", error);
-    process.exitCode = 1;
-  });
+  void (async () => {
+    try {
+      await runBotMemoryBackfill(apply);
+    } catch (error) {
+      console.error("[BOT_MEMORY_BACKFILL] failed", error);
+      process.exitCode = 1;
+    } finally {
+      await closeBotMemoryBackfillDatabase();
+    }
+  })();
 }
