@@ -16,6 +16,7 @@ export type BotJetstreamOptions = {
   endpoint: string | undefined;
   wantedCollections: string[];
   onCreate?: Record<string, JetstreamCallback>;
+  onUpdate?: Record<string, JetstreamCallback>;
   onDelete?: Record<string, JetstreamCallback>;
   onHealth?: (event: JetstreamHealthEvent) => void;
   healthIntervalMs?: number;
@@ -36,6 +37,7 @@ export function startBotJetstream({
   endpoint,
   wantedCollections,
   onCreate = {},
+  onUpdate = {},
   onDelete = {},
   onHealth,
   healthIntervalMs = 30_000,
@@ -94,6 +96,10 @@ export function startBotJetstream({
 
     for (const [collection, callback] of Object.entries(onCreate)) {
       started.onCreate(collection as any, callback as any);
+    }
+
+    for (const [collection, callback] of Object.entries(onUpdate)) {
+      started.onUpdate(collection as any, callback as any);
     }
 
     for (const [collection, callback] of Object.entries(onDelete)) {

@@ -1,5 +1,6 @@
 import {
   db,
+  client,
   initializeDatabases,
   bot_state,
   followers,
@@ -23,13 +24,16 @@ import {
   nagiPreferredNames,
   daily_metrics,
   repo_write_points,
+  bot_memory_documents,
+  bot_memory_usages,
 } from './db.js';
 import { eq, desc, sql, gte, lte, and, gt, inArray, lt, isNull } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { generateEmbedding } from './ollamaEmbed.js';
+import { tryUpsertBotMemoryDocument } from './botMemory.js';
 import { LanguageName, LIMIT_REQUEST_PER_DAY_GEMINI, DailyReport, Stats } from '@bsky-affirmative-bot/shared-configs';
 
-export { initializeDatabases, db, subscribers, followers };
+export { initializeDatabases, db, client, subscribers, followers };
 // affirmative_bot スキーマの生テーブル。名前が汎用的すぎて nagi 側と紛らわしいので bot* に
 // 揃えて出す。Nagi の退会処理が「Nagi 由来の行だけ」を消すために必要。
 export {
@@ -38,9 +42,12 @@ export {
   replies as botReplies,
   interaction as botInteraction,
   affirmations as botAffirmations,
+  bot_memory_documents,
+  bot_memory_usages,
 };
 export * from './nagiSchema.js';
 export * from './health.js';
+export * from './botMemory.js';
 export { filterRelatedHistory, generateEmbedding, generateEmbeddings } from './ollamaEmbed.js';
 export type { DailyReport, Stats };
 
@@ -881,7 +888,19 @@ static async getPost(did: string): Promise<any> {
 
   static async addBiorhythmHistory(status: string, mood: string, mood_en: string, energy: number) {
     try {
-      await db.insert(biorhythm_history).values({ status, mood, mood_en, energy });
+      const [row] = await db
+        .insert(biorhythm_history)
+        .values({ status, mood, mood_en, energy })
+        .returning({ id: biorhythm_history.id, createdAt: biorhythm_history.created_at });
+      if (row) {
+        await tryUpsertBotMemoryDocument({
+          sourceType: 'biorhythm',
+          sourceId: String(row.id),
+          content: mood,
+          occurredAt: row.createdAt,
+          metadata: { status, moodEn: mood_en, energy },
+        });
+      }
     } catch (e) {
       console.error("Failed to add biorhythm history:", e);
     }

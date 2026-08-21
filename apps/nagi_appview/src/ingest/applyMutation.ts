@@ -1,5 +1,8 @@
 import {
   db,
+  bot_memory_documents,
+  botMemoryContentHash,
+  formatReactionMemoryContent,
   nagiActorAnalyses,
   nagiAnalysisJobs,
   nagiChannels,
@@ -260,6 +263,18 @@ export async function applyMutation(
           .delete(nagiNotifications)
           .where(eq(nagiNotifications.subjectUri, uri));
         await tx
+          .update(bot_memory_documents)
+          .set({
+            deleted_at: new Date(),
+            embedding: null,
+            embedding_model: null,
+            updated_at: new Date(),
+          })
+          .where(or(
+            eq(bot_memory_documents.source_uri, uri),
+            sql`${bot_memory_documents.metadata}->>'subjectUri' = ${uri}`,
+          ));
+        await tx
           .delete(nagiCommunityAffirmations)
           .where(eq(nagiCommunityAffirmations.sourceUri, uri));
         if (quotingSourceUris.length)
@@ -271,6 +286,20 @@ export async function applyMutation(
       }
       if (collection === NAGI.reaction) {
         await tx.delete(nagiReactions).where(eq(nagiReactions.uri, uri));
+        await tx
+          .update(bot_memory_documents)
+          .set({
+            deleted_at: new Date(),
+            embedding: null,
+            embedding_model: null,
+            updated_at: new Date(),
+          })
+          .where(
+            and(
+              eq(bot_memory_documents.source_type, "nagi_received_reaction"),
+              eq(bot_memory_documents.source_id, uri),
+            ),
+          );
         await tx
           .delete(nagiNotifications)
           .where(eq(nagiNotifications.reasonUri, uri));
@@ -436,6 +465,63 @@ export async function applyMutation(
               deletedAt: null,
             },
           });
+        const memoryHash = botMemoryContentHash(value.text);
+        const memoryPrivate = value.kossori === true || value.channelOnly === true;
+        await tx
+          .update(bot_memory_documents)
+          .set(memoryPrivate
+            ? {
+                deleted_at: new Date(),
+                embedding: null,
+                embedding_model: null,
+                updated_at: new Date(),
+              }
+            : {
+                content: value.text,
+                content_hash: memoryHash,
+                embedding: sql`case when ${bot_memory_documents.content_hash} is distinct from ${memoryHash} then null else ${bot_memory_documents.embedding} end`,
+                embedding_model: sql`case when ${bot_memory_documents.content_hash} is distinct from ${memoryHash} then null else ${bot_memory_documents.embedding_model} end`,
+                deleted_at: null,
+                updated_at: new Date(),
+              })
+          .where(eq(bot_memory_documents.source_uri, uri));
+        const reactionMemories = await tx
+          .select({
+            id: bot_memory_documents.id,
+            metadata: bot_memory_documents.metadata,
+          })
+          .from(bot_memory_documents)
+          .where(and(
+            eq(bot_memory_documents.source_type, "nagi_received_reaction"),
+            sql`${bot_memory_documents.metadata}->>'subjectUri' = ${uri}`,
+            isNull(bot_memory_documents.deleted_at),
+          ));
+        for (const reactionMemory of reactionMemories) {
+          if (memoryPrivate) {
+            await tx
+              .update(bot_memory_documents)
+              .set({ deleted_at: new Date(), embedding: null, embedding_model: null, updated_at: new Date() })
+              .where(eq(bot_memory_documents.id, reactionMemory.id));
+            continue;
+          }
+          const metadata = (reactionMemory.metadata ?? {}) as Record<string, unknown>;
+          const label = typeof metadata.reactionLabel === "string"
+            ? metadata.reactionLabel
+            : [metadata.emojiName ?? metadata.emoji, metadata.emojiAlt]
+                .filter((item): item is string => typeof item === "string" && item.length > 0)
+                .join(" ");
+          const content = formatReactionMemoryContent(value.text, label || "リアクション");
+          await tx
+            .update(bot_memory_documents)
+            .set({
+              content,
+              content_hash: botMemoryContentHash(content),
+              embedding: null,
+              embedding_model: null,
+              updated_at: new Date(),
+            })
+            .where(eq(bot_memory_documents.id, reactionMemory.id));
+        }
         // スレッドルートの所属を配下の返信へ配る。これ1つで「返信がルートより先に届いた
         // （firehose の順序前後・reconcile・backfill）」と「ルートの編集で所属が変わった」の
         // 両方を吸収する。差分がある行だけ触るので、通常の新規投稿では0行更新で済む。
@@ -616,6 +702,13 @@ export async function applyMutation(
             await tx
               .delete(nagiReactions)
               .where(eq(nagiReactions.uri, sameUri.uri));
+            await tx
+              .update(bot_memory_documents)
+              .set({ deleted_at: new Date(), embedding: null, embedding_model: null, updated_at: new Date() })
+              .where(and(
+                eq(bot_memory_documents.source_type, "nagi_received_reaction"),
+                eq(bot_memory_documents.source_id, sameUri.uri),
+              ));
           }
         } else {
           if (
@@ -634,6 +727,13 @@ export async function applyMutation(
             await tx
               .delete(nagiReactions)
               .where(eq(nagiReactions.uri, sameMeaning.uri));
+            await tx
+              .update(bot_memory_documents)
+              .set({ deleted_at: new Date(), embedding: null, embedding_model: null, updated_at: new Date() })
+              .where(and(
+                eq(bot_memory_documents.source_type, "nagi_received_reaction"),
+                eq(bot_memory_documents.source_id, sameMeaning.uri),
+              ));
           }
           await tx
             .insert(nagiReactions)
@@ -961,6 +1061,58 @@ export async function applyMutation(
                   subject[0].embedImages.length > 0,
                 hasQuote: Boolean(subject[0].quoteUri),
               }),
+            });
+        }
+        if (
+          subject[0] &&
+          subject[0].did === config.botDid &&
+          !subject[0].kossori &&
+          !subject[0].channelOnly
+        ) {
+          const reactionLabel = bluemoji
+            ? [bluemoji.name, bluemoji.alt].filter(Boolean).join(" ")
+            : value.emoji.normalize("NFC");
+          const content = formatReactionMemoryContent(subject[0].text, reactionLabel);
+          const contentHash = botMemoryContentHash(content);
+          await tx
+            .insert(bot_memory_documents)
+            .values({
+              source_type: "nagi_received_reaction",
+              source_id: uri,
+              source_uri: uri,
+              author_id: did,
+              content,
+              occurred_at: createdAt,
+              metadata: {
+                subjectUri: subject[0].uri,
+                emoji: value.emoji,
+                emojiUri: bluemoji?.uri ?? null,
+                emojiName: bluemoji?.name ?? null,
+                emojiAlt: bluemoji?.alt ?? null,
+                reactionLabel,
+              },
+              content_hash: contentHash,
+            })
+            .onConflictDoUpdate({
+              target: [bot_memory_documents.source_type, bot_memory_documents.source_id],
+              set: {
+                author_id: did,
+                content,
+                occurred_at: createdAt,
+                metadata: {
+                  subjectUri: subject[0].uri,
+                  emoji: value.emoji,
+                  emojiUri: bluemoji?.uri ?? null,
+                  emojiName: bluemoji?.name ?? null,
+                  emojiAlt: bluemoji?.alt ?? null,
+                  reactionLabel,
+                },
+                content_hash: contentHash,
+                embedding: sql`case when ${bot_memory_documents.content_hash} is distinct from ${contentHash} then null else ${bot_memory_documents.embedding} end`,
+                embedding_model: sql`case when ${bot_memory_documents.content_hash} is distinct from ${contentHash} then null else ${bot_memory_documents.embedding_model} end`,
+                deleted_at: null,
+                updated_at: new Date(),
+              },
             });
         }
       }

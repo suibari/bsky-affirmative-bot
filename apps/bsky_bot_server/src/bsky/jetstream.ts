@@ -12,6 +12,9 @@ export async function startWebSocket(
   followCallback?: JetstreamCallback,
   likeCallback?: JetstreamCallback,
   followDeleteCallback?: JetstreamCallback,
+  postUpdateCallback?: JetstreamCallback,
+  postDeleteCallback?: JetstreamCallback,
+  likeDeleteCallback?: JetstreamCallback,
 ) {
   connection?.close();
 
@@ -27,10 +30,15 @@ export async function startWebSocket(
       ...(followCallback ? { "app.bsky.graph.follow": followCallback } : {}),
       ...(likeCallback ? { "app.bsky.feed.like": likeCallback } : {}),
     },
+    onUpdate: {
+      ...(postUpdateCallback ? { "app.bsky.feed.post": postUpdateCallback } : {}),
+    },
     onDelete: {
       ...(followDeleteCallback
         ? { "app.bsky.graph.follow": followDeleteCallback }
         : {}),
+      ...(postDeleteCallback ? { "app.bsky.feed.post": postDeleteCallback } : {}),
+      ...(likeDeleteCallback ? { "app.bsky.feed.like": likeDeleteCallback } : {}),
     },
     onHealth: (event) => {
       const report = event.ok

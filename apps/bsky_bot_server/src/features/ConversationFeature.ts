@@ -18,6 +18,7 @@ import { generateQuestionsAnswer } from "@bsky-affirmative-bot/bot-brain";
 import { postContinuous } from "../bsky/postContinuous.js";
 import { generateWhimsicalReply } from "@bsky-affirmative-bot/bot-brain";
 import { like } from "../bsky/like.js";
+import { tryUpsertBotMemoryDocument } from "@bsky-affirmative-bot/database";
 
 export class ConversationFeature implements BotFeature {
     name = "Conversation";
@@ -36,6 +37,15 @@ export class ConversationFeature implements BotFeature {
             reply: record.text,
             uri: uri,
             isRead: 0
+        });
+        await tryUpsertBotMemoryDocument({
+            sourceType: "bsky_received_reply",
+            sourceId: uri,
+            sourceUri: uri,
+            authorId: follower.did,
+            content: record.text,
+            occurredAt: new Date(record.createdAt),
+            metadata: { receivedByBot: true },
         });
         await MemoryService.logUsage('reply', follower.did);
         console.log(`[INFO][${follower.did}] new reply to me, so memorized`);

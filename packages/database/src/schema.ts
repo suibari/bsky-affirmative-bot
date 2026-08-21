@@ -8,7 +8,9 @@ import {
   pgSchema,
   customType,
   index,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 const vector = customType<{ data: number[]; driverData: string; config: { dimensions: number } }>({
   dataType(config) {
@@ -128,6 +130,65 @@ export const biorhythm_history = affirmativeBotSchema.table("biorhythm_history",
   energy: integer("energy").notNull(),
   created_at: timestamp("created_at").defaultNow().notNull(),
 });
+
+/**
+ * Bluesky / Nagi / biorhythm / YouTube を横断する、botたんの内部記憶。
+ *
+ * ユーザー入力はすべて untrusted data として扱う。Nagi の kossori / channelOnly は
+ * この表へ入れず、公開範囲を後段の検索だけに委ねない。
+ */
+export const bot_memory_documents = affirmativeBotSchema.table(
+  "bot_memory_documents",
+  {
+    id: serial("id").primaryKey(),
+    source_type: text("source_type").notNull(),
+    source_id: text("source_id").notNull(),
+    source_uri: text("source_uri"),
+    author_id: text("author_id"),
+    content: text("content").notNull(),
+    bot_response: text("bot_response"),
+    occurred_at: timestamp("occurred_at", { withTimezone: true }).notNull(),
+    affirmation_score: integer("affirmation_score"),
+    metadata: jsonb("metadata"),
+    content_hash: text("content_hash").notNull(),
+    embedding_model: text("embedding_model"),
+    embedding: vector("embedding", { dimensions: 1024 }),
+    created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updated_at: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+    deleted_at: timestamp("deleted_at", { withTimezone: true }),
+  },
+  (table) => [
+    uniqueIndex("bot_memory_source_key_idx").on(table.source_type, table.source_id),
+    index("bot_memory_source_occurred_idx").on(table.source_type, table.occurred_at),
+    index("bot_memory_author_occurred_idx").on(table.author_id, table.occurred_at),
+    index("bot_memory_pending_embedding_idx")
+      .on(table.embedding_model, table.updated_at)
+      .where(sql`${table.deleted_at} is null and ${table.embedding} is null`),
+    index("bot_memory_embedding_hnsw_idx").using(
+      "hnsw",
+      table.embedding.op("vector_cosine_ops"),
+    ),
+    index("bot_memory_content_trgm_idx").using("gin", table.content.op("gin_trgm_ops")),
+  ],
+);
+
+/** RAG が実際に採用した記憶。単なる検索候補は記録しない。 */
+export const bot_memory_usages = affirmativeBotSchema.table(
+  "bot_memory_usages",
+  {
+    id: serial("id").primaryKey(),
+    document_id: integer("document_id")
+      .notNull()
+      .references(() => bot_memory_documents.id, { onDelete: "cascade" }),
+    purpose: text("purpose").notNull(),
+    output_ref: text("output_ref"),
+    used_at: timestamp("used_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("bot_memory_usage_document_used_idx").on(table.document_id, table.used_at),
+    index("bot_memory_usage_purpose_used_idx").on(table.purpose, table.used_at),
+  ],
+);
 
 /**
  * bot-tan.com のダッシュボードが描く推移の元データ。

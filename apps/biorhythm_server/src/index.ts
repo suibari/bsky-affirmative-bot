@@ -12,6 +12,8 @@ import {
   parseAllowedOrigins,
   readPositiveInteger,
 } from "./websocketServer.js";
+import { createBotMemoryRouter } from "./botMemoryRouter.js";
+import { startBotMemoryEmbeddingWorker } from "./botMemoryEmbeddingWorker.js";
 
 dotenv.config({ path: '../../.env' });
 
@@ -60,6 +62,7 @@ const requireInternalAuth: express.RequestHandler = (req, res, next) => {
   }
   next();
 };
+app.use(createBotMemoryRouter(INTERNAL_SECRET));
 
 // Endpoints
 app.get("/status", requireInternalAuth, async (req, res) => {
@@ -164,6 +167,7 @@ server.listen(Number(PORT), HOST, async () => {
   try {
     const { initializeDatabases } = await import("@bsky-affirmative-bot/clients");
     await initializeDatabases();
+    startBotMemoryEmbeddingWorker();
 
     await manager.init();
     // 各プロセスのハートビートを読み、ローカル LLM と Nagi ingest を自前で叩く。

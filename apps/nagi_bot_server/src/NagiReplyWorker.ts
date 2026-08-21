@@ -3,6 +3,9 @@ import {
   db,
   nagiBotReplyJobs,
   nagiPostScores,
+  nagiPosts,
+  shouldRememberAffirmedPost,
+  tryUpsertBotMemoryDocument,
 } from "@bsky-affirmative-bot/database";
 import {
   SUPER_POSITIVE_SCORE_THRESHOLD,
@@ -82,6 +85,32 @@ export function startNagiReplyWorker() {
 
     let generationMode: "ai" | "template" | undefined;
     try {
+      // bot宛返信はAI/定型/最終的な生成成否を問わず「受けた入力」として残す。
+      // AppViewの公開判定が確定した行だけを採用する。
+      const incomingRecord = job.recordJson as any;
+      if (incomingRecord?.reply && typeof incomingRecord.text === "string") {
+        const [receivedPost] = await db
+          .select({
+            kossori: nagiPosts.kossori,
+            channelOnly: nagiPosts.channelOnly,
+            deletedAt: nagiPosts.deletedAt,
+          })
+          .from(nagiPosts)
+          .where(eq(nagiPosts.uri, job.sourceUri))
+          .limit(1);
+        if (receivedPost && !receivedPost.kossori && !receivedPost.channelOnly && !receivedPost.deletedAt) {
+          await tryUpsertBotMemoryDocument({
+            sourceType: "nagi_received_reply",
+            sourceId: job.sourceUri,
+            sourceUri: job.sourceUri,
+            authorId: job.authorDid,
+            content: incomingRecord.text,
+            occurredAt: new Date(incomingRecord.createdAt ?? job.createdAt),
+            metadata: { receivedByBot: true },
+          });
+        }
+      }
+
       const decision = await decideNagiReplyMode(job.sourceUri, job.authorDid);
       generationMode = decision.mode;
       let result;
@@ -131,6 +160,37 @@ export function startNagiReplyWorker() {
           })
           .where(eq(nagiBotReplyJobs.sourceUri, job.sourceUri));
       });
+
+      // AppView が確定した公開範囲を正とする。行がまだ無い場合も、非公開を誤って
+      // 横断記憶へ入れるより安全なので次回のバックフィルへ任せる。
+      const [sourcePost] = await db
+        .select({
+          kossori: nagiPosts.kossori,
+          channelOnly: nagiPosts.channelOnly,
+          deletedAt: nagiPosts.deletedAt,
+        })
+        .from(nagiPosts)
+        .where(eq(nagiPosts.uri, job.sourceUri))
+        .limit(1);
+      const record = job.recordJson as any;
+      if (sourcePost && typeof record?.text === "string" && shouldRememberAffirmedPost({
+        surface: "nagi",
+        aiReplyPosted: generationMode === "ai",
+        isTopLevel: !record.reply,
+        isPublic: !sourcePost.kossori && !sourcePost.channelOnly && !sourcePost.deletedAt,
+      })) {
+        await tryUpsertBotMemoryDocument({
+          sourceType: "nagi_affirmed_post",
+          sourceId: job.sourceUri,
+          sourceUri: job.sourceUri,
+          authorId: job.authorDid,
+          content: record.text,
+          botResponse: null,
+          occurredAt: new Date(record.createdAt ?? job.createdAt),
+          affirmationScore: result.score ?? null,
+          metadata: { replyUri: result.uri, generationMode: "ai" },
+        });
+      }
 
       // 超ポジティブLvはBlueskyと共通のカウンタ（followers.positivity_level）。
       // ジョブは既に posted なので、ここでの失敗はログのみ（リトライで二重加算させない）。

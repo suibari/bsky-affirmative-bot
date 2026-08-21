@@ -9,8 +9,25 @@ import { follow } from "./follow.js";
 import { replyGreets } from "./replyGreets.js";
 import retry from 'async-retry';
 import { ProfileView } from "@atproto/api/dist/client/types/app/bsky/actor/defs.js";
+import { formatReactionMemoryContent, tombstoneBotMemoriesBySubjectUri, tombstoneBotMemoriesByUri, tombstoneBotMemoryDocument, updateBotMemoriesByUri, updateBotReactionMemorySubjects, upsertBotMemoryDocument } from "@bsky-affirmative-bot/database";
 
 import { FeatureContext } from "../features/types.js";
+
+function eventPostUri(event: any) {
+  return `at://${event.did}/${event.commit.collection}/${event.commit.rkey}`;
+}
+
+export async function onPostUpdate(event: any) {
+  const text = event.commit?.record?.text;
+  if (typeof text !== "string") return;
+  await updateBotMemoriesByUri(eventPostUri(event), text);
+  await updateBotReactionMemorySubjects(eventPostUri(event), text);
+}
+
+export async function onPostDelete(event: any) {
+  await tombstoneBotMemoriesByUri(eventPostUri(event));
+  await tombstoneBotMemoriesBySubjectUri(eventPostUri(event));
+}
 
 export async function onPost(event: any) {
   const authorDid = event.did;
@@ -215,7 +232,19 @@ export async function onLike(event: any) {
     await retry(async () => {
       const uri = record.subject.uri;
       const existingLike = await MemoryService.getLike(did);
-      if (existingLike && existingLike.uri === uri) return;
+      const reactionUri = eventPostUri(event);
+      if (existingLike && existingLike.uri === uri) {
+        await upsertBotMemoryDocument({
+          sourceType: "bsky_received_like",
+          sourceId: reactionUri,
+          sourceUri: reactionUri,
+          authorId: did,
+          content: formatReactionMemoryContent(existingLike.liked_post ?? "", "いいね"),
+          occurredAt: new Date(record.createdAt ?? Date.now()),
+          metadata: { subjectUri: uri, reaction: "like", reactionLabel: "いいね" },
+        });
+        return;
+      }
 
       console.log(`[INFO] Detected like from: ${did}`);
 
@@ -225,6 +254,17 @@ export async function onLike(event: any) {
         rkey,
       });
       const text = (response.data.value as any).text;
+
+      // 再試行時にenergyや既存like集計を二重加算しないよう、記憶を先に確定する。
+      await upsertBotMemoryDocument({
+        sourceType: "bsky_received_like",
+        sourceId: reactionUri,
+        sourceUri: reactionUri,
+        authorId: did,
+        content: formatReactionMemoryContent(text, "いいね"),
+        occurredAt: new Date(record.createdAt ?? Date.now()),
+        metadata: { subjectUri: uri, reaction: "like", reactionLabel: "いいね" },
+      });
 
       // Update BioRhythm and DB
       await botBiothythmManager.addLike();
@@ -240,6 +280,10 @@ export async function onLike(event: any) {
   } catch (e) {
     console.error(`[ERROR][${did}] onLike failed:`, e);
   }
+}
+
+export async function onLikeDelete(event: any) {
+  await tombstoneBotMemoryDocument("bsky_received_like", eventPostUri(event));
 }
 
 async function isBotUser(did: string): Promise<boolean> {

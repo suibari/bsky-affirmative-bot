@@ -8,6 +8,8 @@ import { replyAI } from "./replyai.js";
 import { replyRandom } from "./replyrandom.js";
 import { MemoryService } from "@bsky-affirmative-bot/clients";
 import retry from 'async-retry';
+import { shouldRememberAffirmedPost, tryUpsertBotMemoryDocument } from "@bsky-affirmative-bot/database";
+import { uniteDidNsidRkey } from "../bsky/util.js";
 
 const MINUTES_THRD_RESPONSE = 10 * 60 * 1000;
 
@@ -99,6 +101,7 @@ export class NormalReplyFeature implements BotFeature {
 
         const text = record.text || "";
         let score: number | undefined;
+        let aiReplyPosted = false;
 
         if (replyType === "ai") {
             if (await MemoryService.checkRPD()) {
@@ -117,6 +120,7 @@ export class NormalReplyFeature implements BotFeature {
                         }
                     );
                     score = result?.score ?? undefined;
+                    aiReplyPosted = true;
                 } catch (err: any) {
                     console.error(`[ERROR][${did}] Gemini reply failed after all retries. Falling back to replyRandom. Error:`, err.message);
                     await replyRandom(follower, event);
@@ -138,6 +142,27 @@ export class NormalReplyFeature implements BotFeature {
 
         await MemoryService.upsertFollowerInteraction(did);
         await MemoryService.logUsage(this.name, did, score !== undefined ? { text, score } : { text });
+        // 1万人規模の全投稿を記憶するとノイズになるため、実際にAI返信できた
+        // 投稿だけを横断記憶へ入れる。定型文およびAI失敗後のfallbackは対象外。
+        if (shouldRememberAffirmedPost({
+            surface: "bsky",
+            aiReplyPosted,
+            isTopLevel: true,
+            isPublic: true,
+            isSubscriber,
+        })) {
+            const uri = uniteDidNsidRkey(did, event.commit.collection, event.commit.rkey);
+            await tryUpsertBotMemoryDocument({
+                sourceType: "bsky_affirmed_post",
+                sourceId: uri,
+                sourceUri: uri,
+                authorId: did,
+                content: text,
+                occurredAt: new Date(record.createdAt),
+                affirmationScore: score ?? null,
+                metadata: { replyType: "ai" },
+            });
+        }
     }
 
     private isJudgeByFreq(probability: number) {

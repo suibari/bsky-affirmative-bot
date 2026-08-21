@@ -6,7 +6,7 @@ import { scheduleAllUserDiaries } from "./features/DiaryFeature.js";
 import { scheduleSubscriberLabelSync } from "./features/SubscriberLabelFeature.js";
 import { scheduleRegularBadgeSync } from "./features/RoomVisitBadgeFeature.js";
 import { updateFollowers, loadFollowersFromCache } from "./bsky/followerManagement.js";
-import { onPost, onFollow, onLike } from "./bsky/callbacks.js";
+import { onPost, onFollow, onLike, onLikeDelete, onPostUpdate, onPostDelete } from "./bsky/callbacks.js";
 import { router } from "./routes.js";
 import { logAiRouteTable } from "@bsky-affirmative-bot/shared-configs";
 import axios from "axios";
@@ -64,7 +64,7 @@ app.listen(PORT, "127.0.0.1", async () => {
       console.error("[ERROR] Failed to schedule regular badges:", e);
     });
 
-    startWebSocket(onPost, onFollow, onLike);
+    startWebSocket(onPost, onFollow, onLike, undefined, onPostUpdate, onPostDelete, onLikeDelete);
 
     // このプロセス自体の死活。bot-tan.com のダッシュボードが「botたんサーバー」
     // タイルの内訳として読む。
