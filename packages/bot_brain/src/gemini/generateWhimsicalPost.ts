@@ -32,6 +32,13 @@ export interface WhimsicalPostGenerateParams {
   giftContext?: { content: string; displayName: string; type: "used" };
   youtubeShortUrl?: string;
   youtubeShortTitle?: string;
+  youtubeLive?: {
+    url: string;
+    scheduledStartAt: Date;
+    scheduledEndAt: Date;
+  };
+  /** 時刻境界テスト用。通常は現在時刻。 */
+  now?: Date;
   excludedNewsArticleIds?: string[];
   newsCandidates?: PositiveNewsCandidate[];
   forceNewsRefresh?: boolean;
@@ -103,10 +110,56 @@ export interface WhimsicalPostGenerateResult {
   textJa: string;
   textEn: string;
   usedYoutubeShort: boolean;
+  usedYoutubeLive: boolean;
   selectedNewsArticleId?: string;
   selectedNewsUrl?: string;
   newsDiagnostics?: NewsScreeningDiagnostics;
   selectedMemoryDocumentIds: number[];
+}
+
+const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
+
+function jstHourMinute(date: Date): [number, number] {
+  const shifted = new Date(date.getTime() + JST_OFFSET_MS);
+  return [shifted.getUTCHours(), shifted.getUTCMinutes()];
+}
+
+export function buildYoutubeLiveFeature(params: {
+  langStr: LanguageName;
+  live?: WhimsicalPostGenerateParams["youtubeLive"];
+  now: Date;
+}): string | undefined {
+  if (!params.live) return undefined;
+  const start = params.live.scheduledStartAt;
+  const end = params.live.scheduledEndAt;
+  const shiftedStart = new Date(start.getTime() + JST_OFFSET_MS);
+  const jstMidnight = Date.UTC(
+    shiftedStart.getUTCFullYear(),
+    shiftedStart.getUTCMonth(),
+    shiftedStart.getUTCDate(),
+  ) - JST_OFFSET_MS;
+  const promotionStart = new Date(jstMidnight + 4 * 60 * 60 * 1000);
+  const promotionEnd = new Date(end.getTime() - 10 * 60 * 1000);
+  if (params.now < promotionStart || params.now >= promotionEnd) return undefined;
+
+  const [startHour, startMinute] = jstHourMinute(start);
+  const [endHour, endMinute] = jstHourMinute(end);
+  const startText = `${startHour}:${String(startMinute).padStart(2, "0")}`;
+  const endText = `${endHour}:${String(endMinute).padStart(2, "0")}`;
+  const isLive = params.now >= start;
+  if (params.langStr === "日本語") {
+    return isLive
+      ? `botたんがいまYouTubeでライブ配信中で、${endText}までコメントに全部お返事していることの紹介。URLは ${params.live.url}`
+      : `botたんが今日${startText}〜${endText}にYouTubeライブをして、コメントに全部お返事することの紹介。URLは ${params.live.url}`;
+  }
+  return isLive
+    ? `Introducing bot-tan's YouTube Live, streaming now until ${endText} JST and replying to every comment! URL: ${params.live.url}`
+    : `Introducing bot-tan's YouTube Live today from ${startText} to ${endText} JST, replying to every comment! URL: ${params.live.url}`;
+}
+
+export function ensureSelectedFeatureUrl(text: string, url?: string): string {
+  if (!url || text.includes(url)) return text;
+  return `${text.trim()}\n\n${url}`;
 }
 
 export function sanitizeMemoryDocumentSelection(
@@ -135,7 +188,12 @@ export class WhimsicalPostGenerator {
     const history = this.historyMap[lang] ?? [];
 
     const wantElement = await this.getWantElement(params);
-    const { feature: botFunction, usedYoutubeShort } = this.getBotFunctions(params);
+    const {
+      feature: botFunction,
+      usedYoutubeShort,
+      usedYoutubeLive,
+      selectedUrl,
+    } = this.getBotFunctions(params);
 
     // --- Step 1 各パーツ生成 ---
     const first = await generateContentWithRetry({
@@ -220,8 +278,14 @@ Structure: ${JSON.stringify(structure)}`
     });
 
     const parsed = JSON.parse(second.text || "{}") as { textJa?: string; textEn?: string };
-    const textJa = normalizeUrlSpacing(parsed.textJa ?? "");
-    const textEn = normalizeUrlSpacing(parsed.textEn ?? "");
+    const textJa = ensureSelectedFeatureUrl(
+      normalizeUrlSpacing(parsed.textJa ?? ""),
+      selectedUrl,
+    );
+    const textEn = ensureSelectedFeatureUrl(
+      normalizeUrlSpacing(parsed.textEn ?? ""),
+      selectedUrl,
+    );
 
     this.saveHistory("日本語", textJa);
     this.saveHistory("English", textEn);
@@ -230,6 +294,7 @@ Structure: ${JSON.stringify(structure)}`
       textJa,
       textEn,
       usedYoutubeShort,
+      usedYoutubeLive,
       selectedNewsArticleId,
       selectedNewsUrl,
       newsDiagnostics: wantElement.newsDiagnostics,
@@ -289,11 +354,21 @@ Structure: ${JSON.stringify(structure)}`
    * @param params 
    * @returns 
    */
-  private getBotFunctions(params: {
-    langStr: LanguageName;
-    youtubeShortUrl?: string;
-    youtubeShortTitle?: string;
-  }): { feature: string; usedYoutubeShort: boolean } {
+  getBotFunctions(
+    params: {
+      langStr: LanguageName;
+      youtubeShortUrl?: string;
+      youtubeShortTitle?: string;
+      youtubeLive?: WhimsicalPostGenerateParams["youtubeLive"];
+      now?: Date;
+    },
+    select: (pool: string[]) => string = (pool) => getRandomItems(pool, 1)[0],
+  ): {
+    feature: string;
+    usedYoutubeShort: boolean;
+    usedYoutubeLive: boolean;
+    selectedUrl?: string;
+  } {
     const features = params.langStr === "日本語" ? [
       "あなたが持っている「占い」機能の紹介：1日1回今日の運勢が占える。「占い」とリプすれば、結果画像とともに【今日のラッキーバッジ】がもらえる。",
       "あなたが持っている「性格分析」機能の紹介：1週間に1回性格診断ができる。「分析して」とリプすれば、分析結果画像とともにあなたの性格に合った【称号バッジ】がもらえる。",
@@ -333,10 +408,27 @@ Structure: ${JSON.stringify(structure)}`
       );
     }
 
+    const youtubeLiveFeature = buildYoutubeLiveFeature({
+      langStr: params.langStr,
+      live: params.youtubeLive,
+      now: params.now ?? new Date(),
+    });
+    if (youtubeLiveFeature) features.push(youtubeLiveFeature);
+
     const pool = [...features, ...crossSells];
-    const selected = getRandomItems(pool, 1)[0];
+    const selected = select(pool);
     const usedYoutubeShort = !!(params.youtubeShortUrl && selected.includes(params.youtubeShortUrl));
-    return { feature: selected, usedYoutubeShort };
+    const usedYoutubeLive = !!(params.youtubeLive?.url && selected.includes(params.youtubeLive.url));
+    return {
+      feature: selected,
+      usedYoutubeShort,
+      usedYoutubeLive,
+      selectedUrl: usedYoutubeShort
+        ? params.youtubeShortUrl
+        : usedYoutubeLive
+          ? params.youtubeLive?.url
+          : undefined,
+    };
   }
 
   /** 

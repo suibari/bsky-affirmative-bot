@@ -121,6 +121,42 @@ export interface LiveCommentBatch {
   maxId: number | null;
 }
 
+export interface YoutubeLiveBroadcast {
+  broadcastId: string;
+  url: string;
+  title: string | null;
+  scheduledStartAt: Date;
+  scheduledEndAt: Date;
+}
+
+const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
+
+export function getYoutubeLivePromotionBounds(now: Date) {
+  const shifted = new Date(now.getTime() + JST_OFFSET_MS);
+  const jstMidnight = Date.UTC(
+    shifted.getUTCFullYear(),
+    shifted.getUTCMonth(),
+    shifted.getUTCDate(),
+  ) - JST_OFFSET_MS;
+  return {
+    dayStart: new Date(jstMidnight),
+    nextDayStart: new Date(jstMidnight + 24 * 60 * 60 * 1000),
+    promotionStart: new Date(jstMidnight + 4 * 60 * 60 * 1000),
+  };
+}
+
+export function isYoutubeWatchUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:'
+      && (url.hostname === 'www.youtube.com' || url.hostname === 'youtube.com')
+      && url.pathname === '/watch'
+      && Boolean(url.searchParams.get('v'));
+  } catch {
+    return false;
+  }
+}
+
 export type RepoWriteAction = 'create' | 'update' | 'delete';
 
 export interface RepoWritePointUsage {
@@ -186,6 +222,48 @@ export class MemoryService {
         ? null
         : Number(row.max_id),
     };
+  }
+
+  /** JST当日の気まぐれ投稿で紹介できる、終了10分前より前の配信枠。 */
+  static async getTodayYoutubeLiveBroadcast(
+    now = new Date(),
+  ): Promise<YoutubeLiveBroadcast | null> {
+    const bounds = getYoutubeLivePromotionBounds(now);
+    if (now < bounds.promotionStart) return null;
+    try {
+      const rows = await db.execute<{
+        broadcast_id: string;
+        url: string;
+        title: string | null;
+        scheduled_start_at: Date;
+        scheduled_end_at: Date;
+      }>(sql`
+        SELECT broadcast_id, url, title, scheduled_start_at, scheduled_end_at
+        FROM bottan_live.broadcasts
+        WHERE scheduled_start_at >= ${bounds.dayStart}
+          AND scheduled_start_at < ${bounds.nextDayStart}
+          AND scheduled_end_at IS NOT NULL
+          AND ${now} < scheduled_end_at - interval '10 minutes'
+          AND ended_at IS NULL
+        ORDER BY prepared_at DESC NULLS LAST, created_at DESC
+        LIMIT 5
+      `);
+      for (const row of rows) {
+        if (!isYoutubeWatchUrl(row.url)) continue;
+        return {
+          broadcastId: row.broadcast_id,
+          url: row.url,
+          title: row.title,
+          scheduledStartAt: new Date(row.scheduled_start_at),
+          scheduledEndAt: new Date(row.scheduled_end_at),
+        };
+      }
+      return null;
+    } catch (error) {
+      // youtuber側の先行デプロイ前やLAN DB障害でも、通常の定期投稿は継続する。
+      console.error('[WARN][YOUTUBE_LIVE] Failed to get today broadcast:', error);
+      return null;
+    }
   }
 
   static async updateBiorhythmState(state: any) {
