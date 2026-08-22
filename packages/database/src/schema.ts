@@ -213,6 +213,44 @@ export const bot_memory_impression_scans = affirmativeBotSchema.table(
   },
 );
 
+/** RAGで知った作品名・固有名詞を、表示本文を変えずに読み上げるための発話表記。 */
+export const bot_memory_pronunciations = affirmativeBotSchema.table(
+  "bot_memory_pronunciations",
+  {
+    surface: text("surface").primaryKey(),
+    spoken_form: text("spoken_form"),
+    kind: text("kind").notNull(),
+    status: text("status").notNull(),
+    origin: text("origin").notNull(),
+    evidence_count: integer("evidence_count").default(1).notNull(),
+    conflict_count: integer("conflict_count").default(0).notNull(),
+    first_seen_at: timestamp("first_seen_at", { withTimezone: true }).defaultNow().notNull(),
+    last_seen_at: timestamp("last_seen_at", { withTimezone: true }).defaultNow().notNull(),
+    updated_at: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    check("bot_memory_pronunciation_kind_check", sql`${table.kind} in ('work', 'proper_noun')`),
+    check("bot_memory_pronunciation_status_check", sql`${table.status} in ('active', 'ignored', 'disabled')`),
+    check("bot_memory_pronunciation_origin_check", sql`${table.origin} in ('auto', 'manual')`),
+    check(
+      "bot_memory_pronunciation_spoken_form_check",
+      sql`(${table.status} = 'active' and ${table.spoken_form} is not null) or (${table.status} = 'ignored' and ${table.spoken_form} is null) or ${table.status} = 'disabled'`,
+    ),
+    index("bot_memory_pronunciation_status_idx").on(table.status, table.updated_at),
+  ],
+);
+
+/** 同じ印象行を何度もLLMへ送らないための完了印。 */
+export const bot_memory_pronunciation_scans = affirmativeBotSchema.table(
+  "bot_memory_pronunciation_scans",
+  {
+    impression_id: integer("impression_id")
+      .primaryKey()
+      .references(() => bot_memory_impressions.id, { onDelete: "cascade" }),
+    scanned_at: timestamp("scanned_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+);
+
 /** RAG が実際に採用した記憶。単なる検索候補は記録しない。 */
 export const bot_memory_usages = affirmativeBotSchema.table(
   "bot_memory_usages",

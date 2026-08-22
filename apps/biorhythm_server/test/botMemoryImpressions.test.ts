@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { DailyPlanMemoryImpression } from "@bsky-affirmative-bot/database";
 import {
+  buildBotMemoryImpressionPrompt,
   buildMemoryImpressionsSection,
   parseBotMemoryImpressions,
   selectDailyMemoryImpressions,
@@ -63,4 +64,10 @@ test("daily planには媒体だけを示し、投稿者情報を要求しない"
   assert.match(section, /Blueskyでのやりとり/);
   assert.match(section, /投稿者名・原文・URL・個人情報は書かない/);
   assert.match(section, /自然な1件だけ/);
+});
+
+test("抽出プロンプトは架空キャラクターを許可し実在人物と視聴者名を除外する", () => {
+  const prompt = buildBotMemoryImpressionPrompt(documents);
+  assert.match(prompt, /架空キャラクター名は抽出してよい/);
+  assert.match(prompt, /実在人物名、視聴者名/);
 });

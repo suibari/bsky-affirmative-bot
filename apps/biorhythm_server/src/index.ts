@@ -14,6 +14,7 @@ import {
 } from "./websocketServer.js";
 import { startBotMemoryEmbeddingWorker } from "./botMemoryEmbeddingWorker.js";
 import { startBotMemoryImpressionWorker } from "./botMemoryImpressions.js";
+import { startBotMemoryPronunciationWorker } from "./botMemoryPronunciations.js";
 import {
   readBotMemoryInternalServerConfig,
   startBotMemoryInternalServer,
@@ -177,6 +178,7 @@ server.listen(Number(PORT), HOST, async () => {
     await initializeDatabases();
     startBotMemoryEmbeddingWorker();
     startBotMemoryImpressionWorker();
+    startBotMemoryPronunciationWorker();
 
     await manager.init();
     // 各プロセスのハートビートを読み、ローカル LLM と Nagi ingest を自前で叩く。

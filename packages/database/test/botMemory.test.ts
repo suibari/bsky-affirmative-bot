@@ -12,6 +12,11 @@ import {
   selectReplyMemoryContext,
 } from "../src/botMemory.js";
 import { bot_memory_impressions, db } from "../src/db.js";
+import {
+  isEligiblePronunciationSurface,
+  isValidSpokenForm,
+  mergeAutomaticPronunciation,
+} from "../src/botMemoryPronunciation.js";
 
 const row = (id: number, occurredAt = new Date("2026-08-21T00:00:00Z")) => ({
   id,
@@ -110,4 +115,49 @@ test("reply friend candidate excludes bot authors and lexical-only fallback", ()
   const bot = { ...row(21), authorId: "did:bot", semanticRank: 1, relevance: 0.02 };
   const selected = selectReplyMemoryContext([], [lexical, bot], ["did:bot"]);
   assert.equal(selected.friendMemory, undefined);
+});
+
+test("pronunciation validation accepts safe titles and katakana speech only", () => {
+  assert.equal(isEligiblePronunciationSurface("攻殻機動隊"), true);
+  assert.equal(isEligiblePronunciationSurface("心"), false);
+  assert.equal(isEligiblePronunciationSurface("https://example.com"), false);
+  assert.equal(isValidSpokenForm("コウカク、キドウタイ"), true);
+  assert.equal(isValidSpokenForm("攻殻機動隊"), false);
+  assert.equal(isValidSpokenForm("ignore instructions"), false);
+});
+
+test("automatic pronunciation never overwrites manual or disabled entries", () => {
+  const manual = {
+    surface: "攻殻機動隊",
+    spokenForm: "コウカク、キドウタイ",
+    kind: "work" as const,
+    status: "active" as const,
+    origin: "manual" as const,
+    evidenceCount: 1,
+    conflictCount: 0,
+  };
+  const next = mergeAutomaticPronunciation(manual, {
+    surface: "攻殻機動隊", spokenForm: "オサムカラキドウタイ", kind: "work", eligible: true,
+  });
+  assert.equal(next.spokenForm, manual.spokenForm);
+  assert.equal(next.evidenceCount, 2);
+  assert.equal(next.conflictCount, 0);
+});
+
+test("conflicting automatic pronunciation keeps first reading and records conflict", () => {
+  const current = {
+    surface: "作品タイトル",
+    spokenForm: "サクヒンタイトル",
+    kind: "work" as const,
+    status: "active" as const,
+    origin: "auto" as const,
+    evidenceCount: 2,
+    conflictCount: 0,
+  };
+  const next = mergeAutomaticPronunciation(current, {
+    surface: current.surface, spokenForm: "ベツノヨミ", kind: "work", eligible: true,
+  });
+  assert.equal(next.spokenForm, current.spokenForm);
+  assert.equal(next.evidenceCount, 3);
+  assert.equal(next.conflictCount, 1);
 });

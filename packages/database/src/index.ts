@@ -27,6 +27,8 @@ import {
   bot_memory_documents,
   bot_memory_impressions,
   bot_memory_impression_scans,
+  bot_memory_pronunciations,
+  bot_memory_pronunciation_scans,
   bot_memory_usages,
 } from './db.js';
 import { eq, desc, sql, gte, lte, and, gt, inArray, lt, isNull } from 'drizzle-orm';
@@ -47,11 +49,14 @@ export {
   bot_memory_documents,
   bot_memory_impressions,
   bot_memory_impression_scans,
+  bot_memory_pronunciations,
+  bot_memory_pronunciation_scans,
   bot_memory_usages,
 };
 export * from './nagiSchema.js';
 export * from './health.js';
 export * from './botMemory.js';
+export * from './botMemoryPronunciation.js';
 export { filterRelatedHistory, generateEmbedding, generateEmbeddings } from './ollamaEmbed.js';
 export type { DailyReport, Stats };
 
