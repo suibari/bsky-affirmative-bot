@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   botMemoryContentHash,
+  dailyPlanImpressionCooldownCondition,
   formatReactionMemoryContent,
   isBotMemorySourceType,
   isBotMemoryImpressionSourceType,
@@ -10,6 +11,7 @@ import {
   shouldRememberBskyLike,
   selectReplyMemoryContext,
 } from "../src/botMemory.js";
+import { bot_memory_impressions, db } from "../src/db.js";
 
 const row = (id: number, occurredAt = new Date("2026-08-21T00:00:00Z")) => ({
   id,
@@ -45,6 +47,17 @@ test("daily plan theme memory includes public Bsky replies regardless of subscri
   assert.equal(isBotMemoryImpressionSourceType("nagi_received_reply"), true);
   assert.equal(isBotMemoryImpressionSourceType("youtube_live_comment"), true);
   assert.equal(isBotMemoryImpressionSourceType("bsky_received_like"), false);
+});
+
+test("daily plan theme cooldown encodes Date as a timestamp string", () => {
+  const cooldown = new Date("2026-08-08T00:10:54.434Z");
+  const query = db
+    .select({ id: bot_memory_impressions.id })
+    .from(bot_memory_impressions)
+    .where(dailyPlanImpressionCooldownCondition(cooldown))
+    .toSQL();
+
+  assert.deepEqual(query.params, [cooldown.toISOString()]);
 });
 
 test("affirmed post memory keeps Nagi AI posts and subscriber-only Bluesky AI posts", () => {

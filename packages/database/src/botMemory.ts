@@ -10,6 +10,7 @@ import {
   lt,
   ne,
   notInArray,
+  or,
   sql,
 } from "drizzle-orm";
 import {
@@ -438,6 +439,14 @@ function impressionSource(sourceType: string): DailyPlanMemoryImpression["source
   return "bsky";
 }
 
+/** timestamp列のencoderを必ず通し、postgres.jsへ生のDateを渡さない。 */
+export function dailyPlanImpressionCooldownCondition(cooldown: Date) {
+  return or(
+    isNull(bot_memory_impressions.last_used_at),
+    lt(bot_memory_impressions.last_used_at, cooldown),
+  );
+}
+
 /** daily plan 用。削除済み原文を除き、半年以内かつ14日間未使用の候補を返す。 */
 export async function getDailyPlanMemoryImpressions(
   now = new Date(),
@@ -467,7 +476,7 @@ export async function getDailyPlanMemoryImpressions(
       isNull(bot_memory_documents.deleted_at),
       eq(bot_memory_impression_scans.content_hash, bot_memory_documents.content_hash),
       gte(bot_memory_documents.occurred_at, since),
-      sql`(${bot_memory_impressions.last_used_at} is null or ${bot_memory_impressions.last_used_at} < ${cooldown})`,
+      dailyPlanImpressionCooldownCondition(cooldown),
     ))
     .orderBy(desc(bot_memory_documents.occurred_at))
     .limit(Math.max(1, Math.min(20, limit)));
