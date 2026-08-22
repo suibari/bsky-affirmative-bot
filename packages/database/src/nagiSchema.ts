@@ -684,11 +684,27 @@ export const nagiPushSubscriptions = nagiSchema.table(
     recipientDid: text("recipient_did").notNull(),
     p256dh: text("p256dh").notNull(),
     auth: text("auth").notNull(),
+    /** ブラウザ/PWAの1 installation。旧クライアント行は次回登録まで null のまま許容する。 */
+    installationId: uuid("installation_id"),
+    /** OAuthなしで同じ installation の購読だけを更新するbearer capabilityのSHA-256。 */
+    capabilityHash: text("capability_hash"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
       .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    lastConfirmedAt: timestamp("last_confirmed_at", { withTimezone: true }),
+    lastSuccessAt: timestamp("last_success_at", { withTimezone: true }),
+    invalidatedAt: timestamp("invalidated_at", { withTimezone: true }),
+    invalidationReason: text("invalidation_reason"),
   },
-  (t) => [index("nagi_push_subscription_did_idx").on(t.recipientDid)],
+  (t) => [
+    index("nagi_push_subscription_did_idx").on(t.recipientDid),
+    uniqueIndex("nagi_push_subscription_installation_idx")
+      .on(t.installationId)
+      .where(sql`${t.installationId} is not null`),
+  ],
 );
 /**
  * ビューア単位のミュート。**他ユーザーに公開してはならない情報**なので、PDS レコード

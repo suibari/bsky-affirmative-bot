@@ -30,7 +30,9 @@ import {
 import { getDiaries } from "../queries/diaries.js";
 import { getPositiveNews, searchNews } from "../queries/positiveNews.js";
 import {
-  deleteSubscription,
+  invalidateInstallation,
+  invalidateOwnSubscription,
+  refreshSubscription,
   upsertSubscription,
 } from "../queries/pushSubscriptions.js";
 import { translatePost, translatePosts } from "../services/translation.js";
@@ -92,6 +94,42 @@ import {
 export const xrpc = Router();
 const limit = (value: unknown) =>
   Math.min(100, Math.max(1, Number(value ?? 50) || 50));
+
+const pushSubscriptionInput = (body: any) => {
+  const endpoint = body?.endpoint;
+  const p256dh = body?.keys?.p256dh;
+  const auth = body?.keys?.auth;
+  if (
+    typeof endpoint !== "string" ||
+    !endpoint.startsWith("https://") ||
+    endpoint.length > 4096 ||
+    typeof p256dh !== "string" ||
+    !p256dh ||
+    p256dh.length > 512 ||
+    typeof auth !== "string" ||
+    !auth ||
+    auth.length > 512
+  ) {
+    throw new ApiError(400, "invalid_request", "Invalid push subscription");
+  }
+  return { endpoint, keys: { p256dh, auth } };
+};
+
+const pushInstallationInput = (body: any) => {
+  const installationId = body?.installationId;
+  const capability = body?.capability;
+  if (
+    typeof installationId !== "string" ||
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      installationId,
+    ) ||
+    typeof capability !== "string" ||
+    !/^[A-Za-z0-9_-]{32,128}$/.test(capability)
+  ) {
+    throw new ApiError(400, "invalid_request", "Invalid push installation");
+  }
+  return { installationId, capability };
+};
 
 // DIDを持たない利用者向け。既存のこっそり投稿APIの認証は緩めず、短命な返信ジョブだけを
 // 別の低レート経路で受ける。本文はタイムライン・検索・みんなで全肯定へ取り込まれない。
@@ -1191,21 +1229,27 @@ xrpc.post(
           "push_unavailable",
           "Push notification delivery is not configured",
         );
-      const endpoint = req.body?.endpoint;
-      const p256dh = req.body?.keys?.p256dh;
-      const auth = req.body?.keys?.auth;
-      if (
-        typeof endpoint !== "string" ||
-        typeof p256dh !== "string" ||
-        typeof auth !== "string"
-      )
-        throw new ApiError(400, "invalid_request", "Invalid push subscription");
-      res.json(
-        await upsertSubscription(req.viewerDid!, {
-          endpoint,
-          keys: { p256dh, auth },
-        }),
+      const sub = pushSubscriptionInput(req.body);
+      const hasInstallation =
+        req.body?.installationId !== undefined ||
+        req.body?.capability !== undefined;
+      const installation = hasInstallation
+        ? pushInstallationInput(req.body)
+        : undefined;
+      const result = await upsertSubscription(
+        req.viewerDid!,
+        sub,
+        installation,
       );
+      if (!result.registered)
+        throw new ApiError(
+          409,
+          result.reason,
+          result.reason === "endpoint_conflict"
+            ? "Push endpoint belongs to another account"
+            : "Push installation belongs to another account",
+        );
+      res.json(result);
     } catch (e) {
       next(e);
     }
@@ -1219,12 +1263,53 @@ xrpc.post(
       const endpoint = req.body?.endpoint;
       if (typeof endpoint !== "string")
         throw new ApiError(400, "invalid_request", "Invalid endpoint");
-      res.json(await deleteSubscription(endpoint));
+      res.json(await invalidateOwnSubscription(req.viewerDid!, endpoint));
     } catch (e) {
       next(e);
     }
   },
 );
+// capabilityは十分なエントロピーを持つinstallation固有のbearer秘密。OAuth sessionを持てない
+// Service Workerでも、紐付くDIDを変更せず自分のPush endpointだけをローテーションできる。
+xrpc.post(`/${NAGI.refreshPushSubscription}`, async (req, res, next) => {
+  try {
+    if (!config.vapid)
+      throw new ApiError(
+        503,
+        "push_unavailable",
+        "Push notification delivery is not configured",
+      );
+    const result = await refreshSubscription(
+      pushInstallationInput(req.body),
+      pushSubscriptionInput(req.body),
+    );
+    if (!result.registered) {
+      if (result.reason === "endpoint_conflict")
+        throw new ApiError(
+          409,
+          "endpoint_conflict",
+          "Push endpoint belongs to another installation",
+        );
+      throw new ApiError(
+        401,
+        "invalid_capability",
+        "Push installation is no longer valid",
+      );
+    }
+    res.set("Cache-Control", "private, no-store").json({ registered: true });
+  } catch (error) {
+    next(error);
+  }
+});
+xrpc.post(`/${NAGI.deletePushInstallation}`, async (req, res, next) => {
+  try {
+    res
+      .set("Cache-Control", "private, no-store")
+      .json(await invalidateInstallation(pushInstallationInput(req.body)));
+  } catch (error) {
+    next(error);
+  }
+});
 // 未サインインユーザーでも翻訳できるよう意図的に無認証にしている。
 // キャッシュヒットまで一律に数えるHTTPリクエスト単位のLimiterは使わず、
 // translation service がDB照会後の未生成投稿数だけをIP単位で制限する。

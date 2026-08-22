@@ -1,6 +1,6 @@
 {
   "lexicon": 1,
-  "id": "com.suibari.nagi.registerPushSubscription",
+  "id": "com.suibari.nagi.refreshPushSubscription",
   "defs": {
     "main": {
       "type": "procedure",
@@ -8,9 +8,8 @@
         "encoding": "application/json",
         "schema": {
           "type": "object",
-          "required": ["endpoint", "keys"],
+          "required": ["installationId", "capability", "endpoint", "keys"],
           "properties": {
-            "endpoint": { "type": "string", "format": "uri" },
             "installationId": {
               "type": "string",
               "minLength": 36,
@@ -21,6 +20,7 @@
               "minLength": 32,
               "maxLength": 128
             },
+            "endpoint": { "type": "string", "format": "uri" },
             "keys": { "type": "ref", "ref": "#pushKeys" }
           }
         }
@@ -33,7 +33,10 @@
           "properties": { "registered": { "type": "boolean" } }
         }
       },
-      "errors": [{ "name": "AuthRequired" }]
+      "errors": [
+        { "name": "InvalidCapability" },
+        { "name": "EndpointConflict" }
+      ]
     },
     "pushKeys": {
       "type": "object",

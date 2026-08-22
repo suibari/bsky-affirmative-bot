@@ -3,8 +3,9 @@ import { db, nagiActors, nagiProfiles } from "@bsky-affirmative-bot/database";
 import { eq } from "drizzle-orm";
 import { config } from "../config.js";
 import {
-  deleteSubscription,
+  invalidateSubscription,
   listSubscriptions,
+  markSubscriptionSuccess,
 } from "../queries/pushSubscriptions.js";
 import { loadMutes } from "../queries/mutes.js";
 import { buildPushPayload, type PushNotificationType } from "./pushPayload.js";
@@ -118,10 +119,14 @@ export async function dispatchPush(job: PushJob): Promise<void> {
           },
         );
         accepted += 1;
+        await markSubscriptionSuccess(sub.endpoint).catch(() => {});
       } catch (e: any) {
         const status = e?.statusCode;
         if (status === 404 || status === 410) {
-          await deleteSubscription(sub.endpoint).catch(() => {});
+          await invalidateSubscription(
+            sub.endpoint,
+            status === 404 ? "push_service_404" : "push_service_410",
+          ).catch(() => {});
           expired += 1;
         } else {
           failed += 1;

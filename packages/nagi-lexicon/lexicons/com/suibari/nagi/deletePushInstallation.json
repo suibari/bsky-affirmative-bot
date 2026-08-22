@@ -1,6 +1,6 @@
 {
   "lexicon": 1,
-  "id": "com.suibari.nagi.registerPushSubscription",
+  "id": "com.suibari.nagi.deletePushInstallation",
   "defs": {
     "main": {
       "type": "procedure",
@@ -8,9 +8,8 @@
         "encoding": "application/json",
         "schema": {
           "type": "object",
-          "required": ["endpoint", "keys"],
+          "required": ["installationId", "capability"],
           "properties": {
-            "endpoint": { "type": "string", "format": "uri" },
             "installationId": {
               "type": "string",
               "minLength": 36,
@@ -20,8 +19,7 @@
               "type": "string",
               "minLength": 32,
               "maxLength": 128
-            },
-            "keys": { "type": "ref", "ref": "#pushKeys" }
+            }
           }
         }
       },
@@ -29,19 +27,11 @@
         "encoding": "application/json",
         "schema": {
           "type": "object",
-          "required": ["registered"],
-          "properties": { "registered": { "type": "boolean" } }
+          "required": ["deleted"],
+          "properties": { "deleted": { "type": "integer", "minimum": 0 } }
         }
       },
-      "errors": [{ "name": "AuthRequired" }]
-    },
-    "pushKeys": {
-      "type": "object",
-      "required": ["p256dh", "auth"],
-      "properties": {
-        "p256dh": { "type": "string" },
-        "auth": { "type": "string" }
-      }
+      "errors": [{ "name": "InvalidCapability" }]
     }
   }
 }
