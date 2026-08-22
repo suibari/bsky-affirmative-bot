@@ -25,6 +25,8 @@ import {
   daily_metrics,
   repo_write_points,
   bot_memory_documents,
+  bot_memory_impressions,
+  bot_memory_impression_scans,
   bot_memory_usages,
 } from './db.js';
 import { eq, desc, sql, gte, lte, and, gt, inArray, lt, isNull } from 'drizzle-orm';
@@ -43,6 +45,8 @@ export {
   interaction as botInteraction,
   affirmations as botAffirmations,
   bot_memory_documents,
+  bot_memory_impressions,
+  bot_memory_impression_scans,
   bot_memory_usages,
 };
 export * from './nagiSchema.js';

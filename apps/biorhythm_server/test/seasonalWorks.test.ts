@@ -227,3 +227,8 @@ test("候補が空なら検査しない（無い日を責めない）", () => {
   const events = [{ status: "WakeUp", activity: "アニソンを聴くよ" }];
   assert.deepEqual(findGenericMediaEvents(events, []), []);
 });
+
+test("会話由来の作品名も固有名詞として一般名詞検査に使う", () => {
+  const events = [{ status: "FreeTime", activity: "葬送のフリーレンのアニメを見る" }];
+  assert.deepEqual(findGenericMediaEvents(events, [], ["葬送のフリーレン"]), []);
+});

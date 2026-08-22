@@ -14,6 +14,8 @@ import {
 } from "drizzle-orm";
 import {
   bot_memory_documents,
+  bot_memory_impressions,
+  bot_memory_impression_scans,
   bot_memory_usages,
   db,
 } from "./db.js";
@@ -71,6 +73,28 @@ export interface BotMemorySearchResult {
   relevance: number;
   semanticRank?: number;
   lexicalRank?: number;
+}
+
+export type BotMemoryImpressionKind = "work" | "word";
+export type BotMemoryImpressionRelation = "recommended" | "liked" | "discussed";
+
+export interface BotMemoryImpressionInput {
+  kind: BotMemoryImpressionKind;
+  label: string;
+  relation: BotMemoryImpressionRelation;
+}
+
+export interface PendingBotMemoryImpressionDocument {
+  id: number;
+  sourceType: BotMemorySourceType;
+  content: string;
+  contentHash: string;
+}
+
+export interface DailyPlanMemoryImpression extends BotMemoryImpressionInput {
+  id: number;
+  source: "bsky" | "nagi" | "youtube";
+  occurredAt: Date;
 }
 
 export function selectReplyMemoryContext(
@@ -320,6 +344,153 @@ export async function saveBotMemoryEmbedding(
     ))
     .returning({ id: bot_memory_documents.id });
   return updated.length > 0;
+}
+
+const IMPRESSION_SOURCE_TYPES: BotMemorySourceType[] = [
+  "bsky_affirmed_post",
+  "bsky_received_reply",
+  "nagi_affirmed_post",
+  "nagi_received_reply",
+  "youtube_live_comment",
+];
+
+export function isBotMemoryImpressionSourceType(
+  sourceType: BotMemorySourceType,
+): boolean {
+  return IMPRESSION_SOURCE_TYPES.includes(sourceType);
+}
+
+/** 未処理、または編集後の公開会話を少量ずつ抽出workerへ渡す。 */
+export async function getPendingBotMemoryImpressionDocuments(
+  limit = 8,
+  now = new Date(),
+): Promise<PendingBotMemoryImpressionDocument[]> {
+  const since = new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000);
+  const rows = await db
+    .select({
+      id: bot_memory_documents.id,
+      sourceType: bot_memory_documents.source_type,
+      content: bot_memory_documents.content,
+      contentHash: bot_memory_documents.content_hash,
+    })
+    .from(bot_memory_documents)
+    .leftJoin(
+      bot_memory_impression_scans,
+      eq(bot_memory_impression_scans.document_id, bot_memory_documents.id),
+    )
+    .where(and(
+      isNull(bot_memory_documents.deleted_at),
+      inArray(bot_memory_documents.source_type, IMPRESSION_SOURCE_TYPES),
+      gte(bot_memory_documents.occurred_at, since),
+      sql`(${bot_memory_impression_scans.document_id} is null or ${bot_memory_impression_scans.content_hash} <> ${bot_memory_documents.content_hash})`,
+    ))
+    .orderBy(desc(bot_memory_documents.occurred_at))
+    .limit(Math.max(1, Math.min(50, limit)));
+  return rows.map((row) => ({
+    ...row,
+    sourceType: row.sourceType as BotMemorySourceType,
+  }));
+}
+
+/** 本文ハッシュが同じ場合だけ抽出結果を確定し、編集との競合で古い結果を残さない。 */
+export async function saveBotMemoryImpressions(
+  documentId: number,
+  contentHash: string,
+  impressions: BotMemoryImpressionInput[],
+): Promise<boolean> {
+  return db.transaction(async (tx) => {
+    const [document] = await tx
+      .select({ contentHash: bot_memory_documents.content_hash })
+      .from(bot_memory_documents)
+      .where(and(
+        eq(bot_memory_documents.id, documentId),
+        eq(bot_memory_documents.content_hash, contentHash),
+        isNull(bot_memory_documents.deleted_at),
+      ))
+      .limit(1);
+    if (!document) return false;
+
+    await tx
+      .delete(bot_memory_impressions)
+      .where(eq(bot_memory_impressions.document_id, documentId));
+    if (impressions.length > 0) {
+      await tx.insert(bot_memory_impressions).values(impressions.map((item) => ({
+        document_id: documentId,
+        kind: item.kind,
+        label: item.label,
+        relation: item.relation,
+      })));
+    }
+    await tx
+      .insert(bot_memory_impression_scans)
+      .values({ document_id: documentId, content_hash: contentHash })
+      .onConflictDoUpdate({
+        target: bot_memory_impression_scans.document_id,
+        set: { content_hash: contentHash, scanned_at: new Date() },
+      });
+    return true;
+  });
+}
+
+function impressionSource(sourceType: string): DailyPlanMemoryImpression["source"] {
+  if (sourceType.startsWith("nagi_")) return "nagi";
+  if (sourceType === "youtube_live_comment") return "youtube";
+  return "bsky";
+}
+
+/** daily plan 用。削除済み原文を除き、半年以内かつ14日間未使用の候補を返す。 */
+export async function getDailyPlanMemoryImpressions(
+  now = new Date(),
+  limit = 8,
+): Promise<DailyPlanMemoryImpression[]> {
+  const since = new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000);
+  const cooldown = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+  const rows = await db
+    .select({
+      id: bot_memory_impressions.id,
+      kind: bot_memory_impressions.kind,
+      label: bot_memory_impressions.label,
+      relation: bot_memory_impressions.relation,
+      sourceType: bot_memory_documents.source_type,
+      occurredAt: bot_memory_documents.occurred_at,
+    })
+    .from(bot_memory_impressions)
+    .innerJoin(
+      bot_memory_documents,
+      eq(bot_memory_documents.id, bot_memory_impressions.document_id),
+    )
+    .innerJoin(
+      bot_memory_impression_scans,
+      eq(bot_memory_impression_scans.document_id, bot_memory_documents.id),
+    )
+    .where(and(
+      isNull(bot_memory_documents.deleted_at),
+      eq(bot_memory_impression_scans.content_hash, bot_memory_documents.content_hash),
+      gte(bot_memory_documents.occurred_at, since),
+      sql`(${bot_memory_impressions.last_used_at} is null or ${bot_memory_impressions.last_used_at} < ${cooldown})`,
+    ))
+    .orderBy(desc(bot_memory_documents.occurred_at))
+    .limit(Math.max(1, Math.min(20, limit)));
+  return rows.map((row) => ({
+    id: row.id,
+    kind: row.kind as BotMemoryImpressionKind,
+    label: row.label,
+    relation: row.relation as BotMemoryImpressionRelation,
+    source: impressionSource(row.sourceType),
+    occurredAt: row.occurredAt,
+  }));
+}
+
+export async function markDailyPlanMemoryImpressionsUsed(
+  ids: number[],
+  usedAt = new Date(),
+) {
+  const unique = [...new Set(ids.filter(Number.isInteger))];
+  if (unique.length === 0) return;
+  await db
+    .update(bot_memory_impressions)
+    .set({ last_used_at: usedAt })
+    .where(inArray(bot_memory_impressions.id, unique));
 }
 
 type RankedRow = Omit<BotMemorySearchResult, "relevance" | "semanticRank" | "lexicalRank">;

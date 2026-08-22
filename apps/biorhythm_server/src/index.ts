@@ -13,6 +13,7 @@ import {
   readPositiveInteger,
 } from "./websocketServer.js";
 import { startBotMemoryEmbeddingWorker } from "./botMemoryEmbeddingWorker.js";
+import { startBotMemoryImpressionWorker } from "./botMemoryImpressions.js";
 import {
   readBotMemoryInternalServerConfig,
   startBotMemoryInternalServer,
@@ -175,6 +176,7 @@ server.listen(Number(PORT), HOST, async () => {
     const { initializeDatabases } = await import("@bsky-affirmative-bot/clients");
     await initializeDatabases();
     startBotMemoryEmbeddingWorker();
+    startBotMemoryImpressionWorker();
 
     await manager.init();
     // 各プロセスのハートビートを読み、ローカル LLM と Nagi ingest を自前で叩く。

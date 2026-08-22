@@ -4,6 +4,7 @@ import {
   botMemoryContentHash,
   formatReactionMemoryContent,
   isBotMemorySourceType,
+  isBotMemoryImpressionSourceType,
   mergeBotMemoryRanks,
   shouldRememberAffirmedPost,
   shouldRememberBskyLike,
@@ -37,6 +38,13 @@ test("source type guard rejects unknown values", () => {
   assert.equal(isBotMemorySourceType("nagi_affirmed_post"), true);
   assert.equal(isBotMemorySourceType("nagi_received_reaction"), true);
   assert.equal(isBotMemorySourceType("kossori"), false);
+});
+
+test("daily plan theme memory includes public Bsky replies regardless of subscription", () => {
+  assert.equal(isBotMemoryImpressionSourceType("bsky_received_reply"), true);
+  assert.equal(isBotMemoryImpressionSourceType("nagi_received_reply"), true);
+  assert.equal(isBotMemoryImpressionSourceType("youtube_live_comment"), true);
+  assert.equal(isBotMemoryImpressionSourceType("bsky_received_like"), false);
 });
 
 test("affirmed post memory keeps Nagi AI posts and subscriber-only Bluesky AI posts", () => {

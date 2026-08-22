@@ -310,9 +310,10 @@ const GENERIC_NOUN_PATTERNS = [
 export function findGenericMediaEvents<T extends { status: string; activity: string }>(
   events: T[],
   works: SeasonalWork[],
+  additionalNames: string[] = [],
 ): T[] {
-  if (works.length === 0) return [];
-  const titles = works.map((work) => work.title);
+  if (works.length === 0 && additionalNames.length === 0) return [];
+  const titles = [...works.map((work) => work.title), ...additionalNames];
   return events.filter((event) => {
     // 勉強中は作品名を入れない方針なので対象外。
     if (event.status === "Study") return false;

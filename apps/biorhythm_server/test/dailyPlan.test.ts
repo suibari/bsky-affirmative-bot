@@ -172,3 +172,18 @@ test("予定生成と描写の両方で、同行者の固定と学校のモル�
   assert.match(section, /ラテちゃんはクラスメイトではありません/);
   assert.match(section, /学校・教室・授業・校庭.*絶対に登場させない/);
 });
+
+test("会話由来のテーマを検索由来作品とは別セクションで予定へ渡す", () => {
+  const prompt = buildDailyPlanPrompt({
+    botDate: "2026-08-22",
+    isWeekend: true,
+    companion: "ひとり",
+    whatDay: [],
+    eventSamples: {},
+    worksSection: "\n-----いま話題のもの-----\n作品A",
+    memoryImpressionsSection: "\n-----みんなとのやりとりで印象に残ったもの-----\n作品B",
+  });
+  assert.match(prompt, /いま話題のもの/);
+  assert.match(prompt, /みんなとのやりとりで印象に残ったもの/);
+  assert.match(prompt, /作品B/);
+});

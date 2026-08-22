@@ -79,6 +79,8 @@ const EXPECTED: Record<AiFeatureKey, [model: string, tier: "flex" | "standard" |
   // biorhythm_server（定期ポスト）
   // 今期の話題作リスト。grounding 付きだが7日キャッシュするので実質週1回。
   BIORHYTHM_SEASONAL_WORKS: [FLASH, "flex"],
+  // 公開会話の非同期バッチ抽出。返信ホットパス外なので lite/flex でよい。
+  BIORHYTHM_MEMORY_IMPRESSIONS: [LITE, "flex"],
   // 今日の予定表。1日1回しか撃たず、落ちると丸1日プラン無しになるので standard。
   BIORHYTHM_DAILY_PLAN: [FLASH, "standard"],
   // 予定表が骨組みを決め、systemInstruction も描写用ブリーフに絞ったので lite で足りる。

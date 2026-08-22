@@ -168,6 +168,17 @@ RAG（Retrieval-Augmented Generation）は、保存、更新・削除同期、�
 
 定型文だけで返したトップレベル投稿は記憶しません。フォロワー全投稿を収集せず、botたんがAIで実際に反応した投稿へ絞ってノイズと保存量を抑えます。Nagiの`kossori`、`channelOnly`、削除済み投稿は保存・検索しません。
 
+### daily plan の会話由来テーマ
+
+`bot_memory_documents` の公開会話から、非同期workerが原文に明示された作品名と印象語だけを
+`bot_memory_impressions` へ抽出します。Blueskyは購読状態を問わずbot宛の公開返信を含み、
+Nagiは`kossori`・`channelOnly`を除く公開会話、YouTubeはsanitize済みコメントが対象です。
+元文書の編集時は本文ハッシュ単位で再抽出し、削除・非公開化された元文書はdaily plan候補から外します。
+
+候補は半年以内、同じ候補の再利用間隔は14日です。会話ネタを毎日強制せず、3 bot日のうち
+2日だけ最大4候補を予定生成へ渡し、実際に固有名・印象語が予定へ入った場合だけ利用済みにします。
+予定文には媒体名だけを出し、投稿者名・原文・URL・個人情報は渡しません。
+
 ### 保存と非同期embedding
 
 `packages/database/src/botMemory.ts`が`(sourceType, sourceId)`単位の冪等upsertを提供します。同じ本文ならembeddingを維持し、編集でcontent hashが変わったときだけNULLへ戻します。削除・非公開化はtombstoneし、検索対象から外します。

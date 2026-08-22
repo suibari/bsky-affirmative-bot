@@ -1,4 +1,9 @@
 import { MemoryService } from "@bsky-affirmative-bot/clients";
+import {
+  getDailyPlanMemoryImpressions,
+  markDailyPlanMemoryImpressionsUsed,
+  type DailyPlanMemoryImpression,
+} from "@bsky-affirmative-bot/database";
 import { generateContentWithRetry } from "@bsky-affirmative-bot/bot-brain";
 import {
   BOT_TASTE_BRIEF_JA,
@@ -13,6 +18,10 @@ import {
   ensureSeasonalWorks,
   findGenericMediaEvents,
 } from "./seasonalWorks.js";
+import {
+  buildMemoryImpressionsSection,
+  selectDailyMemoryImpressions,
+} from "./botMemoryImpressions.js";
 
 /**
  * botたんの「今日の予定表」。
@@ -25,7 +34,7 @@ import {
  * パースが不安定になるが、「botたん自身の意志で行動時間が決まる」という性質は崩したくない。
  * 予定表を立てる時点で botたん（Gemini）が決めておけば、両方を満たせる。
  */
-export const DAILY_PLAN_STATE_KEY = "biorhythm_daily_plan_v2";
+export const DAILY_PLAN_STATE_KEY = "biorhythm_daily_plan_v3";
 
 /** 予定表が扱うステータス。Sleep も夢の描写があるので含める。 */
 const PLANNED_STATUSES: Status[] = ["WakeUp", "Study", "FreeTime", "Relax", "Sleep"];
@@ -215,6 +224,7 @@ export function buildDailyPlanPrompt(input: {
   whatDay: string[];
   eventSamples: Record<string, unknown>;
   worksSection: string;
+  memoryImpressionsSection?: string;
 }): string {
   return `全肯定botたんの「今日1日の予定」を立ててください。
 各 step の細かい描写はこのあと別のAIが担当します。あなたはその素材になる骨組みだけを作ります。
@@ -246,7 +256,7 @@ ${BOT_TASTE_BRIEF_JA}
 -----行動参考例-----
 * 雰囲気の参考です。そのまま使わず、今日の予定として作り直してください。
 ${JSON.stringify(input.eventSamples)}
-${input.worksSection}`;
+${input.worksSection}${input.memoryImpressionsSection ?? ""}`;
 }
 
 async function loadPlan(): Promise<DailyPlan | undefined> {
@@ -299,7 +309,14 @@ export async function ensureDailyPlan(
   if (isPlanFresh(existing, botDate)) return existing;
 
   try {
-    const works = await ensureSeasonalWorks(now);
+    const [works, memoryCandidates] = await Promise.all([
+      ensureSeasonalWorks(now),
+      getDailyPlanMemoryImpressions(now).catch((error) => {
+        console.error("[WARN][BIORHYTHM] Failed to load memory impressions", error);
+        return [] as DailyPlanMemoryImpression[];
+      }),
+    ]);
+    const memoryImpressions = selectDailyMemoryImpressions(memoryCandidates, botDate);
     const basePrompt = buildDailyPlanPrompt({
       botDate,
       isWeekend: input.isWeekend,
@@ -307,6 +324,7 @@ export async function ensureDailyPlan(
       whatDay: getWhatDay(),
       eventSamples: input.eventSamples,
       worksSection: buildSeasonalWorksSection(works),
+      memoryImpressionsSection: buildMemoryImpressionsSection(memoryImpressions),
     });
 
     const generate = async (prompt: string) => {
@@ -335,7 +353,8 @@ export async function ensureDailyPlan(
     // 「お気に入りのアニソンを聴きながら」のような一般名詞のままの予定が残ると、描写側は
     // それを情景に起こすだけなので固有名詞にしようがない。指示だけでは守られなかったので
     // 生成後に検査し、1回だけ直させる。1日1回の呼び出しなので追加コストは小さい。
-    const generic = findGenericMediaEvents(plan.events, works);
+    const memoryLabels = memoryImpressions.map((item) => item.label);
+    const generic = findGenericMediaEvents(plan.events, works, memoryLabels);
     if (generic.length > 0) {
       console.warn(
         `[WARN][BIORHYTHM] Daily plan had ${generic.length} generic media event(s); retrying once: ` +
@@ -347,10 +366,12 @@ export async function ensureDailyPlan(
 -----やり直しの指示-----
 * 前回の予定表には、作品名の無い一般名詞だけの予定が残っていました:
 ${generic.map((event) => `  - ${event.activity}`).join("\n")}
-* これらは「いま話題のもの」の候補から**具体的な名前を入れて書き直す**か、作品に触れない別の予定に差し替えてください。
+* これらは「いま話題のもの」または「みんなとのやりとり」の候補から**具体的な名前を入れて書き直す**か、作品に触れない別の予定に差し替えてください。
 * ほかの予定はそのままでかまいません。予定表全体をもう一度出力してください。`,
       );
-      const stillGeneric = retried ? findGenericMediaEvents(retried.events, works) : [];
+      const stillGeneric = retried
+        ? findGenericMediaEvents(retried.events, works, memoryLabels)
+        : [];
       if (retried && stillGeneric.length <= generic.length) plan = retried;
       if (stillGeneric.length > 0) {
         console.warn(
@@ -360,6 +381,12 @@ ${generic.map((event) => `  - ${event.activity}`).join("\n")}
     }
 
     await savePlan(plan);
+    const usedImpressionIds = memoryImpressions
+      .filter((item) => plan.events.some((event) => event.activity.includes(item.label)))
+      .map((item) => item.id);
+    await markDailyPlanMemoryImpressionsUsed(usedImpressionIds, now).catch((error) => {
+      console.error("[WARN][BIORHYTHM] Failed to mark memory impressions used", error);
+    });
     console.log(
       `[INFO][BIORHYTHM] Daily plan for ${botDate}: ${plan.events.length} events, companion=${plan.companion}`,
     );

@@ -9,6 +9,7 @@ import {
   customType,
   index,
   uniqueIndex,
+  check,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
@@ -170,6 +171,46 @@ export const bot_memory_documents = affirmativeBotSchema.table(
     ),
     index("bot_memory_content_trgm_idx").using("gin", table.content.op("gin_trgm_ops")),
   ],
+);
+
+/** 公開会話から抽出した、daily plan へ再利用できる作品名・印象語。 */
+export const bot_memory_impressions = affirmativeBotSchema.table(
+  "bot_memory_impressions",
+  {
+    id: serial("id").primaryKey(),
+    document_id: integer("document_id")
+      .notNull()
+      .references(() => bot_memory_documents.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(),
+    label: text("label").notNull(),
+    relation: text("relation").notNull(),
+    last_used_at: timestamp("last_used_at", { withTimezone: true }),
+    created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    check("bot_memory_impression_kind_check", sql`${table.kind} in ('work', 'word')`),
+    check(
+      "bot_memory_impression_relation_check",
+      sql`${table.relation} in ('recommended', 'liked', 'discussed')`,
+    ),
+    uniqueIndex("bot_memory_impression_document_label_idx").on(
+      table.document_id,
+      table.label,
+    ),
+    index("bot_memory_impression_last_used_idx").on(table.last_used_at),
+  ],
+);
+
+/** 何も抽出されなかった文書も再走査し続けないための本文ハッシュ単位の完了印。 */
+export const bot_memory_impression_scans = affirmativeBotSchema.table(
+  "bot_memory_impression_scans",
+  {
+    document_id: integer("document_id")
+      .primaryKey()
+      .references(() => bot_memory_documents.id, { onDelete: "cascade" }),
+    content_hash: text("content_hash").notNull(),
+    scanned_at: timestamp("scanned_at", { withTimezone: true }).defaultNow().notNull(),
+  },
 );
 
 /** RAG が実際に採用した記憶。単なる検索候補は記録しない。 */
